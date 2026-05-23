@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
 using Ueditor.Core.Interfaces;
@@ -210,8 +211,11 @@ namespace Ueditor
             var editorWebView = new WebView2
             {
                 HorizontalAlignment = HorizontalAlignment.Stretch,
-                VerticalAlignment = VerticalAlignment.Stretch
+                VerticalAlignment = VerticalAlignment.Stretch,
+                AllowDrop = true
             };
+            editorWebView.DragOver += OnRootDragOver;
+            editorWebView.Drop += OnRootDrop;
             grid.Children.Add(editorWebView);
 
             // Instantiate TabViewItem XAML element
@@ -614,6 +618,56 @@ namespace Ueditor
             }
         }
 
+        private void OnRootDragOver(object sender, DragEventArgs e)
+        {
+            if (e.DataView.Contains(StandardDataFormats.StorageItems))
+            {
+                e.AcceptedOperation = DataPackageOperation.Copy;
+                e.DragUIOverride.Caption = "파일 열기";
+                e.DragUIOverride.IsCaptionVisible = true;
+                e.DragUIOverride.IsContentVisible = true;
+            }
+            else
+            {
+                e.AcceptedOperation = DataPackageOperation.None;
+            }
+        }
+
+        private async void OnRootDrop(object sender, DragEventArgs e)
+        {
+            if (!e.DataView.Contains(StandardDataFormats.StorageItems))
+            {
+                return;
+            }
+
+            try
+            {
+                var items = await e.DataView.GetStorageItemsAsync();
+                foreach (var item in items)
+                {
+                    if (string.IsNullOrWhiteSpace(item.Path))
+                    {
+                        continue;
+                    }
+
+                    if (File.Exists(item.Path))
+                    {
+                        await LoadFileIntoTabAsync(item.Path);
+                    }
+                    else if (Directory.Exists(item.Path))
+                    {
+                        _currentRepoPath = FindGitRepositoryRoot(item.Path) ?? string.Empty;
+                        LoadDirectoryRoot(item.Path);
+                        await RefreshGitStatusUIAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage("드래그 앤 드롭 오류", ex.Message);
+            }
+        }
+
         private async void OnSaveFileClick(object sender, RoutedEventArgs e)
         {
             if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
@@ -748,13 +802,26 @@ namespace Ueditor
                 if (bridgeGroup.Bridge != null)
                 {
                     await bridgeGroup.Bridge.TriggerFindAsync();
-                }
-                else
-                {
-                    LeftSidebarTabView.SelectedIndex = 4;
-                    SearchQueryInput.Focus(FocusState.Programmatic);
+                    return;
                 }
             }
+
+            EnsureLeftPanelVisible();
+            LeftSidebarTabView.SelectedIndex = 4;
+            SearchQueryInput.Focus(FocusState.Programmatic);
+        }
+
+        private void EnsureLeftPanelVisible()
+        {
+            if (LeftPanelToggle.IsChecked == true && LeftSidebarTabView.Visibility == Visibility.Visible)
+            {
+                return;
+            }
+
+            LeftPanelToggle.IsChecked = true;
+            ExplorerColumn.Width = new GridLength(Math.Max(_lastExplorerWidth, ExplorerColumn.MinWidth));
+            LeftSplitter.Visibility = Visibility.Visible;
+            LeftSidebarTabView.Visibility = Visibility.Visible;
         }
 
         private void OnToggleLeftPanelClick(object sender, RoutedEventArgs e)
@@ -1507,7 +1574,8 @@ namespace Ueditor
 
         private void OnFileListViewDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
         {
-            if (FileListView.SelectedItem is not ExplorerItem item) return;
+            var item = GetDataContextFromOriginalSource<ExplorerItem>(e.OriginalSource) ?? FileListView.SelectedItem as ExplorerItem;
+            if (item == null) return;
 
             if (item.IsFolder)
             {
@@ -1518,6 +1586,14 @@ namespace Ueditor
             {
                 // Open file in new Tab
                 _ = LoadFileIntoTabAsync(item.Path);
+            }
+        }
+
+        private void OnFileListViewItemRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            if (sender is FrameworkElement { DataContext: ExplorerItem item })
+            {
+                FileListView.SelectedItem = item;
             }
         }
 
@@ -1954,12 +2030,13 @@ namespace Ueditor
 
         private async void OnAddFileToFavoritesClick(object sender, RoutedEventArgs e)
         {
-            if (sender is MenuFlyoutItem item && (item.Tag as ExplorerItem ?? item.DataContext as ExplorerItem) is ExplorerItem explorerItem)
+            if (sender is MenuFlyoutItem item &&
+                (item.Tag as ExplorerItem ?? item.DataContext as ExplorerItem ?? FileListView.SelectedItem as ExplorerItem) is ExplorerItem explorerItem)
             {
                 if (explorerItem.IsFolder) return; // File only for simplicity
 
                 var settings = _settingsService.CurrentSettings;
-                if (!settings.FavoritePaths.Contains(explorerItem.Path))
+                if (!settings.FavoritePaths.Contains(explorerItem.Path, StringComparer.OrdinalIgnoreCase))
                 {
                     settings.FavoritePaths.Add(explorerItem.Path);
                     await _settingsService.SaveSettingsAsync(settings);
@@ -1998,7 +2075,8 @@ namespace Ueditor
 
         private async void OnFavoriteItemDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
         {
-            if (FavoritesListView.SelectedItem is FavoriteItem item)
+            var item = GetDataContextFromOriginalSource<FavoriteItem>(e.OriginalSource) ?? FavoritesListView.SelectedItem as FavoriteItem;
+            if (item != null)
             {
                 await LoadFileIntoTabAsync(item.Path);
             }
@@ -2473,7 +2551,7 @@ namespace Ueditor
         private async void OnSearchAllFilesClick(object sender, RoutedEventArgs e)
         {
             string query = SearchQueryInput.Text;
-            if (string.IsNullOrEmpty(query)) return;
+            if (string.IsNullOrWhiteSpace(query)) return;
 
             if (string.IsNullOrEmpty(_currentFolderPath) && string.IsNullOrEmpty(_currentRepoPath))
             {
@@ -2486,26 +2564,34 @@ namespace Ueditor
             bool isRegex = SearchRegexToggle.IsChecked == true;
             bool isMatchCase = SearchMatchCaseToggle.IsChecked == true;
             bool isWholeWord = SearchWholeWordToggle.IsChecked == true;
+            Regex? searchRegex;
 
-            await Task.Run(async () =>
+            try
             {
-                try
+                searchRegex = BuildSearchRegex(query, isRegex, isMatchCase, isWholeWord);
+            }
+            catch (ArgumentException ex)
+            {
+                ShowErrorMessage("검색 실패", $"정규식이 올바르지 않습니다.\n{ex.Message}");
+                return;
+            }
+
+            int foundCount = 0;
+            int skippedFiles = 0;
+            await Task.Run(() =>
+            {
+                var tempResults = new List<SearchResultItem>();
+                var settings = _settingsService.CurrentSettings;
+                long thresholdBytes = settings.LargeFileThresholdMB * 1024 * 1024;
+
+                foreach (var file in EnumerateSearchFiles(searchRoot))
                 {
-                    var files = Directory.GetFiles(searchRoot, "*.*", SearchOption.AllDirectories);
-                    var tempResults = new List<SearchResultItem>();
-                    var settings = _settingsService.CurrentSettings;
-                    long thresholdBytes = settings.LargeFileThresholdMB * 1024 * 1024;
-
-                    foreach (var file in files)
+                    try
                     {
-                        // Filter system paths
-                        if (file.Contains("\\.git\\") || file.Contains("\\bin\\") || file.Contains("\\obj\\") || file.Contains("\\.vs\\"))
-                            continue;
-
                         var info = new FileInfo(file);
                         if (info.Length > thresholdBytes)
                         {
-                            var largeResults = await _fileService.SearchLargeFileAsync(file, query, isRegex, isMatchCase, isWholeWord);
+                            var largeResults = _fileService.SearchLargeFileAsync(file, query, isRegex, isMatchCase, isWholeWord).GetAwaiter().GetResult();
                             foreach (var lr in largeResults)
                             {
                                 tempResults.Add(new SearchResultItem
@@ -2516,88 +2602,171 @@ namespace Ueditor
                                     IndexOfMatch = lr.IndexOfMatch,
                                     MatchLength = lr.MatchLength
                                 });
+                                foundCount++;
 
-                                // Batch dispatch to prevent UI thread starvation (yield control)
-                                if (tempResults.Count >= 30)
-                                {
-                                    var batch = tempResults;
-                                    tempResults = new List<SearchResultItem>();
-                                    this.DispatcherQueue.TryEnqueue(() =>
-                                    {
-                                        foreach (var item in batch)
-                                        {
-                                            _searchResultsList.Add(item);
-                                        }
-                                    });
-                                    await Task.Delay(30); // Yield control to prevent GUI freeze
-                                }
+                                FlushSearchResultsIfNeeded(tempResults);
                             }
+
+                            continue;
                         }
-                        else
+
+                        int lineNum = 1;
+                        foreach (var line in File.ReadLines(file))
                         {
-                            int lineNum = 1;
-                            var lines = File.ReadLines(file);
-                            var options = isMatchCase ? System.Text.RegularExpressions.RegexOptions.None : System.Text.RegularExpressions.RegexOptions.IgnoreCase;
-                            
-                            string pattern = isRegex ? query : System.Text.RegularExpressions.Regex.Escape(query);
-                            if (isWholeWord)
+                            var match = searchRegex.Match(line);
+                            if (match.Success)
                             {
-                                pattern = $"\\b{pattern}\\b";
-                            }
-
-                            var regex = new System.Text.RegularExpressions.Regex(pattern, options);
-                            foreach (var line in lines)
-                            {
-                                var match = regex.Match(line);
-                                if (match.Success)
+                                tempResults.Add(new SearchResultItem
                                 {
-                                    tempResults.Add(new SearchResultItem
-                                    {
-                                        Path = file,
-                                        LineNumber = lineNum,
-                                        LineContent = line,
-                                        IndexOfMatch = match.Index,
-                                        MatchLength = match.Length
-                                    });
+                                    Path = file,
+                                    LineNumber = lineNum,
+                                    LineContent = line,
+                                    IndexOfMatch = match.Index,
+                                    MatchLength = match.Length
+                                });
+                                foundCount++;
 
-                                    // Batch dispatch
-                                    if (tempResults.Count >= 30)
-                                    {
-                                        var batch = tempResults;
-                                        tempResults = new List<SearchResultItem>();
-                                        this.DispatcherQueue.TryEnqueue(() =>
-                                        {
-                                            foreach (var item in batch)
-                                            {
-                                                _searchResultsList.Add(item);
-                                            }
-                                        });
-                                        await Task.Delay(30); // Yield control
-                                    }
-                                }
-                                lineNum++;
+                                FlushSearchResultsIfNeeded(tempResults);
                             }
+
+                            lineNum++;
                         }
                     }
-
-                    // Flush remaining items
-                    if (tempResults.Count > 0)
+                    catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is System.Security.SecurityException || ex is NotSupportedException)
                     {
-                        var remaining = tempResults;
-                        this.DispatcherQueue.TryEnqueue(() =>
-                        {
-                            foreach (var item in remaining)
-                            {
-                                _searchResultsList.Add(item);
-                            }
-                        });
+                        skippedFiles++;
+                        System.Diagnostics.Debug.WriteLine($"Skipped search file {file}: {ex.Message}");
                     }
                 }
-                catch (Exception ex)
+
+                FlushSearchResults(tempResults);
+            });
+
+            if (foundCount == 0 && skippedFiles > 0)
+            {
+                ShowErrorMessage("검색 완료", $"검색 결과가 없습니다.\n읽을 수 없어 건너뛴 파일: {skippedFiles:N0}개");
+            }
+        }
+
+        private static Regex BuildSearchRegex(string query, bool isRegex, bool isMatchCase, bool isWholeWord)
+        {
+            string pattern = isRegex ? query : Regex.Escape(query);
+            if (isWholeWord)
+            {
+                pattern = $"\\b{pattern}\\b";
+            }
+
+            var options = isMatchCase ? RegexOptions.None : RegexOptions.IgnoreCase;
+            return new Regex(pattern, options);
+        }
+
+        private IEnumerable<string> EnumerateSearchFiles(string searchRoot)
+        {
+            var options = new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                IgnoreInaccessible = true,
+                ReturnSpecialDirectories = false
+            };
+
+            IEnumerable<string> files;
+            try
+            {
+                files = Directory.EnumerateFiles(searchRoot, "*", options);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is System.Security.SecurityException || ex is DirectoryNotFoundException)
+            {
+                System.Diagnostics.Debug.WriteLine($"Search root unavailable: {ex.Message}");
+                yield break;
+            }
+
+            foreach (var file in files)
+            {
+                if (ShouldSkipSearchPath(file))
                 {
-                    System.Diagnostics.Debug.WriteLine($"Error scanning folder search: {ex.Message}");
+                    continue;
+                }
+
+                yield return file;
+            }
+        }
+
+        private static bool ShouldSkipSearchPath(string filePath)
+        {
+            string normalized = filePath.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+            string[] skippedSegments =
+            {
+                $"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}",
+                $"{Path.DirectorySeparatorChar}.vs{Path.DirectorySeparatorChar}",
+                $"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}",
+                $"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}",
+                $"{Path.DirectorySeparatorChar}node_modules{Path.DirectorySeparatorChar}",
+                $"{Path.DirectorySeparatorChar}packages{Path.DirectorySeparatorChar}"
+            };
+
+            return skippedSegments.Any(segment => normalized.Contains(segment, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void FlushSearchResultsIfNeeded(List<SearchResultItem> results)
+        {
+            if (results.Count >= 30)
+            {
+                FlushSearchResults(results);
+            }
+        }
+
+        private void FlushSearchResults(List<SearchResultItem> results)
+        {
+            if (results.Count == 0)
+            {
+                return;
+            }
+
+            var batch = results.ToList();
+            results.Clear();
+            this.DispatcherQueue.TryEnqueue(() =>
+            {
+                foreach (var item in batch)
+                {
+                    _searchResultsList.Add(item);
                 }
             });
+        }
+
+        private static T? GetDataContextFromOriginalSource<T>(object originalSource) where T : class
+        {
+            if (originalSource is not DependencyObject current)
+            {
+                return null;
+            }
+
+            while (current != null)
+            {
+                if (current is FrameworkElement { DataContext: T item })
+                {
+                    return item;
+                }
+
+                current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current);
+            }
+
+            return null;
+        }
+
+        private string ReplaceSearchMatches(string original, string query, string replace)
+        {
+            bool isRegex = SearchRegexToggle.IsChecked == true;
+            bool isMatchCase = SearchMatchCaseToggle.IsChecked == true;
+            bool isWholeWord = SearchWholeWordToggle.IsChecked == true;
+
+            if (isRegex || isWholeWord)
+            {
+                var regex = BuildSearchRegex(query, isRegex, isMatchCase, isWholeWord);
+                return regex.Replace(original, replace);
+            }
+
+            var comparison = isMatchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+            return original.Replace(query, replace, comparison);
         }
 
         private async void OnReplaceAllClick(object sender, RoutedEventArgs e)
@@ -2637,18 +2806,7 @@ namespace Ueditor
                             {
                                 if (res.LineNumber - 1 < lines.Count)
                                 {
-                                    string original = lines[res.LineNumber - 1];
-                                    string updated;
-                                    if (SearchRegexToggle.IsChecked == true)
-                                    {
-                                        var options = SearchMatchCaseToggle.IsChecked == true ? System.Text.RegularExpressions.RegexOptions.None : System.Text.RegularExpressions.RegexOptions.IgnoreCase;
-                                        updated = System.Text.RegularExpressions.Regex.Replace(original, query, replace, options);
-                                    }
-                                    else
-                                    {
-                                        updated = original.Replace(query, replace, StringComparison.OrdinalIgnoreCase);
-                                    }
-                                    lines[res.LineNumber - 1] = updated;
+                                    lines[res.LineNumber - 1] = ReplaceSearchMatches(lines[res.LineNumber - 1], query, replace);
                                 }
                             }
                             await File.WriteAllLinesAsync(filePath, lines);
@@ -2718,7 +2876,8 @@ namespace Ueditor
 
         private async void OnSearchResultDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
         {
-            if (SearchResultsList.SelectedItem is SearchResultItem item)
+            var item = GetDataContextFromOriginalSource<SearchResultItem>(e.OriginalSource) ?? SearchResultsList.SelectedItem as SearchResultItem;
+            if (item != null)
             {
                 // Open file
                 await LoadFileIntoTabAsync(item.Path);

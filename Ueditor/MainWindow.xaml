@@ -13,7 +13,7 @@
         <MicaBackdrop Kind="Base" />
     </Window.SystemBackdrop>
 
-    <Grid Background="Transparent">
+    <Grid Background="Transparent" AllowDrop="True" DragOver="OnRootDragOver" Drop="OnRootDrop">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- Top Command Toolbar -->
             <RowDefinition Height="Auto"/> <!-- Markdown Toolbar -->
@@ -140,7 +140,7 @@
                             <ListView x:Name="FileListView" Grid.Row="1" Margin="5" SelectionMode="Single" DoubleTapped="OnFileListViewDoubleTapped">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Padding="4,5,4,5">
+                                        <Grid Padding="4,5,4,5" RightTapped="OnFileListViewItemRightTapped">
                                             <Grid.ContextFlyout>
                                                 <MenuFlyout>
                                                     <MenuFlyoutItem Text="즐겨찾기에 추가" Click="OnAddFileToFavoritesClick" Tag="{Binding}"/>
@@ -419,7 +419,7 @@
                                 </CommandBar.Content>
                             </CommandBar>
 
-                            <WebView2 x:Name="PreviewWebView" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                            <WebView2 x:Name="PreviewWebView" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" AllowDrop="True" DragOver="OnRootDragOver" Drop="OnRootDrop"/>
                         </Grid>
                     </TabViewItem>
 
