@@ -6,7 +6,7 @@
     <title>Ueditor File Compare</title>
     <style>
         :root {
-            --bg: #1e1e1e;
+            --bg: transparent; /* Start transparent to prevent dark flashes on load */
             --fg: #d4d4d4;
             --border: #3e3e3e;
             --header-bg: #252526;
@@ -18,6 +18,16 @@
             --removed-border: rgba(248, 81, 73, 0.4);
             --font-family: Consolas, "Courier New", monospace;
             --ui-font: "Segoe UI", "Malgun Gothic", sans-serif;
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                --fg: #1a1a1a;
+                --border: #e1e4e8;
+                --header-bg: #f3f3f3;
+                --gutter-bg: #f3f3f3;
+                --gutter-fg: #6a737d;
+            }
         }
 
         * {

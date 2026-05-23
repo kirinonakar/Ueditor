@@ -149,8 +149,42 @@ namespace Ueditor
             // 2. Initialize Preview Panel WebView2
             await InitializePreviewWebViewAsync();
 
-            // 3. Open a default blank tab on startup
-            OpenNewTab();
+            // 3. Handle command-line file opening or open a blank tab
+            string[] args = Environment.GetCommandLineArgs();
+            bool openedAnyFile = false;
+
+            if (args != null && args.Length > 1)
+            {
+                for (int i = 1; i < args.Length; i++)
+                {
+                    string arg = args[i];
+                    // Skip potential command line switches starting with - or / (e.g. VS debugger switches)
+                    if (arg.StartsWith("-") || arg.StartsWith("/"))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        // Clean up quotes if present
+                        string filePath = arg.Trim('"', '\'');
+                        if (!string.IsNullOrWhiteSpace(filePath) && File.Exists(filePath))
+                        {
+                            await LoadFileIntoTabAsync(filePath);
+                            openedAnyFile = true;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed to open command-line file '{arg}': {ex.Message}");
+                    }
+                }
+            }
+
+            if (!openedAnyFile)
+            {
+                OpenNewTab();
+            }
 
             // 4. Load Snippets and Favorites
             await _snippetService.LoadSnippetsAsync();
