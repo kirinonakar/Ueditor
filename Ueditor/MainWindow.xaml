@@ -68,9 +68,6 @@
             <AppBarSeparator/>
             <AppBarButton Icon="Setting" Label="설정" Click="OnSettingsClick"/>
             
-            <CommandBar.Content>
-                <TextBlock Text="Ueditor MVP" VerticalAlignment="Center" Margin="15,0,0,0" FontWeight="SemiBold" FontSize="14" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
-            </CommandBar.Content>
         </CommandBar>
 
         <CommandBar x:Name="MarkdownToolbar"
