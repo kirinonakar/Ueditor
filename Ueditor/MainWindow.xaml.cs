@@ -38,6 +38,7 @@ namespace Ueditor
         private readonly ObservableCollection<SearchResultItem> _searchResultsList = new ObservableCollection<SearchResultItem>();
         private readonly ObservableCollection<ExplorerItem> _explorerItems = new ObservableCollection<ExplorerItem>();
         private string _lastSelectionText = string.Empty;
+        private string _lastSearchQuery = string.Empty;
         private string _currentFolderPath = string.Empty;
         private string _currentRepoPath = string.Empty;
         private Process? _terminalProcess;
@@ -395,6 +396,15 @@ namespace Ueditor
                                 break;
                             case "closeTab":
                                 OnCloseActiveTabShortcutInvoked(null!, null!);
+                                break;
+                            case "searchAll":
+                                EnsureLeftPanelVisible();
+                                ShowLeftSidebarPage(4);
+                                this.DispatcherQueue.TryEnqueue(() =>
+                                {
+                                    SearchQueryInput.Focus(FocusState.Programmatic);
+                                    SearchQueryInput.Focus(FocusState.Keyboard);
+                                });
                                 break;
                         }
                     });
@@ -930,6 +940,7 @@ namespace Ueditor
             {
                 if (bridgeGroup.Bridge != null)
                 {
+                    bridgeGroup.WebView.Focus(FocusState.Programmatic);
                     await bridgeGroup.Bridge.TriggerFindAsync();
                     return;
                 }
@@ -938,6 +949,7 @@ namespace Ueditor
             EnsureLeftPanelVisible();
             ShowLeftSidebarPage(4);
             SearchQueryInput.Focus(FocusState.Programmatic);
+            SearchQueryInput.Focus(FocusState.Keyboard);
         }
 
         private void OnLeftActivityClick(object sender, RoutedEventArgs e)
@@ -976,6 +988,15 @@ namespace Ueditor
             {
                 pages[i].Visibility = i == safeIndex ? Visibility.Visible : Visibility.Collapsed;
                 buttons[i].IsChecked = i == safeIndex;
+            }
+
+            if (safeIndex == 4)
+            {
+                this.DispatcherQueue.TryEnqueue(() =>
+                {
+                    SearchQueryInput.Focus(FocusState.Programmatic);
+                    SearchQueryInput.Focus(FocusState.Keyboard);
+                });
             }
         }
 
@@ -3164,6 +3185,7 @@ namespace Ueditor
                 return;
             }
 
+            _lastSearchQuery = query;
             _searchResultsList.Clear();
             string searchRoot = !string.IsNullOrEmpty(_currentFolderPath) ? _currentFolderPath : _currentRepoPath;
             bool isRegex = SearchRegexToggle.IsChecked == true;
@@ -3250,6 +3272,18 @@ namespace Ueditor
             if (foundCount == 0 && skippedFiles > 0)
             {
                 ShowErrorMessage("검색 완료", $"검색 결과가 없습니다.\n읽을 수 없어 건너뛴 파일: {skippedFiles:N0}개");
+            }
+            else if (foundCount > 0)
+            {
+                this.DispatcherQueue.TryEnqueue(async () =>
+                {
+                    SearchResultsList.SelectedIndex = 0;
+                    SearchResultsList.ScrollIntoView(SearchResultsList.SelectedItem);
+                    if (SearchResultsList.SelectedItem is SearchResultItem selectedItem)
+                    {
+                        await LoadFileIntoTabAndHighlightAsync(selectedItem);
+                    }
+                });
             }
         }
 
@@ -3496,11 +3530,11 @@ namespace Ueditor
                 {
                     if (bridgeGroup.Bridge != null)
                     {
-                        await bridgeGroup.Bridge.RevealLineAsync(item.LineNumber);
+                        await bridgeGroup.Bridge.RevealLineAsync(item.LineNumber, item.IndexOfMatch, item.MatchLength, _lastSearchQuery);
                     }
                     else if (bridgeGroup.WebView != null && bridgeGroup.WebView.CoreWebView2 != null)
                     {
-                        var revealMsg = new { action = "revealLine", lineNumber = item.LineNumber };
+                        var revealMsg = new { action = "revealLine", lineNumber = item.LineNumber, indexOfMatch = item.IndexOfMatch, matchLength = item.MatchLength, query = _lastSearchQuery };
                         string revealJson = System.Text.Json.JsonSerializer.Serialize(revealMsg);
                         bridgeGroup.WebView.CoreWebView2.PostWebMessageAsJson(revealJson);
                     }
@@ -3776,11 +3810,11 @@ namespace Ueditor
             {
                 if (bridgeGroup.Bridge != null)
                 {
-                    await bridgeGroup.Bridge.RevealLineAsync(item.LineNumber);
+                    await bridgeGroup.Bridge.RevealLineAsync(item.LineNumber, item.IndexOfMatch, item.MatchLength, _lastSearchQuery);
                 }
                 else if (bridgeGroup.WebView?.CoreWebView2 != null)
                 {
-                    var revealMsg = new { action = "revealLine", lineNumber = item.LineNumber };
+                    var revealMsg = new { action = "revealLine", lineNumber = item.LineNumber, indexOfMatch = item.IndexOfMatch, matchLength = item.MatchLength, query = _lastSearchQuery };
                     bridgeGroup.WebView.CoreWebView2.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(revealMsg));
                 }
             }
@@ -3794,7 +3828,7 @@ namespace Ueditor
                 string query = SearchQueryInput.Text;
                 if (string.IsNullOrWhiteSpace(query)) return;
 
-                if (_searchResultsList.Count == 0)
+                if (_searchResultsList.Count == 0 || query != _lastSearchQuery)
                 {
                     OnSearchAllFilesClick(this, new RoutedEventArgs());
                 }
@@ -4058,9 +4092,21 @@ namespace Ueditor
         private void OnRootKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
             var ctrl = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control) & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+            var shift = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift) & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
             if (ctrl)
             {
-                if (e.Key == Windows.System.VirtualKey.W)
+                if (shift && e.Key == Windows.System.VirtualKey.F)
+                {
+                    e.Handled = true;
+                    EnsureLeftPanelVisible();
+                    ShowLeftSidebarPage(4);
+                    this.DispatcherQueue.TryEnqueue(() =>
+                    {
+                        SearchQueryInput.Focus(FocusState.Programmatic);
+                        SearchQueryInput.Focus(FocusState.Keyboard);
+                    });
+                }
+                else if (e.Key == Windows.System.VirtualKey.W)
                 {
                     e.Handled = true;
                     OnCloseActiveTabShortcutInvoked(null!, null!);

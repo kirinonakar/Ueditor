@@ -87,6 +87,7 @@
             background: var(--bg);
         }
 
+        #search-highlights,
         #highlight,
         #editor {
             position: absolute;
@@ -103,12 +104,30 @@
             tab-size: 4;
         }
 
+        #search-highlights {
+            margin: 0;
+            pointer-events: none;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+            background: transparent;
+            overflow: hidden;
+            z-index: 2;
+        }
+
+        #search-highlights-content {
+            display: block;
+            min-height: 100%;
+            font: inherit;
+            white-space: inherit;
+        }
+
         #highlight {
             margin: 0;
             pointer-events: none;
             color: var(--fg);
-            background: var(--bg);
+            background: transparent !important;
             overflow: hidden;
+            z-index: 1;
         }
 
         #highlight-content {
@@ -125,6 +144,25 @@
             color: transparent;
             -webkit-text-fill-color: transparent;
             caret-color: var(--fg);
+            z-index: 3;
+        }
+
+        .search-match {
+            background-color: #ffd43b;
+            color: #212529 !important;
+            -webkit-text-fill-color: #212529 !important;
+            border-radius: 2px;
+            padding: 0;
+            margin: 0;
+        }
+
+        .search-match.active-match {
+            background-color: #fd7e14;
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+            box-shadow: 0 0 3px rgba(253, 126, 20, 0.6);
+            padding: 0;
+            margin: 0;
         }
 
         #editor::selection {
@@ -206,6 +244,7 @@
     <div id="host">
         <div id="gutter">1</div>
         <div id="editor-shell">
+            <pre id="search-highlights" aria-hidden="true"><code id="search-highlights-content"></code></pre>
             <pre id="highlight" aria-hidden="true"><code id="highlight-content"></code></pre>
             <textarea id="editor" spellcheck="false"></textarea>
             <div id="find-panel" hidden>
@@ -222,6 +261,8 @@
         const editor = document.getElementById('editor');
         const highlight = document.getElementById('highlight');
         const highlightContent = document.getElementById('highlight-content');
+        const searchHighlights = document.getElementById('search-highlights');
+        const searchHighlightsContent = document.getElementById('search-highlights-content');
         const gutter = document.getElementById('gutter');
         const findPanel = document.getElementById('find-panel');
         const findInput = document.getElementById('find-input');
@@ -448,6 +489,41 @@
         function syncHighlightScroll() {
             gutter.scrollTop = editor.scrollTop;
             highlightContent.style.transform = `translate(${-editor.scrollLeft}px, ${-editor.scrollTop}px)`;
+            searchHighlightsContent.style.transform = `translate(${-editor.scrollLeft}px, ${-editor.scrollTop}px)`;
+        }
+
+        let globalSearchQuery = "";
+        let globalActiveMatchOffset = -1;
+
+        function updateSearchHighlights() {
+            const text = editor.value || '';
+            const query = globalSearchQuery;
+            
+            if (!query) {
+                searchHighlightsContent.innerHTML = escapeHtml(text);
+                return;
+            }
+
+            const needle = query.toLowerCase();
+            const haystack = text.toLowerCase();
+            let html = "";
+            let lastIndex = 0;
+            let index = haystack.indexOf(needle);
+
+            while (index >= 0) {
+                html += escapeHtml(text.slice(lastIndex, index));
+                
+                const isActive = (index === globalActiveMatchOffset);
+                const className = isActive ? "search-match active-match" : "search-match";
+                
+                html += `<mark class="${className}">${escapeHtml(text.slice(index, index + query.length))}</mark>`;
+                
+                lastIndex = index + query.length;
+                index = haystack.indexOf(needle, lastIndex);
+            }
+            
+            html += escapeHtml(text.slice(lastIndex));
+            searchHighlightsContent.innerHTML = html + (text.endsWith('\n') ? ' ' : '');
         }
 
         function revealOffset(offset, length = 0, shouldFocus = true) {
@@ -457,11 +533,17 @@
             editor.selectionEnd = safeEnd;
 
             const before = editor.value.slice(0, safeOffset);
-            const lineIndex = before.split(/\r\n|\r|\n/).length - 1;
+            const lines = before.split(/\r\n|\r|\n/);
+            const lineIndex = lines.length - 1;
             const style = getComputedStyle(editor);
             const fontSize = parseFloat(style.fontSize) || 14;
             const lineHeight = parseFloat(style.lineHeight) || fontSize * 1.45;
             editor.scrollTop = Math.max(0, lineIndex * lineHeight - editor.clientHeight / 3);
+            
+            const charIndex = lines[lineIndex].length;
+            const avgCharWidth = fontSize * 0.6;
+            editor.scrollLeft = Math.max(0, charIndex * avgCharWidth - editor.clientWidth / 3);
+
             syncHighlightScroll();
             if (shouldFocus) {
                 editor.focus();
@@ -545,10 +627,16 @@
             refreshFindMatches();
             findInput.focus();
             findInput.select();
+            if (findMatches.length > 0) {
+                selectFindMatch(0, false);
+            }
         }
 
         function closeFindPanel() {
             findPanel.hidden = true;
+            globalSearchQuery = "";
+            globalActiveMatchOffset = -1;
+            updateSearchHighlights();
             editor.focus();
         }
 
@@ -1062,11 +1150,13 @@
                     isProgrammaticChange = false;
                     updateGutter();
                     updateHighlight();
+                    updateSearchHighlights();
                     reportCursorAndSelection();
                     break;
                 case 'setLanguage':
                     currentLanguage = msg.language || 'plaintext';
                     updateHighlight();
+                    updateSearchHighlights();
                     break;
                 case 'updateOptions':
                     const theme = msg.theme || 'Dark';
@@ -1083,11 +1173,15 @@
                     document.documentElement.style.setProperty('--wrap', msg.wordWrap ? 'pre-wrap' : 'pre');
                     applySyntaxPalette(theme, bg, fg);
                     editor.style.overflowWrap = msg.wordWrap ? 'break-word' : 'normal';
+                    highlight.style.overflowWrap = msg.wordWrap ? 'break-word' : 'normal';
+                    searchHighlights.style.overflowWrap = msg.wordWrap ? 'break-word' : 'normal';
                     editor.readOnly = !!msg.readOnly;
                     tabSize = msg.tabSize || 4;
                     editor.style.tabSize = tabSize;
                     highlight.style.tabSize = tabSize;
+                    searchHighlights.style.tabSize = tabSize;
                     updateHighlight();
+                    updateSearchHighlights();
                     break;
                 case 'triggerFind':
                     openFindPanel();
@@ -1107,7 +1201,15 @@
                     for (let i = 0; i < Math.min((msg.lineNumber || 1) - 1, lines.length); i++) {
                         offset += lines[i].length + 1;
                     }
-                    revealOffset(offset);
+                    offset += msg.indexOfMatch || 0;
+                    
+                    if (msg.query) {
+                        globalSearchQuery = msg.query;
+                        globalActiveMatchOffset = offset;
+                        updateSearchHighlights();
+                    }
+                    
+                    revealOffset(offset, msg.matchLength || 0);
                     break;
                 case 'focus':
                     editor.focus();
@@ -1143,7 +1245,11 @@
                     return;
                 } else if (key === 'f') {
                     event.preventDefault();
-                    openFindPanel();
+                    if (event.shiftKey) {
+                        post({ type: 'shortcut', name: 'searchAll' });
+                    } else {
+                        openFindPanel();
+                    }
                     return;
                 }
             }
@@ -1162,6 +1268,11 @@
 
         findInput.addEventListener('input', () => {
             refreshFindMatches();
+            if (findMatches.length > 0) {
+                selectFindMatch(0, false);
+            } else {
+                updateSearchHighlights();
+            }
         });
 
         findInput.addEventListener('keydown', event => {

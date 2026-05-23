@@ -154,6 +154,7 @@
         let lineBuffer = {}; // Cache recently loaded lines to prevent rapid IPC flickers
         let filePath = "";
         let readOnly = true;
+        let searchHighlight = null;
 
         // Initialize virtual layout based on line counts
         function setupVirtualScroll(lineCount) {
@@ -210,11 +211,40 @@
         function updateViewportDOM(start, end) {
             let html = '';
             for (let i = start; i <= end; i++) {
-                const text = lineBuffer[i] !== undefined ? escapeHtml(lineBuffer[i]) : "로딩 중...";
+                let text = lineBuffer[i] !== undefined ? lineBuffer[i] : "로딩 중...";
+                let escapedText = "";
+                
+                if (searchHighlight && searchHighlight.query) {
+                    const query = searchHighlight.query;
+                    const needle = query.toLowerCase();
+                    const haystack = text.toLowerCase();
+                    let lineHtml = "";
+                    let lastIndex = 0;
+                    let index = haystack.indexOf(needle);
+
+                    while (index >= 0) {
+                        lineHtml += escapeHtml(text.slice(lastIndex, index));
+                        
+                        const isActive = (searchHighlight.lineNumber === i && searchHighlight.indexOfMatch === index);
+                        const bg = isActive ? "#fd7e14" : "#ffd43b";
+                        const fg = isActive ? "#ffffff" : "#212529";
+                        const shadow = isActive ? "box-shadow: 0 0 3px rgba(253, 126, 20, 0.6);" : "";
+                        
+                        lineHtml += `<mark style="background-color: ${bg}; color: ${fg}; font-weight: bold; border-radius: 2px; padding: 1px 2px; ${shadow}">${escapeHtml(text.slice(index, index + query.length))}</mark>`;
+                        
+                        lastIndex = index + query.length;
+                        index = haystack.indexOf(needle, lastIndex);
+                    }
+                    lineHtml += escapeHtml(text.slice(lastIndex));
+                    escapedText = lineHtml;
+                } else {
+                    escapedText = escapeHtml(text);
+                }
+
                 html += `
                     <div class="line-row">
                         <div class="line-num">${i}</div>
-                        <div class="line-text" style="cursor: text;" ondblclick="enableEdit(this, ${i})">${text}</div>
+                        <div class="line-text" style="cursor: text;" ondblclick="enableEdit(this, ${i})">${escapedText}</div>
                     </div>
                 `;
             }
@@ -341,6 +371,12 @@
                 case 'revealLine':
                     const lineNum = msg.lineNumber;
                     if (lineNum && lineNum > 0 && lineNum <= totalLines) {
+                        searchHighlight = {
+                            lineNumber: lineNum,
+                            indexOfMatch: msg.indexOfMatch || 0,
+                            matchLength: msg.matchLength || 0,
+                            query: msg.query || ""
+                        };
                         const targetScrollTop = (lineNum - 1) * LINE_HEIGHT;
                         scrollContainer.scrollTop = targetScrollTop;
                         render();

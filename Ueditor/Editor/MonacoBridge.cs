@@ -133,9 +133,9 @@ namespace Ueditor.Editor
             await SendMessageAsync(msg);
         }
 
-        public async Task RevealLineAsync(int lineNum)
+        public async Task RevealLineAsync(int lineNum, int indexOfMatch = 0, int matchLength = 0, string query = "")
         {
-            var msg = new { action = "revealLine", lineNumber = lineNum };
+            var msg = new { action = "revealLine", lineNumber = lineNum, indexOfMatch = indexOfMatch, matchLength = matchLength, query = query };
             await SendMessageAsync(msg);
         }
 
