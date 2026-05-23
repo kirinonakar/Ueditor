@@ -102,6 +102,7 @@ namespace Ueditor.Editor
                 theme = settings.Theme,
                 wordWrap = settings.WordWrap,
                 minimap = settings.MinimapEnabled,
+                bracketPairColorization = settings.BracketPairColorizationEnabled,
                 fontSize = settings.FontSize,
                 fontFamily = settings.FontFamily,
                 tabSize = settings.TabSize,
@@ -143,6 +144,12 @@ namespace Ueditor.Editor
             await SendMessageAsync(msg);
         }
 
+        public async Task ApplyMarkdownCommandAsync(string command)
+        {
+            var msg = new { action = "markdownCommand", command = command };
+            await SendMessageAsync(msg);
+        }
+
         private async Task SendMessageAsync(object obj)
         {
             if (!_isReady) return;
@@ -162,7 +169,7 @@ namespace Ueditor.Editor
         {
             try
             {
-                string json = args.WebMessageAsJson;
+                string json = NormalizeWebMessageJson(args);
                 using (JsonDocument doc = JsonDocument.Parse(json))
                 {
                     JsonElement root = doc.RootElement;
@@ -210,6 +217,29 @@ namespace Ueditor.Editor
             {
                 System.Diagnostics.Debug.WriteLine($"Error receiving web message: {ex.Message}");
             }
+        }
+
+        private static string NormalizeWebMessageJson(CoreWebView2WebMessageReceivedEventArgs args)
+        {
+            string json = args.WebMessageAsJson;
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.ValueKind == JsonValueKind.String)
+                {
+                    return doc.RootElement.GetString() ?? "{}";
+                }
+            }
+            catch
+            {
+                string? asString = args.TryGetWebMessageAsString();
+                if (!string.IsNullOrWhiteSpace(asString))
+                {
+                    return asString;
+                }
+            }
+
+            return json;
         }
     }
 }

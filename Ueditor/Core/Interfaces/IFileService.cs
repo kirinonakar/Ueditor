@@ -20,7 +20,7 @@ namespace Ueditor.Core.Interfaces
         Task InitializeLargeFileAsync(string filePath);
         Task<int> GetLargeFileLineCountAsync(string filePath);
         Task<System.Collections.Generic.List<string>> GetLargeFileLinesAsync(string filePath, int startLine, int count);
-        Task<System.Collections.Generic.List<LargeFileSearchResult>> SearchLargeFileAsync(string filePath, string query, bool isRegex);
+        Task<System.Collections.Generic.List<LargeFileSearchResult>> SearchLargeFileAsync(string filePath, string query, bool isRegex, bool matchCase = false, bool wholeWord = false);
         Task SaveLargeFileWithPatchesAsync(string filePath, System.Collections.Generic.Dictionary<int, string> patches);
     }
 

@@ -114,6 +114,7 @@
         let isFetching = false;
         let lineBuffer = {}; // Cache recently loaded lines to prevent rapid IPC flickers
         let filePath = "";
+        let readOnly = true;
 
         // Initialize virtual layout based on line counts
         function setupVirtualScroll(lineCount) {
@@ -191,6 +192,7 @@
         }
 
         function enableEdit(el, lineNum) {
+            if (readOnly) return;
             if (el.querySelector('input')) return; // Already editing
             const originalText = lineBuffer[lineNum] !== undefined ? lineBuffer[lineNum] : el.innerText;
             el.innerHTML = `<input type="text" class="line-input" value="${escapeHtml(originalText)}" style="width: 95%; background: #2d2d2d; color: #fff; border: 1px solid #0078d4; font-family: inherit; font-size: inherit; outline: none; box-sizing: border-box; padding: 2px 5px;" />`;
@@ -237,14 +239,14 @@
         // Communication wrappers
         function sendNotificationToCsharp(msg) {
             if (window.chrome && window.chrome.webview) {
-                window.chrome.webview.postMessage(JSON.stringify(msg));
+                window.chrome.webview.postMessage(msg);
             }
         }
 
         if (window.chrome && window.chrome.webview) {
             window.chrome.webview.addEventListener('message', function(event) {
                 try {
-                    const message = JSON.parse(event.data);
+                    const message = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
                     handleCsharpMessage(message);
                 } catch (e) {
                     console.error("Failed parsing message in large viewer: ", e);
@@ -256,11 +258,7 @@
             switch(msg.action) {
                 case 'init':
                     filePath = msg.filePath;
-                    if (msg.theme === 'Light') {
-                        document.body.classList.add('light-theme');
-                    } else {
-                        document.body.classList.remove('light-theme');
-                    }
+                    applyTheme(msg);
                     if (msg.fontSize) {
                         document.documentElement.style.setProperty('--font-size', `${msg.fontSize}px`);
                         document.documentElement.style.setProperty('--line-height', `${msg.fontSize + 8}px`);
@@ -268,6 +266,7 @@
                     if (msg.fontFamily) {
                         document.documentElement.style.setProperty('--font-family', msg.fontFamily);
                     }
+                    readOnly = msg.readOnly !== false;
                     setupVirtualScroll(msg.lineCount);
                     break;
                 case 'receiveLines':
@@ -284,17 +283,16 @@
                     updateViewportDOM(startLine, end);
                     break;
                 case 'updateOptions':
-                    if (msg.theme === 'Light') {
-                        document.body.classList.add('light-theme');
-                    } else {
-                        document.body.classList.remove('light-theme');
-                    }
+                    applyTheme(msg);
                     if (msg.fontSize) {
                         document.documentElement.style.setProperty('--font-size', `${msg.fontSize}px`);
                         document.documentElement.style.setProperty('--line-height', `${msg.fontSize + 8}px`);
                     }
                     if (msg.fontFamily) {
                         document.documentElement.style.setProperty('--font-family', msg.fontFamily);
+                    }
+                    if (msg.readOnly !== undefined) {
+                        readOnly = msg.readOnly;
                     }
                     break;
                 case 'revealLine':
@@ -305,6 +303,30 @@
                         render();
                     }
                     break;
+            }
+        }
+
+        function applyTheme(msg) {
+            if (msg.customBackgroundColor) {
+                document.documentElement.style.setProperty('--bg-color', msg.customBackgroundColor);
+            } else if (msg.theme === 'Light') {
+                document.documentElement.style.setProperty('--bg-color', '#ffffff');
+            } else {
+                document.documentElement.style.setProperty('--bg-color', '#1e1e1e');
+            }
+
+            if (msg.customForegroundColor) {
+                document.documentElement.style.setProperty('--code-color', msg.customForegroundColor);
+            } else if (msg.theme === 'Light') {
+                document.documentElement.style.setProperty('--code-color', '#000000');
+            } else {
+                document.documentElement.style.setProperty('--code-color', '#d4d4d4');
+            }
+
+            if (msg.theme === 'Light') {
+                document.body.classList.add('light-theme');
+            } else {
+                document.body.classList.remove('light-theme');
             }
         }
     </script>

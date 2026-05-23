@@ -10,6 +10,7 @@ namespace Ueditor.Core.Models
         public bool WordWrap { get; set; } = true;
         public int TabSize { get; set; } = 4;
         public bool MinimapEnabled { get; set; } = true;
+        public bool BracketPairColorizationEnabled { get; set; } = true;
         public long LargeFileThresholdMB { get; set; } = 50;
         
         // Personalization Settings

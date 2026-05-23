@@ -3,195 +3,274 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ueditor Monaco Editor</title>
-    <!-- Core Monaco Stylesheet -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.min.css" />
+    <title>Ueditor Standalone Editor</title>
     <style>
-        html, body, #editor-container {
+        :root {
+            --bg: #1e1e1e;
+            --fg: #d4d4d4;
+            --gutter-bg: #252526;
+            --gutter-fg: #858585;
+            --selection: #264f78;
+            --font-family: Consolas, "Courier New", monospace;
+            --font-size: 14px;
+            --line-height: 1.45;
+            --wrap: pre-wrap;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
             width: 100%;
             height: 100%;
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #1e1e1e; /* Default dark background */
+            background: var(--bg);
+            color: var(--fg);
+        }
+
+        #host {
+            display: grid;
+            grid-template-columns: 64px 1fr;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: var(--font-family);
+            font-size: var(--font-size);
+        }
+
+        #gutter {
+            overflow: hidden;
+            padding: 12px 8px 12px 0;
+            background: var(--gutter-bg);
+            color: var(--gutter-fg);
+            border-right: 1px solid rgba(127, 127, 127, 0.2);
+            text-align: right;
+            line-height: var(--line-height);
+            user-select: none;
+            white-space: pre;
+        }
+
+        #editor {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            outline: 0;
+            resize: none;
+            padding: 12px 14px;
+            overflow: auto;
+            background: var(--bg);
+            color: var(--fg);
+            caret-color: var(--fg);
+            font-family: var(--font-family);
+            font-size: var(--font-size);
+            line-height: var(--line-height);
+            white-space: var(--wrap);
+            tab-size: 4;
+        }
+
+        #editor::selection {
+            background: var(--selection);
         }
     </style>
 </head>
 <body>
-    <div id="editor-container"></div>
+    <div id="host">
+        <div id="gutter">1</div>
+        <textarea id="editor" spellcheck="false"></textarea>
+    </div>
 
-    <!-- Monaco AMD Loader -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
     <script>
-        // Monaco Editor AMD loading configuration
-        require.config({
-            paths: {
-                'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs'
-            }
-        });
-
-        let editor = null;
+        const editor = document.getElementById('editor');
+        const gutter = document.getElementById('gutter');
         let isProgrammaticChange = false;
+        let tabSize = 4;
 
-        require(['vs/editor/editor.main'], function() {
-            // Default Monaco options
-            editor = monaco.editor.create(document.getElementById('editor-container'), {
-                value: "",
-                language: "plaintext",
-                theme: "vs-dark",
-                automaticLayout: true,
-                wordWrap: "on",
-                minimap: { enabled: true },
-                fontSize: 14,
-                fontFamily: "Consolas, 'Courier New', monospace",
-                tabSize: 4,
-                bracketPairColorization: { enabled: true },
-                readOnly: false
-            });
-
-            // Notify WinUI C# that Monaco is successfully loaded
-            sendNotificationToCsharp({ type: 'ready' });
-
-            // Listen to editor content change
-            editor.onDidChangeModelContent(function(e) {
-                if (isProgrammaticChange) return;
-                
-                const content = editor.getValue();
-                sendNotificationToCsharp({
-                    type: 'contentChanged',
-                    content: content
-                });
-            });
-
-            // Listen to cursor position change
-            editor.onDidChangeCursorPosition(function(e) {
-                sendNotificationToCsharp({
-                    type: 'cursorChanged',
-                    line: e.position.lineNumber,
-                    column: e.position.column
-                });
-            });
-        });
-
-        // Communication wrapper to send messages back to WinUI C# backend
-        function sendNotificationToCsharp(msg) {
+        function post(msg) {
             if (window.chrome && window.chrome.webview) {
-                window.chrome.webview.postMessage(JSON.stringify(msg));
-            } else {
-                console.log("C# Bridge not available, message: ", msg);
+                window.chrome.webview.postMessage(msg);
             }
         }
 
-        // Receive messages from WinUI C# backend
-        if (window.chrome && window.chrome.webview) {
-            window.chrome.webview.addEventListener('message', function(event) {
-                try {
-                    const message = JSON.parse(event.data);
-                    handleCsharpMessage(message);
-                } catch (e) {
-                    console.error("Failed to parse C# message: ", e);
-                }
-            });
+        function escapeRegExp(value) {
+            return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function lineCount() {
+            return Math.max(1, editor.value.split(/\r\n|\r|\n/).length);
+        }
+
+        function updateGutter() {
+            const count = lineCount();
+            let text = "";
+            for (let i = 1; i <= count; i++) {
+                text += i + (i === count ? "" : "\n");
+            }
+            gutter.textContent = text;
+            gutter.scrollTop = editor.scrollTop;
+        }
+
+        function reportCursorAndSelection() {
+            const pos = editor.selectionStart || 0;
+            const before = editor.value.slice(0, pos);
+            const lines = before.split(/\r\n|\r|\n/);
+            post({ type: 'cursorChanged', line: lines.length, column: lines[lines.length - 1].length + 1 });
+            post({ type: 'selectionResult', text: editor.value.substring(editor.selectionStart, editor.selectionEnd) });
+        }
+
+        function notifyContentChanged() {
+            if (isProgrammaticChange) return;
+            updateGutter();
+            post({ type: 'contentChanged', content: editor.value });
+        }
+
+        function selectedText() {
+            return editor.value.substring(editor.selectionStart, editor.selectionEnd);
+        }
+
+        function replaceSelection(text, selectStartOffset = null, selectEndOffset = null) {
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            editor.setRangeText(text, start, end, 'end');
+
+            if (selectStartOffset !== null && selectEndOffset !== null) {
+                editor.selectionStart = start + selectStartOffset;
+                editor.selectionEnd = start + selectEndOffset;
+            }
+
+            editor.focus();
+            notifyContentChanged();
+            reportCursorAndSelection();
+        }
+
+        function wrapSelection(prefix, suffix, placeholder) {
+            const current = selectedText() || placeholder;
+            const text = `${prefix}${current}${suffix}`;
+            replaceSelection(text, prefix.length, prefix.length + current.length);
+        }
+
+        function applyMarkdownCommand(command) {
+            const current = selectedText();
+            switch (command) {
+                case 'bold':
+                    wrapSelection('**', '**', '굵은 텍스트');
+                    break;
+                case 'italic':
+                    wrapSelection('*', '*', '기울임 텍스트');
+                    break;
+                case 'inlineCode':
+                    wrapSelection('`', '`', 'code');
+                    break;
+                case 'codeBlock':
+                    wrapSelection('```\n', '\n```', current || 'code');
+                    break;
+                case 'heading':
+                    replaceSelection(`# ${current || '제목'}`, 2, 2 + (current || '제목').length);
+                    break;
+                case 'link':
+                    wrapSelection('[', '](https://example.com)', current || '링크 텍스트');
+                    break;
+                case 'quote':
+                    replaceSelection((current || '인용문').split(/\r?\n/).map(line => `> ${line}`).join('\n'));
+                    break;
+                case 'ul':
+                    replaceSelection((current || '목록 항목').split(/\r?\n/).map(line => `- ${line}`).join('\n'));
+                    break;
+                case 'ol':
+                    replaceSelection((current || '목록 항목').split(/\r?\n/).map((line, idx) => `${idx + 1}. ${line}`).join('\n'));
+                    break;
+                case 'task':
+                    replaceSelection((current || '할 일').split(/\r?\n/).map(line => `- [ ] ${line}`).join('\n'));
+                    break;
+                case 'table':
+                    replaceSelection('| 항목 | 값 |\n| --- | --- |\n| A | B |');
+                    break;
+                case 'math':
+                    wrapSelection('$$\n', '\n$$', current || 'E = mc^2');
+                    break;
+            }
         }
 
         function handleCsharpMessage(msg) {
-            if (!editor) {
-                // If editor is not ready, retry in 50ms
-                setTimeout(() => handleCsharpMessage(msg), 50);
-                return;
-            }
-
-            switch(msg.action) {
+            switch (msg.action) {
                 case 'setText':
                     isProgrammaticChange = true;
-                    editor.setValue(msg.text || "");
+                    editor.value = msg.text || "";
                     isProgrammaticChange = false;
+                    updateGutter();
+                    reportCursorAndSelection();
                     break;
                 case 'setLanguage':
-                    const model = editor.getModel();
-                    if (model) {
-                        monaco.editor.setModelLanguage(model, msg.language);
-                    }
                     break;
                 case 'updateOptions':
-                    const opts = {};
-                    if (msg.customBackgroundColor || msg.customForegroundColor) {
-                        const baseTheme = msg.theme === "Light" ? "vs" : "vs-dark";
-                        const rules = [];
-                        if (msg.customForegroundColor) {
-                            rules.push({ token: '', foreground: msg.customForegroundColor.replace('#', '') });
-                        }
-                        monaco.editor.defineTheme('custom-user-theme', {
-                            base: baseTheme,
-                            inherit: true,
-                            rules: rules,
-                            colors: {
-                                'editor.background': msg.customBackgroundColor,
-                                'editor.foreground': msg.customForegroundColor || (msg.theme === "Light" ? "#000000" : "#d4d4d4")
-                            }
-                        });
-                        monaco.editor.setTheme('custom-user-theme');
-                        
-                        if (msg.customBackgroundColor) {
-                            document.getElementById('editor-container').style.backgroundColor = msg.customBackgroundColor;
-                            document.body.style.backgroundColor = msg.customBackgroundColor;
-                        }
-                    } else if (msg.theme) {
-                        monaco.editor.setTheme(msg.theme === "Dark" ? "vs-dark" : "vs");
-                        document.getElementById('editor-container').style.backgroundColor = (msg.theme === "Light" ? "#ffffff" : "#1e1e1e");
-                        document.body.style.backgroundColor = (msg.theme === "Light" ? "#ffffff" : "#1e1e1e");
-                    }
-                    if (msg.wordWrap !== undefined) opts.wordWrap = msg.wordWrap ? "on" : "off";
-                    if (msg.minimap !== undefined) opts.minimap = { enabled: msg.minimap };
-                    if (msg.fontSize !== undefined) opts.fontSize = msg.fontSize;
-                    if (msg.fontFamily !== undefined) opts.fontFamily = msg.fontFamily;
-                    if (msg.tabSize !== undefined) opts.tabSize = msg.tabSize;
-                    if (msg.readOnly !== undefined) opts.readOnly = msg.readOnly;
-                    
-                    // Specific high performance flags
-                    if (msg.isLargeFile) {
-                        opts.minimap = { enabled: false };
-                        opts.codeLens = false;
-                        opts.lightbulb = { enabled: false };
-                        opts.colorDecorators = false;
-                    }
-                    
-                    editor.updateOptions(opts);
+                    const theme = msg.theme || 'Dark';
+                    const bg = msg.customBackgroundColor || (theme === 'Light' ? '#ffffff' : '#1e1e1e');
+                    const fg = msg.customForegroundColor || (theme === 'Light' ? '#111111' : '#d4d4d4');
+                    document.documentElement.style.setProperty('--bg', bg);
+                    document.documentElement.style.setProperty('--fg', fg);
+                    document.documentElement.style.setProperty('--gutter-bg', theme === 'Light' ? '#f3f3f3' : '#252526');
+                    document.documentElement.style.setProperty('--gutter-fg', theme === 'Light' ? '#6b6b6b' : '#858585');
+                    document.documentElement.style.setProperty('--font-size', `${msg.fontSize || 14}px`);
+                    document.documentElement.style.setProperty('--font-family', msg.fontFamily || 'Consolas, "Courier New", monospace');
+                    document.documentElement.style.setProperty('--wrap', msg.wordWrap ? 'pre-wrap' : 'pre');
+                    editor.style.overflowWrap = msg.wordWrap ? 'break-word' : 'normal';
+                    editor.readOnly = !!msg.readOnly;
+                    tabSize = msg.tabSize || 4;
+                    editor.style.tabSize = tabSize;
                     break;
                 case 'triggerFind':
-                    editor.trigger('keyboard', 'actions.find', null);
+                    editor.focus();
+                    document.execCommand('find');
                     break;
                 case 'getSelection':
-                    const selectionText = editor.getModel().getValueInRange(editor.getSelection());
-                    sendNotificationToCsharp({
-                        type: 'selectionResult',
-                        text: selectionText
-                    });
+                    post({ type: 'selectionResult', text: selectedText() });
                     break;
                 case 'insertText':
-                    const selection = editor.getSelection();
-                    const range = new monaco.Range(
-                        selection.startLineNumber,
-                        selection.startColumn,
-                        selection.endLineNumber,
-                        selection.endColumn
-                    );
-                    const id = { major: 1, minor: 1 };
-                    const text = msg.text || "";
-                    const op = { identifier: id, range: range, text: text, forceMoveMarkers: true };
-                    editor.executeEdits("my-source", [op]);
-                    editor.focus();
+                    replaceSelection(msg.text || "");
+                    break;
+                case 'markdownCommand':
+                    applyMarkdownCommand(msg.command);
                     break;
                 case 'revealLine':
-                    editor.revealLineInCenter(msg.lineNumber);
-                    editor.setPosition({ lineNumber: msg.lineNumber, column: 1 });
+                    const lines = editor.value.split(/\r\n|\r|\n/);
+                    let offset = 0;
+                    for (let i = 0; i < Math.min((msg.lineNumber || 1) - 1, lines.length); i++) {
+                        offset += lines[i].length + 1;
+                    }
+                    editor.selectionStart = editor.selectionEnd = offset;
                     editor.focus();
+                    reportCursorAndSelection();
                     break;
                 case 'focus':
                     editor.focus();
                     break;
             }
         }
+
+        editor.addEventListener('input', notifyContentChanged);
+        editor.addEventListener('scroll', () => gutter.scrollTop = editor.scrollTop);
+        editor.addEventListener('keyup', reportCursorAndSelection);
+        editor.addEventListener('click', reportCursorAndSelection);
+        editor.addEventListener('select', reportCursorAndSelection);
+        editor.addEventListener('keydown', event => {
+            if (event.key === 'Tab') {
+                event.preventDefault();
+                replaceSelection(' '.repeat(tabSize));
+            }
+        });
+
+        if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.addEventListener('message', event => {
+                const msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                handleCsharpMessage(msg);
+            });
+        }
+
+        updateGutter();
+        post({ type: 'ready', standalone: true });
     </script>
 </body>
 </html>

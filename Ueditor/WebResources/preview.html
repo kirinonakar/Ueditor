@@ -3,219 +3,314 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ueditor Preview</title>
-    <!-- markdown-it Parser -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
-    <!-- KaTeX CSS & JS for LaTeX rendering -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
-    
+    <title>Ueditor Unified Preview</title>
     <style>
         :root {
-            --bg-color: #1e1e1e;
-            --text-color: #d4d4d4;
-            --link-color: #3794ff;
+            --bg: #1e1e1e;
+            --fg: #d4d4d4;
+            --muted: #9aa0a6;
+            --link: #4da3ff;
             --code-bg: #2d2d2d;
-            --border-color: #3e3e3e;
-            --header-border: #303030;
+            --border: #3e3e3e;
+            --font: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
         }
 
-        body.light-theme {
-            --bg-color: #ffffff;
-            --text-color: #1a1a1a;
-            --link-color: #0066cc;
-            --code-bg: #f5f5f5;
-            --border-color: #e0e0e0;
-            --header-border: #eaeaea;
+        * {
+            box-sizing: border-box;
         }
 
         html, body {
             margin: 0;
-            padding: 0;
             width: 100%;
             height: 100%;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: var(--font);
             font-size: 15px;
-            line-height: 1.6;
+            line-height: 1.62;
         }
 
         #preview-container {
-            padding: 20px;
-            box-sizing: border-box;
             height: 100%;
-            overflow-y: auto;
+            overflow: auto;
+            padding: 20px 22px 36px;
         }
 
-        /* Markdown Styling */
-        h1, h2, h3, h4, h5, h6 {
-            margin-top: 24px;
-            margin-bottom: 16px;
-            font-weight: 600;
+        h1, h2, h3 {
             line-height: 1.25;
-            border-bottom: 1px solid var(--header-border);
-            padding-bottom: 0.3em;
-        }
-        
-        a {
-            color: var(--link-color);
-            text-decoration: none;
-        }
-        
-        a:hover {
-            text-decoration: underline;
+            margin: 22px 0 12px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
         }
 
-        p, ul, ol, dl, table, blockquote {
+        h1:first-child, h2:first-child, h3:first-child {
             margin-top: 0;
-            margin-bottom: 16px;
+        }
+
+        p, ul, ol, blockquote, pre, table {
+            margin: 0 0 14px;
+        }
+
+        a {
+            color: var(--link);
         }
 
         code {
-            padding: 0.2em 0.4em;
-            margin: 0;
-            font-size: 85%;
-            background-color: var(--code-bg);
-            border-radius: 6px;
-            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+            padding: 2px 5px;
+            border-radius: 4px;
+            background: var(--code-bg);
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 0.9em;
         }
 
         pre {
-            padding: 16px;
+            padding: 14px;
             overflow: auto;
-            font-size: 85%;
-            line-height: 1.45;
-            background-color: var(--code-bg);
+            border: 1px solid var(--border);
             border-radius: 6px;
-            margin-bottom: 16px;
+            background: var(--code-bg);
         }
 
         pre code {
             padding: 0;
-            background-color: transparent;
-            font-size: 100%;
-            border-radius: 0;
+            background: transparent;
         }
 
         blockquote {
-            padding: 0 1em;
-            color: #6a737d;
-            border-left: 0.25em solid #dfe2e5;
+            padding: 4px 0 4px 14px;
+            color: var(--muted);
+            border-left: 3px solid var(--border);
         }
 
         table {
-            border-spacing: 0;
-            border-collapse: collapse;
             width: 100%;
-            margin-bottom: 16px;
+            border-collapse: collapse;
         }
 
-        table th, table td {
-            padding: 6px 13px;
-            border: 1px solid var(--border-color);
+        th, td {
+            padding: 6px 9px;
+            border: 1px solid var(--border);
         }
 
-        table tr {
-            background-color: var(--bg-color);
-            border-top: 1px solid var(--border-color);
+        th {
+            background: color-mix(in srgb, var(--code-bg), transparent 12%);
+            text-align: left;
         }
 
-        table tr:nth-child(2n) {
-            background-color: var(--code-bg);
-        }
-
-        /* Latex Math Styling */
-        .katex-display {
-            padding: 10px 0;
+        .math-block {
+            display: block;
             overflow-x: auto;
-            overflow-y: hidden;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--code-bg);
+            font-family: "Cambria Math", "Times New Roman", serif;
+            text-align: center;
+            white-space: pre-wrap;
+        }
+
+        .empty {
+            color: var(--muted);
         }
     </style>
 </head>
 <body>
-    <div id="preview-container"></div>
+    <div id="preview-container"><p class="empty">미리보기를 기다리는 중...</p></div>
 
     <script>
         const container = document.getElementById('preview-container');
-        let currentMode = 'markdown'; // markdown, html, latex
-        let mdParser = window.markdownit({
-            html: true, // Allow raw HTML input (safeguarded later if needed)
-            linkify: true,
-            typographer: true
-        });
 
-        // Safe HTML sandboxing logic
-        function sanitizeHtml(htmlContent) {
-            // Strip out dangerous <script> tags for basic safety
-            return htmlContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, 
-                '<div style="color:red;border:1px solid red;padding:5px;margin:5px;">[보안상 스크립트 실행이 제한되었습니다]</div>');
+        function escapeHtml(value) {
+            return (value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function sanitizeHtml(html) {
+            const template = document.createElement('template');
+            template.innerHTML = html || '';
+
+            template.content.querySelectorAll('script, iframe, object, embed, base, link, meta').forEach(node => {
+                node.replaceWith(document.createComment('blocked by Ueditor preview'));
+            });
+
+            template.content.querySelectorAll('*').forEach(node => {
+                [...node.attributes].forEach(attr => {
+                    const name = attr.name.toLowerCase();
+                    const value = attr.value.trim().toLowerCase();
+                    if (name.startsWith('on') || value.startsWith('javascript:') || value.startsWith('data:text/html')) {
+                        node.removeAttribute(attr.name);
+                    }
+                });
+            });
+
+            return template.innerHTML;
+        }
+
+        function inlineMarkdown(text) {
+            let out = escapeHtml(text);
+            out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
+            out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            out = out.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+            out = out.replace(/\$\$([\s\S]+?)\$\$/g, '<span class="math-block">$1</span>');
+            out = out.replace(/\$([^$]+)\$/g, '<code>$1</code>');
+            return out;
+        }
+
+        function renderTable(lines) {
+            const rows = lines.map(line => line.trim().replace(/^\||\|$/g, '').split('|').map(cell => inlineMarkdown(cell.trim())));
+            const body = rows.map((row, index) => {
+                if (index === 1 && row.every(cell => /^:?-{3,}:?$/.test(cell))) return '';
+                const tag = index === 0 ? 'th' : 'td';
+                return `<tr>${row.map(cell => `<${tag}>${cell}</${tag}>`).join('')}</tr>`;
+            }).join('');
+            return `<table>${body}</table>`;
         }
 
         function renderMarkdown(text) {
-            // First, render the markdown to HTML
-            let rendered = mdParser.render(text || "");
-            container.innerHTML = rendered;
-            
-            // Second, parse and render LaTeX equations using KaTeX auto-render helper
-            try {
-                renderMathInElement(container, {
-                    delimiters: [
-                        {left: '$$', right: '$$', display: true},
-                        {left: '$', right: '$', display: false},
-                        {left: '\\(', right: '\\)', display: false},
-                        {left: '\\[', right: '\\]', display: true}
-                    ],
-                    throwOnError: false
-                });
-            } catch (err) {
-                console.error("KaTeX auto-render failed: ", err);
+            if (!text || !text.trim()) {
+                container.innerHTML = '<p class="empty">문서 내용이 없습니다.</p>';
+                return;
             }
-        }
 
-        function renderHtml(text) {
-            container.innerHTML = sanitizeHtml(text || "");
+            const lines = text.replace(/\r\n/g, '\n').split('\n');
+            const html = [];
+            let paragraph = [];
+            let list = [];
+            let ordered = false;
+            let quote = [];
+            let code = [];
+            let table = [];
+            let inCode = false;
+
+            function flushParagraph() {
+                if (paragraph.length) {
+                    html.push(`<p>${inlineMarkdown(paragraph.join(' '))}</p>`);
+                    paragraph = [];
+                }
+            }
+            function flushList() {
+                if (list.length) {
+                    html.push(`<${ordered ? 'ol' : 'ul'}>${list.map(item => `<li>${inlineMarkdown(item)}</li>`).join('')}</${ordered ? 'ol' : 'ul'}>`);
+                    list = [];
+                }
+            }
+            function flushQuote() {
+                if (quote.length) {
+                    html.push(`<blockquote>${quote.map(inlineMarkdown).join('<br>')}</blockquote>`);
+                    quote = [];
+                }
+            }
+            function flushTable() {
+                if (table.length) {
+                    html.push(renderTable(table));
+                    table = [];
+                }
+            }
+
+            for (const raw of lines) {
+                const line = raw;
+                if (line.trim().startsWith('```')) {
+                    if (inCode) {
+                        html.push(`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`);
+                        code = [];
+                        inCode = false;
+                    } else {
+                        flushParagraph(); flushList(); flushQuote(); flushTable();
+                        inCode = true;
+                    }
+                    continue;
+                }
+                if (inCode) {
+                    code.push(line);
+                    continue;
+                }
+                if (!line.trim()) {
+                    flushParagraph(); flushList(); flushQuote(); flushTable();
+                    continue;
+                }
+                if (/^\|.+\|$/.test(line.trim())) {
+                    flushParagraph(); flushList(); flushQuote();
+                    table.push(line);
+                    continue;
+                }
+                flushTable();
+                const heading = /^(#{1,3})\s+(.+)$/.exec(line);
+                if (heading) {
+                    flushParagraph(); flushList(); flushQuote();
+                    html.push(`<h${heading[1].length}>${inlineMarkdown(heading[2])}</h${heading[1].length}>`);
+                    continue;
+                }
+                const ul = /^[-*]\s+(.+)$/.exec(line);
+                if (ul) {
+                    flushParagraph(); flushQuote();
+                    ordered = false;
+                    list.push(ul[1]);
+                    continue;
+                }
+                const ol = /^\d+\.\s+(.+)$/.exec(line);
+                if (ol) {
+                    flushParagraph(); flushQuote();
+                    ordered = true;
+                    list.push(ol[1]);
+                    continue;
+                }
+                const bq = /^>\s?(.+)$/.exec(line);
+                if (bq) {
+                    flushParagraph(); flushList();
+                    quote.push(bq[1]);
+                    continue;
+                }
+                flushList(); flushQuote();
+                paragraph.push(line.trim());
+            }
+
+            flushParagraph(); flushList(); flushQuote(); flushTable();
+            container.innerHTML = sanitizeHtml(html.join('\n'));
         }
 
         function renderLatex(text) {
-            // Treat the whole file as direct LaTeX document block
-            try {
-                let html = katex.renderToString(text || "", {
-                    displayMode: true,
-                    throwOnError: false
-                });
-                container.innerHTML = `<div class="katex-display">${html}</div>`;
-            } catch (err) {
-                container.innerHTML = `<div style="color:red;">LaTeX Render Error: ${err.message}</div>`;
+            if (!text || !text.trim()) {
+                container.innerHTML = '<p class="empty">LaTeX 내용이 없습니다.</p>';
+                return;
             }
+
+            const escaped = escapeHtml(text)
+                .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '<span>($1 / $2)</span>')
+                .replace(/\\sqrt\{([^}]+)\}/g, '<span>sqrt($1)</span>')
+                .replace(/\^(\w|\{[^}]+\})/g, '<sup>$1</sup>')
+                .replace(/_(\w|\{[^}]+\})/g, '<sub>$1</sub>');
+            container.innerHTML = `<div class="math-block">${escaped}</div>`;
         }
 
-        // Receive preview text data from C#
-        if (window.chrome && window.chrome.webview) {
-            window.chrome.webview.addEventListener('message', function(event) {
-                try {
-                    const message = JSON.parse(event.data);
-                    if (message.action === 'render') {
-                        currentMode = message.mode || 'markdown';
-                        
-                        // Theme handling
-                        if (message.theme === 'Light') {
-                            document.body.classList.add('light-theme');
-                        } else {
-                            document.body.classList.remove('light-theme');
-                        }
+        function applyTheme(message) {
+            const theme = message.theme || 'Dark';
+            const bg = message.customBackgroundColor || (theme === 'Light' ? '#ffffff' : '#1e1e1e');
+            const fg = message.customForegroundColor || (theme === 'Light' ? '#1a1a1a' : '#d4d4d4');
+            document.documentElement.style.setProperty('--bg', bg);
+            document.documentElement.style.setProperty('--fg', fg);
+            document.documentElement.style.setProperty('--code-bg', theme === 'Light' ? '#f3f5f7' : '#2d2d2d');
+            document.documentElement.style.setProperty('--border', theme === 'Light' ? '#d8dee4' : '#3e3e3e');
+            document.documentElement.style.setProperty('--muted', theme === 'Light' ? '#667085' : '#9aa0a6');
+            document.documentElement.style.setProperty('--font', message.uiFontFamily || '"Segoe UI", "Malgun Gothic", Arial, sans-serif');
+        }
 
-                        if (currentMode === 'markdown') {
-                            renderMarkdown(message.text);
-                        } else if (currentMode === 'html') {
-                            renderHtml(message.text);
-                        } else if (currentMode === 'latex') {
-                            renderLatex(message.text);
-                        }
-                    }
-                } catch (e) {
-                    console.error("Failed to parse Preview message: ", e);
+        if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.addEventListener('message', event => {
+                const message = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                if (message.action !== 'render') return;
+
+                applyTheme(message);
+                if (message.mode === 'html') {
+                    container.innerHTML = sanitizeHtml(message.text || '');
+                } else if (message.mode === 'latex') {
+                    renderLatex(message.text || '');
+                } else {
+                    renderMarkdown(message.text || '');
                 }
             });
         }

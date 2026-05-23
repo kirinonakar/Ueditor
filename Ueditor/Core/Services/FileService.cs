@@ -187,7 +187,7 @@ namespace Ueditor.Core.Services
             return lines;
         }
 
-        public async Task<System.Collections.Generic.List<LargeFileSearchResult>> SearchLargeFileAsync(string filePath, string query, bool isRegex)
+        public async Task<System.Collections.Generic.List<LargeFileSearchResult>> SearchLargeFileAsync(string filePath, string query, bool isRegex, bool matchCase = false, bool wholeWord = false)
         {
             var results = new System.Collections.Generic.List<LargeFileSearchResult>();
             if (!File.Exists(filePath) || string.IsNullOrEmpty(query))
@@ -209,13 +209,25 @@ namespace Ueditor.Core.Services
                     int lineNumber = 1;
                     System.Text.RegularExpressions.Regex? regex = null;
 
-                    if (isRegex)
+                    if (isRegex || wholeWord)
                     {
                         try
                         {
-                            regex = new System.Text.RegularExpressions.Regex(query, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                            string pattern = isRegex ? query : System.Text.RegularExpressions.Regex.Escape(query);
+                            if (wholeWord)
+                            {
+                                pattern = $"\\b{pattern}\\b";
+                            }
+
+                            var options = matchCase
+                                ? System.Text.RegularExpressions.RegexOptions.None
+                                : System.Text.RegularExpressions.RegexOptions.IgnoreCase;
+                            regex = new System.Text.RegularExpressions.Regex(pattern, options);
                         }
-                        catch { }
+                        catch
+                        {
+                            return;
+                        }
                     }
 
                     while ((line = reader.ReadLine()) != null)
@@ -236,8 +248,8 @@ namespace Ueditor.Core.Services
                         }
                         else
                         {
-                            // Case insensitive plain match
-                            int idx = line.IndexOf(query, StringComparison.OrdinalIgnoreCase);
+                            var comparison = matchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+                            int idx = line.IndexOf(query, comparison);
                             if (idx >= 0)
                             {
                                 results.Add(new LargeFileSearchResult

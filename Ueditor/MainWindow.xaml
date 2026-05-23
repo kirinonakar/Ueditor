@@ -22,13 +22,48 @@
 
         <!-- 1. Top Command Toolbar (상단 툴바) -->
         <CommandBar Grid.Row="0" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}" DefaultLabelPosition="Right">
+            <AppBarToggleButton x:Name="LeftPanelToggle" Label="좌측 패널" IsChecked="True" Click="OnToggleLeftPanelClick">
+                <AppBarToggleButton.Icon>
+                    <FontIcon Glyph="&#xE8A7;"/>
+                </AppBarToggleButton.Icon>
+            </AppBarToggleButton>
             <AppBarButton Icon="OpenFile" Label="파일 열기" Click="OnOpenFileClick" AccessKey="O"/>
             <AppBarButton Icon="Save" Label="저장" Click="OnSaveFileClick" AccessKey="S"/>
             <AppBarSeparator/>
             <AppBarToggleButton x:Name="WordWrapToggle" Icon="AlignLeft" Label="Word Wrap" Click="OnWordWrapToggleClick" IsChecked="True"/>
             <AppBarButton Icon="Find" Label="검색" Click="OnFindClick"/>
             <AppBarSeparator/>
-            <AppBarButton Icon="PreviewLink" Label="Live Preview" Click="OnTogglePreviewClick"/>
+            <AppBarButton Label="Markdown">
+                <AppBarButton.Icon>
+                    <FontIcon Glyph="&#xE70F;"/>
+                </AppBarButton.Icon>
+                <AppBarButton.Flyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Text="굵게 **B**" Click="OnMarkdownBoldClick"/>
+                        <MenuFlyoutItem Text="기울임 *I*" Click="OnMarkdownItalicClick"/>
+                        <MenuFlyoutItem Text="인라인 코드" Click="OnMarkdownInlineCodeClick"/>
+                        <MenuFlyoutItem Text="코드 블록" Click="OnMarkdownCodeBlockClick"/>
+                        <MenuFlyoutSeparator/>
+                        <MenuFlyoutItem Text="제목" Click="OnMarkdownHeadingClick"/>
+                        <MenuFlyoutItem Text="링크" Click="OnMarkdownLinkClick"/>
+                        <MenuFlyoutItem Text="인용문" Click="OnMarkdownQuoteClick"/>
+                        <MenuFlyoutItem Text="글머리 목록" Click="OnMarkdownUlClick"/>
+                        <MenuFlyoutItem Text="번호 목록" Click="OnMarkdownOlClick"/>
+                        <MenuFlyoutItem Text="체크리스트" Click="OnMarkdownTaskClick"/>
+                        <MenuFlyoutSeparator/>
+                        <MenuFlyoutItem Text="표" Click="OnMarkdownTableClick"/>
+                        <MenuFlyoutItem Text="수식 블록" Click="OnMarkdownMathClick"/>
+                    </MenuFlyout>
+                </AppBarButton.Flyout>
+            </AppBarButton>
+            <AppBarSeparator/>
+            <AppBarButton Icon="Refresh" Label="Preview 갱신" Click="OnRefreshPreviewClick"/>
+            <AppBarToggleButton x:Name="RightPanelToggle" Icon="PreviewLink" Label="우측 패널" Click="OnTogglePreviewClick" IsChecked="True"/>
+            <AppBarButton Label="테마" Click="OnToggleThemeClick">
+                <AppBarButton.Icon>
+                    <FontIcon Glyph="&#xE790;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
             <AppBarSeparator/>
             <AppBarButton Icon="Setting" Label="설정" Click="OnSettingsClick"/>
             
@@ -241,7 +276,7 @@
             </Grid>
 
             <!-- B. Sidebar Splitter -->
-            <local:CustomSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+            <local:CustomSplitter x:Name="LeftSplitter" Grid.Column="1" Width="4" HorizontalAlignment="Stretch" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
                                   PointerPressed="OnLeftSplitterPointerPressed"
                                   PointerMoved="OnLeftSplitterPointerMoved"
                                   PointerReleased="OnLeftSplitterPointerReleased"/>
@@ -260,7 +295,7 @@
             </Grid>
 
             <!-- D. Preview Splitter -->
-            <local:CustomSplitter Grid.Column="3" Width="4" HorizontalAlignment="Stretch" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+            <local:CustomSplitter x:Name="RightSplitter" Grid.Column="3" Width="4" HorizontalAlignment="Stretch" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
                                   PointerPressed="OnRightSplitterPointerPressed"
                                   PointerMoved="OnRightSplitterPointerMoved"
                                   PointerReleased="OnRightSplitterPointerReleased"/>

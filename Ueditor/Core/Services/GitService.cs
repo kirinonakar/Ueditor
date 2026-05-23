@@ -61,7 +61,7 @@ namespace Ueditor.Core.Services
                 {
                     if (line.Length >= 4)
                     {
-                        string status = line.Substring(0, 2).Trim();
+                        string status = line.Substring(0, 2);
                         string relativePath = line.Substring(3).Trim().Replace('/', '\\');
                         
                         // git status --porcelain can wrap paths in quotes if they contain special characters

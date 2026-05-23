@@ -31,6 +31,7 @@ namespace Ueditor
         private readonly ObservableCollection<GitFileItem> _gitFilesList = new ObservableCollection<GitFileItem>();
         private readonly ObservableCollection<SearchResultItem> _searchResultsList = new ObservableCollection<SearchResultItem>();
         private string _lastSelectionText = string.Empty;
+        private string _currentFolderPath = string.Empty;
         private string _currentRepoPath = string.Empty;
         
         // Dynamic tabs collection
@@ -50,10 +51,13 @@ namespace Ueditor
         private bool _isDraggingRightSplitter = false;
         private double _rightSplitterStartPreviewWidth = 0;
         private double _rightSplitterStartPointerX = 0;
+        private double _lastExplorerWidth = 260;
+        private double _lastPreviewWidth = 400;
 
         public MainWindow()
         {
             this.InitializeComponent();
+            SetWindowIcon();
 
             _fileService = new FileService();
             _settingsService = new SettingsService();
@@ -79,6 +83,22 @@ namespace Ueditor
             this.Activated += OnWindowActivated;
         }
 
+        private void SetWindowIcon()
+        {
+            try
+            {
+                string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "Ueditor.ico");
+                if (File.Exists(iconPath))
+                {
+                    AppWindow.SetIcon(iconPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to set window icon: {ex.Message}");
+            }
+        }
+
         private async void OnWindowActivated(object sender, WindowActivatedEventArgs e)
         {
             this.Activated -= OnWindowActivated;
@@ -86,6 +106,14 @@ namespace Ueditor
             // 1. Load settings JSON
             await _settingsService.LoadSettingsAsync();
             WordWrapToggle.IsChecked = _settingsService.CurrentSettings.WordWrap;
+            LeftPanelToggle.IsChecked = true;
+            RightPanelToggle.IsChecked = true;
+            PreviewModeCombo.SelectedIndex = _settingsService.CurrentSettings.PreviewMode switch
+            {
+                "HTML" => 1,
+                "LaTeX" => 2,
+                _ => 0
+            };
             ApplyUiPersonalization(_settingsService.CurrentSettings);
 
             // 2. Initialize Preview Panel WebView2
@@ -285,7 +313,7 @@ namespace Ueditor
                 {
                     try
                     {
-                        string json = args.WebMessageAsJson;
+                        string json = NormalizeWebMessageJson(args);
                         using (var doc = System.Text.Json.JsonDocument.Parse(json))
                         {
                             var root = doc.RootElement;
@@ -358,7 +386,10 @@ namespace Ueditor
                             lineCount = count,
                             theme = _settingsService.CurrentSettings.Theme,
                             fontSize = _settingsService.CurrentSettings.FontSize,
-                            fontFamily = _settingsService.CurrentSettings.FontFamily
+                            fontFamily = _settingsService.CurrentSettings.FontFamily,
+                            customBackgroundColor = _settingsService.CurrentSettings.CustomBackgroundColor,
+                            customForegroundColor = _settingsService.CurrentSettings.CustomForegroundColor,
+                            readOnly = true
                         };
                         string initJson = System.Text.Json.JsonSerializer.Serialize(initMsg);
                         wv.CoreWebView2.PostWebMessageAsJson(initJson);
@@ -443,7 +474,10 @@ namespace Ueditor
                     action = "render",
                     text = tab.Content,
                     mode = mode,
-                    theme = _settingsService.CurrentSettings.Theme
+                    theme = _settingsService.CurrentSettings.Theme,
+                    customBackgroundColor = _settingsService.CurrentSettings.CustomBackgroundColor,
+                    customForegroundColor = _settingsService.CurrentSettings.CustomForegroundColor,
+                    uiFontFamily = _settingsService.CurrentSettings.UiFontFamily
                 };
 
                 string json = System.Text.Json.JsonSerializer.Serialize(renderMsg);
@@ -495,6 +529,13 @@ namespace Ueditor
         {
             try
             {
+                string? repoRoot = FindGitRepositoryRoot(Path.GetDirectoryName(filePath));
+                if (!string.IsNullOrEmpty(repoRoot))
+                {
+                    _currentRepoPath = repoRoot;
+                    await RefreshGitStatusUIAsync();
+                }
+
                 var largeInfo = await _fileService.GetLargeFileInfoAsync(filePath);
                 var settings = _settingsService.CurrentSettings;
                 long thresholdBytes = settings.LargeFileThresholdMB * 1024 * 1024;
@@ -594,7 +635,11 @@ namespace Ueditor
                                 filePath = tab.FilePath,
                                 lineCount = count,
                                 theme = _settingsService.CurrentSettings.Theme,
-                                fontSize = _settingsService.CurrentSettings.FontSize
+                                fontSize = _settingsService.CurrentSettings.FontSize,
+                                fontFamily = _settingsService.CurrentSettings.FontFamily,
+                                customBackgroundColor = _settingsService.CurrentSettings.CustomBackgroundColor,
+                                customForegroundColor = _settingsService.CurrentSettings.CustomForegroundColor,
+                                readOnly = true
                             };
                             string initJson = System.Text.Json.JsonSerializer.Serialize(initMsg);
                             wv.CoreWebView2.PostWebMessageAsJson(initJson);
@@ -659,7 +704,24 @@ namespace Ueditor
                 activeTabItem.Tag is string tabId &&
                 _tabBridges.TryGetValue(tabId, out var bridgeGroup))
             {
-                await bridgeGroup.Bridge.UpdateOptionsAsync(settings);
+                if (bridgeGroup.Bridge != null)
+                {
+                    await bridgeGroup.Bridge.UpdateOptionsAsync(settings);
+                }
+                else if (bridgeGroup.WebView?.CoreWebView2 != null)
+                {
+                    var updateMsg = new
+                    {
+                        action = "updateOptions",
+                        theme = settings.Theme,
+                        fontSize = settings.FontSize,
+                        fontFamily = settings.FontFamily,
+                        customBackgroundColor = settings.CustomBackgroundColor,
+                        customForegroundColor = settings.CustomForegroundColor,
+                        readOnly = true
+                    };
+                    bridgeGroup.WebView.CoreWebView2.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(updateMsg));
+                }
             }
         }
 
@@ -669,26 +731,100 @@ namespace Ueditor
                 activeTabItem.Tag is string tabId &&
                 _tabBridges.TryGetValue(tabId, out var bridgeGroup))
             {
-                await bridgeGroup.Bridge.TriggerFindAsync();
+                if (bridgeGroup.Bridge != null)
+                {
+                    await bridgeGroup.Bridge.TriggerFindAsync();
+                }
+                else
+                {
+                    LeftSidebarTabView.SelectedIndex = 4;
+                    SearchQueryInput.Focus(FocusState.Programmatic);
+                }
+            }
+        }
+
+        private void OnToggleLeftPanelClick(object sender, RoutedEventArgs e)
+        {
+            bool show = LeftPanelToggle.IsChecked == true;
+            if (show)
+            {
+                ExplorerColumn.Width = new GridLength(Math.Max(_lastExplorerWidth, ExplorerColumn.MinWidth));
+                LeftSplitter.Visibility = Visibility.Visible;
+                LeftSidebarTabView.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                if (ExplorerColumn.Width.Value > 0)
+                {
+                    _lastExplorerWidth = ExplorerColumn.Width.Value;
+                }
+                ExplorerColumn.Width = new GridLength(0);
+                LeftSplitter.Visibility = Visibility.Collapsed;
+                LeftSidebarTabView.Visibility = Visibility.Collapsed;
             }
         }
 
         private void OnTogglePreviewClick(object sender, RoutedEventArgs e)
         {
-            // Toggle Visibility of Preview Panel by adjusting Column Grid Width
-            if (PreviewColumn.Width.Value > 0)
+            bool show = RightPanelToggle.IsChecked == true;
+            if (!show)
             {
+                if (PreviewColumn.Width.Value > 0)
+                {
+                    _lastPreviewWidth = PreviewColumn.Width.Value;
+                }
                 PreviewColumn.Width = new GridLength(0);
+                RightSplitter.Visibility = Visibility.Collapsed;
+                PreviewGrid.Visibility = Visibility.Collapsed;
             }
             else
             {
-                PreviewColumn.Width = new GridLength(400);
+                PreviewColumn.Width = new GridLength(Math.Max(_lastPreviewWidth, PreviewColumn.MinWidth));
+                RightSplitter.Visibility = Visibility.Visible;
+                PreviewGrid.Visibility = Visibility.Visible;
                 if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
                     activeTabItem.Tag is string tabId)
                 {
                     var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
                     if (tab != null) UpdateLivePreview(tab);
                 }
+            }
+        }
+
+        private async void OnToggleThemeClick(object sender, RoutedEventArgs e)
+        {
+            var settings = _settingsService.CurrentSettings;
+            settings.Theme = settings.Theme == "Light" ? "Dark" : "Light";
+            await _settingsService.SaveSettingsAsync(settings);
+            ApplyUiPersonalization(settings);
+
+            foreach (var grp in _tabBridges.Values)
+            {
+                if (grp.Bridge != null)
+                {
+                    await grp.Bridge.UpdateOptionsAsync(settings);
+                }
+                else if (grp.WebView?.CoreWebView2 != null)
+                {
+                    var updateMsg = new
+                    {
+                            action = "updateOptions",
+                            theme = settings.Theme,
+                            fontSize = settings.FontSize,
+                            fontFamily = settings.FontFamily,
+                            customBackgroundColor = settings.CustomBackgroundColor,
+                            customForegroundColor = settings.CustomForegroundColor,
+                            readOnly = true
+                        };
+                    grp.WebView.CoreWebView2.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(updateMsg));
+                }
+            }
+
+            if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
+                activeTabItem.Tag is string tabId)
+            {
+                var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
+                if (tab != null) UpdateLivePreview(tab);
             }
         }
 
@@ -708,6 +844,12 @@ namespace Ueditor
             var customFgBox = new TextBox { PlaceholderText = "예: #d4d4d4 (기본은 비워둠)", Text = settings.CustomForegroundColor, HorizontalAlignment = HorizontalAlignment.Stretch };
             var fontFamilyBox = new TextBox { PlaceholderText = "예: Consolas, 'Courier New'", Text = settings.FontFamily, HorizontalAlignment = HorizontalAlignment.Stretch };
             var uiFontFamilyBox = new TextBox { PlaceholderText = "예: Segoe UI, Malgun Gothic", Text = settings.UiFontFamily, HorizontalAlignment = HorizontalAlignment.Stretch };
+            var wordWrapCheck = new CheckBox { Content = "기본 Word Wrap 켜기", IsChecked = settings.WordWrap };
+            var minimapCheck = new CheckBox { Content = "미니맵 표시 (로컬 Monaco 번들 사용 시)", IsChecked = settings.MinimapEnabled };
+            var bracketPairCheck = new CheckBox { Content = "Bracket pair colorization (로컬 Monaco 번들 사용 시)", IsChecked = settings.BracketPairColorizationEnabled };
+            var autoSaveCheck = new CheckBox { Content = "Autosave 사용", IsChecked = settings.AutoSave };
+            var tabSizeBox = new TextBox { PlaceholderText = "예: 4", Text = settings.TabSize.ToString(), HorizontalAlignment = HorizontalAlignment.Stretch };
+            var largeThresholdBox = new TextBox { PlaceholderText = "예: 50", Text = settings.LargeFileThresholdMB.ToString(), HorizontalAlignment = HorizontalAlignment.Stretch };
 
             // LLM Settings Injection
             var llmProviderCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, SelectedIndex = settings.LlmProvider.Equals("Gemini", StringComparison.OrdinalIgnoreCase) ? 0 : 1 };
@@ -717,32 +859,70 @@ namespace Ueditor
             var llmEndpointBox = new TextBox { PlaceholderText = "예: https://api.openai.com/v1", Text = settings.LlmEndpoint, HorizontalAlignment = HorizontalAlignment.Stretch };
             var llmModelBox = new TextBox { PlaceholderText = "예: gemini-2.5-flash 또는 gpt-4o", Text = settings.LlmModel, HorizontalAlignment = HorizontalAlignment.Stretch };
 
-            var stack = new StackPanel { Spacing = 10, Width = 320 };
-            stack.Children.Add(new TextBlock { Text = "에디터 테마 설정", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            stack.Children.Add(themeCombo);
-            stack.Children.Add(new TextBlock { Text = $"글자 크기 (현재: {settings.FontSize}pt)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            stack.Children.Add(sizeSlider);
-            stack.Children.Add(new TextBlock { Text = "커스텀 에디터 배경색 (Hex)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            stack.Children.Add(customBgBox);
-            stack.Children.Add(new TextBlock { Text = "커스텀 에디터 전경색 (Hex)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            stack.Children.Add(customFgBox);
-            stack.Children.Add(new TextBlock { Text = "에디터 폰트 (FontFamily)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            stack.Children.Add(fontFamilyBox);
-            stack.Children.Add(new TextBlock { Text = "UI 쉘 폰트 (UiFontFamily)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            stack.Children.Add(uiFontFamilyBox);
+            StackPanel CreateSection()
+            {
+                return new StackPanel { Spacing = 10, Width = 460, Padding = new Thickness(2, 8, 2, 2) };
+            }
 
-            // Add LLM options into layout stack
-            stack.Children.Add(new TextBlock { Text = "LLM 공급자 설정 (LlmProvider)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            stack.Children.Add(llmProviderCombo);
-            stack.Children.Add(new TextBlock { Text = "LLM API Endpoint 주소", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            stack.Children.Add(llmEndpointBox);
-            stack.Children.Add(new TextBlock { Text = "LLM 모델명 (LlmModel)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            stack.Children.Add(llmModelBox);
+            void AddLabel(StackPanel target, string text)
+            {
+                target.Children.Add(new TextBlock { Text = text, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            }
+
+            var appearanceSection = CreateSection();
+            AddLabel(appearanceSection, "앱/에디터 테마");
+            appearanceSection.Children.Add(themeCombo);
+            AddLabel(appearanceSection, $"에디터 글자 크기 ({settings.FontSize:0}pt)");
+            appearanceSection.Children.Add(sizeSlider);
+            AddLabel(appearanceSection, "에디터 폰트");
+            appearanceSection.Children.Add(fontFamilyBox);
+            AddLabel(appearanceSection, "UI 쉘 폰트");
+            appearanceSection.Children.Add(uiFontFamilyBox);
+            AddLabel(appearanceSection, "커스텀 에디터 배경색 (Hex)");
+            appearanceSection.Children.Add(customBgBox);
+            AddLabel(appearanceSection, "커스텀 에디터 글자색 (Hex)");
+            appearanceSection.Children.Add(customFgBox);
+
+            var editorSection = CreateSection();
+            editorSection.Children.Add(wordWrapCheck);
+            editorSection.Children.Add(minimapCheck);
+            editorSection.Children.Add(bracketPairCheck);
+            editorSection.Children.Add(autoSaveCheck);
+            AddLabel(editorSection, "Tab size");
+            editorSection.Children.Add(tabSizeBox);
+            AddLabel(editorSection, "Large File Mode 제안 기준 (MB)");
+            editorSection.Children.Add(largeThresholdBox);
+
+            var previewSection = CreateSection();
+            previewSection.Children.Add(new TextBlock
+            {
+                Text = "Preview는 외부 CDN 없이 내장 렌더러로 동작합니다. Markdown/HTML/LaTeX 모드를 우측 패널 상단에서 전환할 수 있고, 앱 테마와 커스텀 색상이 함께 적용됩니다.",
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            var llmSection = CreateSection();
+            AddLabel(llmSection, "LLM 공급자");
+            llmSection.Children.Add(llmProviderCombo);
+            AddLabel(llmSection, "LLM API Endpoint");
+            llmSection.Children.Add(llmEndpointBox);
+            AddLabel(llmSection, "LLM 모델명");
+            llmSection.Children.Add(llmModelBox);
+            llmSection.Children.Add(new TextBlock
+            {
+                Text = "API Key는 이 설정 파일에 저장하지 않고 우측 AI 패널에서 Windows 자격 증명 관리자에 저장합니다.",
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            var settingsPivot = new Pivot { Width = 500, Height = 440 };
+            settingsPivot.Items.Add(new PivotItem { Header = "모양", Content = new ScrollViewer { Content = appearanceSection } });
+            settingsPivot.Items.Add(new PivotItem { Header = "편집", Content = new ScrollViewer { Content = editorSection } });
+            settingsPivot.Items.Add(new PivotItem { Header = "Preview", Content = new ScrollViewer { Content = previewSection } });
+            settingsPivot.Items.Add(new PivotItem { Header = "LLM", Content = new ScrollViewer { Content = llmSection } });
 
             var dialog = new ContentDialog
             {
-                Title = "Ueditor 기본 환경 설정",
-                Content = new ScrollViewer { Content = stack, MaxHeight = 400, VerticalScrollBarVisibility = ScrollBarVisibility.Auto },
+                Title = "Ueditor 설정",
+                Content = settingsPivot,
                 PrimaryButtonText = "적용 및 저장",
                 CloseButtonText = "취소",
                 XamlRoot = this.Content.XamlRoot
@@ -757,11 +937,24 @@ namespace Ueditor
                 settings.CustomForegroundColor = customFgBox.Text.Trim();
                 settings.FontFamily = fontFamilyBox.Text.Trim();
                 settings.UiFontFamily = uiFontFamilyBox.Text.Trim();
+                settings.WordWrap = wordWrapCheck.IsChecked == true;
+                settings.MinimapEnabled = minimapCheck.IsChecked == true;
+                settings.BracketPairColorizationEnabled = bracketPairCheck.IsChecked == true;
+                settings.AutoSave = autoSaveCheck.IsChecked == true;
+                if (int.TryParse(tabSizeBox.Text.Trim(), out int tabSize))
+                {
+                    settings.TabSize = Math.Clamp(tabSize, 1, 16);
+                }
+                if (long.TryParse(largeThresholdBox.Text.Trim(), out long thresholdMb))
+                {
+                    settings.LargeFileThresholdMB = Math.Clamp(thresholdMb, 1, 1024);
+                }
                 settings.LlmProvider = llmProviderCombo.SelectedIndex == 0 ? "Gemini" : "OpenAI";
                 settings.LlmEndpoint = llmEndpointBox.Text.Trim();
                 settings.LlmModel = llmModelBox.Text.Trim();
 
                 await _settingsService.SaveSettingsAsync(settings);
+                WordWrapToggle.IsChecked = settings.WordWrap;
                 ApplyUiPersonalization(settings);
 
                 // Update settings for all active Monaco and Large File editors
@@ -778,7 +971,10 @@ namespace Ueditor
                             action = "updateOptions",
                             theme = settings.Theme,
                             fontSize = settings.FontSize,
-                            fontFamily = settings.FontFamily
+                            fontFamily = settings.FontFamily,
+                            customBackgroundColor = settings.CustomBackgroundColor,
+                            customForegroundColor = settings.CustomForegroundColor,
+                            readOnly = true
                         };
                         string updateJson = System.Text.Json.JsonSerializer.Serialize(updateMsg);
                         grp.WebView.CoreWebView2.PostWebMessageAsJson(updateJson);
@@ -889,7 +1085,8 @@ namespace Ueditor
             var folder = await picker.PickSingleFolderAsync();
             if (folder != null)
             {
-                _currentRepoPath = folder.Path;
+                _currentFolderPath = folder.Path;
+                _currentRepoPath = FindGitRepositoryRoot(folder.Path) ?? string.Empty;
                 FileTreeView.RootNodes.Clear();
                 var rootNode = new TreeViewNode
                 {
@@ -949,14 +1146,13 @@ namespace Ueditor
 
         private void OnFileTreeViewItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
         {
-            var node = args.InvokedItem as TreeViewNode;
-            if (node == null) return;
-
-            var item = node.Content as ExplorerItem;
+            TreeViewNode? node = sender.SelectedNode;
+            var item = args.InvokedItem as ExplorerItem ?? node?.Content as ExplorerItem;
             if (item == null) return;
 
             if (item.IsFolder)
             {
+                if (node == null) return;
                 // Lazy Expansion
                 if (node.HasUnrealizedChildren)
                 {
@@ -1082,13 +1278,53 @@ namespace Ueditor
             }
         }
 
-        private void OnPreviewModeComboSelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void OnPreviewModeComboSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_settingsService != null && PreviewModeCombo != null)
+            {
+                var settings = _settingsService.CurrentSettings;
+                settings.PreviewMode = PreviewModeCombo.SelectedIndex switch
+                {
+                    1 => "HTML",
+                    2 => "LaTeX",
+                    _ => "Markdown"
+                };
+                await _settingsService.SaveSettingsAsync(settings);
+            }
+
             if (PreviewWebView != null && PreviewWebView.CoreWebView2 != null)
             {
                 OnRefreshPreviewClick(this, new RoutedEventArgs());
             }
         }
+
+        #endregion
+
+        #region Markdown Toolbar
+
+        private async Task ApplyMarkdownCommandToActiveEditorAsync(string command)
+        {
+            if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
+                activeTabItem.Tag is string tabId &&
+                _tabBridges.TryGetValue(tabId, out var bridgeGroup) &&
+                bridgeGroup.Bridge != null)
+            {
+                await bridgeGroup.Bridge.ApplyMarkdownCommandAsync(command);
+            }
+        }
+
+        private async void OnMarkdownBoldClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("bold");
+        private async void OnMarkdownItalicClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("italic");
+        private async void OnMarkdownInlineCodeClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("inlineCode");
+        private async void OnMarkdownCodeBlockClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("codeBlock");
+        private async void OnMarkdownHeadingClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("heading");
+        private async void OnMarkdownLinkClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("link");
+        private async void OnMarkdownQuoteClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("quote");
+        private async void OnMarkdownUlClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("ul");
+        private async void OnMarkdownOlClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("ol");
+        private async void OnMarkdownTaskClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("task");
+        private async void OnMarkdownTableClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("table");
+        private async void OnMarkdownMathClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("math");
 
         #endregion
 
@@ -1112,6 +1348,29 @@ namespace Ueditor
             // WinUI 3 Window association wrapper for file pickers (required in WinAppSDK)
             IntPtr hwnd = WindowNative.GetWindowHandle(this);
             InitializeWithWindow.Initialize(picker, hwnd);
+        }
+
+        private static string NormalizeWebMessageJson(CoreWebView2WebMessageReceivedEventArgs args)
+        {
+            string json = args.WebMessageAsJson;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    return doc.RootElement.GetString() ?? "{}";
+                }
+            }
+            catch
+            {
+                string? asString = args.TryGetWebMessageAsString();
+                if (!string.IsNullOrWhiteSpace(asString))
+                {
+                    return asString;
+                }
+            }
+
+            return json;
         }
 
         private async void ShowErrorMessage(string title, string message)
@@ -1225,11 +1484,33 @@ namespace Ueditor
             StatusGitBranch.Text = branch;
         }
 
+        private static string? FindGitRepositoryRoot(string? startPath)
+        {
+            if (string.IsNullOrEmpty(startPath))
+            {
+                return null;
+            }
+
+            var dir = new DirectoryInfo(startPath);
+            while (dir != null)
+            {
+                string gitPath = Path.Combine(dir.FullName, ".git");
+                if (Directory.Exists(gitPath) || File.Exists(gitPath))
+                {
+                    return dir.FullName;
+                }
+
+                dir = dir.Parent;
+            }
+
+            return null;
+        }
+
         #region Favorites Handlers
 
         private async void OnAddFileToFavoritesClick(object sender, RoutedEventArgs e)
         {
-            if (sender is MenuFlyoutItem item && item.DataContext is TreeViewNode node && node.Content is ExplorerItem explorerItem)
+            if (sender is MenuFlyoutItem item && item.DataContext is ExplorerItem explorerItem)
             {
                 if (explorerItem.IsFolder) return; // File only for simplicity
 
@@ -1365,6 +1646,10 @@ namespace Ueditor
         {
             if (this.Content is FrameworkElement rootElement)
             {
+                rootElement.RequestedTheme = settings.Theme == "Light"
+                    ? ElementTheme.Light
+                    : ElementTheme.Dark;
+
                 try
                 {
                     var fontFamily = new Microsoft.UI.Xaml.Media.FontFamily(settings.UiFontFamily);
@@ -1431,6 +1716,7 @@ namespace Ueditor
             if (string.IsNullOrEmpty(_currentRepoPath))
             {
                 GitPanelBranchText.Text = "Git: 감지 안됨";
+                StatusGitBranch.Text = "Git: 감지 안됨";
                 _gitFilesList.Clear();
                 return;
             }
@@ -1446,9 +1732,11 @@ namespace Ueditor
                 string fullPath = kvp.Key;
                 string status = kvp.Value; // e.g. "M ", " M", "A ", "??", "D "
 
-                bool isStaged = status.StartsWith("M") || status.StartsWith("A") || status.StartsWith("D");
+                bool isStaged = status.Length > 0 && status[0] != ' ' && status != "??";
+                bool isUnstaged = status.Length > 1 && status[1] != ' ';
                 string statusDesc = isStaged ? "Staged" : "Unstaged";
                 if (status == "??") statusDesc = "Untracked";
+                else if (isStaged && isUnstaged) statusDesc = "Staged + Unstaged";
 
                 string actionGlyph = isStaged ? "\xE108" : "\xE109"; // Minus (Unstage) or Plus (Stage) in Segoe MDL2
 
@@ -1536,13 +1824,14 @@ namespace Ueditor
             string query = SearchQueryInput.Text;
             if (string.IsNullOrEmpty(query)) return;
 
-            if (string.IsNullOrEmpty(_currentRepoPath))
+            if (string.IsNullOrEmpty(_currentFolderPath) && string.IsNullOrEmpty(_currentRepoPath))
             {
                 ShowErrorMessage("검색 실패", "먼저 탐색기에서 작업할 폴더를 선택하십시오.");
                 return;
             }
 
             _searchResultsList.Clear();
+            string searchRoot = !string.IsNullOrEmpty(_currentFolderPath) ? _currentFolderPath : _currentRepoPath;
             bool isRegex = SearchRegexToggle.IsChecked == true;
             bool isMatchCase = SearchMatchCaseToggle.IsChecked == true;
             bool isWholeWord = SearchWholeWordToggle.IsChecked == true;
@@ -1551,7 +1840,7 @@ namespace Ueditor
             {
                 try
                 {
-                    var files = Directory.GetFiles(_currentRepoPath, "*.*", SearchOption.AllDirectories);
+                    var files = Directory.GetFiles(searchRoot, "*.*", SearchOption.AllDirectories);
                     var tempResults = new List<SearchResultItem>();
                     var settings = _settingsService.CurrentSettings;
                     long thresholdBytes = settings.LargeFileThresholdMB * 1024 * 1024;
