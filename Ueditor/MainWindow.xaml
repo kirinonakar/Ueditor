@@ -25,7 +25,7 @@
             <AppBarButton Icon="OpenFile" Label="파일 열기" Click="OnOpenFileClick" AccessKey="O"/>
             <AppBarButton Icon="Save" Label="저장" Click="OnSaveFileClick" AccessKey="S"/>
             <AppBarSeparator/>
-            <AppBarToggleButton x:Name="WordWrapToggle" Icon="PageRange" Label="Word Wrap" Click="OnWordWrapToggleClick" IsChecked="True"/>
+            <AppBarToggleButton x:Name="WordWrapToggle" Icon="AlignLeft" Label="Word Wrap" Click="OnWordWrapToggleClick" IsChecked="True"/>
             <AppBarButton Icon="Find" Label="검색" Click="OnFindClick"/>
             <AppBarSeparator/>
             <AppBarButton Icon="PreviewLink" Label="Live Preview" Click="OnTogglePreviewClick"/>
@@ -48,7 +48,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- A. Left Panel (File Explorer & Favorites & Snippets) -->
-            <Grid Grid.Column="0" Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}" BorderBrush="{ThemeResource SystemControlElevationBorderBrush}" BorderThickness="0,0,1,0">
+            <Grid Grid.Column="0" Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
@@ -59,16 +59,13 @@
                     <Button Content="폴더 선택..." HorizontalAlignment="Stretch" Click="OnSelectFolderClick" Style="{StaticResource AccentButtonStyle}"/>
                 </StackPanel>
 
-                <!-- Navigation TreeView for Files -->
                 <TreeView x:Name="FileTreeView" Grid.Row="1" Margin="5" SelectionMode="Single" ItemInvoked="OnFileTreeViewItemInvoked">
                     <TreeView.ItemTemplate>
                         <DataTemplate>
-                            <TreeViewItem ItemsSource="{Binding Children}" HasUnrealizedChildren="{Binding HasUnrealizedChildren}">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <FontIcon Glyph="{Binding IconGlyph}" FontSize="16" Foreground="{ThemeResource SystemControlForegroundAccentBrush}"/>
-                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </TreeViewItem>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="{Binding IconGlyph}" FontSize="16" Foreground="{ThemeResource SystemControlForegroundAccentBrush}"/>
+                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                            </StackPanel>
                         </DataTemplate>
                     </TreeView.ItemTemplate>
                 </TreeView>
@@ -128,7 +125,7 @@
         </Grid>
 
         <!-- 3. Bottom Status Bar (하단 상태바) -->
-        <Border Grid.Row="2" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}" Height="28" BorderBrush="{ThemeResource SystemControlElevationBorderBrush}" BorderThickness="0,1,0,0">
+        <Border Grid.Row="2" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}" Height="28" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
             <Grid Margin="15,0,15,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
