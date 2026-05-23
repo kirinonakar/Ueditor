@@ -510,7 +510,7 @@
 
                             <!-- Row 1: AI Chat Output Area -->
                             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1" Padding="10" CornerRadius="4">
-                                <TextBlock x:Name="LlmOutputText" Text="대기 중... Monaco 에디터에서 영역을 선택한 후 하단의 AI 분석 도구를 사용해 보세요." TextWrapping="Wrap" FontSize="13" LineHeight="1.5" IsTextSelectionEnabled="True"/>
+                                <TextBlock x:Name="LlmOutputText" Text="대기 중... 에디터에서 영역을 선택한 후 하단의 AI 분석 도구를 사용해 보세요." TextWrapping="Wrap" FontSize="13" LineHeight="1.5" IsTextSelectionEnabled="True"/>
                             </ScrollViewer>
 
                             <!-- Row 2: Selected Context Info visualizer -->
