@@ -31,7 +31,7 @@ namespace Ueditor.Editor
                 // Ensure WebView2 is initialized in a secure local AppData cache directory to prevent write access crashes
                 string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
                 string cacheFolder = System.IO.Path.Combine(localAppData, "Ueditor", "WebView2Cache");
-                var env = await CoreWebView2Environment.CreateWithOptionsAsync((string)null, cacheFolder, (CoreWebView2EnvironmentOptions)null);
+                var env = await CoreWebView2Environment.CreateWithOptionsAsync(null, cacheFolder, null);
                 await _webView.EnsureCoreWebView2Async(env);
                 
                 // Map local WebResources folder if we want to host locally

@@ -86,7 +86,7 @@ namespace Ueditor
             {
                 string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
                 string cacheFolder = Path.Combine(localAppData, "Ueditor", "WebView2Cache");
-                var env = await CoreWebView2Environment.CreateWithOptionsAsync((string)null, cacheFolder, (CoreWebView2EnvironmentOptions)null);
+                var env = await CoreWebView2Environment.CreateWithOptionsAsync(null, cacheFolder, null);
                 await PreviewWebView.EnsureCoreWebView2Async(env);
                 
                 // Configure Virtual Host Mapping to access local files under WebResources folder via simulated URL http://ueditor.local/
@@ -227,7 +227,7 @@ namespace Ueditor
             {
                 string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
                 string cacheFolder = Path.Combine(localAppData, "Ueditor", "WebView2Cache");
-                var env = await CoreWebView2Environment.CreateWithOptionsAsync((string)null, cacheFolder, (CoreWebView2EnvironmentOptions)null);
+                var env = await CoreWebView2Environment.CreateWithOptionsAsync(null, cacheFolder, null);
                 
                 await wv.EnsureCoreWebView2Async(env);
 
