@@ -128,6 +128,12 @@ namespace Ueditor.Editor
             await SendMessageAsync(msg);
         }
 
+        public async Task InsertTextAsync(string text)
+        {
+            var msg = new { action = "insertText", text = text };
+            await SendMessageAsync(msg);
+        }
+
         private async Task SendMessageAsync(object obj)
         {
             if (!_isReady) return;

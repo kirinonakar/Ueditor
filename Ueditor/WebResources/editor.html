@@ -145,6 +145,20 @@
                         text: selectionText
                     });
                     break;
+                case 'insertText':
+                    const selection = editor.getSelection();
+                    const range = new monaco.Range(
+                        selection.startLineNumber,
+                        selection.startColumn,
+                        selection.endLineNumber,
+                        selection.endColumn
+                    );
+                    const id = { major: 1, minor: 1 };
+                    const text = msg.text || "";
+                    const op = { identifier: id, range: range, text: text, forceMoveMarkers: true };
+                    editor.executeEdits("my-source", [op]);
+                    editor.focus();
+                    break;
                 case 'focus':
                     editor.focus();
                     break;

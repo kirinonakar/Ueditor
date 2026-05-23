@@ -23,6 +23,10 @@ namespace Ueditor
         private readonly ISettingsService _settingsService;
         private readonly ICredentialService _credentialService;
         private readonly ILLMService _llmService;
+        private readonly IGitService _gitService;
+        private readonly ISnippetService _snippetService;
+        private readonly ObservableCollection<FavoriteItem> _favoritesList = new ObservableCollection<FavoriteItem>();
+        private readonly ObservableCollection<SnippetItem> _snippetsList = new ObservableCollection<SnippetItem>();
         private string _lastSelectionText = string.Empty;
         
         // Dynamic tabs collection
@@ -51,6 +55,12 @@ namespace Ueditor
             _settingsService = new SettingsService();
             _credentialService = new CredentialService();
             _llmService = new LLMService(_settingsService, _credentialService);
+            _gitService = new GitService();
+            _snippetService = new SnippetService();
+
+            // Bind Left Sidebar Tab items
+            FavoritesListView.ItemsSource = _favoritesList;
+            SnippetsListView.ItemsSource = _snippetsList;
 
             // Initialize Preview Debounce Timer (300ms)
             _previewDebounceTimer = new DispatcherTimer
@@ -76,6 +86,11 @@ namespace Ueditor
 
             // 3. Open a default blank tab on startup
             OpenNewTab();
+
+            // 4. Load Snippets and Favorites
+            await _snippetService.LoadSnippetsAsync();
+            RefreshSnippetsUI();
+            RefreshFavoritesUI();
         }
 
         #region WebView2 Host Resource Mapping & Preview Init
@@ -707,6 +722,9 @@ namespace Ueditor
                 // Populate initial children
                 LoadDirectoryChildren(folder.Path, rootNode);
                 FileTreeView.RootNodes.Add(rootNode);
+
+                // Trigger Git branch detection
+                await UpdateGitBranchStatusAsync(folder.Path);
             }
         }
 
@@ -1007,6 +1025,152 @@ namespace Ueditor
             }
         }
 
+        private async Task UpdateGitBranchStatusAsync(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+            string branch = await _gitService.GetCurrentBranchAsync(path);
+            StatusGitBranch.Text = branch;
+        }
+
+        #region Favorites Handlers
+
+        private async void OnAddFileToFavoritesClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuFlyoutItem item && item.DataContext is TreeViewNode node && node.Content is ExplorerItem explorerItem)
+            {
+                if (explorerItem.IsFolder) return; // File only for simplicity
+
+                var settings = _settingsService.CurrentSettings;
+                if (!settings.FavoritePaths.Contains(explorerItem.Path))
+                {
+                    settings.FavoritePaths.Add(explorerItem.Path);
+                    await _settingsService.SaveSettingsAsync(settings);
+                    RefreshFavoritesUI();
+                }
+            }
+        }
+
+        private void RefreshFavoritesUI()
+        {
+            _favoritesList.Clear();
+            var settings = _settingsService.CurrentSettings;
+            foreach (var path in settings.FavoritePaths)
+            {
+                if (File.Exists(path))
+                {
+                    _favoritesList.Add(new FavoriteItem
+                    {
+                        Name = Path.GetFileName(path),
+                        Path = path
+                    });
+                }
+            }
+        }
+
+        private async void OnRemoveFavoriteClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string path)
+            {
+                var settings = _settingsService.CurrentSettings;
+                settings.FavoritePaths.Remove(path);
+                await _settingsService.SaveSettingsAsync(settings);
+                RefreshFavoritesUI();
+            }
+        }
+
+        private async void OnFavoriteItemDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+        {
+            if (FavoritesListView.SelectedItem is FavoriteItem item)
+            {
+                await LoadFileIntoTabAsync(item.Path);
+            }
+        }
+
         #endregion
+
+        #region Snippets Handlers
+
+        private void RefreshSnippetsUI()
+        {
+            _snippetsList.Clear();
+            var list = _snippetService.GetSnippets();
+            foreach (var item in list)
+            {
+                _snippetsList.Add(item);
+            }
+        }
+
+        private async void OnSnippetItemDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+        {
+            if (SnippetsListView.SelectedItem is SnippetItem item)
+            {
+                if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
+                    activeTabItem.Tag is string tabId &&
+                    _tabBridges.TryGetValue(tabId, out var bridgeGroup))
+                {
+                    await bridgeGroup.Bridge.InsertTextAsync(item.Content);
+                }
+                else
+                {
+                    ShowErrorMessage("스니펫 삽입 오류", "현재 텍스트 에디터 창이 활성화되어 있지 않거나 대용량 모드(읽기 전용)입니다.");
+                }
+            }
+        }
+
+        private async void OnDeleteSnippetClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string title)
+            {
+                await _snippetService.DeleteSnippetAsync(title);
+                RefreshSnippetsUI();
+            }
+        }
+
+        private async void OnAddSnippetClick(object sender, RoutedEventArgs e)
+        {
+            var titleBox = new TextBox { PlaceholderText = "스니펫 이름 (예: C# Loop)", Width = 300 };
+            var descBox = new TextBox { PlaceholderText = "간단한 설명", Width = 300 };
+            var contentBox = new TextBox { PlaceholderText = "코드 본문 입력...", AcceptsReturn = true, Height = 150, Width = 300, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas") };
+
+            var stack = new StackPanel { Spacing = 10 };
+            stack.Children.Add(new TextBlock { Text = "스니펫 이름" });
+            stack.Children.Add(titleBox);
+            stack.Children.Add(new TextBlock { Text = "설명" });
+            stack.Children.Add(descBox);
+            stack.Children.Add(new TextBlock { Text = "템플릿 내용" });
+            stack.Children.Add(contentBox);
+
+            var dialog = new ContentDialog
+            {
+                Title = "새 코드/수식 스니펫 추가",
+                Content = stack,
+                PrimaryButtonText = "추가",
+                CloseButtonText = "취소",
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary && !string.IsNullOrEmpty(titleBox.Text))
+            {
+                var newSnippet = new SnippetItem
+                {
+                    Title = titleBox.Text,
+                    Description = descBox.Text,
+                    Content = contentBox.Text
+                };
+                await _snippetService.AddSnippetAsync(newSnippet);
+                RefreshSnippetsUI();
+            }
+        }
+
+        #endregion
+
+        #endregion
+    }
+
+    public class FavoriteItem
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Path { get; set; } = string.Empty;
     }
 }

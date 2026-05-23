@@ -19,5 +19,8 @@ namespace Ueditor.Core.Models
 
         // Git Config
         public bool AutoGitDetect { get; set; } = true;
+
+        // Favorites Config
+        public System.Collections.Generic.List<string> FavoritePaths { get; set; } = new System.Collections.Generic.List<string>();
     }
 }
