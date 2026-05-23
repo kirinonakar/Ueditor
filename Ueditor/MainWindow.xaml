@@ -125,31 +125,37 @@
                             <StackPanel Grid.Row="0" Margin="10" Spacing="8">
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <Button Content="폴더 선택..." HorizontalAlignment="Stretch" Click="OnSelectFolderClick" Style="{StaticResource AccentButtonStyle}"/>
-                                    <Button Grid.Column="1" Click="OnOpenTerminalClick" ToolTipService.ToolTip="현재 폴더에서 터미널 열기" Padding="10,4,10,4">
+                                    <Button Content="↑" Click="OnExplorerUpClick" ToolTipService.ToolTip="상위 폴더" Padding="10,4,10,4"/>
+                                    <Button Grid.Column="1" Content="폴더 선택..." HorizontalAlignment="Stretch" Click="OnSelectFolderClick" Style="{StaticResource AccentButtonStyle}"/>
+                                    <Button Grid.Column="2" Click="OnOpenTerminalClick" ToolTipService.ToolTip="현재 폴더에서 터미널 열기" Padding="10,4,10,4">
                                         <FontIcon Glyph="&#xE756;" FontSize="14"/>
                                     </Button>
                                 </Grid>
                                 <TextBlock x:Name="ExplorerStatusText" Text="폴더를 선택하세요." FontSize="11" TextWrapping="Wrap" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
                             </StackPanel>
-                            <TreeView x:Name="FileTreeView" Grid.Row="1" Margin="5" SelectionMode="Single" ItemInvoked="OnFileTreeViewItemInvoked">
-                                <TreeView.ItemTemplate>
+                            <ListView x:Name="FileListView" Grid.Row="1" Margin="5" SelectionMode="Single" DoubleTapped="OnFileListViewDoubleTapped">
+                                <ListView.ItemTemplate>
                                     <DataTemplate>
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <StackPanel.ContextFlyout>
+                                        <Grid Padding="4,5,4,5">
+                                            <Grid.ContextFlyout>
                                                 <MenuFlyout>
-                                                    <MenuFlyoutItem Text="즐겨찾기에 추가" Click="OnAddFileToFavoritesClick"/>
+                                                    <MenuFlyoutItem Text="즐겨찾기에 추가" Click="OnAddFileToFavoritesClick" Tag="{Binding}"/>
                                                 </MenuFlyout>
-                                            </StackPanel.ContextFlyout>
-                                            <FontIcon Glyph="{Binding IconGlyph}" FontSize="16" Foreground="{ThemeResource SystemControlForegroundAccentBrush}"/>
-                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
-                                        </StackPanel>
+                                            </Grid.ContextFlyout>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <FontIcon Grid.Column="0" Glyph="{Binding IconGlyph}" FontSize="16" Foreground="{ThemeResource SystemControlForegroundAccentBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        </Grid>
                                     </DataTemplate>
-                                </TreeView.ItemTemplate>
-                            </TreeView>
+                                </ListView.ItemTemplate>
+                            </ListView>
                         </Grid>
                     </TabViewItem>
 
@@ -322,15 +328,60 @@
 
             <!-- C. Central Tabbed Document Editor -->
             <Grid Grid.Column="2" Background="{ThemeResource SystemControlBackgroundAltHighBrush}">
-                <TabView x:Name="EditorTabView" 
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition x:Name="TerminalPanelRow" Height="0"/>
+                </Grid.RowDefinitions>
+                <TabView x:Name="EditorTabView"
+                         Grid.Row="0"
                          VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
-                         AddTabButtonClick="OnEditorTabViewAddTabClick" 
+                         AddTabButtonClick="OnEditorTabViewAddTabClick"
                          TabCloseRequested="OnEditorTabViewTabCloseRequested"
                          SelectionChanged="OnEditorTabViewSelectionChanged">
                     <TabView.TabItems>
                         <!-- Dynamic tabs go here -->
                     </TabView.TabItems>
                 </TabView>
+                <Grid x:Name="TerminalPanel" Grid.Row="1" Visibility="Collapsed" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0" Padding="8,5,8,5" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="TerminalTitleText" Text="터미널" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+                        <Button Grid.Column="1" Content="닫기" Click="OnCloseTerminalClick" Padding="10,3,10,3"/>
+                    </Grid>
+                    <TextBox x:Name="TerminalOutputTextBox"
+                             Grid.Row="1"
+                             IsReadOnly="True"
+                             AcceptsReturn="True"
+                             TextWrapping="NoWrap"
+                             FontFamily="Consolas"
+                             FontSize="12"
+                             BorderThickness="0"
+                             Background="{ThemeResource SystemControlBackgroundAltHighBrush}"
+                             Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+                    <Grid Grid.Row="2" Padding="8" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="PS>" VerticalAlignment="Center" FontFamily="Consolas" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+                        <TextBox x:Name="TerminalInputBox"
+                                 Grid.Column="1"
+                                 PlaceholderText="명령 입력 후 Enter"
+                                 FontFamily="Consolas"
+                                 Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"
+                                 KeyDown="OnTerminalInputKeyDown"/>
+                    </Grid>
+                </Grid>
             </Grid>
 
             <!-- D. Preview Splitter -->
@@ -410,7 +461,14 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <Button Content="선택 영역 요약" Grid.Column="0" HorizontalAlignment="Stretch" Click="OnLlmSummarizeClick"/>
-                                    <Button Content="수식/마크다운 개선" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnLlmImproveClick"/>
+                                    <Button Content="선택 영역 번역" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnLlmTranslateClick"/>
+                                </Grid>
+
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Content="수식/마크다운 개선" HorizontalAlignment="Stretch" Click="OnLlmImproveClick"/>
                                 </Grid>
                                 
                                 <Grid ColumnSpacing="8" Margin="0,5,0,0">
@@ -447,10 +505,10 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center" Margin="10,0,0,0">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                         <TextBlock Text="줄" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
-                        <TextBlock x:Name="StatusLine" Text="1" FontSize="11" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="StatusLine" Text="1" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
                         <TextBlock Text="," FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
                         <TextBlock Text="열" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
-                        <TextBlock x:Name="StatusCol" Text="1" FontSize="11" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="StatusCol" Text="1" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
                     </StackPanel>
                     <TextBlock x:Name="StatusFileStats" Text="크기: 0 bytes" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
                 </StackPanel>

@@ -33,9 +33,12 @@ namespace Ueditor
         private readonly ObservableCollection<SnippetItem> _snippetsList = new ObservableCollection<SnippetItem>();
         private readonly ObservableCollection<GitFileItem> _gitFilesList = new ObservableCollection<GitFileItem>();
         private readonly ObservableCollection<SearchResultItem> _searchResultsList = new ObservableCollection<SearchResultItem>();
+        private readonly ObservableCollection<ExplorerItem> _explorerItems = new ObservableCollection<ExplorerItem>();
         private string _lastSelectionText = string.Empty;
         private string _currentFolderPath = string.Empty;
         private string _currentRepoPath = string.Empty;
+        private Process? _terminalProcess;
+        private string _terminalWorkingDirectory = string.Empty;
         
         // Dynamic tabs collection
         private readonly ObservableCollection<OpenedTab> _tabs = new ObservableCollection<OpenedTab>();
@@ -70,6 +73,7 @@ namespace Ueditor
             _snippetService = new SnippetService();
 
             // Bind Left Sidebar Tab items
+            FileListView.ItemsSource = _explorerItems;
             FavoritesListView.ItemsSource = _favoritesList;
             SnippetsListView.ItemsSource = _snippetsList;
             GitChangedFilesList.ItemsSource = _gitFilesList;
@@ -84,6 +88,12 @@ namespace Ueditor
 
             // Load local configurations and boot initial states
             this.Activated += OnWindowActivated;
+            this.Closed += OnWindowClosed;
+        }
+
+        private void OnWindowClosed(object sender, WindowEventArgs args)
+        {
+            StopEmbeddedTerminal();
         }
 
         private void SetWindowIcon()
@@ -1250,25 +1260,15 @@ namespace Ueditor
 
         private void LoadDirectoryRoot(string folderPath)
         {
-            FileTreeView.RootNodes.Clear();
-            var folderInfo = new DirectoryInfo(folderPath);
-            var rootNode = new TreeViewNode
+            _explorerItems.Clear();
+            _currentFolderPath = folderPath;
+
+            foreach (var item in CreateDirectoryItems(folderPath))
             {
-                Content = new ExplorerItem
-                {
-                    Name = string.IsNullOrWhiteSpace(folderInfo.Name) ? folderPath : folderInfo.Name,
-                    Path = folderPath,
-                    IsFolder = true
-                }
-            };
+                _explorerItems.Add(item);
+            }
 
-            FileTreeView.RootNodes.Add(rootNode);
-            int itemCount = LoadDirectoryChildren(folderPath, rootNode);
-            rootNode.IsExpanded = true;
-            FileTreeView.SelectedNode = rootNode;
-            ExplorerStatusText.Text = $"{folderPath}\n{itemCount:N0}개 항목";
-
-            DispatcherQueue.TryEnqueue(() => rootNode.IsExpanded = true);
+            ExplorerStatusText.Text = $"{folderPath}\n{_explorerItems.Count:N0}개 항목";
         }
 
         private void OnOpenTerminalClick(object sender, RoutedEventArgs e)
@@ -1280,26 +1280,12 @@ namespace Ueditor
                 return;
             }
 
-            try
-            {
-                StartWindowsTerminal(workingDirectory);
-            }
-            catch (Exception wtEx)
-            {
-                try
-                {
-                    StartPowerShellTerminal(workingDirectory);
-                }
-                catch (Exception psEx)
-                {
-                    ShowErrorMessage("터미널 오류", $"터미널을 열지 못했습니다.\n\nWindows Terminal: {wtEx.Message}\nPowerShell: {psEx.Message}");
-                }
-            }
+            OpenEmbeddedTerminal(workingDirectory);
         }
 
         private string GetTerminalWorkingDirectory()
         {
-            if (FileTreeView.SelectedNode?.Content is ExplorerItem selectedItem)
+            if (FileListView.SelectedItem is ExplorerItem selectedItem)
             {
                 if (selectedItem.IsFolder && Directory.Exists(selectedItem.Path))
                 {
@@ -1326,55 +1312,137 @@ namespace Ueditor
             return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         }
 
-        private static void StartWindowsTerminal(string workingDirectory)
+        private void OpenEmbeddedTerminal(string workingDirectory)
         {
-            var startInfo = new ProcessStartInfo
+            TerminalPanelRow.Height = new GridLength(220);
+            TerminalPanel.Visibility = Visibility.Visible;
+            TerminalTitleText.Text = $"터미널 - {workingDirectory}";
+
+            if (_terminalProcess != null && !_terminalProcess.HasExited && _terminalWorkingDirectory.Equals(workingDirectory, StringComparison.OrdinalIgnoreCase))
             {
-                FileName = "wt.exe",
-                UseShellExecute = false
-            };
-            startInfo.ArgumentList.Add("-d");
-            startInfo.ArgumentList.Add(workingDirectory);
-            Process.Start(startInfo);
+                TerminalInputBox.Focus(FocusState.Programmatic);
+                return;
+            }
+
+            StartEmbeddedTerminal(workingDirectory);
+            TerminalInputBox.Focus(FocusState.Programmatic);
         }
 
-        private static void StartPowerShellTerminal(string workingDirectory)
+        private void StartEmbeddedTerminal(string workingDirectory)
         {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "powershell.exe",
-                Arguments = "-NoExit",
-                WorkingDirectory = workingDirectory,
-                UseShellExecute = false,
-                CreateNoWindow = false
-            };
-            Process.Start(startInfo);
-        }
+            StopEmbeddedTerminal();
+            _terminalWorkingDirectory = workingDirectory;
+            TerminalOutputTextBox.Text = $"PowerShell 시작: {workingDirectory}\r\n";
 
-        private int LoadDirectoryChildren(string parentPath, TreeViewNode parentNode)
-        {
             try
             {
-                parentNode.Children.Clear();
-                foreach (var node in CreateDirectoryNodes(parentPath))
+                var startInfo = new ProcessStartInfo
                 {
-                    parentNode.Children.Add(node);
-                }
+                    FileName = "powershell.exe",
+                    Arguments = "-NoLogo -NoProfile -NoExit -ExecutionPolicy Bypass -Command \"[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; [Console]::InputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8\"",
+                    WorkingDirectory = workingDirectory,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardInput = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    StandardOutputEncoding = Encoding.UTF8,
+                    StandardErrorEncoding = Encoding.UTF8
+                };
 
-                parentNode.HasUnrealizedChildren = false;
-                return parentNode.Children.Count;
+                _terminalProcess = new Process
+                {
+                    StartInfo = startInfo,
+                    EnableRaisingEvents = true
+                };
+                _terminalProcess.OutputDataReceived += (_, args) => AppendTerminalOutput(args.Data);
+                _terminalProcess.ErrorDataReceived += (_, args) => AppendTerminalOutput(args.Data);
+                _terminalProcess.Exited += (_, __) => AppendTerminalOutput("[터미널 종료]");
+
+                _terminalProcess.Start();
+                _terminalProcess.BeginOutputReadLine();
+                _terminalProcess.BeginErrorReadLine();
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed reading folder hierarchy: {ex.Message}");
-                parentNode.HasUnrealizedChildren = false;
-                return 0;
+                AppendTerminalOutput($"터미널을 시작하지 못했습니다: {ex.Message}");
             }
         }
 
-        private IEnumerable<TreeViewNode> CreateDirectoryNodes(string parentPath)
+        private void StopEmbeddedTerminal()
         {
-            var nodes = new List<TreeViewNode>();
+            try
+            {
+                if (_terminalProcess != null)
+                {
+                    if (!_terminalProcess.HasExited)
+                    {
+                        _terminalProcess.StandardInput.WriteLine("exit");
+                        if (!_terminalProcess.WaitForExit(500))
+                        {
+                            _terminalProcess.Kill();
+                        }
+                    }
+
+                    _terminalProcess.Dispose();
+                    _terminalProcess = null;
+                }
+            }
+            catch
+            {
+                _terminalProcess = null;
+            }
+        }
+
+        private void AppendTerminalOutput(string? text)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                TerminalOutputTextBox.Text += text + Environment.NewLine;
+                TerminalOutputTextBox.Select(TerminalOutputTextBox.Text.Length, 0);
+            });
+        }
+
+        private void OnTerminalInputKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key != Windows.System.VirtualKey.Enter) return;
+            e.Handled = true;
+
+            string command = TerminalInputBox.Text;
+            TerminalInputBox.Text = string.Empty;
+            if (string.IsNullOrWhiteSpace(command)) return;
+
+            TerminalOutputTextBox.Text += $"> {command}{Environment.NewLine}";
+            TerminalOutputTextBox.Select(TerminalOutputTextBox.Text.Length, 0);
+
+            try
+            {
+                if (_terminalProcess == null || _terminalProcess.HasExited)
+                {
+                    StartEmbeddedTerminal(GetTerminalWorkingDirectory());
+                }
+
+                _terminalProcess?.StandardInput.WriteLine(command);
+                _terminalProcess?.StandardInput.Flush();
+            }
+            catch (Exception ex)
+            {
+                AppendTerminalOutput($"명령 전송 실패: {ex.Message}");
+            }
+        }
+
+        private void OnCloseTerminalClick(object sender, RoutedEventArgs e)
+        {
+            StopEmbeddedTerminal();
+            TerminalPanel.Visibility = Visibility.Collapsed;
+            TerminalPanelRow.Height = new GridLength(0);
+        }
+
+        private IEnumerable<ExplorerItem> CreateDirectoryItems(string parentPath)
+        {
+            var items = new List<ExplorerItem>();
             try
             {
                 var dirInfo = new DirectoryInfo(parentPath);
@@ -1391,8 +1459,7 @@ namespace Ueditor
                     if (dir.Attributes.HasFlag(FileAttributes.Hidden) || dir.Name.StartsWith("."))
                         continue;
 
-                    var item = new ExplorerItem { Name = dir.Name, Path = dir.FullName, IsFolder = true };
-                    nodes.Add(new TreeViewNode { Content = item, HasUnrealizedChildren = true });
+                    items.Add(new ExplorerItem { Name = dir.Name, Path = dir.FullName, IsFolder = true });
                 }
 
                 // 2. Files next
@@ -1401,8 +1468,7 @@ namespace Ueditor
                     if (file.Attributes.HasFlag(FileAttributes.Hidden))
                         continue;
 
-                    var item = new ExplorerItem { Name = file.Name, Path = file.FullName, IsFolder = false };
-                    nodes.Add(new TreeViewNode { Content = item, HasUnrealizedChildren = false });
+                    items.Add(new ExplorerItem { Name = file.Name, Path = file.FullName, IsFolder = false });
                 }
             }
             catch (Exception ex)
@@ -1410,54 +1476,34 @@ namespace Ueditor
                 System.Diagnostics.Debug.WriteLine($"Failed reading folder hierarchy: {ex.Message}");
             }
 
-            return nodes;
+            return items;
         }
 
-        private void OnFileTreeViewItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
+        private void OnExplorerUpClick(object sender, RoutedEventArgs e)
         {
-            TreeViewNode? node = sender.SelectedNode;
-            var item = args.InvokedItem as ExplorerItem ?? node?.Content as ExplorerItem;
-            if (item == null) return;
+            if (string.IsNullOrWhiteSpace(_currentFolderPath)) return;
+
+            var parent = Directory.GetParent(_currentFolderPath);
+            if (parent == null) return;
+
+            _currentRepoPath = FindGitRepositoryRoot(parent.FullName) ?? string.Empty;
+            LoadDirectoryRoot(parent.FullName);
+        }
+
+        private void OnFileListViewDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+        {
+            if (FileListView.SelectedItem is not ExplorerItem item) return;
 
             if (item.IsFolder)
             {
-                if (node == null || !ReferenceEquals(node.Content, item))
-                {
-                    node = FindTreeViewNode(sender.RootNodes, item.Path);
-                }
-                if (node == null) return;
-
-                // Lazy Expansion
-                if (node.HasUnrealizedChildren)
-                {
-                    LoadDirectoryChildren(item.Path, node);
-                }
-                node.IsExpanded = !node.IsExpanded;
+                _currentRepoPath = FindGitRepositoryRoot(item.Path) ?? string.Empty;
+                LoadDirectoryRoot(item.Path);
             }
             else
             {
                 // Open file in new Tab
                 _ = LoadFileIntoTabAsync(item.Path);
             }
-        }
-
-        private static TreeViewNode? FindTreeViewNode(IList<TreeViewNode> nodes, string path)
-        {
-            foreach (var node in nodes)
-            {
-                if (node.Content is ExplorerItem item && item.Path.Equals(path, StringComparison.OrdinalIgnoreCase))
-                {
-                    return node;
-                }
-
-                var childMatch = FindTreeViewNode(node.Children, path);
-                if (childMatch != null)
-                {
-                    return childMatch;
-                }
-            }
-
-            return null;
         }
 
         #endregion
@@ -1734,6 +1780,38 @@ namespace Ueditor
             }
         }
 
+        private OpenedTab? GetActiveTab()
+        {
+            if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
+                activeTabItem.Tag is string tabId)
+            {
+                return _tabs.FirstOrDefault(t => t.Id == tabId);
+            }
+
+            return null;
+        }
+
+        private string GetActiveSelectionLanguage()
+        {
+            var activeTab = GetActiveTab();
+            if (activeTab == null)
+            {
+                return "plaintext";
+            }
+
+            if (!string.IsNullOrWhiteSpace(activeTab.Language))
+            {
+                return activeTab.Language;
+            }
+
+            if (!string.IsNullOrWhiteSpace(activeTab.FilePath))
+            {
+                return GetMonacoLanguageName(activeTab.FilePath);
+            }
+
+            return "plaintext";
+        }
+
         private async void OnLlmExplainClick(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(_lastSelectionText))
@@ -1741,8 +1819,10 @@ namespace Ueditor
                 ShowErrorMessage("AI 오류", "선택된 텍스트가 없습니다. 에디터에서 분석할 범위를 드래그한 후 실행하십시오.");
                 return;
             }
-            await PreflightCheckAndRunAsync("선택 영역 설명 (Explain)", _lastSelectionText, 
-                () => _llmService.ExplainCodeAsync(_lastSelectionText, "csharp"));
+
+            string language = GetActiveSelectionLanguage();
+            await PreflightCheckAndRunAsync("선택 영역 설명 (Explain)", _lastSelectionText,
+                () => _llmService.ExplainCodeAsync(_lastSelectionText, language));
         }
 
         private async void OnLlmSummarizeClick(object sender, RoutedEventArgs e)
@@ -1754,6 +1834,18 @@ namespace Ueditor
             }
             await PreflightCheckAndRunAsync("선택 영역 요약 (Summarize)", _lastSelectionText, 
                 () => _llmService.SummarizeTextAsync(_lastSelectionText));
+        }
+
+        private async void OnLlmTranslateClick(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_lastSelectionText))
+            {
+                ShowErrorMessage("AI 오류", "선택된 텍스트가 없습니다. 번역할 범위를 드래그하십시오.");
+                return;
+            }
+
+            await PreflightCheckAndRunAsync("선택 영역 번역 (Translate)", _lastSelectionText,
+                () => _llmService.TranslateTextAsync(_lastSelectionText));
         }
 
         private async void OnLlmImproveClick(object sender, RoutedEventArgs e)
@@ -1847,7 +1939,7 @@ namespace Ueditor
 
         private async void OnAddFileToFavoritesClick(object sender, RoutedEventArgs e)
         {
-            if (sender is MenuFlyoutItem item && item.DataContext is ExplorerItem explorerItem)
+            if (sender is MenuFlyoutItem item && (item.Tag as ExplorerItem ?? item.DataContext as ExplorerItem) is ExplorerItem explorerItem)
             {
                 if (explorerItem.IsFolder) return; // File only for simplicity
 
