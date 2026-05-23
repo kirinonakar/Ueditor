@@ -345,11 +345,8 @@ namespace Ueditor
             {
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Stretch,
-                AllowDrop = true,
                 DefaultBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0)
             };
-            editorWebView.DragOver += OnRootDragOver;
-            editorWebView.Drop += OnRootDrop;
             grid.Children.Add(editorWebView);
 
             // Instantiate TabViewItem XAML element
@@ -804,6 +801,12 @@ namespace Ueditor
                 e.DragUIOverride.Caption = "파일 열기";
                 e.DragUIOverride.IsCaptionVisible = true;
                 e.DragUIOverride.IsContentVisible = true;
+
+                // Show DragOverlay Grid immediately to intercept drops away from WebView2
+                if (DragOverlay != null)
+                {
+                    DragOverlay.Visibility = Visibility.Visible;
+                }
             }
             else
             {
@@ -811,9 +814,33 @@ namespace Ueditor
             }
         }
 
+        private void OnDragOverlayOver(object sender, DragEventArgs e)
+        {
+            e.AcceptedOperation = DataPackageOperation.Copy;
+            e.DragUIOverride.Caption = "파일 열기";
+            e.DragUIOverride.IsCaptionVisible = true;
+            e.DragUIOverride.IsContentVisible = true;
+        }
+
+        private void OnDragOverlayDrop(object sender, DragEventArgs e)
+        {
+            if (DragOverlay != null)
+            {
+                DragOverlay.Visibility = Visibility.Collapsed;
+            }
+            OnRootDrop(sender, e);
+        }
+
+        private void OnDragOverlayLeave(object sender, DragEventArgs e)
+        {
+            if (DragOverlay != null)
+            {
+                DragOverlay.Visibility = Visibility.Collapsed;
+            }
+        }
+
         private async void OnRootDrop(object sender, DragEventArgs e)
         {
-            if (e.Handled) return;
             e.Handled = true;
             e.AcceptedOperation = DataPackageOperation.Copy;
 

@@ -488,7 +488,7 @@
                                 </CommandBar.Content>
                             </CommandBar>
 
-                            <WebView2 x:Name="PreviewWebView" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" AllowDrop="True" DragOver="OnRootDragOver" Drop="OnRootDrop"/>
+                            <WebView2 x:Name="PreviewWebView" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
                         </Grid>
                     </TabViewItem>
 
@@ -600,6 +600,16 @@
                 </ToggleButton>
             </Grid>
         </Border>
+
+        <!-- 7. Drag & Drop Overlay to prevent WebView2 platform-level stuck icon bug -->
+        <Grid x:Name="DragOverlay"
+              Grid.Row="0" Grid.RowSpan="5"
+              Background="Transparent"
+              AllowDrop="True"
+              DragOver="OnDragOverlayOver"
+              Drop="OnDragOverlayDrop"
+              DragLeave="OnDragOverlayLeave"
+              Visibility="Collapsed"/>
     </Grid>
 </Window>
 
