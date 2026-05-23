@@ -72,7 +72,7 @@ namespace Ueditor
             {
                 string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
                 string cacheFolder = Path.Combine(localAppData, "Ueditor", "WebView2Cache");
-                var env = await CoreWebView2Environment.CreateAsync((string)null, cacheFolder);
+                var env = await CoreWebView2Environment.CreateWithOptionsAsync((string)null, cacheFolder, (CoreWebView2EnvironmentOptions)null);
                 await PreviewWebView.EnsureCoreWebView2Async(env);
                 
                 // Configure Virtual Host Mapping to access local files under WebResources folder via simulated URL http://ueditor.local/
@@ -101,9 +101,11 @@ namespace Ueditor
 
         #region Tab Operations (탭 비즈니스 로직)
 
-        private void OpenNewTab(string? filePath = null, string content = "")
+        private void OpenNewTab(string? filePath = null, string content = "", bool isLargeFileMode = false)
         {
             var tab = new OpenedTab();
+            tab.IsLargeFileMode = isLargeFileMode;
+
             if (filePath != null)
             {
                 tab.FilePath = filePath;
@@ -128,9 +130,6 @@ namespace Ueditor
             };
             grid.Children.Add(editorWebView);
 
-            var bridge = new MonacoBridge(editorWebView);
-            _tabBridges[tab.Id] = (editorWebView, bridge);
-
             // Instantiate TabViewItem XAML element
             var tabItem = new TabViewItem
             {
@@ -139,45 +138,141 @@ namespace Ueditor
                 Tag = tab.Id
             };
 
-            // Register Bridge Initialization & IPC Events
-            bridge.EditorReady += async () =>
+            if (isLargeFileMode)
             {
-                await bridge.SetTextAsync(tab.Content);
-                await bridge.SetLanguageAsync(filePath ?? "file.txt");
-                await bridge.UpdateOptionsAsync(_settingsService.CurrentSettings);
-            };
+                // Large File Mode WebView2 initialization and event loop
+                InitializeLargeFileWebView(editorWebView, tab, tabItem);
+            }
+            else
+            {
+                var bridge = new MonacoBridge(editorWebView);
+                _tabBridges[tab.Id] = (editorWebView, bridge);
 
-            bridge.ContentChanged += (newText) =>
-            {
-                tab.Content = newText;
-                if (!tab.IsDirty)
+                // Register Bridge Initialization & IPC Events
+                bridge.EditorReady += async () =>
                 {
-                    tab.IsDirty = true;
-                    tabItem.Header = tab.DisplayTitle;
-                }
+                    await bridge.SetTextAsync(tab.Content);
+                    await bridge.SetLanguageAsync(filePath ?? "file.txt");
+                    await bridge.UpdateOptionsAsync(_settingsService.CurrentSettings);
+                };
 
-                // Trigger Live Preview Update with Debounce
-                _activeTabForPreview = tab;
-                _previewDebounceTimer.Stop();
-                _previewDebounceTimer.Start();
-            };
-
-            bridge.CursorChanged += (line, col) =>
-            {
-                if (EditorTabView.SelectedItem as TabViewItem == tabItem)
+                bridge.ContentChanged += (newText) =>
                 {
-                    StatusLine.Text = line.ToString();
-                    StatusCol.Text = col.ToString();
-                }
-            };
+                    tab.Content = newText;
+                    if (!tab.IsDirty)
+                    {
+                        tab.IsDirty = true;
+                        tabItem.Header = tab.DisplayTitle;
+                    }
 
-            // Initialize editor inside WebView2 using virtual host mappings
-            InitializeEditorWebView(editorWebView, bridge);
+                    // Trigger Live Preview Update with Debounce
+                    _activeTabForPreview = tab;
+                    _previewDebounceTimer.Stop();
+                    _previewDebounceTimer.Start();
+                };
+
+                bridge.CursorChanged += (line, col) =>
+                {
+                    if (EditorTabView.SelectedItem as TabViewItem == tabItem)
+                    {
+                        StatusLine.Text = line.ToString();
+                        StatusCol.Text = col.ToString();
+                    }
+                };
+
+                // Initialize editor inside WebView2 using virtual host mappings
+                InitializeEditorWebView(editorWebView, bridge);
+            }
 
             EditorTabView.TabItems.Add(tabItem);
             EditorTabView.SelectedItem = tabItem;
 
             UpdateStatusFileStats(tab);
+        }
+
+        private async void InitializeLargeFileWebView(WebView2 wv, OpenedTab tab, TabViewItem tabItem)
+        {
+            try
+            {
+                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string cacheFolder = Path.Combine(localAppData, "Ueditor", "WebView2Cache");
+                var env = await CoreWebView2Environment.CreateWithOptionsAsync((string)null, cacheFolder, (CoreWebView2EnvironmentOptions)null);
+                
+                await wv.EnsureCoreWebView2Async(env);
+
+                string webResourcesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "WebResources");
+                wv.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                    "ueditor.local", 
+                    webResourcesPath, 
+                    CoreWebView2HostResourceAccessKind.Allow
+                );
+
+                wv.CoreWebView2.Settings.IsWebMessageEnabled = true;
+                wv.CoreWebView2.Settings.IsScriptEnabled = true;
+                wv.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+
+                wv.WebMessageReceived += async (sender, args) =>
+                {
+                    try
+                    {
+                        string json = args.WebMessageAsJson;
+                        using (var doc = System.Text.Json.JsonDocument.Parse(json))
+                        {
+                            var root = doc.RootElement;
+                            if (!root.TryGetProperty("type", out var typeProp)) return;
+
+                            string type = typeProp.GetString() ?? string.Empty;
+
+                            if (type == "requestLines")
+                            {
+                                int start = root.GetProperty("startLine").GetInt32();
+                                int count = root.GetProperty("count").GetInt32();
+                                string path = root.GetProperty("filePath").GetString() ?? string.Empty;
+
+                                // Seek and fetch actual line array from file stream in C#
+                                var lines = await _fileService.GetLargeFileLinesAsync(path, start, count);
+                                
+                                var reply = new { action = "receiveLines", startLine = start, lines = lines };
+                                string replyJson = System.Text.Json.JsonSerializer.Serialize(reply);
+                                wv.CoreWebView2.PostWebMessageAsJson(replyJson);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error in large file web message: {ex.Message}");
+                    }
+                };
+
+                // Trigger document load
+                wv.Source = new Uri("http://ueditor.local/large-viewer.html");
+
+                wv.NavigationCompleted += async (s, e) =>
+                {
+                    if (e.IsSuccess && !string.IsNullOrEmpty(tab.FilePath))
+                    {
+                        // 1. Process line break offsets indexing in background thread
+                        await _fileService.InitializeLargeFileAsync(tab.FilePath);
+                        int count = await _fileService.GetLargeFileLineCountAsync(tab.FilePath);
+
+                        // 2. Dispatch init signal with total line height
+                        var initMsg = new
+                        {
+                            action = "init",
+                            filePath = tab.FilePath,
+                            lineCount = count,
+                            theme = _settingsService.CurrentSettings.Theme,
+                            fontSize = _settingsService.CurrentSettings.FontSize
+                        };
+                        string initJson = System.Text.Json.JsonSerializer.Serialize(initMsg);
+                        wv.CoreWebView2.PostWebMessageAsJson(initJson);
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed initialization of large file webview: {ex.Message}");
+            }
         }
 
         private async void InitializeEditorWebView(WebView2 wv, MonacoBridge bridge)
@@ -311,9 +406,8 @@ namespace Ueditor
                     var result = await dialog.ShowAsync();
                     if (result == ContentDialogResult.Primary)
                     {
-                        // Simulate Phase 2 Large file loading
                         StatusMode.Text = "대용량 모드";
-                        OpenNewTab(filePath, $"[대용량 파일 읽기 모드가 로딩 중입니다]\n파일 경로: {filePath}\n파일 용량: {largeInfo.FileSize:N0} bytes\n(이 모드는 Phase 2에서 가상 스크롤 및 청크 단위 고속 버퍼 뷰어로 활성화됩니다.)");
+                        OpenNewTab(filePath, "", isLargeFileMode: true);
                         return;
                     }
                     else if (result == ContentDialogResult.None)

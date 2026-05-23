@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ueditor Large File Viewer</title>
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --text-color: #858585;
+            --code-color: #d4d4d4;
+            --font-family: Consolas, "Courier New", monospace;
+            --font-size: 14px;
+            --line-height: 22px;
+            --line-num-width: 65px;
+            --selected-bg: #2d2d2d;
+        }
+
+        body.light-theme {
+            --bg-color: #ffffff;
+            --text-color: #a0a0a0;
+            --code-color: #000000;
+            --selected-bg: #f0f0f0;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: var(--font-family);
+            font-size: var(--font-size);
+            user-select: text;
+        }
+
+        /* Outer scrollable viewport */
+        #scroll-container {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* Virtual high spacer to fake scroll height */
+        #virtual-spacer {
+            width: 1px;
+            height: 0px; /* Calculated dynamically */
+        }
+
+        /* Real rendering viewport showing visible items */
+        #viewport {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            flex-direction: column;
+            will-change: transform;
+        }
+
+        /* One line structure */
+        .line-row {
+            display: flex;
+            height: var(--line-height);
+            box-sizing: border-box;
+            align-items: center;
+        }
+
+        .line-row:hover {
+            background-color: var(--selected-bg);
+        }
+
+        /* Line number gutter */
+        .line-num {
+            width: var(--line-num-width);
+            text-align: right;
+            padding-right: 12px;
+            color: var(--text-color);
+            font-size: 12px;
+            border-right: 1px solid var(--selected-bg);
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        /* Text content */
+        .line-text {
+            flex: 1;
+            padding-left: 15px;
+            white-space: pre;
+            color: var(--code-color);
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
+</head>
+<body>
+    <div id="scroll-container">
+        <div id="virtual-spacer"></div>
+        <div id="viewport"></div>
+    </div>
+
+    <script>
+        const scrollContainer = document.getElementById('scroll-container');
+        const virtualSpacer = document.getElementById('virtual-spacer');
+        const viewport = document.getElementById('viewport');
+
+        const LINE_HEIGHT = 22; // Must match CSS --line-height
+        let totalLines = 0;
+        let visibleCount = 0;
+        let lastScrollTop = -1;
+        let startLine = 1;
+        let isFetching = false;
+        let lineBuffer = {}; // Cache recently loaded lines to prevent rapid IPC flickers
+        let filePath = "";
+
+        // Initialize virtual layout based on line counts
+        function setupVirtualScroll(lineCount) {
+            totalLines = lineCount;
+            const scrollHeight = totalLines * LINE_HEIGHT;
+            virtualSpacer.style.height = `${scrollHeight}px`;
+            
+            // Calculate visible count plus 10 buffer lines
+            visibleCount = Math.ceil(scrollContainer.clientHeight / LINE_HEIGHT) + 10;
+            
+            // Initial render
+            lineBuffer = {};
+            render();
+        }
+
+        function render() {
+            const scrollTop = scrollContainer.scrollTop;
+            
+            // Throttle rendering
+            if (Math.abs(scrollTop - lastScrollTop) < 5 && lastScrollTop !== -1) return;
+            lastScrollTop = scrollTop;
+
+            // Calculate start and end indices
+            const rawStart = Math.floor(scrollTop / LINE_HEIGHT);
+            startLine = Math.max(1, rawStart - 5); // 5 safety lines above
+            const endLine = Math.min(totalLines, startLine + visibleCount);
+
+            // Position viewport correctly using translation offsets
+            const offsetY = (startLine - 1) * LINE_HEIGHT;
+            viewport.style.transform = `translateY(${offsetY}px)`;
+
+            // Gather lines we need to load
+            const missingLines = [];
+            for (let i = startLine; i <= endLine; i++) {
+                if (lineBuffer[i] === undefined) {
+                    missingLines.push(i);
+                }
+            }
+
+            if (missingLines.length > 0 && !isFetching) {
+                // Request lines from C# backend
+                isFetching = true;
+                sendNotificationToCsharp({
+                    type: 'requestLines',
+                    filePath: filePath,
+                    startLine: startLine,
+                    count: visibleCount
+                });
+            } else {
+                updateViewportDOM(startLine, endLine);
+            }
+        }
+
+        function updateViewportDOM(start, end) {
+            let html = '';
+            for (let i = start; i <= end; i++) {
+                const text = lineBuffer[i] !== undefined ? escapeHtml(lineBuffer[i]) : "로딩 중...";
+                html += `
+                    <div class="line-row">
+                        <div class="line-num">${i}</div>
+                        <div class="line-text">${text}</div>
+                    </div>
+                `;
+            }
+            viewport.innerHTML = html;
+        }
+
+        function escapeHtml(str) {
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Listen scroll event
+        scrollContainer.addEventListener('scroll', render);
+        window.addEventListener('resize', () => {
+            visibleCount = Math.ceil(scrollContainer.clientHeight / LINE_HEIGHT) + 10;
+            render();
+        });
+
+        // Communication wrappers
+        function sendNotificationToCsharp(msg) {
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage(JSON.stringify(msg));
+            }
+        }
+
+        if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.addEventListener('message', function(event) {
+                try {
+                    const message = JSON.parse(event.data);
+                    handleCsharpMessage(message);
+                } catch (e) {
+                    console.error("Failed parsing message in large viewer: ", e);
+                }
+            });
+        }
+
+        function handleCsharpMessage(msg) {
+            switch(msg.action) {
+                case 'init':
+                    filePath = msg.filePath;
+                    if (msg.theme === 'Light') {
+                        document.body.classList.add('light-theme');
+                    } else {
+                        document.body.classList.remove('light-theme');
+                    }
+                    if (msg.fontSize) {
+                        document.documentElement.style.setProperty('--font-size', `${msg.fontSize}px`);
+                        document.documentElement.style.setProperty('--line-height', `${msg.fontSize + 8}px`);
+                    }
+                    setupVirtualScroll(msg.lineCount);
+                    break;
+                case 'receiveLines':
+                    // Cache received line data
+                    const start = msg.startLine;
+                    const lines = msg.lines;
+                    for (let i = 0; i < lines.length; i++) {
+                        lineBuffer[start + i] = lines[i];
+                    }
+                    isFetching = false;
+                    
+                    // Re-render viewport DOM with fresh lines
+                    const end = Math.min(totalLines, startLine + visibleCount);
+                    updateViewportDOM(startLine, end);
+                    break;
+                case 'updateTheme':
+                    if (msg.theme === 'Light') {
+                        document.body.classList.add('light-theme');
+                    } else {
+                        document.body.classList.remove('light-theme');
+                    }
+                    break;
+            }
+        }
+    </script>
+</body>
+</html>

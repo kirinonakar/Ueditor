@@ -1,10 +1,10 @@
 {
   "profiles": {
-    "Ueditor (Package)": {
-      "commandName": "MsixPackage"
-    },
     "Ueditor (Unpackaged)": {
       "commandName": "Project"
+    },
+    "Ueditor (Package)": {
+      "commandName": "MsixPackage"
     }
   }
 }

@@ -15,6 +15,12 @@ namespace Ueditor.Core.Interfaces
 
         // 대용량 파일용 Chunk 로더
         Task<string> ReadChunkAsync(string filePath, long offset, int length);
+
+        // 대용량 파일 인덱싱 및 라인 뷰어 연동
+        Task InitializeLargeFileAsync(string filePath);
+        Task<int> GetLargeFileLineCountAsync(string filePath);
+        Task<System.Collections.Generic.List<string>> GetLargeFileLinesAsync(string filePath, int startLine, int count);
+        Task<System.Collections.Generic.List<LargeFileSearchResult>> SearchLargeFileAsync(string filePath, string query, bool isRegex);
     }
 
     public class LargeFileInfo
@@ -23,5 +29,13 @@ namespace Ueditor.Core.Interfaces
         public long FileSize { get; set; } // Bytes
         public bool IsLargeFile => FileSize >= 50 * 1024 * 1024; // 50MB 이상
         public bool IsUltraLargeFile => FileSize >= 200 * 1024 * 1024; // 200MB 이상
+    }
+
+    public class LargeFileSearchResult
+    {
+        public int LineNumber { get; set; }
+        public string LineContent { get; set; } = string.Empty;
+        public int IndexOfMatch { get; set; }
+        public int MatchLength { get; set; }
     }
 }
