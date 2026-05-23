@@ -72,7 +72,7 @@
                     Height="42"
                     OverflowButtonVisibility="Auto"
                     DefaultLabelPosition="Right"
-                    Background="{ThemeResource SystemControlBackgroundChromeLowBrush}">
+                    Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}">
             <AppBarButton Label="Hx" Click="OnMarkdownHeadingClick" ToolTipService.ToolTip="제목"/>
             <AppBarButton Label="B" Click="OnMarkdownBoldClick" ToolTipService.ToolTip="굵게"/>
             <AppBarButton Label="I" Click="OnMarkdownItalicClick" ToolTipService.ToolTip="기울임"/>
