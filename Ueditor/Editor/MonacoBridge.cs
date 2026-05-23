@@ -105,6 +105,8 @@ namespace Ueditor.Editor
                 fontSize = settings.FontSize,
                 fontFamily = settings.FontFamily,
                 tabSize = settings.TabSize,
+                customBackgroundColor = settings.CustomBackgroundColor,
+                customForegroundColor = settings.CustomForegroundColor,
                 isLargeFile = isLargeFile
             };
             await SendMessageAsync(msg);
@@ -125,6 +127,12 @@ namespace Ueditor.Editor
         public async Task RequestSelectionAsync()
         {
             var msg = new { action = "getSelection" };
+            await SendMessageAsync(msg);
+        }
+
+        public async Task RevealLineAsync(int lineNum)
+        {
+            var msg = new { action = "revealLine", lineNumber = lineNum };
             await SendMessageAsync(msg);
         }
 

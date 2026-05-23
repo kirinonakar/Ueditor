@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Ueditor.Core.Models
 {
@@ -11,6 +12,7 @@ namespace Ueditor.Core.Models
         public bool IsDirty { get; set; } = false;
         public bool IsLargeFileMode { get; set; } = false;
         public string Language { get; set; } = "plaintext";
+        public Dictionary<int, string> LargeFilePatches { get; } = new Dictionary<int, string>();
 
         public string DisplayTitle => IsDirty ? $"{Title} *" : Title;
     }

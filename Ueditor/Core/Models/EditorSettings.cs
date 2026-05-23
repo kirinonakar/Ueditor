@@ -12,6 +12,13 @@ namespace Ueditor.Core.Models
         public bool MinimapEnabled { get; set; } = true;
         public long LargeFileThresholdMB { get; set; } = 50;
         
+        // Personalization Settings
+        public string CustomBackgroundColor { get; set; } = string.Empty; // Hex color string e.g., "#1e1e1e"
+        public string CustomForegroundColor { get; set; } = string.Empty; // Hex color string e.g., "#d4d4d4"
+        public string UiFontFamily { get; set; } = "Segoe UI, Malgun Gothic";
+        public bool AutoSave { get; set; } = false;
+        public string PreviewMode { get; set; } = "Markdown"; // "Markdown", "HTML", "LaTeX"
+
         // LLM Config
         public string LlmProvider { get; set; } = "OpenAI"; // "OpenAI" or "Gemini"
         public string LlmEndpoint { get; set; } = "https://api.openai.com/v1";

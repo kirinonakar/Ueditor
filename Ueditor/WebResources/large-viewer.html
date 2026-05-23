@@ -174,7 +174,7 @@
                 html += `
                     <div class="line-row">
                         <div class="line-num">${i}</div>
-                        <div class="line-text">${text}</div>
+                        <div class="line-text" style="cursor: text;" ondblclick="enableEdit(this, ${i})">${text}</div>
                     </div>
                 `;
             }
@@ -188,6 +188,43 @@
                 .replace(/>/g, "&gt;")
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#039;");
+        }
+
+        function enableEdit(el, lineNum) {
+            if (el.querySelector('input')) return; // Already editing
+            const originalText = lineBuffer[lineNum] !== undefined ? lineBuffer[lineNum] : el.innerText;
+            el.innerHTML = `<input type="text" class="line-input" value="${escapeHtml(originalText)}" style="width: 95%; background: #2d2d2d; color: #fff; border: 1px solid #0078d4; font-family: inherit; font-size: inherit; outline: none; box-sizing: border-box; padding: 2px 5px;" />`;
+            const input = el.querySelector('input');
+            input.focus();
+            input.select();
+
+            let committed = false;
+            function commitChange() {
+                if (committed) return;
+                committed = true;
+                const val = input.value;
+                lineBuffer[lineNum] = val;
+                el.innerHTML = escapeHtml(val);
+                sendNotificationToCsharp({
+                    type: 'updateLine',
+                    filePath: filePath,
+                    lineNumber: lineNum,
+                    text: val
+                });
+            }
+
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    commitChange();
+                } else if (e.key === 'Escape') {
+                    committed = true;
+                    el.innerHTML = escapeHtml(originalText);
+                }
+            });
+
+            input.addEventListener('blur', function() {
+                commitChange();
+            });
         }
 
         // Listen scroll event

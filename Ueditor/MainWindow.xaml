@@ -138,6 +138,105 @@
                             <Button Grid.Row="2" Content="스니펫 추가..." HorizontalAlignment="Stretch" Click="OnAddSnippetClick" Margin="0,10,0,0" Style="{StaticResource AccentButtonStyle}"/>
                         </Grid>
                     </TabViewItem>
+
+                    <!-- Tab 4: Git Panel -->
+                    <TabViewItem Header="Git" IsClosable="False">
+                        <Grid Padding="10">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/> <!-- Branch Info -->
+                                <RowDefinition Height="*"/>    <!-- Changed Files -->
+                                <RowDefinition Height="Auto"/> <!-- Commit controls -->
+                                <RowDefinition Height="Auto"/> <!-- Bottom Actions -->
+                            </Grid.RowDefinitions>
+                            
+                            <StackPanel Grid.Row="0" Margin="0,0,0,10" Spacing="5">
+                                <TextBlock Text="Git 저장소 관리" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+                                <TextBlock x:Name="GitPanelBranchText" Text="Git: 감지 안됨" FontSize="13" FontWeight="SemiBold"/>
+                            </StackPanel>
+
+                            <ListView x:Name="GitChangedFilesList" Grid.Row="1" SelectionMode="Single" DoubleTapped="OnGitFileDoubleTapped">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Padding="0,5,0,5">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding Path}" FontSize="9" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                            <Border Grid.Column="1" Background="{ThemeResource SystemControlBackgroundAccentBrush}" CornerRadius="3" Padding="4,1,4,1" Margin="5,0,5,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding StatusText}" FontSize="9" FontWeight="Bold" Foreground="White"/>
+                                            </Border>
+                                            <Button Grid.Column="2" Content="{Binding ActionGlyph}" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnGitStageToggleClick" Tag="{Binding Path}" Padding="5" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+
+                            <StackPanel Grid.Row="2" Spacing="8" Margin="0,10,0,0">
+                                <TextBox x:Name="GitCommitMessageInput" PlaceholderText="커밋 메시지 입력..." Height="60" AcceptsReturn="True" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                                <Button Content="커밋 (Commit)" HorizontalAlignment="Stretch" Click="OnGitCommitClick" Style="{StaticResource AccentButtonStyle}"/>
+                            </StackPanel>
+
+                            <Button Grid.Row="3" Content="Git 상태 새로고침" HorizontalAlignment="Stretch" Click="OnGitRefreshClick" Margin="0,8,0,0"/>
+                        </Grid>
+                    </TabViewItem>
+
+                    <!-- Tab 5: Search & Replace Panel -->
+                    <TabViewItem Header="검색" IsClosable="False">
+                        <Grid Padding="10">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/> <!-- Form Inputs -->
+                                <RowDefinition Height="*"/>    <!-- Results -->
+                            </Grid.RowDefinitions>
+                            
+                            <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,10">
+                                <TextBlock Text="폴더 전체 검색 및 치환" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+                                <TextBox x:Name="SearchQueryInput" PlaceholderText="검색어 입력..."/>
+                                <TextBox x:Name="ReplaceQueryInput" PlaceholderText="치환할 단어 입력..."/>
+                                
+                                <Grid ColumnSpacing="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ToggleButton x:Name="SearchMatchCaseToggle" Content="Aa" ToolTipService.ToolTip="대소문자 구분" HorizontalAlignment="Stretch"/>
+                                    <ToggleButton x:Name="SearchWholeWordToggle" Content="[ab]" Grid.Column="1" ToolTipService.ToolTip="단어 단위" HorizontalAlignment="Stretch"/>
+                                    <ToggleButton x:Name="SearchRegexToggle" Content=".*" Grid.Column="2" ToolTipService.ToolTip="정규식 검색" HorizontalAlignment="Stretch"/>
+                                </Grid>
+
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Content="전체 검색" HorizontalAlignment="Stretch" Click="OnSearchAllFilesClick" Style="{StaticResource AccentButtonStyle}"/>
+                                    <Button Content="모두 치환" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnReplaceAllClick"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <ListView x:Name="SearchResultsList" Grid.Row="1" SelectionMode="Single" DoubleTapped="OnSearchResultDoubleTapped">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Padding="0,5,0,5">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding HeaderText}" FontWeight="Bold" FontSize="11" Foreground="{ThemeResource SystemControlForegroundAccentBrush}"/>
+                                                <TextBlock Text="{Binding LineContent}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding DisplayPath}" FontSize="9" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </Grid>
+                    </TabViewItem>
                 </TabView>
             </Grid>
 

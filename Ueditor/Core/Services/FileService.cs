@@ -261,6 +261,72 @@ namespace Ueditor.Core.Services
             return results;
         }
 
+        public async Task SaveLargeFileWithPatchesAsync(string filePath, System.Collections.Generic.Dictionary<int, string> patches)
+        {
+            if (!File.Exists(filePath))
+                throw new FileNotFoundException("파일을 찾을 수 없습니다.", filePath);
+
+            if (patches == null || patches.Count == 0)
+                return; // Nothing to change
+
+            string? directory = Path.GetDirectoryName(filePath);
+            string tempFilePath = Path.Combine(directory ?? Path.GetTempPath(), $"._{Path.GetFileName(filePath)}.tmp");
+            string backupFilePath = filePath + ".bak";
+
+            Encoding encoding = DetectEncoding(filePath);
+
+            try
+            {
+                await Task.Run(async () =>
+                {
+                    using (var reader = new StreamReader(filePath, encoding))
+                    using (var writer = new StreamWriter(tempFilePath, false, Encoding.UTF8))
+                    {
+                        string? line;
+                        int lineNumber = 1;
+                        while ((line = await reader.ReadLineAsync()) != null)
+                        {
+                            if (patches.TryGetValue(lineNumber, out string? patchText))
+                            {
+                                await writer.WriteLineAsync(patchText);
+                            }
+                            else
+                            {
+                                await writer.WriteLineAsync(line);
+                            }
+                            lineNumber++;
+                        }
+                    }
+                });
+
+                // Atomic replace
+                if (File.Exists(filePath))
+                {
+                    File.Replace(tempFilePath, filePath, backupFilePath);
+                    if (File.Exists(backupFilePath))
+                    {
+                        File.Delete(backupFilePath);
+                    }
+                }
+                else
+                {
+                    File.Move(tempFilePath, filePath);
+                }
+
+                // Invalidate cache and re-index
+                _largeFileIndexes.Remove(filePath);
+                await InitializeLargeFileAsync(filePath);
+            }
+            catch (Exception ex)
+            {
+                if (File.Exists(tempFilePath))
+                {
+                    try { File.Delete(tempFilePath); } catch { }
+                }
+                throw new IOException($"대용량 파일 패치 병합 저장 실패 (안전 복구 완료): {ex.Message}", ex);
+            }
+        }
+
         /// <summary>
         /// Simple heuristic to detect file encoding
         /// </summary>

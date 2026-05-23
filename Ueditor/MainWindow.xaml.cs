@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -27,7 +28,10 @@ namespace Ueditor
         private readonly ISnippetService _snippetService;
         private readonly ObservableCollection<FavoriteItem> _favoritesList = new ObservableCollection<FavoriteItem>();
         private readonly ObservableCollection<SnippetItem> _snippetsList = new ObservableCollection<SnippetItem>();
+        private readonly ObservableCollection<GitFileItem> _gitFilesList = new ObservableCollection<GitFileItem>();
+        private readonly ObservableCollection<SearchResultItem> _searchResultsList = new ObservableCollection<SearchResultItem>();
         private string _lastSelectionText = string.Empty;
+        private string _currentRepoPath = string.Empty;
         
         // Dynamic tabs collection
         private readonly ObservableCollection<OpenedTab> _tabs = new ObservableCollection<OpenedTab>();
@@ -61,6 +65,8 @@ namespace Ueditor
             // Bind Left Sidebar Tab items
             FavoritesListView.ItemsSource = _favoritesList;
             SnippetsListView.ItemsSource = _snippetsList;
+            GitChangedFilesList.ItemsSource = _gitFilesList;
+            SearchResultsList.ItemsSource = _searchResultsList;
 
             // Initialize Preview Debounce Timer (300ms)
             _previewDebounceTimer = new DispatcherTimer
@@ -80,6 +86,7 @@ namespace Ueditor
             // 1. Load settings JSON
             await _settingsService.LoadSettingsAsync();
             WordWrapToggle.IsChecked = _settingsService.CurrentSettings.WordWrap;
+            ApplyUiPersonalization(_settingsService.CurrentSettings);
 
             // 2. Initialize Preview Panel WebView2
             await InitializePreviewWebViewAsync();
@@ -169,6 +176,7 @@ namespace Ueditor
 
             if (isLargeFileMode)
             {
+                _tabBridges[tab.Id] = (editorWebView, null!);
                 // Large File Mode WebView2 initialization and event loop
                 InitializeLargeFileWebView(editorWebView, tab, tabItem);
             }
@@ -278,9 +286,34 @@ namespace Ueditor
                                 // Seek and fetch actual line array from file stream in C#
                                 var lines = await _fileService.GetLargeFileLinesAsync(path, start, count);
                                 
+                                // Dynamic overlay of memory edits on top of stream chunks
+                                for (int i = 0; i < lines.Count; i++)
+                                {
+                                    int currentLineNum = start + i;
+                                    if (tab.LargeFilePatches.TryGetValue(currentLineNum, out string? patchText))
+                                    {
+                                        lines[i] = patchText;
+                                    }
+                                }
+                                
                                 var reply = new { action = "receiveLines", startLine = start, lines = lines };
                                 string replyJson = System.Text.Json.JsonSerializer.Serialize(reply);
                                 wv.CoreWebView2.PostWebMessageAsJson(replyJson);
+                            }
+                            else if (type == "updateLine")
+                            {
+                                int lineNum = root.GetProperty("lineNumber").GetInt32();
+                                string text = root.GetProperty("text").GetString() ?? string.Empty;
+                                
+                                this.DispatcherQueue.TryEnqueue(() =>
+                                {
+                                    tab.LargeFilePatches[lineNum] = text;
+                                    if (!tab.IsDirty)
+                                    {
+                                        tab.IsDirty = true;
+                                        tabItem.Header = tab.DisplayTitle;
+                                    }
+                                });
                             }
                         }
                     }
@@ -480,6 +513,49 @@ namespace Ueditor
                 var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
                 if (tab == null) return;
 
+                if (tab.IsLargeFileMode)
+                {
+                    if (string.IsNullOrEmpty(tab.FilePath)) return;
+
+                    try
+                    {
+                        await _fileService.SaveLargeFileWithPatchesAsync(tab.FilePath, tab.LargeFilePatches);
+                        tab.LargeFilePatches.Clear();
+                        tab.IsDirty = false;
+                        activeTabItem.Header = tab.DisplayTitle;
+
+                        // Find WebView2 in grid hierarchy to post init and refresh
+                        WebView2? wv = null;
+                        if (activeTabItem.Content is Grid grid)
+                        {
+                            wv = grid.Children.FirstOrDefault(c => c is WebView2) as WebView2;
+                        }
+
+                        if (wv != null && wv.CoreWebView2 != null)
+                        {
+                            int count = await _fileService.GetLargeFileLineCountAsync(tab.FilePath);
+                            var initMsg = new
+                            {
+                                action = "init",
+                                filePath = tab.FilePath,
+                                lineCount = count,
+                                theme = _settingsService.CurrentSettings.Theme,
+                                fontSize = _settingsService.CurrentSettings.FontSize
+                            };
+                            string initJson = System.Text.Json.JsonSerializer.Serialize(initMsg);
+                            wv.CoreWebView2.PostWebMessageAsJson(initJson);
+                        }
+
+                        UpdateStatusFileStats(tab);
+                        await RefreshGitStatusUIAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        ShowErrorMessage("대용량 파일 저장 실패", ex.Message);
+                    }
+                    return;
+                }
+
                 if (string.IsNullOrEmpty(tab.FilePath))
                 {
                     // Open Save File Picker
@@ -573,17 +649,30 @@ namespace Ueditor
             themeCombo.Items.Add("Light Theme (vs)");
 
             var sizeSlider = new Slider { Minimum = 10, Maximum = 24, Value = settings.FontSize, StepFrequency = 1 };
+            
+            var customBgBox = new TextBox { PlaceholderText = "예: #1e1e1e (기본은 비워둠)", Text = settings.CustomBackgroundColor, HorizontalAlignment = HorizontalAlignment.Stretch };
+            var customFgBox = new TextBox { PlaceholderText = "예: #d4d4d4 (기본은 비워둠)", Text = settings.CustomForegroundColor, HorizontalAlignment = HorizontalAlignment.Stretch };
+            var fontFamilyBox = new TextBox { PlaceholderText = "예: Consolas, 'Courier New'", Text = settings.FontFamily, HorizontalAlignment = HorizontalAlignment.Stretch };
+            var uiFontFamilyBox = new TextBox { PlaceholderText = "예: Segoe UI, Malgun Gothic", Text = settings.UiFontFamily, HorizontalAlignment = HorizontalAlignment.Stretch };
 
-            var stack = new StackPanel { Spacing = 15 };
-            stack.Children.Add(new TextBlock { Text = "에디터 테마 설정" });
+            var stack = new StackPanel { Spacing = 10, Width = 320 };
+            stack.Children.Add(new TextBlock { Text = "에디터 테마 설정", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
             stack.Children.Add(themeCombo);
-            stack.Children.Add(new TextBlock { Text = $"글자 크기 (현재: {settings.FontSize}pt)" });
+            stack.Children.Add(new TextBlock { Text = $"글자 크기 (현재: {settings.FontSize}pt)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
             stack.Children.Add(sizeSlider);
+            stack.Children.Add(new TextBlock { Text = "커스텀 에디터 배경색 (Hex)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            stack.Children.Add(customBgBox);
+            stack.Children.Add(new TextBlock { Text = "커스텀 에디터 전경색 (Hex)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            stack.Children.Add(customFgBox);
+            stack.Children.Add(new TextBlock { Text = "에디터 폰트 (FontFamily)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            stack.Children.Add(fontFamilyBox);
+            stack.Children.Add(new TextBlock { Text = "UI 쉘 폰트 (UiFontFamily)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            stack.Children.Add(uiFontFamilyBox);
 
             var dialog = new ContentDialog
             {
                 Title = "Ueditor 기본 환경 설정",
-                Content = stack,
+                Content = new ScrollViewer { Content = stack, MaxHeight = 400, VerticalScrollBarVisibility = ScrollBarVisibility.Auto },
                 PrimaryButtonText = "적용 및 저장",
                 CloseButtonText = "취소",
                 XamlRoot = this.Content.XamlRoot
@@ -594,13 +683,21 @@ namespace Ueditor
             {
                 settings.Theme = themeCombo.SelectedIndex == 0 ? "Dark" : "Light";
                 settings.FontSize = sizeSlider.Value;
+                settings.CustomBackgroundColor = customBgBox.Text.Trim();
+                settings.CustomForegroundColor = customFgBox.Text.Trim();
+                settings.FontFamily = fontFamilyBox.Text.Trim();
+                settings.UiFontFamily = uiFontFamilyBox.Text.Trim();
 
                 await _settingsService.SaveSettingsAsync(settings);
+                ApplyUiPersonalization(settings);
 
                 // Update settings for all active Monaco editors
                 foreach (var grp in _tabBridges.Values)
                 {
-                    await grp.Bridge.UpdateOptionsAsync(settings);
+                    if (grp.Bridge != null)
+                    {
+                        await grp.Bridge.UpdateOptionsAsync(settings);
+                    }
                 }
 
                 // Update current preview panel render if applicable
@@ -707,6 +804,7 @@ namespace Ueditor
             var folder = await picker.PickSingleFolderAsync();
             if (folder != null)
             {
+                _currentRepoPath = folder.Path;
                 FileTreeView.RootNodes.Clear();
                 var rootNode = new TreeViewNode
                 {
@@ -723,8 +821,8 @@ namespace Ueditor
                 LoadDirectoryChildren(folder.Path, rootNode);
                 FileTreeView.RootNodes.Add(rootNode);
 
-                // Trigger Git branch detection
-                await UpdateGitBranchStatusAsync(folder.Path);
+                // Trigger Git branch detection & status update
+                await RefreshGitStatusUIAsync();
             }
         }
 
@@ -1166,11 +1264,432 @@ namespace Ueditor
         #endregion
 
         #endregion
+
+        #region UI Personalization Helper
+        private void ApplyUiPersonalization(EditorSettings settings)
+        {
+            if (this.Content is FrameworkElement rootElement)
+            {
+                try
+                {
+                    var fontFamily = new Microsoft.UI.Xaml.Media.FontFamily(settings.UiFontFamily);
+                    ApplyFontFamilyRecursively(rootElement, fontFamily);
+                }
+                catch { }
+
+                if (!string.IsNullOrEmpty(settings.CustomBackgroundColor))
+                {
+                    try
+                    {
+                        string hex = settings.CustomBackgroundColor.Trim().Replace("#", "");
+                        if (hex.Length == 6)
+                        {
+                            byte r = byte.Parse(hex.Substring(0, 2), System.Globalization.NumberStyles.HexNumber);
+                            byte g = byte.Parse(hex.Substring(2, 2), System.Globalization.NumberStyles.HexNumber);
+                            byte b = byte.Parse(hex.Substring(4, 2), System.Globalization.NumberStyles.HexNumber);
+                            
+                            var brush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, r, g, b));
+                            if (rootElement is Grid rootGrid)
+                            {
+                                rootGrid.Background = brush;
+                            }
+                        }
+                    }
+                    catch { }
+                }
+                else
+                {
+                    if (rootElement is Grid rootGrid)
+                    {
+                        rootGrid.Background = null; // Revert default (Transparent to keep Mica Backdrop)
+                    }
+                }
+            }
+        }
+
+        private void ApplyFontFamilyRecursively(DependencyObject parent, Microsoft.UI.Xaml.Media.FontFamily fontFamily)
+        {
+            if (parent == null) return;
+            
+            if (parent is Control ctrl)
+            {
+                ctrl.FontFamily = fontFamily;
+            }
+            else if (parent is TextBlock tb)
+            {
+                tb.FontFamily = fontFamily;
+            }
+
+            int count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(parent, i);
+                ApplyFontFamilyRecursively(child, fontFamily);
+            }
+        }
+        #endregion
+
+        #region Advanced Git Handlers
+
+        private async Task RefreshGitStatusUIAsync()
+        {
+            if (string.IsNullOrEmpty(_currentRepoPath))
+            {
+                GitPanelBranchText.Text = "Git: 감지 안됨";
+                _gitFilesList.Clear();
+                return;
+            }
+
+            string branch = await _gitService.GetCurrentBranchAsync(_currentRepoPath);
+            GitPanelBranchText.Text = branch;
+            StatusGitBranch.Text = branch;
+
+            _gitFilesList.Clear();
+            var fileStatuses = await _gitService.GetFileStatusesAsync(_currentRepoPath);
+            foreach (var kvp in fileStatuses)
+            {
+                string fullPath = kvp.Key;
+                string status = kvp.Value; // e.g. "M ", " M", "A ", "??", "D "
+
+                bool isStaged = status.StartsWith("M") || status.StartsWith("A") || status.StartsWith("D");
+                string statusDesc = isStaged ? "Staged" : "Unstaged";
+                if (status == "??") statusDesc = "Untracked";
+
+                string actionGlyph = isStaged ? "\xE108" : "\xE109"; // Minus (Unstage) or Plus (Stage) in Segoe MDL2
+
+                _gitFilesList.Add(new GitFileItem
+                {
+                    Name = Path.GetFileName(fullPath),
+                    Path = fullPath,
+                    StatusText = $"{statusDesc} ({status.Trim()})",
+                    ActionGlyph = actionGlyph,
+                    IsStaged = isStaged
+                });
+            }
+        }
+
+        private async void OnGitStageToggleClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string filePath)
+            {
+                var item = _gitFilesList.FirstOrDefault(f => f.Path == filePath);
+                if (item == null) return;
+
+                bool success;
+                if (item.IsStaged)
+                {
+                    success = await _gitService.UnstageFileAsync(_currentRepoPath, filePath);
+                }
+                else
+                {
+                    success = await _gitService.StageFileAsync(_currentRepoPath, filePath);
+                }
+
+                if (success)
+                {
+                    await RefreshGitStatusUIAsync();
+                }
+                else
+                {
+                    ShowErrorMessage("Git Stage 변경 실패", "Git CLI 명령 처리에 실패했습니다.");
+                }
+            }
+        }
+
+        private async void OnGitFileDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+        {
+            if (GitChangedFilesList.SelectedItem is GitFileItem item)
+            {
+                string diff = await _gitService.GetFileDiffAsync(_currentRepoPath, item.Path);
+                OpenNewTab(filePath: item.Path + ".diff", content: diff);
+            }
+        }
+
+        private async void OnGitCommitClick(object sender, RoutedEventArgs e)
+        {
+            string msg = GitCommitMessageInput.Text;
+            if (string.IsNullOrEmpty(msg))
+            {
+                ShowErrorMessage("Git 커밋", "커밋 메시지를 채워주십시오.");
+                return;
+            }
+
+            bool success = await _gitService.CommitAsync(_currentRepoPath, msg);
+            if (success)
+            {
+                GitCommitMessageInput.Text = string.Empty;
+                await RefreshGitStatusUIAsync();
+                ShowErrorMessage("Git 커밋", "성공적으로 커밋 완료되었습니다!");
+            }
+            else
+            {
+                ShowErrorMessage("Git 커밋 실패", "커밋 도중 에러가 났습니다. 변경 조각(Staged)이 등록되었는지 확인하십시오.");
+            }
+        }
+
+        private async void OnGitRefreshClick(object sender, RoutedEventArgs e)
+        {
+            await RefreshGitStatusUIAsync();
+        }
+
+        #endregion
+
+        #region Advanced Search & Replace Handlers
+
+        private async void OnSearchAllFilesClick(object sender, RoutedEventArgs e)
+        {
+            string query = SearchQueryInput.Text;
+            if (string.IsNullOrEmpty(query)) return;
+
+            if (string.IsNullOrEmpty(_currentRepoPath))
+            {
+                ShowErrorMessage("검색 실패", "먼저 탐색기에서 작업할 폴더를 선택하십시오.");
+                return;
+            }
+
+            _searchResultsList.Clear();
+            bool isRegex = SearchRegexToggle.IsChecked == true;
+            bool isMatchCase = SearchMatchCaseToggle.IsChecked == true;
+            bool isWholeWord = SearchWholeWordToggle.IsChecked == true;
+
+            await Task.Run(async () =>
+            {
+                try
+                {
+                    var files = Directory.GetFiles(_currentRepoPath, "*.*", SearchOption.AllDirectories);
+                    foreach (var file in files)
+                    {
+                        // Filter system paths
+                        if (file.Contains("\\.git\\") || file.Contains("\\bin\\") || file.Contains("\\obj\\") || file.Contains("\\.vs\\"))
+                            continue;
+
+                        var info = new FileInfo(file);
+                        if (info.Length > 50 * 1024 * 1024)
+                        {
+                            var largeResults = await _fileService.SearchLargeFileAsync(file, query, isRegex);
+                            foreach (var lr in largeResults)
+                            {
+                                this.DispatcherQueue.TryEnqueue(() =>
+                                {
+                                    _searchResultsList.Add(new SearchResultItem
+                                    {
+                                        Path = file,
+                                        LineNumber = lr.LineNumber,
+                                        LineContent = lr.LineContent,
+                                        IndexOfMatch = lr.IndexOfMatch,
+                                        MatchLength = lr.MatchLength
+                                    });
+                                });
+                            }
+                        }
+                        else
+                        {
+                            int lineNum = 1;
+                            var lines = File.ReadLines(file);
+                            var options = isMatchCase ? System.Text.RegularExpressions.RegexOptions.None : System.Text.RegularExpressions.RegexOptions.IgnoreCase;
+                            
+                            string pattern = isRegex ? query : System.Text.RegularExpressions.Regex.Escape(query);
+                            if (isWholeWord)
+                            {
+                                pattern = $"\\b{pattern}\\b";
+                            }
+
+                            var regex = new System.Text.RegularExpressions.Regex(pattern, options);
+                            foreach (var line in lines)
+                            {
+                                var match = regex.Match(line);
+                                if (match.Success)
+                                {
+                                    var currentLine = line;
+                                    var currentLineNum = lineNum;
+                                    var currentFile = file;
+                                    var currentIdx = match.Index;
+                                    var currentLen = match.Length;
+
+                                    this.DispatcherQueue.TryEnqueue(() =>
+                                    {
+                                        _searchResultsList.Add(new SearchResultItem
+                                        {
+                                            Path = currentFile,
+                                            LineNumber = currentLineNum,
+                                            LineContent = currentLine,
+                                            IndexOfMatch = currentIdx,
+                                            MatchLength = currentLen
+                                        });
+                                    });
+                                }
+                                lineNum++;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error scanning folder search: {ex.Message}");
+                }
+            });
+        }
+
+        private async void OnReplaceAllClick(object sender, RoutedEventArgs e)
+        {
+            string query = SearchQueryInput.Text;
+            string replace = ReplaceQueryInput.Text;
+            if (string.IsNullOrEmpty(query) || _searchResultsList.Count == 0) return;
+
+            var dialog = new ContentDialog
+            {
+                Title = "전체 치환 경고",
+                Content = $"{_searchResultsList.Count}개의 일치 항목을 '{replace}'(으)로 일괄 치환하시겠습니까?",
+                PrimaryButtonText = "치환 실행",
+                CloseButtonText = "취소",
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                var grouped = _searchResultsList.GroupBy(r => r.Path);
+                foreach (var group in grouped)
+                {
+                    string filePath = group.Key;
+                    try
+                    {
+                        var info = new FileInfo(filePath);
+                        if (info.Length > 50 * 1024 * 1024)
+                        {
+                            await ReplaceInLargeFileAsync(filePath, group.ToList(), query, replace);
+                        }
+                        else
+                        {
+                            var lines = File.ReadAllLines(filePath).ToList();
+                            var sorted = group.OrderByDescending(r => r.LineNumber).ToList();
+                            foreach (var res in sorted)
+                            {
+                                if (res.LineNumber - 1 < lines.Count)
+                                {
+                                    string original = lines[res.LineNumber - 1];
+                                    string updated;
+                                    if (SearchRegexToggle.IsChecked == true)
+                                    {
+                                        var options = SearchMatchCaseToggle.IsChecked == true ? System.Text.RegularExpressions.RegexOptions.None : System.Text.RegularExpressions.RegexOptions.IgnoreCase;
+                                        updated = System.Text.RegularExpressions.Regex.Replace(original, query, replace, options);
+                                    }
+                                    else
+                                    {
+                                        updated = original.Replace(query, replace, StringComparison.OrdinalIgnoreCase);
+                                    }
+                                    lines[res.LineNumber - 1] = updated;
+                                }
+                            }
+                            await File.WriteAllLinesAsync(filePath, lines);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed replace in {filePath}: {ex.Message}");
+                    }
+                }
+
+                _searchResultsList.Clear();
+                ShowErrorMessage("치환 완료", "모든 매칭 항목의 치환 처리가 완료되었습니다.");
+                await RefreshGitStatusUIAsync();
+            }
+        }
+
+        private async Task ReplaceInLargeFileAsync(string filePath, List<SearchResultItem> results, string query, string replace)
+        {
+            string tempPath = Path.Combine(Path.GetDirectoryName(filePath) ?? Path.GetTempPath(), $"._{Path.GetFileName(filePath)}.tmp");
+            string backupPath = filePath + ".bak";
+
+            try
+            {
+                var sorted = results.OrderBy(r => r.LineNumber).ToList();
+                int idx = 0;
+
+                using (var reader = new StreamReader(filePath))
+                using (var writer = new StreamWriter(tempPath, false, Encoding.UTF8))
+                {
+                    string? line;
+                    int lineNum = 1;
+                    while ((line = await reader.ReadLineAsync()) != null)
+                    {
+                        if (idx < sorted.Count && sorted[idx].LineNumber == lineNum)
+                        {
+                            string updated;
+                            if (SearchRegexToggle.IsChecked == true)
+                            {
+                                var options = SearchMatchCaseToggle.IsChecked == true ? System.Text.RegularExpressions.RegexOptions.None : System.Text.RegularExpressions.RegexOptions.IgnoreCase;
+                                updated = System.Text.RegularExpressions.Regex.Replace(line, query, replace, options);
+                            }
+                            else
+                            {
+                                updated = line.Replace(query, replace, StringComparison.OrdinalIgnoreCase);
+                            }
+                            await writer.WriteLineAsync(updated);
+                            idx++;
+                        }
+                        else
+                        {
+                            await writer.WriteLineAsync(line);
+                        }
+                        lineNum++;
+                    }
+                }
+
+                File.Replace(tempPath, filePath, backupPath);
+                if (File.Exists(backupPath)) File.Delete(backupPath);
+            }
+            catch (Exception ex)
+            {
+                if (File.Exists(tempPath)) File.Delete(tempPath);
+                throw new IOException($"대용량 치환 중 실패: {ex.Message}", ex);
+            }
+        }
+
+        private async void OnSearchResultDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+        {
+            if (SearchResultsList.SelectedItem is SearchResultItem item)
+            {
+                // Open file
+                await LoadFileIntoTabAsync(item.Path);
+
+                // Wait editor loading and reveal line
+                if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
+                    activeTabItem.Tag is string tabId &&
+                    _tabBridges.TryGetValue(tabId, out var bridgeGroup) &&
+                    bridgeGroup.Bridge != null)
+                {
+                    await bridgeGroup.Bridge.RevealLineAsync(item.LineNumber);
+                }
+            }
+        }
+
+        #endregion
     }
 
     public class FavoriteItem
     {
         public string Name { get; set; } = string.Empty;
         public string Path { get; set; } = string.Empty;
+    }
+
+    public class GitFileItem
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Path { get; set; } = string.Empty;
+        public string StatusText { get; set; } = string.Empty;
+        public string ActionGlyph { get; set; } = string.Empty;
+        public bool IsStaged { get; set; }
+    }
+
+    public class SearchResultItem
+    {
+        public string HeaderText => $"{System.IO.Path.GetFileName(Path)}:L{LineNumber}";
+        public string DisplayPath => Path;
+        public string Path { get; set; } = string.Empty;
+        public int LineNumber { get; set; }
+        public string LineContent { get; set; } = string.Empty;
+        public int IndexOfMatch { get; set; }
+        public int MatchLength { get; set; }
     }
 }

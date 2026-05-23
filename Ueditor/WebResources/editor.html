@@ -115,8 +115,31 @@
                     break;
                 case 'updateOptions':
                     const opts = {};
-                    if (msg.theme) {
+                    if (msg.customBackgroundColor || msg.customForegroundColor) {
+                        const baseTheme = msg.theme === "Light" ? "vs" : "vs-dark";
+                        const rules = [];
+                        if (msg.customForegroundColor) {
+                            rules.push({ token: '', foreground: msg.customForegroundColor.replace('#', '') });
+                        }
+                        monaco.editor.defineTheme('custom-user-theme', {
+                            base: baseTheme,
+                            inherit: true,
+                            rules: rules,
+                            colors: {
+                                'editor.background': msg.customBackgroundColor,
+                                'editor.foreground': msg.customForegroundColor || (msg.theme === "Light" ? "#000000" : "#d4d4d4")
+                            }
+                        });
+                        monaco.editor.setTheme('custom-user-theme');
+                        
+                        if (msg.customBackgroundColor) {
+                            document.getElementById('editor-container').style.backgroundColor = msg.customBackgroundColor;
+                            document.body.style.backgroundColor = msg.customBackgroundColor;
+                        }
+                    } else if (msg.theme) {
                         monaco.editor.setTheme(msg.theme === "Dark" ? "vs-dark" : "vs");
+                        document.getElementById('editor-container').style.backgroundColor = (msg.theme === "Light" ? "#ffffff" : "#1e1e1e");
+                        document.body.style.backgroundColor = (msg.theme === "Light" ? "#ffffff" : "#1e1e1e");
                     }
                     if (msg.wordWrap !== undefined) opts.wordWrap = msg.wordWrap ? "on" : "off";
                     if (msg.minimap !== undefined) opts.minimap = { enabled: msg.minimap };
@@ -157,6 +180,11 @@
                     const text = msg.text || "";
                     const op = { identifier: id, range: range, text: text, forceMoveMarkers: true };
                     editor.executeEdits("my-source", [op]);
+                    editor.focus();
+                    break;
+                case 'revealLine':
+                    editor.revealLineInCenter(msg.lineNumber);
+                    editor.setPosition({ lineNumber: msg.lineNumber, column: 1 });
                     editor.focus();
                     break;
                 case 'focus':
