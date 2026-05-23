@@ -265,6 +265,9 @@
                         document.documentElement.style.setProperty('--font-size', `${msg.fontSize}px`);
                         document.documentElement.style.setProperty('--line-height', `${msg.fontSize + 8}px`);
                     }
+                    if (msg.fontFamily) {
+                        document.documentElement.style.setProperty('--font-family', msg.fontFamily);
+                    }
                     setupVirtualScroll(msg.lineCount);
                     break;
                 case 'receiveLines':
@@ -280,11 +283,26 @@
                     const end = Math.min(totalLines, startLine + visibleCount);
                     updateViewportDOM(startLine, end);
                     break;
-                case 'updateTheme':
+                case 'updateOptions':
                     if (msg.theme === 'Light') {
                         document.body.classList.add('light-theme');
                     } else {
                         document.body.classList.remove('light-theme');
+                    }
+                    if (msg.fontSize) {
+                        document.documentElement.style.setProperty('--font-size', `${msg.fontSize}px`);
+                        document.documentElement.style.setProperty('--line-height', `${msg.fontSize + 8}px`);
+                    }
+                    if (msg.fontFamily) {
+                        document.documentElement.style.setProperty('--font-family', msg.fontFamily);
+                    }
+                    break;
+                case 'revealLine':
+                    const lineNum = msg.lineNumber;
+                    if (lineNum && lineNum > 0 && lineNum <= totalLines) {
+                        const targetScrollTop = (lineNum - 1) * LINE_HEIGHT;
+                        scrollContainer.scrollTop = targetScrollTop;
+                        render();
                     }
                     break;
             }

@@ -137,10 +137,16 @@ namespace Ueditor
 
         #region Tab Operations (탭 비즈니스 로직)
 
-        private void OpenNewTab(string? filePath = null, string content = "", bool isLargeFileMode = false, bool isMonacoLimitedMode = false)
+        private void OpenNewTab(string? filePath = null, string content = "", bool isLargeFileMode = false, bool isMonacoLimitedMode = false, bool isReadOnly = false)
         {
             var tab = new OpenedTab();
             tab.IsLargeFileMode = isLargeFileMode;
+
+            // Auto-enforce read-only mode for .diff files
+            if (filePath != null && filePath.EndsWith(".diff", StringComparison.OrdinalIgnoreCase))
+            {
+                isReadOnly = true;
+            }
 
             if (filePath != null)
             {
@@ -200,7 +206,7 @@ namespace Ueditor
                 {
                     await bridge.SetTextAsync(tab.Content);
                     await bridge.SetLanguageAsync(filePath ?? "file.txt");
-                    await bridge.UpdateOptionsAsync(_settingsService.CurrentSettings, isLargeFile: isMonacoLimitedMode);
+                    await bridge.UpdateOptionsAsync(_settingsService.CurrentSettings, isLargeFile: isMonacoLimitedMode, isReadOnly: isReadOnly);
                 };
 
                 bridge.ContentChanged += (newText) =>
@@ -351,7 +357,8 @@ namespace Ueditor
                             filePath = tab.FilePath,
                             lineCount = count,
                             theme = _settingsService.CurrentSettings.Theme,
-                            fontSize = _settingsService.CurrentSettings.FontSize
+                            fontSize = _settingsService.CurrentSettings.FontSize,
+                            fontFamily = _settingsService.CurrentSettings.FontFamily
                         };
                         string initJson = System.Text.Json.JsonSerializer.Serialize(initMsg);
                         wv.CoreWebView2.PostWebMessageAsJson(initJson);
@@ -464,9 +471,18 @@ namespace Ueditor
             picker.FileTypeFilter.Add(".html");
             picker.FileTypeFilter.Add(".css");
             picker.FileTypeFilter.Add(".js");
+            picker.FileTypeFilter.Add(".ts");
             picker.FileTypeFilter.Add(".cs");
             picker.FileTypeFilter.Add(".json");
             picker.FileTypeFilter.Add(".tex");
+            picker.FileTypeFilter.Add(".py");
+            picker.FileTypeFilter.Add(".cpp");
+            picker.FileTypeFilter.Add(".h");
+            picker.FileTypeFilter.Add(".xml");
+            picker.FileTypeFilter.Add(".xaml");
+            picker.FileTypeFilter.Add(".sql");
+            picker.FileTypeFilter.Add(".sh");
+            picker.FileTypeFilter.Add(".diff");
 
             var file = await picker.PickSingleFileAsync();
             if (file != null)
@@ -693,6 +709,14 @@ namespace Ueditor
             var fontFamilyBox = new TextBox { PlaceholderText = "예: Consolas, 'Courier New'", Text = settings.FontFamily, HorizontalAlignment = HorizontalAlignment.Stretch };
             var uiFontFamilyBox = new TextBox { PlaceholderText = "예: Segoe UI, Malgun Gothic", Text = settings.UiFontFamily, HorizontalAlignment = HorizontalAlignment.Stretch };
 
+            // LLM Settings Injection
+            var llmProviderCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, SelectedIndex = settings.LlmProvider.Equals("Gemini", StringComparison.OrdinalIgnoreCase) ? 0 : 1 };
+            llmProviderCombo.Items.Add("Gemini");
+            llmProviderCombo.Items.Add("OpenAI");
+
+            var llmEndpointBox = new TextBox { PlaceholderText = "예: https://api.openai.com/v1", Text = settings.LlmEndpoint, HorizontalAlignment = HorizontalAlignment.Stretch };
+            var llmModelBox = new TextBox { PlaceholderText = "예: gemini-2.5-flash 또는 gpt-4o", Text = settings.LlmModel, HorizontalAlignment = HorizontalAlignment.Stretch };
+
             var stack = new StackPanel { Spacing = 10, Width = 320 };
             stack.Children.Add(new TextBlock { Text = "에디터 테마 설정", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
             stack.Children.Add(themeCombo);
@@ -706,6 +730,14 @@ namespace Ueditor
             stack.Children.Add(fontFamilyBox);
             stack.Children.Add(new TextBlock { Text = "UI 쉘 폰트 (UiFontFamily)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
             stack.Children.Add(uiFontFamilyBox);
+
+            // Add LLM options into layout stack
+            stack.Children.Add(new TextBlock { Text = "LLM 공급자 설정 (LlmProvider)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            stack.Children.Add(llmProviderCombo);
+            stack.Children.Add(new TextBlock { Text = "LLM API Endpoint 주소", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            stack.Children.Add(llmEndpointBox);
+            stack.Children.Add(new TextBlock { Text = "LLM 모델명 (LlmModel)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            stack.Children.Add(llmModelBox);
 
             var dialog = new ContentDialog
             {
@@ -725,16 +757,31 @@ namespace Ueditor
                 settings.CustomForegroundColor = customFgBox.Text.Trim();
                 settings.FontFamily = fontFamilyBox.Text.Trim();
                 settings.UiFontFamily = uiFontFamilyBox.Text.Trim();
+                settings.LlmProvider = llmProviderCombo.SelectedIndex == 0 ? "Gemini" : "OpenAI";
+                settings.LlmEndpoint = llmEndpointBox.Text.Trim();
+                settings.LlmModel = llmModelBox.Text.Trim();
 
                 await _settingsService.SaveSettingsAsync(settings);
                 ApplyUiPersonalization(settings);
 
-                // Update settings for all active Monaco editors
+                // Update settings for all active Monaco and Large File editors
                 foreach (var grp in _tabBridges.Values)
                 {
                     if (grp.Bridge != null)
                     {
                         await grp.Bridge.UpdateOptionsAsync(settings);
+                    }
+                    else if (grp.WebView != null && grp.WebView.CoreWebView2 != null)
+                    {
+                        var updateMsg = new
+                        {
+                            action = "updateOptions",
+                            theme = settings.Theme,
+                            fontSize = settings.FontSize,
+                            fontFamily = settings.FontFamily
+                        };
+                        string updateJson = System.Text.Json.JsonSerializer.Serialize(updateMsg);
+                        grp.WebView.CoreWebView2.PostWebMessageAsJson(updateJson);
                     }
                 }
 
@@ -997,8 +1044,12 @@ namespace Ueditor
             }
         }
 
-        private void OnEditorTabViewSelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void OnEditorTabViewSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            // Reset selection context to prevent leak/cross-talk between documents
+            _lastSelectionText = string.Empty;
+            SelectionStatsText.Text = "선택 영역: 없음 (전체 전송 차단 활성화)";
+
             if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
                 activeTabItem.Tag is string tabId)
             {
@@ -1007,6 +1058,12 @@ namespace Ueditor
                 {
                     UpdateStatusFileStats(tab);
                     UpdateLivePreview(tab);
+
+                    // Sync selection for active Monaco editor
+                    if (_tabBridges.TryGetValue(tab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
+                    {
+                        await bridgeGroup.Bridge.RequestSelectionAsync();
+                    }
                 }
             }
         }
@@ -1726,13 +1783,23 @@ namespace Ueditor
                 // Open file
                 await LoadFileIntoTabAsync(item.Path);
 
-                // Wait editor loading and reveal line
+                // Tiny delay to allow WebView2 rendering and virtual host loading to settle
+                await Task.Delay(250);
+
                 if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
                     activeTabItem.Tag is string tabId &&
-                    _tabBridges.TryGetValue(tabId, out var bridgeGroup) &&
-                    bridgeGroup.Bridge != null)
+                    _tabBridges.TryGetValue(tabId, out var bridgeGroup))
                 {
-                    await bridgeGroup.Bridge.RevealLineAsync(item.LineNumber);
+                    if (bridgeGroup.Bridge != null)
+                    {
+                        await bridgeGroup.Bridge.RevealLineAsync(item.LineNumber);
+                    }
+                    else if (bridgeGroup.WebView != null && bridgeGroup.WebView.CoreWebView2 != null)
+                    {
+                        var revealMsg = new { action = "revealLine", lineNumber = item.LineNumber };
+                        string revealJson = System.Text.Json.JsonSerializer.Serialize(revealMsg);
+                        bridgeGroup.WebView.CoreWebView2.PostWebMessageAsJson(revealJson);
+                    }
                 }
             }
         }

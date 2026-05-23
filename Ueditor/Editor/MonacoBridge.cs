@@ -94,7 +94,7 @@ namespace Ueditor.Editor
             await SendMessageAsync(msg);
         }
 
-        public async Task UpdateOptionsAsync(EditorSettings settings, bool isLargeFile = false)
+        public async Task UpdateOptionsAsync(EditorSettings settings, bool isLargeFile = false, bool isReadOnly = false)
         {
             var msg = new
             {
@@ -107,7 +107,8 @@ namespace Ueditor.Editor
                 tabSize = settings.TabSize,
                 customBackgroundColor = settings.CustomBackgroundColor,
                 customForegroundColor = settings.CustomForegroundColor,
-                isLargeFile = isLargeFile
+                isLargeFile = isLargeFile,
+                readOnly = isReadOnly
             };
             await SendMessageAsync(msg);
         }
