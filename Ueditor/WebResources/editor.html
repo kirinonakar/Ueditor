@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ueditor Monaco Editor</title>
+    <!-- Core Monaco Stylesheet -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.min.css" />
+    <style>
+        html, body, #editor-container {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #1e1e1e; /* Default dark background */
+        }
+    </style>
+</head>
+<body>
+    <div id="editor-container"></div>
+
+    <!-- Monaco AMD Loader -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+    <script>
+        // Monaco Editor AMD loading configuration
+        require.config({
+            paths: {
+                'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs'
+            }
+        });
+
+        let editor = null;
+        let isProgrammaticChange = false;
+
+        require(['vs/editor/editor.main'], function() {
+            // Default Monaco options
+            editor = monaco.editor.create(document.getElementById('editor-container'), {
+                value: "",
+                language: "plaintext",
+                theme: "vs-dark",
+                automaticLayout: true,
+                wordWrap: "on",
+                minimap: { enabled: true },
+                fontSize: 14,
+                fontFamily: "Consolas, 'Courier New', monospace",
+                tabSize: 4,
+                bracketPairColorization: { enabled: true },
+                readOnly: false
+            });
+
+            // Notify WinUI C# that Monaco is successfully loaded
+            sendNotificationToCsharp({ type: 'ready' });
+
+            // Listen to editor content change
+            editor.onDidChangeModelContent(function(e) {
+                if (isProgrammaticChange) return;
+                
+                const content = editor.getValue();
+                sendNotificationToCsharp({
+                    type: 'contentChanged',
+                    content: content
+                });
+            });
+
+            // Listen to cursor position change
+            editor.onDidChangeCursorPosition(function(e) {
+                sendNotificationToCsharp({
+                    type: 'cursorChanged',
+                    line: e.position.lineNumber,
+                    column: e.position.column
+                });
+            });
+        });
+
+        // Communication wrapper to send messages back to WinUI C# backend
+        function sendNotificationToCsharp(msg) {
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage(JSON.stringify(msg));
+            } else {
+                console.log("C# Bridge not available, message: ", msg);
+            }
+        }
+
+        // Receive messages from WinUI C# backend
+        if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.addEventListener('message', function(event) {
+                try {
+                    const message = JSON.parse(event.data);
+                    handleCsharpMessage(message);
+                } catch (e) {
+                    console.error("Failed to parse C# message: ", e);
+                }
+            });
+        }
+
+        function handleCsharpMessage(msg) {
+            if (!editor) {
+                // If editor is not ready, retry in 50ms
+                setTimeout(() => handleCsharpMessage(msg), 50);
+                return;
+            }
+
+            switch(msg.action) {
+                case 'setText':
+                    isProgrammaticChange = true;
+                    editor.setValue(msg.text || "");
+                    isProgrammaticChange = false;
+                    break;
+                case 'setLanguage':
+                    const model = editor.getModel();
+                    if (model) {
+                        monaco.editor.setModelLanguage(model, msg.language);
+                    }
+                    break;
+                case 'updateOptions':
+                    const opts = {};
+                    if (msg.theme) {
+                        monaco.editor.setTheme(msg.theme === "Dark" ? "vs-dark" : "vs");
+                    }
+                    if (msg.wordWrap !== undefined) opts.wordWrap = msg.wordWrap ? "on" : "off";
+                    if (msg.minimap !== undefined) opts.minimap = { enabled: msg.minimap };
+                    if (msg.fontSize !== undefined) opts.fontSize = msg.fontSize;
+                    if (msg.fontFamily !== undefined) opts.fontFamily = msg.fontFamily;
+                    if (msg.tabSize !== undefined) opts.tabSize = msg.tabSize;
+                    if (msg.readOnly !== undefined) opts.readOnly = msg.readOnly;
+                    
+                    // Specific high performance flags
+                    if (msg.isLargeFile) {
+                        opts.minimap = { enabled: false };
+                        opts.codeLens = false;
+                        opts.lightbulb = { enabled: false };
+                        opts.colorDecorators = false;
+                    }
+                    
+                    editor.updateOptions(opts);
+                    break;
+                case 'triggerFind':
+                    editor.trigger('keyboard', 'actions.find', null);
+                    break;
+                case 'focus':
+                    editor.focus();
+                    break;
+            }
+        }
+    </script>
+</body>
+</html>

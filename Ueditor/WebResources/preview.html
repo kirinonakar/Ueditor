@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ueditor Preview</title>
+    <!-- markdown-it Parser -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
+    <!-- KaTeX CSS & JS for LaTeX rendering -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --text-color: #d4d4d4;
+            --link-color: #3794ff;
+            --code-bg: #2d2d2d;
+            --border-color: #3e3e3e;
+            --header-border: #303030;
+        }
+
+        body.light-theme {
+            --bg-color: #ffffff;
+            --text-color: #1a1a1a;
+            --link-color: #0066cc;
+            --code-bg: #f5f5f5;
+            --border-color: #e0e0e0;
+            --header-border: #eaeaea;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        #preview-container {
+            padding: 20px;
+            box-sizing: border-box;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        /* Markdown Styling */
+        h1, h2, h3, h4, h5, h6 {
+            margin-top: 24px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            line-height: 1.25;
+            border-bottom: 1px solid var(--header-border);
+            padding-bottom: 0.3em;
+        }
+        
+        a {
+            color: var(--link-color);
+            text-decoration: none;
+        }
+        
+        a:hover {
+            text-decoration: underline;
+        }
+
+        p, ul, ol, dl, table, blockquote {
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+
+        code {
+            padding: 0.2em 0.4em;
+            margin: 0;
+            font-size: 85%;
+            background-color: var(--code-bg);
+            border-radius: 6px;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            padding: 16px;
+            overflow: auto;
+            font-size: 85%;
+            line-height: 1.45;
+            background-color: var(--code-bg);
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
+
+        pre code {
+            padding: 0;
+            background-color: transparent;
+            font-size: 100%;
+            border-radius: 0;
+        }
+
+        blockquote {
+            padding: 0 1em;
+            color: #6a737d;
+            border-left: 0.25em solid #dfe2e5;
+        }
+
+        table {
+            border-spacing: 0;
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 16px;
+        }
+
+        table th, table td {
+            padding: 6px 13px;
+            border: 1px solid var(--border-color);
+        }
+
+        table tr {
+            background-color: var(--bg-color);
+            border-top: 1px solid var(--border-color);
+        }
+
+        table tr:nth-child(2n) {
+            background-color: var(--code-bg);
+        }
+
+        /* Latex Math Styling */
+        .katex-display {
+            padding: 10px 0;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div id="preview-container"></div>
+
+    <script>
+        const container = document.getElementById('preview-container');
+        let currentMode = 'markdown'; // markdown, html, latex
+        let mdParser = window.markdownit({
+            html: true, // Allow raw HTML input (safeguarded later if needed)
+            linkify: true,
+            typographer: true
+        });
+
+        // Safe HTML sandboxing logic
+        function sanitizeHtml(htmlContent) {
+            // Strip out dangerous <script> tags for basic safety
+            return htmlContent.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, 
+                '<div style="color:red;border:1px solid red;padding:5px;margin:5px;">[보안상 스크립트 실행이 제한되었습니다]</div>');
+        }
+
+        function renderMarkdown(text) {
+            // First, render the markdown to HTML
+            let rendered = mdParser.render(text || "");
+            container.innerHTML = rendered;
+            
+            // Second, parse and render LaTeX equations using KaTeX auto-render helper
+            try {
+                renderMathInElement(container, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            } catch (err) {
+                console.error("KaTeX auto-render failed: ", err);
+            }
+        }
+
+        function renderHtml(text) {
+            container.innerHTML = sanitizeHtml(text || "");
+        }
+
+        function renderLatex(text) {
+            // Treat the whole file as direct LaTeX document block
+            try {
+                let html = katex.renderToString(text || "", {
+                    displayMode: true,
+                    throwOnError: false
+                });
+                container.innerHTML = `<div class="katex-display">${html}</div>`;
+            } catch (err) {
+                container.innerHTML = `<div style="color:red;">LaTeX Render Error: ${err.message}</div>`;
+            }
+        }
+
+        // Receive preview text data from C#
+        if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.addEventListener('message', function(event) {
+                try {
+                    const message = JSON.parse(event.data);
+                    if (message.action === 'render') {
+                        currentMode = message.mode || 'markdown';
+                        
+                        // Theme handling
+                        if (message.theme === 'Light') {
+                            document.body.classList.add('light-theme');
+                        } else {
+                            document.body.classList.remove('light-theme');
+                        }
+
+                        if (currentMode === 'markdown') {
+                            renderMarkdown(message.text);
+                        } else if (currentMode === 'html') {
+                            renderHtml(message.text);
+                        } else if (currentMode === 'latex') {
+                            renderLatex(message.text);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to parse Preview message: ", e);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

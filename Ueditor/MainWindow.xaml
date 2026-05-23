@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Ueditor.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Ueditor"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    mc:Ignorable="d"
+    Title="Ueditor - 고성능 텍스트 에디터">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="Base" />
+    </Window.SystemBackdrop>
+
+    <Grid Background="Transparent">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Top Command Toolbar -->
+            <RowDefinition Height="*"/>    <!-- Main Body Work Area -->
+            <RowDefinition Height="Auto"/> <!-- Bottom Status Bar -->
+        </Grid.RowDefinitions>
+
+        <!-- 1. Top Command Toolbar (상단 툴바) -->
+        <CommandBar Grid.Row="0" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}" DefaultLabelPosition="Right">
+            <AppBarButton Icon="OpenFile" Label="파일 열기" Click="OnOpenFileClick" AccessKey="O"/>
+            <AppBarButton Icon="Save" Label="저장" Click="OnSaveFileClick" AccessKey="S"/>
+            <AppBarSeparator/>
+            <AppBarToggleButton x:Name="WordWrapToggle" Icon="PageRange" Label="Word Wrap" Click="OnWordWrapToggleClick" IsChecked="True"/>
+            <AppBarButton Icon="Find" Label="검색" Click="OnFindClick"/>
+            <AppBarSeparator/>
+            <AppBarButton Icon="PreviewLink" Label="Live Preview" Click="OnTogglePreviewClick"/>
+            <AppBarSeparator/>
+            <AppBarButton Icon="Setting" Label="설정" Click="OnSettingsClick"/>
+            
+            <CommandBar.Content>
+                <TextBlock Text="Ueditor MVP" VerticalAlignment="Center" Margin="15,0,0,0" FontWeight="SemiBold" FontSize="14" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+            </CommandBar.Content>
+        </CommandBar>
+
+        <!-- 2. Main Work Area -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260" MinWidth="150" MaxWidth="500"/> <!-- Col 0: Left Side Explorer Panel -->
+                <ColumnDefinition Width="Auto"/>                             <!-- Col 1: Grid Splitter -->
+                <ColumnDefinition Width="*" MinWidth="300"/>                  <!-- Col 2: Center Editor TabView -->
+                <ColumnDefinition Width="Auto"/>                             <!-- Col 3: Grid Splitter -->
+                <ColumnDefinition Width="400" MinWidth="150" x:Name="PreviewColumn"/> <!-- Col 4: Right Split Preview Panel -->
+            </Grid.ColumnDefinitions>
+
+            <!-- A. Left Panel (File Explorer & Favorites & Snippets) -->
+            <Grid Grid.Column="0" Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}" BorderBrush="{ThemeResource SystemControlElevationBorderBrush}" BorderThickness="0,0,1,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Margin="10" Spacing="8">
+                    <TextBlock Text="작업 영역" FontSize="12" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+                    <Button Content="폴더 선택..." HorizontalAlignment="Stretch" Click="OnSelectFolderClick" Style="{StaticResource AccentButtonStyle}"/>
+                </StackPanel>
+
+                <!-- Navigation TreeView for Files -->
+                <TreeView x:Name="FileTreeView" Grid.Row="1" Margin="5" SelectionMode="Single" ItemInvoked="OnFileTreeViewItemInvoked">
+                    <TreeView.ItemTemplate>
+                        <DataTemplate>
+                            <TreeViewItem ItemsSource="{Binding Children}" HasUnrealizedChildren="{Binding HasUnrealizedChildren}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="{Binding IconGlyph}" FontSize="16" Foreground="{ThemeResource SystemControlForegroundAccentBrush}"/>
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </TreeViewItem>
+                        </DataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+            </Grid>
+
+            <!-- B. Sidebar Splitter -->
+            <controls:GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"/>
+
+            <!-- C. Central Tabbed Document Editor -->
+            <Grid Grid.Column="2" Background="{ThemeResource SystemControlBackgroundAltHighBrush}">
+                <TabView x:Name="EditorTabView" 
+                         VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                         AddTabButtonClick="OnEditorTabViewAddTabClick" 
+                         TabCloseRequested="OnEditorTabViewTabCloseRequested"
+                         SelectionChanged="OnEditorTabViewSelectionChanged">
+                    <TabView.TabItems>
+                        <!-- Dynamic tabs go here -->
+                    </TabView.TabItems>
+                </TabView>
+            </Grid>
+
+            <!-- D. Preview Splitter -->
+            <controls:GridSplitter Grid.Column="3" Width="4" HorizontalAlignment="Stretch" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"/>
+
+            <!-- E. Right Live Preview Panel -->
+            <Grid Grid.Column="4" x:Name="PreviewGrid" Background="{ThemeResource SystemControlBackgroundAltHighBrush}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Preview Controls Header -->
+                <CommandBar Grid.Row="0" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}" Height="40" DefaultLabelPosition="Right">
+                    <AppBarButton Icon="Refresh" Label="새로고침" Click="OnRefreshPreviewClick" Width="40" Height="40"/>
+                    <AppBarSeparator/>
+                    <CommandBar.Content>
+                        <StackPanel Orientation="Horizontal" Margin="10,8,0,0" Spacing="10">
+                            <TextBlock Text="실시간 프리뷰" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/>
+                            <ComboBox x:Name="PreviewModeCombo" SelectedIndex="0" Height="24" Padding="5,0,5,0" Width="120" FontSize="11" SelectionChanged="OnPreviewModeComboSelectionChanged">
+                                <ComboBoxItem Content="Markdown"/>
+                                <ComboBoxItem Content="HTML Source"/>
+                                <ComboBoxItem Content="LaTeX Block"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </CommandBar.Content>
+                </CommandBar>
+
+                <!-- WebView2 hosting Preview render content -->
+                <WebView2 x:Name="PreviewWebView" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+            </Grid>
+        </Grid>
+
+        <!-- 3. Bottom Status Bar (하단 상태바) -->
+        <Border Grid.Row="2" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}" Height="28" BorderBrush="{ThemeResource SystemControlElevationBorderBrush}" BorderThickness="0,1,0,0">
+            <Grid Margin="15,0,15,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                        <TextBlock Text="줄" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+                        <TextBlock x:Name="StatusLine" Text="1" FontSize="11" FontWeight="SemiBold"/>
+                        <TextBlock Text="," FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+                        <TextBlock Text="열" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+                        <TextBlock x:Name="StatusCol" Text="1" FontSize="11" FontWeight="SemiBold"/>
+                    </StackPanel>
+                    <TextBlock x:Name="StatusFileStats" Text="크기: 0 bytes" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center">
+                    <TextBlock x:Name="StatusGitBranch" Text="Git: 감지 안됨" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+                    <Border Background="{ThemeResource SystemControlBackgroundAccentBrush}" CornerRadius="3" Padding="6,1,6,1">
+                        <TextBlock x:Name="StatusMode" Text="일반 모드" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                    </Border>
+                    <TextBlock Text="UTF-8" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
+
