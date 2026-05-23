@@ -368,17 +368,35 @@
         }
 
         function highlightCodeLike(text) {
-            const pattern = /(\/\/.*?$|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:class|interface|struct|enum|namespace|using|public|private|protected|internal|static|readonly|async|await|return|if|else|switch|case|break|continue|for|foreach|while|do|try|catch|finally|throw|new|var|let|const|function|import|export|from|extends|implements|void|null|true|false|this|base|get|set|record|sealed|override|virtual)\b|\b(?:string|int|long|double|float|decimal|bool|char|object|Task|List|Dictionary|IEnumerable|void)\b|\b\d+(?:\.\d+)?\b)/gim;
+            const pattern = /(\/\/.*?$|#.*?$|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:class|interface|struct|enum|namespace|using|public|private|protected|internal|static|readonly|async|await|return|if|else|switch|case|break|continue|for|foreach|while|do|try|catch|finally|throw|new|var|let|const|function|import|export|from|extends|implements|void|null|true|false|this|base|get|set|record|sealed|override|virtual|fn|mut|impl|match|self|crate|mod|func|package|go|chan|defer|map|range|select|from|where|insert|into|update|delete|create|table|join|on|group|by|order|and|or|not|limit)\b|\b(?:string|int|long|double|float|decimal|bool|char|object|Task|List|Dictionary|IEnumerable|void|i32|i64|f32|f64|u32|u64|usize|str|Option|Result|error|int32|int64|float32|float64|boolean|any|number)\b|\b\d+(?:\.\d+)?\b)/gim;
             let html = '';
             let lastIndex = 0;
             for (const matchResult of text.matchAll(pattern)) {
                 const match = matchResult[0];
                 html += escapeHtml(text.slice(lastIndex, matchResult.index));
-                if (match.startsWith('//') || match.startsWith('/*')) html += tokenSpan('tok-comment', match);
+                if (match.startsWith('//') || match.startsWith('/*') || match.startsWith('#')) html += tokenSpan('tok-comment', match);
                 else if (/^["'`]/.test(match)) html += tokenSpan('tok-string', match);
                 else if (/^\d/.test(match)) html += tokenSpan('tok-number', match);
-                else if (/^(string|int|long|double|float|decimal|bool|char|object|Task|List|Dictionary|IEnumerable|void)$/.test(match)) html += tokenSpan('tok-type', match);
+                else if (/^(string|int|long|double|float|decimal|bool|char|object|Task|List|Dictionary|IEnumerable|void|i32|i64|f32|f64|u32|u64|usize|str|Option|Result|error|int32|int64|float32|float64|boolean|any|number)$/.test(match)) html += tokenSpan('tok-type', match);
                 else html += tokenSpan('tok-keyword', match);
+                lastIndex = matchResult.index + match.length;
+            }
+            html += escapeHtml(text.slice(lastIndex));
+            return html;
+        }
+
+        function highlightCss(text) {
+            const pattern = /(\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[\w-]+(?=\s*:)|:\s*[^;}]+|[{};])/gim;
+            let html = '';
+            let lastIndex = 0;
+            for (const matchResult of text.matchAll(pattern)) {
+                const match = matchResult[0];
+                html += escapeHtml(text.slice(lastIndex, matchResult.index));
+                if (match.startsWith('/*')) html += tokenSpan('tok-comment', match);
+                else if (/^["']/.test(match)) html += tokenSpan('tok-string', match);
+                else if (match === '{' || match === '}' || match === ';' || match === ':') html += tokenSpan('tok-operator', match);
+                else if (match.startsWith(':')) html += tokenSpan('tok-string', match);
+                else html += tokenSpan('tok-type', match);
                 lastIndex = matchResult.index + match.length;
             }
             html += escapeHtml(text.slice(lastIndex));
@@ -413,6 +431,8 @@
                 html = highlightMarkup(text);
             } else if (currentLanguage === 'json') {
                 html = highlightJson(text);
+            } else if (currentLanguage === 'css') {
+                html = highlightCss(text);
             } else if (currentLanguage === 'markdown' || currentLanguage === 'latex') {
                 html = highlightMarkdown(text);
             } else if (currentLanguage === 'plaintext') {
@@ -430,7 +450,7 @@
             highlightContent.style.transform = `translate(${-editor.scrollLeft}px, ${-editor.scrollTop}px)`;
         }
 
-        function revealOffset(offset, length = 0) {
+        function revealOffset(offset, length = 0, shouldFocus = true) {
             const safeOffset = Math.max(0, Math.min(offset, editor.value.length));
             const safeEnd = Math.max(safeOffset, Math.min(safeOffset + length, editor.value.length));
             editor.selectionStart = safeOffset;
@@ -443,7 +463,9 @@
             const lineHeight = parseFloat(style.lineHeight) || fontSize * 1.45;
             editor.scrollTop = Math.max(0, lineIndex * lineHeight - editor.clientHeight / 3);
             syncHighlightScroll();
-            editor.focus();
+            if (shouldFocus) {
+                editor.focus();
+            }
             reportCursorAndSelection();
         }
 
@@ -476,7 +498,7 @@
             updateFindCount();
         }
 
-        function selectFindMatch(index) {
+        function selectFindMatch(index, shouldFocus = false) {
             if (findMatches.length === 0) {
                 updateFindCount();
                 return;
@@ -484,7 +506,7 @@
 
             activeFindIndex = (index + findMatches.length) % findMatches.length;
             const match = findMatches[activeFindIndex];
-            revealOffset(match.start, match.length);
+            revealOffset(match.start, match.length, shouldFocus);
             updateFindCount();
         }
 
@@ -511,7 +533,7 @@
                 }
             }
 
-            selectFindMatch(nextIndex);
+            selectFindMatch(nextIndex, false);
         }
 
         function openFindPanel() {
@@ -1099,10 +1121,31 @@
         editor.addEventListener('click', reportCursorAndSelection);
         editor.addEventListener('select', reportCursorAndSelection);
         editor.addEventListener('keydown', event => {
-            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
-                event.preventDefault();
-                openFindPanel();
-                return;
+            const key = event.key.toLowerCase();
+            const ctrl = event.ctrlKey || event.metaKey;
+
+            if (ctrl) {
+                if (key === 's') {
+                    event.preventDefault();
+                    post({ type: 'shortcut', name: 'save' });
+                    return;
+                } else if (key === 'o') {
+                    event.preventDefault();
+                    post({ type: 'shortcut', name: 'open' });
+                    return;
+                } else if (key === 't') {
+                    event.preventDefault();
+                    post({ type: 'shortcut', name: 'terminal' });
+                    return;
+                } else if (key === 'w') {
+                    event.preventDefault();
+                    post({ type: 'shortcut', name: 'closeTab' });
+                    return;
+                } else if (key === 'f') {
+                    event.preventDefault();
+                    openFindPanel();
+                    return;
+                }
             }
 
             if (event.key === 'Escape' && !findPanel.hidden) {

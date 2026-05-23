@@ -17,6 +17,7 @@ namespace Ueditor.Editor
         public event Action<string>? SelectionReceived;
         public event Action<int, int>? CursorChanged;
         public event Action? EditorReady;
+        public event Action<string>? ShortcutPressed;
 
         public MonacoBridge(WebView2 webView)
         {
@@ -210,6 +211,13 @@ namespace Ueditor.Editor
                             if (root.TryGetProperty("text", out JsonElement selectionProp))
                             {
                                 SelectionReceived?.Invoke(selectionProp.GetString() ?? string.Empty);
+                            }
+                            break;
+
+                        case "shortcut":
+                            if (root.TryGetProperty("name", out JsonElement nameProp))
+                            {
+                                ShortcutPressed?.Invoke(nameProp.GetString() ?? string.Empty);
                             }
                             break;
                     }

@@ -236,6 +236,8 @@ namespace Ueditor
             LeftPanelToggle.IsChecked = true;
             RightPanelToggle.IsChecked = _settingsService.CurrentSettings.DefaultMarkdownEnabled;
             ApplyPreviewVisibility(_settingsService.CurrentSettings.DefaultMarkdownEnabled);
+            MarkdownToolbarToggle.IsChecked = _settingsService.CurrentSettings.DefaultMarkdownToolbarEnabled;
+            MarkdownToolbar.Visibility = _settingsService.CurrentSettings.DefaultMarkdownToolbarEnabled ? Visibility.Visible : Visibility.Collapsed;
             PreviewModeCombo.SelectedIndex = _settingsService.CurrentSettings.PreviewMode switch
             {
                 "HTML" => 1,
@@ -369,6 +371,28 @@ namespace Ueditor
             {
                 var bridge = new MonacoBridge(editorWebView);
                 _tabBridges[tab.Id] = (editorWebView, bridge);
+
+                bridge.ShortcutPressed += (shortcutName) =>
+                {
+                    this.DispatcherQueue.TryEnqueue(() =>
+                    {
+                        switch (shortcutName)
+                        {
+                            case "save":
+                                OnSaveFileClick(this, new RoutedEventArgs());
+                                break;
+                            case "open":
+                                OnOpenFileClick(this, new RoutedEventArgs());
+                                break;
+                            case "terminal":
+                                OnOpenTerminalClick(this, new RoutedEventArgs());
+                                break;
+                            case "closeTab":
+                                OnCloseActiveTabShortcutInvoked(null!, null!);
+                                break;
+                        }
+                    });
+                };
 
                 // Register Bridge Initialization & IPC Events
                 bridge.EditorReady += async () =>
@@ -578,6 +602,22 @@ namespace Ueditor
                 ".htm" => "html",
                 ".tex" => "latex",
                 ".diff" => "diff",
+                ".cs" => "csharp",
+                ".js" => "javascript",
+                ".ts" => "typescript",
+                ".css" => "css",
+                ".json" => "json",
+                ".py" => "python",
+                ".cpp" => "cpp",
+                ".h" => "cpp",
+                ".xml" => "xml",
+                ".xaml" => "xml",
+                ".sql" => "sql",
+                ".sh" => "shell",
+                ".rs" => "rust",
+                ".go" => "go",
+                ".yml" => "yaml",
+                ".yaml" => "yaml",
                 _ => "plaintext"
             };
         }
@@ -746,6 +786,9 @@ namespace Ueditor
 
         private void OnRootDragOver(object sender, DragEventArgs e)
         {
+            if (e.Handled) return;
+            e.Handled = true;
+
             if (e.DataView.Contains(StandardDataFormats.StorageItems))
             {
                 e.AcceptedOperation = DataPackageOperation.Copy;
@@ -761,6 +804,9 @@ namespace Ueditor
 
         private async void OnRootDrop(object sender, DragEventArgs e)
         {
+            if (e.Handled) return;
+            e.Handled = true;
+
             if (!e.DataView.Contains(StandardDataFormats.StorageItems))
             {
                 return;
@@ -1014,6 +1060,7 @@ namespace Ueditor
             var bracketPairCheck = new CheckBox { Content = "Bracket pair colorization (로컬 Monaco 번들 사용 시)", IsChecked = settings.BracketPairColorizationEnabled };
             var autoSaveCheck = new CheckBox { Content = "Autosave 사용", IsChecked = settings.AutoSave };
             var defaultMarkdownCheck = new CheckBox { Content = "실시간 미리보기 기본 활성화", IsChecked = settings.DefaultMarkdownEnabled };
+            var defaultMarkdownToolbarCheck = new CheckBox { Content = "기본 마크다운 툴바 활성화", IsChecked = settings.DefaultMarkdownToolbarEnabled };
             var tabSizeBox = new TextBox { PlaceholderText = "예: 4", Text = settings.TabSize.ToString(), HorizontalAlignment = HorizontalAlignment.Stretch };
             var largeThresholdBox = new TextBox { PlaceholderText = "예: 50", Text = settings.LargeFileThresholdMB.ToString(), HorizontalAlignment = HorizontalAlignment.Stretch };
 
@@ -1083,27 +1130,34 @@ namespace Ueditor
                     AddModelChoice("gemma-4-26b-a4b-it");
                     AddModelChoice("gemma-4-31b-it");
 
-                    if (selectedModel == null || 
-                        (!selectedModel.Equals("gemini-flash-lite-latest", StringComparison.OrdinalIgnoreCase) &&
-                         !selectedModel.Equals("gemini-flash-latest", StringComparison.OrdinalIgnoreCase) &&
-                         !selectedModel.Equals("gemini-pro-latest", StringComparison.OrdinalIgnoreCase) &&
-                         !selectedModel.Equals("gemma-4-26b-a4b-it", StringComparison.OrdinalIgnoreCase) &&
-                         !selectedModel.Equals("gemma-4-31b-it", StringComparison.OrdinalIgnoreCase)))
+                    string target = !string.IsNullOrEmpty(settings.LlmModelGemini) ? settings.LlmModelGemini : selectedModel;
+                    if (string.IsNullOrEmpty(target) || 
+                        (!target.Equals("gemini-flash-lite-latest", StringComparison.OrdinalIgnoreCase) &&
+                         !target.Equals("gemini-flash-latest", StringComparison.OrdinalIgnoreCase) &&
+                         !target.Equals("gemini-pro-latest", StringComparison.OrdinalIgnoreCase) &&
+                         !target.Equals("gemma-4-26b-a4b-it", StringComparison.OrdinalIgnoreCase) &&
+                         !target.Equals("gemma-4-31b-it", StringComparison.OrdinalIgnoreCase)))
                     {
-                        selectedModel = "gemini-flash-lite-latest";
+                        target = "gemini-flash-lite-latest";
                     }
+                    SelectModelChoice(target);
                 }
                 else if (provider.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
                 {
                     AddModelChoice("gpt-5.5");
 
-                    if (selectedModel == null || !selectedModel.Equals("gpt-5.5", StringComparison.OrdinalIgnoreCase))
+                    string target = !string.IsNullOrEmpty(settings.LlmModelOpenAI) ? settings.LlmModelOpenAI : selectedModel;
+                    if (string.IsNullOrEmpty(target) || !target.Equals("gpt-5.5", StringComparison.OrdinalIgnoreCase))
                     {
-                        selectedModel = "gpt-5.5";
+                        target = "gpt-5.5";
                     }
+                    SelectModelChoice(target);
                 }
-
-                SelectModelChoice(selectedModel);
+                else if (provider.Equals("LM Studio", StringComparison.OrdinalIgnoreCase))
+                {
+                    string target = !string.IsNullOrEmpty(settings.LlmModelLmStudio) ? settings.LlmModelLmStudio : selectedModel;
+                    SelectModelChoice(target);
+                }
             }
 
             bool IsKnownDefaultEndpoint(string endpoint)
@@ -1155,14 +1209,16 @@ namespace Ueditor
                         AddModelChoice(model);
                     }
 
-                    SelectModelChoice(models.Contains(settings.LlmModel) ? settings.LlmModel : models.FirstOrDefault() ?? settings.LlmModel);
+                    string targetModel = !string.IsNullOrEmpty(settings.LlmModelLmStudio) ? settings.LlmModelLmStudio : settings.LlmModel;
+                    SelectModelChoice(models.Contains(targetModel) ? targetModel : models.FirstOrDefault() ?? targetModel);
                     llmModelStatusText.Text = models.Count > 0
                         ? $"{models.Count}개 모델을 불러왔습니다."
                         : "LM Studio에서 사용 가능한 모델을 찾지 못했습니다.";
                 }
                 catch (Exception ex)
                 {
-                    SelectModelChoice(settings.LlmModel);
+                    string targetModel = !string.IsNullOrEmpty(settings.LlmModelLmStudio) ? settings.LlmModelLmStudio : settings.LlmModel;
+                    SelectModelChoice(targetModel);
                     llmModelStatusText.Text = $"LM Studio 모델 목록을 불러오지 못했습니다: {ex.Message}";
                 }
                 finally
@@ -1177,11 +1233,27 @@ namespace Ueditor
             {
                 string provider = GetSelectedProviderName();
                 ApplyProviderDefaults(provider);
-                PopulateModelChoices(provider, llmModelCombo.SelectedItem as string ?? settings.LlmModel);
+                
+                string targetModel = settings.LlmModel;
+                if (provider.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
+                {
+                    targetModel = !string.IsNullOrEmpty(settings.LlmModelGemini) ? settings.LlmModelGemini : "gemini-flash-lite-latest";
+                }
+                else if (provider.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
+                {
+                    targetModel = !string.IsNullOrEmpty(settings.LlmModelOpenAI) ? settings.LlmModelOpenAI : "gpt-5.5";
+                }
+                else if (provider.Equals("LM Studio", StringComparison.OrdinalIgnoreCase))
+                {
+                    targetModel = !string.IsNullOrEmpty(settings.LlmModelLmStudio) ? settings.LlmModelLmStudio : "";
+                }
+
+                PopulateModelChoices(provider, targetModel);
 
                 if (provider.Equals("LM Studio", StringComparison.OrdinalIgnoreCase))
                 {
-                    llmModelStatusText.Text = "LM Studio 모델 목록은 버튼을 눌러 필요할 때 불러옵니다.";
+                    llmModelStatusText.Text = "LM Studio 모델 목록을 불러오는 중...";
+                    _ = RefreshLmStudioModelsAsync();
                 }
 
                 // Dynamic API Key Loading per provider
@@ -1221,6 +1293,7 @@ namespace Ueditor
             editorSection.Children.Add(bracketPairCheck);
             editorSection.Children.Add(autoSaveCheck);
             editorSection.Children.Add(defaultMarkdownCheck);
+            editorSection.Children.Add(defaultMarkdownToolbarCheck);
             AddLabel(editorSection, "Tab size");
             editorSection.Children.Add(tabSizeBox);
             AddLabel(editorSection, "Large File Mode 제안 기준 (MB)");
@@ -1281,7 +1354,23 @@ namespace Ueditor
                 settings.LlmProvider = GetSelectedProviderName();
                 settings.LlmEndpoint = llmEndpointBox.Text.Trim();
                 settings.LlmModel = (llmModelCombo.SelectedItem as string ?? settings.LlmModel).Trim();
+                
+                // Save to provider-specific field
+                if (settings.LlmProvider.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
+                {
+                    settings.LlmModelGemini = settings.LlmModel;
+                }
+                else if (settings.LlmProvider.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
+                {
+                    settings.LlmModelOpenAI = settings.LlmModel;
+                }
+                else if (settings.LlmProvider.Equals("LM Studio", StringComparison.OrdinalIgnoreCase))
+                {
+                    settings.LlmModelLmStudio = settings.LlmModel;
+                }
+
                 settings.DefaultMarkdownEnabled = defaultMarkdownCheck.IsChecked == true;
+                settings.DefaultMarkdownToolbarEnabled = defaultMarkdownToolbarCheck.IsChecked == true;
                 
                 string newApiKey = llmApiKeyBox.Password.Trim();
                 await _llmService.SaveApiKeyAsync(settings.LlmProvider, newApiKey);
@@ -1296,6 +1385,8 @@ namespace Ueditor
 
                 await _settingsService.SaveSettingsAsync(settings);
                 ApplyPreviewVisibility(settings.DefaultMarkdownEnabled);
+                MarkdownToolbarToggle.IsChecked = settings.DefaultMarkdownToolbarEnabled;
+                MarkdownToolbar.Visibility = settings.DefaultMarkdownToolbarEnabled ? Visibility.Visible : Visibility.Collapsed;
                 WordWrapToggle.IsChecked = settings.WordWrap;
                 ApplyUiPersonalization(settings);
 
@@ -1520,6 +1611,46 @@ namespace Ueditor
             return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         }
 
+        #endregion
+
+        #region Interactive Terminal Embedding
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+        private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+        private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+        private static extern bool MoveWindow(IntPtr hWnd, int X, int Y, int nWidth, int nHeight, bool bRepaint);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr FindWindow(string? lpClassName, string lpWindowName);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        private const int GWL_STYLE = -16;
+        private const int WS_CAPTION = 0x00C00000;
+        private const int WS_THICKFRAME = 0x00040000;
+        private const int WS_MINIMIZEBOX = 0x00020000;
+        private const int WS_MAXIMIZEBOX = 0x00010000;
+        private const int WS_SYSMENU = 0x00080000;
+        private const int WS_CHILD = 0x40000000;
+
+        private const uint SWP_NOACTIVATE = 0x0010;
+        private const uint SWP_NOOWNERZORDER = 0x0200;
+        private const uint SWP_NOZORDER = 0x0004;
+        private const uint SWP_FRAMECHANGED = 0x0020;
+
+        private IntPtr _terminalWindowHandle = IntPtr.Zero;
+
         private void OpenEmbeddedTerminal(string workingDirectory)
         {
             TerminalPanelRow.Height = new GridLength(220);
@@ -1528,19 +1659,113 @@ namespace Ueditor
 
             if (_terminalProcess != null && !_terminalProcess.HasExited && _terminalWorkingDirectory.Equals(workingDirectory, StringComparison.OrdinalIgnoreCase))
             {
-                TerminalInputBox.Focus(FocusState.Programmatic);
+                if (_terminalWindowHandle != IntPtr.Zero)
+                {
+                    const int SW_SHOW = 5;
+                    ShowWindow(_terminalWindowHandle, SW_SHOW);
+                    ResizeEmbeddedTerminal();
+                }
+                else
+                {
+                    TerminalInputBox.Focus(FocusState.Programmatic);
+                }
                 return;
             }
 
             StartEmbeddedTerminal(workingDirectory);
-            TerminalInputBox.Focus(FocusState.Programmatic);
         }
 
-        private void StartEmbeddedTerminal(string workingDirectory)
+        private async void StartEmbeddedTerminal(string workingDirectory)
         {
             StopEmbeddedTerminal();
             _terminalWorkingDirectory = workingDirectory;
-            TerminalOutputTextBox.Text = $"PowerShell 시작: {workingDirectory}\r\n";
+
+            // Show native terminal border container and hide old textBox controls
+            TerminalHostBorder.Visibility = Visibility.Visible;
+            TerminalOutputTextBox.Visibility = Visibility.Collapsed;
+            TerminalInputAreaGrid.Visibility = Visibility.Collapsed;
+
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-NoExit -Command \"$Host.UI.RawUI.WindowTitle = 'Ueditor_Console_{Process.GetCurrentProcess().Id}'\"",
+                    WorkingDirectory = workingDirectory,
+                    UseShellExecute = true,
+                    WindowStyle = ProcessWindowStyle.Minimized
+                };
+
+                _terminalProcess = Process.Start(startInfo);
+                if (_terminalProcess == null)
+                {
+                    throw new Exception("PowerShell native process failed to start.");
+                }
+
+                IntPtr childHwnd = IntPtr.Zero;
+                string targetTitle = $"Ueditor_Console_{Process.GetCurrentProcess().Id}";
+
+                // Wait up to 3 seconds for console window creation
+                for (int i = 0; i < 30; i++)
+                {
+                    await Task.Delay(100);
+                    childHwnd = FindWindow("ConsoleWindowClass", targetTitle);
+                    if (childHwnd != IntPtr.Zero)
+                    {
+                        break;
+                    }
+                }
+
+                if (childHwnd == IntPtr.Zero)
+                {
+                    _terminalProcess.Refresh();
+                    childHwnd = _terminalProcess.MainWindowHandle;
+                }
+
+                if (childHwnd == IntPtr.Zero)
+                {
+                    throw new Exception("Native terminal window handle could not be resolved.");
+                }
+
+                _terminalWindowHandle = childHwnd;
+
+                // Reparent console window into WinUI 3 Window HWND
+                IntPtr parentHwnd = WindowNative.GetWindowHandle(this);
+                SetParent(_terminalWindowHandle, parentHwnd);
+
+                // Override style properties to child borderless window
+                int style = GetWindowLong(_terminalWindowHandle, GWL_STYLE);
+                style = (style | WS_CHILD) & ~WS_CAPTION & ~WS_THICKFRAME & ~WS_MINIMIZEBOX & ~WS_MAXIMIZEBOX & ~WS_SYSMENU;
+                SetWindowLong(_terminalWindowHandle, GWL_STYLE, style);
+
+                // Force frame changed repaint update
+                SetWindowPos(_terminalWindowHandle, IntPtr.Zero, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOOWNERZORDER);
+
+                // Synchronize size alignment
+                ResizeEmbeddedTerminal();
+
+                // Show window inside border
+                const int SW_SHOW = 5;
+                ShowWindow(_terminalWindowHandle, SW_SHOW);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed native terminal hosting, falling back to redirected textbox: {ex.Message}");
+                
+                // Graceful fallback UI restoration
+                TerminalHostBorder.Visibility = Visibility.Collapsed;
+                TerminalOutputTextBox.Visibility = Visibility.Visible;
+                TerminalInputAreaGrid.Visibility = Visibility.Visible;
+
+                StartRedirectedTerminal(workingDirectory);
+            }
+        }
+
+        private void StartRedirectedTerminal(string workingDirectory)
+        {
+            StopEmbeddedTerminal();
+            _terminalWorkingDirectory = workingDirectory;
+            TerminalOutputTextBox.Text = $"PowerShell 시작 (리다이렉션 모드): {workingDirectory}\r\n";
 
             try
             {
@@ -1581,12 +1806,13 @@ namespace Ueditor
         {
             try
             {
+                _terminalWindowHandle = IntPtr.Zero;
                 if (_terminalProcess != null)
                 {
                     if (!_terminalProcess.HasExited)
                     {
-                        _terminalProcess.StandardInput.WriteLine("exit");
-                        if (!_terminalProcess.WaitForExit(500))
+                        try { _terminalProcess.StandardInput.WriteLine("exit"); } catch {}
+                        if (!_terminalProcess.WaitForExit(300))
                         {
                             _terminalProcess.Kill();
                         }
@@ -1600,6 +1826,39 @@ namespace Ueditor
             {
                 _terminalProcess = null;
             }
+        }
+
+        private void ResizeEmbeddedTerminal()
+        {
+            if (_terminalWindowHandle == IntPtr.Zero || TerminalHostBorder == null || TerminalHostBorder.Visibility != Visibility.Visible)
+            {
+                return;
+            }
+
+            try
+            {
+                var transform = TerminalHostBorder.TransformToVisual(this.Content);
+                var bounds = transform.TransformBounds(new Windows.Foundation.Rect(0, 0, TerminalHostBorder.ActualWidth, TerminalHostBorder.ActualHeight));
+
+                int x = (int)bounds.X;
+                int y = (int)bounds.Y;
+                int width = (int)bounds.Width;
+                int height = (int)bounds.Height;
+
+                if (width > 0 && height > 0)
+                {
+                    MoveWindow(_terminalWindowHandle, x, y, width, height, true);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to resize native terminal child window: {ex.Message}");
+            }
+        }
+
+        private void OnTerminalHostBorderSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            ResizeEmbeddedTerminal();
         }
 
         private void AppendTerminalOutput(string? text)
@@ -1629,7 +1888,7 @@ namespace Ueditor
             {
                 if (_terminalProcess == null || _terminalProcess.HasExited)
                 {
-                    StartEmbeddedTerminal(GetTerminalWorkingDirectory());
+                    StartRedirectedTerminal(GetTerminalWorkingDirectory());
                 }
 
                 _terminalProcess?.StandardInput.WriteLine(command);
@@ -2203,6 +2462,8 @@ namespace Ueditor
             return null;
         }
 
+        #endregion
+
         #region Favorites Handlers
 
         private async void OnAddFileToFavoritesClick(object sender, RoutedEventArgs e)
@@ -2350,8 +2611,6 @@ namespace Ueditor
                 RefreshSnippetsUI();
             }
         }
-
-        #endregion
 
         #endregion
 
@@ -3194,7 +3453,7 @@ namespace Ueditor
 
         private void OnCloseActiveTabShortcutInvoked(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
         {
-            args.Handled = true;
+            if (args != null) args.Handled = true;
             if (EditorTabView.SelectedItem is TabViewItem tabItem && tabItem.Tag is string tabId)
             {
                 var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
@@ -3298,6 +3557,33 @@ namespace Ueditor
                 (sample.Contains("import ") && sample.Contains(" from ")) ||
                 sample.Contains("console.log(") ||
                 sample.Contains("document.getElementById(")) return "javascript";
+
+            if (sample.Contains("fn main()") ||
+                sample.Contains("let mut ") ||
+                sample.Contains("pub struct ") ||
+                sample.Contains("impl ") ||
+                sample.Contains("use std::")) return "rust";
+
+            if (sample.Contains("package main") ||
+                sample.Contains("import (") ||
+                sample.Contains("func main()")) return "go";
+
+            if (sample.Contains("SELECT ", StringComparison.OrdinalIgnoreCase) &&
+                sample.Contains("FROM ", StringComparison.OrdinalIgnoreCase)) return "sql";
+
+            if (sample.Contains("body {") ||
+                sample.Contains(".class {") ||
+                sample.Contains("#id {") ||
+                sample.Contains("margin:") ||
+                sample.Contains("padding:")) return "css";
+
+            if (sample.Contains("---") &&
+                (sample.Contains("version:") || sample.Contains("name:") || sample.Contains("author:"))) return "yaml";
+
+            if (sample.StartsWith("#!/bin/bash") ||
+                sample.StartsWith("#!/bin/sh") ||
+                sample.Contains("echo ") ||
+                sample.Contains("export ")) return "shell";
 
             return defaultLanguage;
         }
@@ -3410,7 +3696,18 @@ namespace Ueditor
         {
             var panel = new StackPanel { Spacing = 12, Width = 400 };
             
+            // Build tab list for ComboBoxes
+            var tabChoices = new List<string> { "직접 파일 선택..." };
+            foreach (var t in _tabs)
+            {
+                tabChoices.Add($"[탭] {t.Title}");
+            }
+
             var originalLabel = new TextBlock { Text = "원본 파일 (Original File)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+            var originalCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 0, 0, 4) };
+            foreach (var choice in tabChoices) originalCombo.Items.Add(choice);
+            originalCombo.SelectedIndex = 0;
+
             var originalPathBox = new TextBox { PlaceholderText = "원본 파일 경로...", IsReadOnly = true };
             var originalBrowseBtn = new Button { Content = "찾아보기..." };
             var originalRow = new Grid();
@@ -3423,6 +3720,10 @@ namespace Ueditor
             originalRow.Children.Add(originalBrowseBtn);
 
             var modifiedLabel = new TextBlock { Text = "비교 대상 파일 (Modified File)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+            var modifiedCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 0, 0, 4) };
+            foreach (var choice in tabChoices) modifiedCombo.Items.Add(choice);
+            modifiedCombo.SelectedIndex = 0;
+
             var modifiedPathBox = new TextBox { PlaceholderText = "비교 대상 파일 경로...", IsReadOnly = true };
             var modifiedBrowseBtn = new Button { Content = "찾아보기..." };
             var modifiedRow = new Grid();
@@ -3435,10 +3736,40 @@ namespace Ueditor
             modifiedRow.Children.Add(modifiedBrowseBtn);
 
             panel.Children.Add(originalLabel);
+            panel.Children.Add(originalCombo);
             panel.Children.Add(originalRow);
             panel.Children.Add(new MenuFlyoutSeparator());
             panel.Children.Add(modifiedLabel);
+            panel.Children.Add(modifiedCombo);
             panel.Children.Add(modifiedRow);
+
+            originalCombo.SelectionChanged += (_, __) =>
+            {
+                bool isBrowse = originalCombo.SelectedIndex == 0;
+                originalBrowseBtn.IsEnabled = isBrowse;
+                if (!isBrowse)
+                {
+                    originalPathBox.Text = originalCombo.SelectedItem.ToString();
+                }
+                else
+                {
+                    originalPathBox.Text = string.Empty;
+                }
+            };
+
+            modifiedCombo.SelectionChanged += (_, __) =>
+            {
+                bool isBrowse = modifiedCombo.SelectedIndex == 0;
+                modifiedBrowseBtn.IsEnabled = isBrowse;
+                if (!isBrowse)
+                {
+                    modifiedPathBox.Text = modifiedCombo.SelectedItem.ToString();
+                }
+                else
+                {
+                    modifiedPathBox.Text = string.Empty;
+                }
+            };
 
             originalBrowseBtn.Click += async (_, __) =>
             {
@@ -3470,23 +3801,39 @@ namespace Ueditor
             var result = await dialog.ShowAsync();
             if (result == ContentDialogResult.Primary)
             {
-                string pathA = originalPathBox.Text.Trim();
-                string pathB = modifiedPathBox.Text.Trim();
-                if (!string.IsNullOrEmpty(pathA) && !string.IsNullOrEmpty(pathB) && File.Exists(pathA) && File.Exists(pathB))
+                OpenedTab? tabA = null;
+                OpenedTab? tabB = null;
+
+                if (originalCombo.SelectedIndex > 0)
                 {
-                    await OpenCompareTabAsync(pathA, pathB);
+                    tabA = _tabs[originalCombo.SelectedIndex - 1];
+                }
+                if (modifiedCombo.SelectedIndex > 0)
+                {
+                    tabB = _tabs[modifiedCombo.SelectedIndex - 1];
+                }
+
+                string pathA = tabA == null ? originalPathBox.Text.Trim() : (string.IsNullOrEmpty(tabA.FilePath) ? tabA.Title : tabA.FilePath);
+                string pathB = tabB == null ? modifiedPathBox.Text.Trim() : (string.IsNullOrEmpty(tabB.FilePath) ? tabB.Title : tabB.FilePath);
+
+                bool validA = tabA != null || (!string.IsNullOrEmpty(pathA) && File.Exists(pathA));
+                bool validB = tabB != null || (!string.IsNullOrEmpty(pathB) && File.Exists(pathB));
+
+                if (validA && validB)
+                {
+                    await OpenCompareTabAsync(pathA, pathB, tabA?.Content, tabB?.Content);
                 }
                 else
                 {
-                    ShowErrorMessage("비교 오류", "올바른 두 파일을 선택해 주세요.");
+                    ShowErrorMessage("비교 오류", "올바른 두 파일 혹은 탭을 선택해 주세요.");
                 }
             }
         }
 
-        private async Task OpenCompareTabAsync(string pathA, string pathB)
+        private async Task OpenCompareTabAsync(string pathA, string pathB, string? contentA = null, string? contentB = null)
         {
-            string contentA = await _fileService.ReadTextFileAsync(pathA);
-            string contentB = await _fileService.ReadTextFileAsync(pathB);
+            if (contentA == null) contentA = await _fileService.ReadTextFileAsync(pathA);
+            if (contentB == null) contentB = await _fileService.ReadTextFileAsync(pathB);
 
             string title = $"비교: {Path.GetFileName(pathA)} ↔ {Path.GetFileName(pathB)}";
 
@@ -3552,6 +3899,39 @@ namespace Ueditor
 
             EditorTabView.TabItems.Add(tabItem);
             EditorTabView.SelectedItem = tabItem;
+        }
+
+        private void OnRootKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            var ctrl = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control) & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+            if (ctrl)
+            {
+                if (e.Key == Windows.System.VirtualKey.W)
+                {
+                    e.Handled = true;
+                    OnCloseActiveTabShortcutInvoked(null!, null!);
+                }
+                else if (e.Key == Windows.System.VirtualKey.S)
+                {
+                    e.Handled = true;
+                    OnSaveFileClick(this, new RoutedEventArgs());
+                }
+                else if (e.Key == Windows.System.VirtualKey.O)
+                {
+                    e.Handled = true;
+                    OnOpenFileClick(this, new RoutedEventArgs());
+                }
+                else if (e.Key == Windows.System.VirtualKey.T)
+                {
+                    e.Handled = true;
+                    OnOpenTerminalClick(this, new RoutedEventArgs());
+                }
+                else if (e.Key == Windows.System.VirtualKey.F)
+                {
+                    e.Handled = true;
+                    OnFindClick(this, new RoutedEventArgs());
+                }
+            }
         }
 
         #endregion

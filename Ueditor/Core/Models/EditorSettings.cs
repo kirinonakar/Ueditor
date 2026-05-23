@@ -21,11 +21,15 @@ namespace Ueditor.Core.Models
         public bool AutoSave { get; set; } = false;
         public string PreviewMode { get; set; } = "Markdown"; // "Markdown", "HTML", "LaTeX"
         public bool DefaultMarkdownEnabled { get; set; } = true;
+        public bool DefaultMarkdownToolbarEnabled { get; set; } = false;
 
         // LLM Config
         public string LlmProvider { get; set; } = "OpenAI"; // "OpenAI" or "Gemini"
         public string LlmEndpoint { get; set; } = "https://api.openai.com/v1";
         public string LlmModel { get; set; } = "gpt-5.5";
+        public string LlmModelGemini { get; set; } = "gemini-flash-lite-latest";
+        public string LlmModelOpenAI { get; set; } = "gpt-5.5";
+        public string LlmModelLmStudio { get; set; } = "";
 
         // Git Config
         public bool AutoGitDetect { get; set; } = true;
