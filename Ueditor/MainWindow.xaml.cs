@@ -60,6 +60,7 @@ namespace Ueditor
         private double _rightSplitterStartPointerX = 0;
         private double _lastExplorerWidth = 260;
         private double _lastPreviewWidth = 400;
+        private string _lastTextColorHex = "#E53935";
         private const double ExplorerPanelMinWidth = 150;
         private const double PreviewPanelMinWidth = 150;
         private static IReadOnlyList<string>? _installedFontFamiliesCache;
@@ -153,6 +154,12 @@ namespace Ueditor
             await _snippetService.LoadSnippetsAsync();
             RefreshSnippetsUI();
             RefreshFavoritesUI();
+
+            // 5. Initialize text color button with default color
+            if (TryParseHexColor(_lastTextColorHex, out var defaultColor))
+            {
+                UpdateTextColorButtonVisual(defaultColor);
+            }
         }
 
         #region WebView2 Host Resource Mapping & Preview Init
@@ -1843,7 +1850,7 @@ namespace Ueditor
         private async void OnMarkdownArrowClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("arrow");
         private async void OnMarkdownFontIncreaseClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("fontIncrease");
         private async void OnMarkdownFontDecreaseClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("fontDecrease");
-        private async void OnMarkdownTextColorClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("textColor");
+        private async void OnMarkdownTextColorClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("textColor", _lastTextColorHex);
         private async void OnMarkdownCutLineClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("cutLine");
 
         private async void OnMarkdownToolbarBackgroundClick(object sender, RoutedEventArgs e)
@@ -1875,7 +1882,14 @@ namespace Ueditor
             ColorPickerFlyout.Hide();
             var color = TextColorPicker.Color;
             string hex = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+            _lastTextColorHex = hex;
+            UpdateTextColorButtonVisual(color);
             await ApplyMarkdownCommandToActiveEditorAsync("textColor", hex);
+        }
+
+        private void UpdateTextColorButtonVisual(Windows.UI.Color color)
+        {
+            TextColorButton.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(color);
         }
 
         private async void OnAddFolderToFavoritesClick(object sender, RoutedEventArgs e)
@@ -2205,7 +2219,19 @@ namespace Ueditor
             var item = GetDataContextFromOriginalSource<FavoriteItem>(e.OriginalSource) ?? FavoritesListView.SelectedItem as FavoriteItem;
             if (item != null)
             {
-                await LoadFileIntoTabAsync(item.Path);
+                if (item.IsFolder)
+                {
+                    await NavigateExplorerToFolderAsync(item.Path);
+                }
+                else
+                {
+                    string? parentDir = Path.GetDirectoryName(item.Path);
+                    if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir))
+                    {
+                        await NavigateExplorerToFolderAsync(parentDir);
+                    }
+                    await LoadFileIntoTabAsync(item.Path);
+                }
             }
         }
 

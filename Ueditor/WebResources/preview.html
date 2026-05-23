@@ -345,7 +345,7 @@
 
             function flushParagraph() {
                 if (paragraph.length) {
-                    html.push(`<p>${inlineMarkdown(paragraph.join(' '))}</p>`);
+                    html.push(`<p>${inlineMarkdown(paragraph.join('<br>'))}</p>`);
                     paragraph = [];
                 }
             }
