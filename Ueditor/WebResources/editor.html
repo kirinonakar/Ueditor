@@ -568,8 +568,11 @@
             const query = findInput.value;
             findMatches = [];
             activeFindIndex = -1;
+            globalSearchQuery = query;
+            globalActiveMatchOffset = -1;
 
             if (!query) {
+                updateSearchHighlights();
                 updateFindCount();
                 return;
             }
@@ -584,6 +587,7 @@
                 index = haystack.indexOf(needle, index + Math.max(1, query.length));
             }
 
+            updateSearchHighlights();
             updateFindCount();
         }
 
@@ -595,7 +599,9 @@
 
             activeFindIndex = (index + findMatches.length) % findMatches.length;
             const match = findMatches[activeFindIndex];
+            globalActiveMatchOffset = match.start;
             revealOffset(match.start, match.length, shouldFocus);
+            updateSearchHighlights();
             updateFindCount();
         }
 
