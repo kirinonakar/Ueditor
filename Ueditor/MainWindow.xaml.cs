@@ -60,6 +60,8 @@ namespace Ueditor
         private double _rightSplitterStartPointerX = 0;
         private double _lastExplorerWidth = 260;
         private double _lastPreviewWidth = 400;
+        private const double ExplorerPanelMinWidth = 150;
+        private const double PreviewPanelMinWidth = 150;
         private static IReadOnlyList<string>? _installedFontFamiliesCache;
 
         public MainWindow()
@@ -807,8 +809,45 @@ namespace Ueditor
             }
 
             EnsureLeftPanelVisible();
-            LeftSidebarTabView.SelectedIndex = 4;
+            ShowLeftSidebarPage(4);
             SearchQueryInput.Focus(FocusState.Programmatic);
+        }
+
+        private void OnLeftActivityClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is Microsoft.UI.Xaml.Controls.Primitives.ToggleButton button &&
+                int.TryParse(button.Tag?.ToString(), out int index))
+            {
+                ShowLeftSidebarPage(index);
+            }
+        }
+
+        private void ShowLeftSidebarPage(int index)
+        {
+            UIElement[] pages =
+            {
+                ExplorerSidebarPage,
+                FavoritesSidebarPage,
+                SnippetsSidebarPage,
+                GitSidebarPage,
+                SearchSidebarPage
+            };
+
+            Microsoft.UI.Xaml.Controls.Primitives.ToggleButton[] buttons =
+            {
+                ExplorerActivityButton,
+                FavoritesActivityButton,
+                SnippetsActivityButton,
+                GitActivityButton,
+                SearchActivityButton
+            };
+
+            int safeIndex = Math.Clamp(index, 0, pages.Length - 1);
+            for (int i = 0; i < pages.Length; i++)
+            {
+                pages[i].Visibility = i == safeIndex ? Visibility.Visible : Visibility.Collapsed;
+                buttons[i].IsChecked = i == safeIndex;
+            }
         }
 
         private void EnsureLeftPanelVisible()
@@ -819,6 +858,7 @@ namespace Ueditor
             }
 
             LeftPanelToggle.IsChecked = true;
+            ExplorerColumn.MinWidth = ExplorerPanelMinWidth;
             ExplorerColumn.Width = new GridLength(Math.Max(_lastExplorerWidth, ExplorerColumn.MinWidth));
             LeftSplitter.Visibility = Visibility.Visible;
             LeftSidebarTabView.Visibility = Visibility.Visible;
@@ -829,16 +869,19 @@ namespace Ueditor
             bool show = LeftPanelToggle.IsChecked == true;
             if (show)
             {
+                ExplorerColumn.MinWidth = ExplorerPanelMinWidth;
                 ExplorerColumn.Width = new GridLength(Math.Max(_lastExplorerWidth, ExplorerColumn.MinWidth));
                 LeftSplitter.Visibility = Visibility.Visible;
                 LeftSidebarTabView.Visibility = Visibility.Visible;
             }
             else
             {
-                if (ExplorerColumn.Width.Value > 0)
+                double currentWidth = LeftSidebarTabView.ActualWidth > 0 ? LeftSidebarTabView.ActualWidth : ExplorerColumn.Width.Value;
+                if (currentWidth > 0)
                 {
-                    _lastExplorerWidth = ExplorerColumn.Width.Value;
+                    _lastExplorerWidth = currentWidth;
                 }
+                ExplorerColumn.MinWidth = 0;
                 ExplorerColumn.Width = new GridLength(0);
                 LeftSplitter.Visibility = Visibility.Collapsed;
                 LeftSidebarTabView.Visibility = Visibility.Collapsed;
@@ -850,16 +893,19 @@ namespace Ueditor
             bool show = RightPanelToggle.IsChecked == true;
             if (!show)
             {
-                if (PreviewColumn.Width.Value > 0)
+                double currentWidth = PreviewGrid.ActualWidth > 0 ? PreviewGrid.ActualWidth : PreviewColumn.Width.Value;
+                if (currentWidth > 0)
                 {
-                    _lastPreviewWidth = PreviewColumn.Width.Value;
+                    _lastPreviewWidth = currentWidth;
                 }
+                PreviewColumn.MinWidth = 0;
                 PreviewColumn.Width = new GridLength(0);
                 RightSplitter.Visibility = Visibility.Collapsed;
                 PreviewGrid.Visibility = Visibility.Collapsed;
             }
             else
             {
+                PreviewColumn.MinWidth = PreviewPanelMinWidth;
                 PreviewColumn.Width = new GridLength(Math.Max(_lastPreviewWidth, PreviewColumn.MinWidth));
                 RightSplitter.Visibility = Visibility.Visible;
                 PreviewGrid.Visibility = Visibility.Visible;
