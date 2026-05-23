@@ -94,6 +94,13 @@
             overflow: hidden;
         }
 
+        #highlight-content {
+            display: block;
+            min-height: 100%;
+            font: inherit;
+            white-space: inherit;
+        }
+
         #editor {
             outline: 0;
             resize: none;
@@ -129,7 +136,7 @@
     <div id="host">
         <div id="gutter">1</div>
         <div id="editor-shell">
-            <pre id="highlight" aria-hidden="true"></pre>
+            <pre id="highlight" aria-hidden="true"><code id="highlight-content"></code></pre>
             <textarea id="editor" spellcheck="false"></textarea>
         </div>
     </div>
@@ -137,6 +144,7 @@
     <script>
         const editor = document.getElementById('editor');
         const highlight = document.getElementById('highlight');
+        const highlightContent = document.getElementById('highlight-content');
         const gutter = document.getElementById('gutter');
         let isProgrammaticChange = false;
         let tabSize = 4;
@@ -328,13 +336,13 @@
                 html = highlightCodeLike(text);
             }
 
-            highlight.innerHTML = html + (text.endsWith('\n') ? ' ' : '');
+            highlightContent.innerHTML = html + (text.endsWith('\n') ? ' ' : '');
             syncHighlightScroll();
         }
 
         function syncHighlightScroll() {
             gutter.scrollTop = editor.scrollTop;
-            highlight.style.transform = `translate(${-editor.scrollLeft}px, ${-editor.scrollTop}px)`;
+            highlightContent.style.transform = `translate(${-editor.scrollLeft}px, ${-editor.scrollTop}px)`;
         }
 
         function reportCursorAndSelection() {
