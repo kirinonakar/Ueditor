@@ -169,6 +169,9 @@ namespace Ueditor
                 }
             }
 
+            // Load settings first so InitializeEditorWebView can use the correct theme from the start
+            await _settingsService.LoadSettingsAsync();
+
             if (filesToOpen.Count > 0)
             {
                 foreach (var filePath in filesToOpen)
@@ -182,9 +185,8 @@ namespace Ueditor
                     }
                     catch { }
 
-                    // We use standard threshold since settings aren't loaded yet (default is 50MB, but let's be conservative, e.g., 20MB)
-                    long defaultThresholdBytes = 20 * 1024 * 1024; 
-                    if (fileSizeBytes >= defaultThresholdBytes)
+                    long thresholdBytes = _settingsService.CurrentSettings.LargeFileThresholdMB * 1024 * 1024;
+                    if (fileSizeBytes >= thresholdBytes)
                     {
                         // For large files, fall back to the async LoadFileIntoTabAsync flow which shows the dialog
                         _ = LoadFileIntoTabAsync(filePath);
@@ -238,8 +240,7 @@ namespace Ueditor
                 OpenNewTab();
             }
 
-            // 2. Load settings JSON and initialize preview panel WebView2 in the background
-            await _settingsService.LoadSettingsAsync();
+            // 2. Apply settings to UI and initialize preview panel WebView2 in the background
             WordWrapToggle.IsChecked = _settingsService.CurrentSettings.WordWrap;
             LeftPanelToggle.IsChecked = true;
             RightPanelToggle.IsChecked = _settingsService.CurrentSettings.DefaultMarkdownEnabled;
@@ -599,7 +600,17 @@ namespace Ueditor
                     CoreWebView2HostResourceAccessKind.Allow
                 );
 
-                bridge.LoadEditor("http://ueditor.local/editor.html");
+                var settings = _settingsService.CurrentSettings;
+                var url = $"http://ueditor.local/editor.html?theme={Uri.EscapeDataString(settings.Theme)}" +
+                    $"&fontSize={settings.FontSize}" +
+                    $"&fontFamily={Uri.EscapeDataString(settings.FontFamily)}" +
+                    $"&wordWrap={(settings.WordWrap ? "pre-wrap" : "pre")}";
+                if (!string.IsNullOrEmpty(settings.CustomBackgroundColor))
+                    url += $"&customBg={Uri.EscapeDataString(settings.CustomBackgroundColor)}";
+                if (!string.IsNullOrEmpty(settings.CustomForegroundColor))
+                    url += $"&customFg={Uri.EscapeDataString(settings.CustomForegroundColor)}";
+
+                bridge.LoadEditor(url);
             }
             catch (Exception ex)
             {

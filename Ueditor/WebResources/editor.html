@@ -246,6 +246,44 @@
             background: rgba(127, 127, 127, 0.16);
         }
     </style>
+    <script>
+        (function(){
+            var p = new URLSearchParams(location.search);
+            function q(n){ return p.get(n); }
+
+            function parseHex(v){
+                if(!v||typeof v!=='string')return null;
+                var m=v.trim().match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+                if(!m)return null;
+                var h=m[1];if(h.length===3)h=h.split('').map(function(c){return c+c}).join('');
+                return{r:parseInt(h[0]+h[1],16),g:parseInt(h[2]+h[3],16),b:parseInt(h[4]+h[5],16)};
+            }
+            function toHex(c){return'#'+[c.r,c.g,c.b].map(function(v){return v.toString(16).padStart(2,'0')}).join('');}
+            function relLum(c){var n=function(v){var ch=v/255;return ch<=0.03928?ch/12.92:Math.pow((ch+0.055)/1.055,2.4)};return 0.2126*n(c.r)+0.7152*n(c.g)+0.0722*n(c.b);}
+            function conRatio(a,b){var l1=relLum(a),l2=relLum(b);return(Math.max(l1,l2)+0.05)/(Math.min(l1,l2)+0.05);}
+            function rdFg(bg){return conRatio(bg,{r:255,g:255,b:255})>=conRatio(bg,{r:17,g:17,b:17})?'#ffffff':'#111111';}
+            function resFg(bgV,fgV,fbV){
+                var bg=parseHex(bgV),fg=parseHex(fgV),fb=parseHex(fbV)||{r:212,g:212,b:212};
+                if(!bg)return fgV||fbV;
+                if(fg&&conRatio(bg,fg)>=4.5)return toHex(fg);
+                if(conRatio(bg,fb)>=4.5)return toHex(fb);
+                return rdFg(bg);
+            }
+
+            var theme=q('theme')||'Dark',customBg=q('customBg')||'',customFg=q('customFg')||'';
+            var bg=customBg||(theme==='Light'?'#ffffff':'#1e1e1e');
+            var prefFg=customFg||(theme==='Light'?'#111111':'#d4d4d4');
+            var fg=resFg(bg,prefFg,theme==='Light'?'#111111':'#d4d4d4');
+            var s=document.documentElement.style;
+            s.setProperty('--bg',bg);s.setProperty('--fg',fg);
+            s.setProperty('--gutter-bg',theme==='Light'?'#f3f3f3':'#252526');
+            s.setProperty('--gutter-fg',theme==='Light'?'#6b6b6b':'#858585');
+            s.setProperty('--selection',theme==='Light'?'rgba(0, 95, 184, 0.28)':'rgba(0, 120, 212, 0.38)');
+            var fs=q('fontSize');if(fs)s.setProperty('--font-size',fs+'px');
+            var ff=q('fontFamily');if(ff)s.setProperty('--font-family',decodeURIComponent(ff));
+            var ww=q('wordWrap');if(ww)s.setProperty('--wrap',ww);
+        })();
+    </script>
 </head>
 <body>
     <div id="host">
