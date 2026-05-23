@@ -59,6 +59,7 @@ namespace Ueditor
         private double _rightSplitterStartPointerX = 0;
         private double _lastExplorerWidth = 260;
         private double _lastPreviewWidth = 400;
+        private static IReadOnlyList<string>? _installedFontFamiliesCache;
 
         public MainWindow()
         {
@@ -853,10 +854,29 @@ namespace Ueditor
 
             var sizeSlider = new Slider { Minimum = 10, Maximum = 24, Value = settings.FontSize, StepFrequency = 1 };
             
-            var customBgBox = new TextBox { PlaceholderText = "예: #1e1e1e (기본은 비워둠)", Text = settings.CustomBackgroundColor, HorizontalAlignment = HorizontalAlignment.Stretch };
-            var customFgBox = new TextBox { PlaceholderText = "예: #d4d4d4 (기본은 비워둠)", Text = settings.CustomForegroundColor, HorizontalAlignment = HorizontalAlignment.Stretch };
-            var fontFamilyBox = new TextBox { PlaceholderText = "예: Consolas, 'Courier New'", Text = settings.FontFamily, HorizontalAlignment = HorizontalAlignment.Stretch };
-            var uiFontFamilyBox = new TextBox { PlaceholderText = "예: Segoe UI, Malgun Gothic", Text = settings.UiFontFamily, HorizontalAlignment = HorizontalAlignment.Stretch };
+            var fontFamilies = GetInstalledFontFamilies();
+            var fontFamilyCombo = CreateFontComboBox(settings.FontFamily, fontFamilies);
+            var uiFontFamilyCombo = CreateFontComboBox(settings.UiFontFamily, fontFamilies);
+            var customBgCheck = new CheckBox { Content = "커스텀 에디터 배경색 사용", IsChecked = !string.IsNullOrWhiteSpace(settings.CustomBackgroundColor) };
+            var customFgCheck = new CheckBox { Content = "커스텀 에디터 글자색 사용", IsChecked = !string.IsNullOrWhiteSpace(settings.CustomForegroundColor) };
+            var customBgPicker = new ColorPicker
+            {
+                Color = ResolvePickerColor(settings.CustomBackgroundColor, settings.Theme == "Light" ? "#ffffff" : "#1e1e1e"),
+                IsAlphaEnabled = false,
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+            var customFgPicker = new ColorPicker
+            {
+                Color = ResolvePickerColor(settings.CustomForegroundColor, settings.Theme == "Light" ? "#111111" : "#d4d4d4"),
+                IsAlphaEnabled = false,
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+            customBgPicker.IsEnabled = customBgCheck.IsChecked == true;
+            customFgPicker.IsEnabled = customFgCheck.IsChecked == true;
+            customBgCheck.Checked += (_, __) => customBgPicker.IsEnabled = true;
+            customBgCheck.Unchecked += (_, __) => customBgPicker.IsEnabled = false;
+            customFgCheck.Checked += (_, __) => customFgPicker.IsEnabled = true;
+            customFgCheck.Unchecked += (_, __) => customFgPicker.IsEnabled = false;
             var wordWrapCheck = new CheckBox { Content = "기본 Word Wrap 켜기", IsChecked = settings.WordWrap };
             var minimapCheck = new CheckBox { Content = "미니맵 표시 (로컬 Monaco 번들 사용 시)", IsChecked = settings.MinimapEnabled };
             var bracketPairCheck = new CheckBox { Content = "Bracket pair colorization (로컬 Monaco 번들 사용 시)", IsChecked = settings.BracketPairColorizationEnabled };
@@ -994,7 +1014,7 @@ namespace Ueditor
 
             PopulateModelChoices(GetSelectedProviderName(), settings.LlmModel);
 
-            llmProviderCombo.SelectionChanged += async (_, __) =>
+            llmProviderCombo.SelectionChanged += (_, __) =>
             {
                 string provider = GetSelectedProviderName();
                 ApplyProviderDefaults(provider);
@@ -1002,16 +1022,11 @@ namespace Ueditor
 
                 if (provider.Equals("LM Studio", StringComparison.OrdinalIgnoreCase))
                 {
-                    await RefreshLmStudioModelsAsync();
+                    llmModelStatusText.Text = "LM Studio 모델 목록은 버튼을 눌러 필요할 때 불러옵니다.";
                 }
             };
 
             refreshLmStudioModelsButton.Click += async (_, __) => await RefreshLmStudioModelsAsync();
-
-            if (GetSelectedProviderName().Equals("LM Studio", StringComparison.OrdinalIgnoreCase))
-            {
-                await RefreshLmStudioModelsAsync();
-            }
 
             StackPanel CreateSection()
             {
@@ -1029,13 +1044,13 @@ namespace Ueditor
             AddLabel(appearanceSection, $"에디터 글자 크기 ({settings.FontSize:0}pt)");
             appearanceSection.Children.Add(sizeSlider);
             AddLabel(appearanceSection, "에디터 폰트");
-            appearanceSection.Children.Add(fontFamilyBox);
+            appearanceSection.Children.Add(fontFamilyCombo);
             AddLabel(appearanceSection, "UI 쉘 폰트");
-            appearanceSection.Children.Add(uiFontFamilyBox);
-            AddLabel(appearanceSection, "커스텀 에디터 배경색 (Hex)");
-            appearanceSection.Children.Add(customBgBox);
-            AddLabel(appearanceSection, "커스텀 에디터 글자색 (Hex)");
-            appearanceSection.Children.Add(customFgBox);
+            appearanceSection.Children.Add(uiFontFamilyCombo);
+            appearanceSection.Children.Add(customBgCheck);
+            appearanceSection.Children.Add(customBgPicker);
+            appearanceSection.Children.Add(customFgCheck);
+            appearanceSection.Children.Add(customFgPicker);
 
             var editorSection = CreateSection();
             editorSection.Children.Add(wordWrapCheck);
@@ -1091,10 +1106,10 @@ namespace Ueditor
             {
                 settings.Theme = themeCombo.SelectedIndex == 0 ? "Dark" : "Light";
                 settings.FontSize = sizeSlider.Value;
-                settings.CustomBackgroundColor = customBgBox.Text.Trim();
-                settings.CustomForegroundColor = customFgBox.Text.Trim();
-                settings.FontFamily = fontFamilyBox.Text.Trim();
-                settings.UiFontFamily = uiFontFamilyBox.Text.Trim();
+                settings.CustomBackgroundColor = customBgCheck.IsChecked == true ? ColorToHex(customBgPicker.Color) : string.Empty;
+                settings.CustomForegroundColor = customFgCheck.IsChecked == true ? ColorToHex(customFgPicker.Color) : string.Empty;
+                settings.FontFamily = GetSelectedComboText(fontFamilyCombo, settings.FontFamily);
+                settings.UiFontFamily = GetSelectedComboText(uiFontFamilyCombo, settings.UiFontFamily);
                 settings.WordWrap = wordWrapCheck.IsChecked == true;
                 settings.MinimapEnabled = minimapCheck.IsChecked == true;
                 settings.BracketPairColorizationEnabled = bracketPairCheck.IsChecked == true;
@@ -2174,6 +2189,105 @@ namespace Ueditor
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to apply markdown toolbar theme: {ex.Message}");
             }
+        }
+
+        private static ComboBox CreateFontComboBox(string currentFontFamily, IReadOnlyList<string> fontFamilies)
+        {
+            var comboBox = new ComboBox
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                PlaceholderText = "폰트 선택"
+            };
+
+            string current = string.IsNullOrWhiteSpace(currentFontFamily)
+                ? "Consolas"
+                : currentFontFamily.Trim();
+
+            if (!fontFamilies.Contains(current, StringComparer.OrdinalIgnoreCase))
+            {
+                comboBox.Items.Add(current);
+            }
+
+            foreach (string family in fontFamilies)
+            {
+                comboBox.Items.Add(family);
+            }
+
+            comboBox.SelectedItem = comboBox.Items
+                .OfType<string>()
+                .FirstOrDefault(item => item.Equals(current, StringComparison.OrdinalIgnoreCase))
+                ?? comboBox.Items.OfType<string>().FirstOrDefault();
+
+            return comboBox;
+        }
+
+        private static string GetSelectedComboText(ComboBox comboBox, string fallback)
+        {
+            return (comboBox.SelectedItem as string)?.Trim() ?? fallback.Trim();
+        }
+
+        private static IReadOnlyList<string> GetInstalledFontFamilies()
+        {
+            if (_installedFontFamiliesCache != null)
+            {
+                return _installedFontFamiliesCache;
+            }
+
+            var fonts = new SortedSet<string>(StringComparer.CurrentCultureIgnoreCase)
+            {
+                "Consolas",
+                "Courier New",
+                "Segoe UI",
+                "Malgun Gothic"
+            };
+
+            AddFontsFromRegistry(fonts, Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"));
+            AddFontsFromRegistry(fonts, Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"));
+
+            _installedFontFamiliesCache = fonts.ToList();
+            return _installedFontFamiliesCache;
+        }
+
+        private static void AddFontsFromRegistry(ISet<string> fonts, Microsoft.Win32.RegistryKey? key)
+        {
+            if (key == null)
+            {
+                return;
+            }
+
+            using (key)
+            {
+                foreach (string valueName in key.GetValueNames())
+                {
+                    string family = NormalizeFontRegistryName(valueName);
+                    if (!string.IsNullOrWhiteSpace(family))
+                    {
+                        fonts.Add(family);
+                    }
+                }
+            }
+        }
+
+        private static string NormalizeFontRegistryName(string valueName)
+        {
+            string family = Regex.Replace(valueName, @"\s*\([^)]+\)\s*$", string.Empty).Trim();
+            family = Regex.Replace(family, @"\s+(Regular|Normal|Bold|Italic|Oblique|Light|Medium|SemiBold|Semibold|ExtraLight|ExtraBold|Black|Thin|Condensed|Narrow)$", string.Empty, RegexOptions.IgnoreCase).Trim();
+            return family;
+        }
+
+        private static Windows.UI.Color ResolvePickerColor(string? colorValue, string fallbackHex)
+        {
+            if (TryParseHexColor(colorValue, out var color) || TryParseHexColor(fallbackHex, out color))
+            {
+                return color;
+            }
+
+            return Windows.UI.Color.FromArgb(255, 0, 0, 0);
+        }
+
+        private static string ColorToHex(Windows.UI.Color color)
+        {
+            return $"#{color.R:X2}{color.G:X2}{color.B:X2}";
         }
 
         private static bool TryParseHexColor(string? value, out Windows.UI.Color color)
