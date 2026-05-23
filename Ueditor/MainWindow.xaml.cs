@@ -31,6 +31,15 @@ namespace Ueditor
         private readonly DispatcherTimer _previewDebounceTimer;
         private OpenedTab? _activeTabForPreview = null;
 
+        // Custom Splitter state variables
+        private bool _isDraggingLeftSplitter = false;
+        private double _leftSplitterStartExplorerWidth = 0;
+        private double _leftSplitterStartPointerX = 0;
+
+        private bool _isDraggingRightSplitter = false;
+        private double _rightSplitterStartPreviewWidth = 0;
+        private double _rightSplitterStartPointerX = 0;
+
         public MainWindow()
         {
             this.InitializeComponent();
@@ -564,6 +573,86 @@ namespace Ueditor
                     var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
                     if (tab != null) UpdateLivePreview(tab);
                 }
+            }
+        }
+
+        #endregion
+
+        #region Custom Splitters Event Handlers
+
+        private void OnLeftSplitterPointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is UIElement splitter)
+            {
+                _isDraggingLeftSplitter = true;
+                _leftSplitterStartExplorerWidth = ExplorerColumn.Width.Value;
+                var pt = e.GetCurrentPoint(MainWorkGrid).Position;
+                _leftSplitterStartPointerX = pt.X;
+                splitter.CapturePointer(e.Pointer);
+                e.Handled = true;
+            }
+        }
+
+        private void OnLeftSplitterPointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (_isDraggingLeftSplitter && sender is UIElement splitter)
+            {
+                var pt = e.GetCurrentPoint(MainWorkGrid).Position;
+                double deltaX = pt.X - _leftSplitterStartPointerX;
+                double newWidth = _leftSplitterStartExplorerWidth + deltaX;
+                
+                // Clamp between MinWidth and MaxWidth
+                newWidth = Math.Clamp(newWidth, ExplorerColumn.MinWidth, ExplorerColumn.MaxWidth);
+                ExplorerColumn.Width = new GridLength(newWidth);
+                e.Handled = true;
+            }
+        }
+
+        private void OnLeftSplitterPointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (_isDraggingLeftSplitter && sender is UIElement splitter)
+            {
+                _isDraggingLeftSplitter = false;
+                splitter.ReleasePointerCapture(e.Pointer);
+                e.Handled = true;
+            }
+        }
+
+        private void OnRightSplitterPointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is UIElement splitter)
+            {
+                _isDraggingRightSplitter = true;
+                _rightSplitterStartPreviewWidth = PreviewColumn.Width.Value;
+                var pt = e.GetCurrentPoint(MainWorkGrid).Position;
+                _rightSplitterStartPointerX = pt.X;
+                splitter.CapturePointer(e.Pointer);
+                e.Handled = true;
+            }
+        }
+
+        private void OnRightSplitterPointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (_isDraggingRightSplitter && sender is UIElement splitter)
+            {
+                var pt = e.GetCurrentPoint(MainWorkGrid).Position;
+                double deltaX = pt.X - _rightSplitterStartPointerX;
+                double newWidth = _rightSplitterStartPreviewWidth - deltaX;
+                
+                // Clamp between MinWidth and MaxWidth
+                newWidth = Math.Clamp(newWidth, PreviewColumn.MinWidth, PreviewColumn.MaxWidth);
+                PreviewColumn.Width = new GridLength(newWidth);
+                e.Handled = true;
+            }
+        }
+
+        private void OnRightSplitterPointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (_isDraggingRightSplitter && sender is UIElement splitter)
+            {
+                _isDraggingRightSplitter = false;
+                splitter.ReleasePointerCapture(e.Pointer);
+                e.Handled = true;
             }
         }
 
