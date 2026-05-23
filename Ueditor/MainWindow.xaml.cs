@@ -137,7 +137,7 @@ namespace Ueditor
 
         #region Tab Operations (탭 비즈니스 로직)
 
-        private void OpenNewTab(string? filePath = null, string content = "", bool isLargeFileMode = false)
+        private void OpenNewTab(string? filePath = null, string content = "", bool isLargeFileMode = false, bool isMonacoLimitedMode = false)
         {
             var tab = new OpenedTab();
             tab.IsLargeFileMode = isLargeFileMode;
@@ -174,6 +174,16 @@ namespace Ueditor
                 Tag = tab.Id
             };
 
+            // Apply UI font directly to TabViewItem to guarantee visual style consistency
+            try
+            {
+                if (!string.IsNullOrEmpty(_settingsService.CurrentSettings.UiFontFamily))
+                {
+                    tabItem.FontFamily = new Microsoft.UI.Xaml.Media.FontFamily(_settingsService.CurrentSettings.UiFontFamily);
+                }
+            }
+            catch { }
+
             if (isLargeFileMode)
             {
                 _tabBridges[tab.Id] = (editorWebView, null!);
@@ -190,7 +200,7 @@ namespace Ueditor
                 {
                     await bridge.SetTextAsync(tab.Content);
                     await bridge.SetLanguageAsync(filePath ?? "file.txt");
-                    await bridge.UpdateOptionsAsync(_settingsService.CurrentSettings);
+                    await bridge.UpdateOptionsAsync(_settingsService.CurrentSettings, isLargeFile: isMonacoLimitedMode);
                 };
 
                 bridge.ContentChanged += (newText) =>
@@ -385,6 +395,7 @@ namespace Ueditor
                 ".html" => "html",
                 ".htm" => "html",
                 ".tex" => "latex",
+                ".diff" => "diff",
                 _ => "plaintext"
             };
         }
@@ -469,15 +480,35 @@ namespace Ueditor
             try
             {
                 var largeInfo = await _fileService.GetLargeFileInfoAsync(filePath);
-                if (largeInfo.IsLargeFile)
+                var settings = _settingsService.CurrentSettings;
+                long thresholdBytes = settings.LargeFileThresholdMB * 1024 * 1024;
+                long fileSizeBytes = largeInfo.FileSize;
+
+                if (fileSizeBytes >= 200 * 1024 * 1024)
                 {
-                    // Large file handling warn
+                    // 200MB 이상 초대용량 파일의 경우 강제로 Large File Mode 로드
+                    var dialog = new ContentDialog
+                    {
+                        Title = "초대용량 파일 감지",
+                        Content = $"선택한 파일의 크기가 {fileSizeBytes / (1024 * 1024.0):F2}MB 입니다.\n시스템 리소스 보호와 에디터 안정성을 위해 Large File Mode(가상 스크롤 뷰어)로 안전하게 열립니다.",
+                        CloseButtonText = "확인",
+                        XamlRoot = this.Content.XamlRoot
+                    };
+                    await dialog.ShowAsync();
+
+                    StatusMode.Text = "대용량 모드";
+                    OpenNewTab(filePath, "", isLargeFileMode: true);
+                    return;
+                }
+                else if (fileSizeBytes >= thresholdBytes)
+                {
+                    // 설정 임계값 이상인 경우 경고 창을 띄워 선택 유도
                     var dialog = new ContentDialog
                     {
                         Title = "대용량 파일 경고",
-                        Content = $"선택한 파일의 크기가 {largeInfo.FileSize / (1024 * 1024.0):F2}MB 입니다.\nMonaco Editor 대신 Large File Mode(읽기 전용 청킹 엔진)로 여시겠습니까?",
+                        Content = $"선택한 파일의 크기가 {fileSizeBytes / (1024 * 1024.0):F2}MB 입니다.\nMonaco Editor 대신 Large File Mode(가상 스크롤 뷰어)로 여시겠습니까?",
                         PrimaryButtonText = "대용량 모드로 열기",
-                        SecondaryButtonText = "일반 Monaco로 강제 열기",
+                        SecondaryButtonText = "일반 Monaco(제한 모드)로 강제 열기",
                         CloseButtonText = "취소",
                         XamlRoot = this.Content.XamlRoot
                     };
@@ -489,15 +520,22 @@ namespace Ueditor
                         OpenNewTab(filePath, "", isLargeFileMode: true);
                         return;
                     }
-                    else if (result == ContentDialogResult.None)
+                    else if (result == ContentDialogResult.Secondary)
                     {
-                        return; // Cancel
+                        StatusMode.Text = "일반 모드 (제한)";
+                        string content = await _fileService.ReadTextFileAsync(filePath);
+                        OpenNewTab(filePath, content, isLargeFileMode: false, isMonacoLimitedMode: true);
+                        return;
+                    }
+                    else
+                    {
+                        return; // Canceled
                     }
                 }
 
                 StatusMode.Text = "일반 모드";
-                string content = await _fileService.ReadTextFileAsync(filePath);
-                OpenNewTab(filePath, content);
+                string contentNormal = await _fileService.ReadTextFileAsync(filePath);
+                OpenNewTab(filePath, contentNormal);
             }
             catch (Exception ex)
             {
@@ -1457,6 +1495,10 @@ namespace Ueditor
                 try
                 {
                     var files = Directory.GetFiles(_currentRepoPath, "*.*", SearchOption.AllDirectories);
+                    var tempResults = new List<SearchResultItem>();
+                    var settings = _settingsService.CurrentSettings;
+                    long thresholdBytes = settings.LargeFileThresholdMB * 1024 * 1024;
+
                     foreach (var file in files)
                     {
                         // Filter system paths
@@ -1464,22 +1506,34 @@ namespace Ueditor
                             continue;
 
                         var info = new FileInfo(file);
-                        if (info.Length > 50 * 1024 * 1024)
+                        if (info.Length > thresholdBytes)
                         {
                             var largeResults = await _fileService.SearchLargeFileAsync(file, query, isRegex);
                             foreach (var lr in largeResults)
                             {
-                                this.DispatcherQueue.TryEnqueue(() =>
+                                tempResults.Add(new SearchResultItem
                                 {
-                                    _searchResultsList.Add(new SearchResultItem
-                                    {
-                                        Path = file,
-                                        LineNumber = lr.LineNumber,
-                                        LineContent = lr.LineContent,
-                                        IndexOfMatch = lr.IndexOfMatch,
-                                        MatchLength = lr.MatchLength
-                                    });
+                                    Path = file,
+                                    LineNumber = lr.LineNumber,
+                                    LineContent = lr.LineContent,
+                                    IndexOfMatch = lr.IndexOfMatch,
+                                    MatchLength = lr.MatchLength
                                 });
+
+                                // Batch dispatch to prevent UI thread starvation (yield control)
+                                if (tempResults.Count >= 30)
+                                {
+                                    var batch = tempResults;
+                                    tempResults = new List<SearchResultItem>();
+                                    this.DispatcherQueue.TryEnqueue(() =>
+                                    {
+                                        foreach (var item in batch)
+                                        {
+                                            _searchResultsList.Add(item);
+                                        }
+                                    });
+                                    await Task.Delay(30); // Yield control to prevent GUI freeze
+                                }
                             }
                         }
                         else
@@ -1500,27 +1554,46 @@ namespace Ueditor
                                 var match = regex.Match(line);
                                 if (match.Success)
                                 {
-                                    var currentLine = line;
-                                    var currentLineNum = lineNum;
-                                    var currentFile = file;
-                                    var currentIdx = match.Index;
-                                    var currentLen = match.Length;
-
-                                    this.DispatcherQueue.TryEnqueue(() =>
+                                    tempResults.Add(new SearchResultItem
                                     {
-                                        _searchResultsList.Add(new SearchResultItem
-                                        {
-                                            Path = currentFile,
-                                            LineNumber = currentLineNum,
-                                            LineContent = currentLine,
-                                            IndexOfMatch = currentIdx,
-                                            MatchLength = currentLen
-                                        });
+                                        Path = file,
+                                        LineNumber = lineNum,
+                                        LineContent = line,
+                                        IndexOfMatch = match.Index,
+                                        MatchLength = match.Length
                                     });
+
+                                    // Batch dispatch
+                                    if (tempResults.Count >= 30)
+                                    {
+                                        var batch = tempResults;
+                                        tempResults = new List<SearchResultItem>();
+                                        this.DispatcherQueue.TryEnqueue(() =>
+                                        {
+                                            foreach (var item in batch)
+                                            {
+                                                _searchResultsList.Add(item);
+                                            }
+                                        });
+                                        await Task.Delay(30); // Yield control
+                                    }
                                 }
                                 lineNum++;
                             }
                         }
+                    }
+
+                    // Flush remaining items
+                    if (tempResults.Count > 0)
+                    {
+                        var remaining = tempResults;
+                        this.DispatcherQueue.TryEnqueue(() =>
+                        {
+                            foreach (var item in remaining)
+                            {
+                                _searchResultsList.Add(item);
+                            }
+                        });
                     }
                 }
                 catch (Exception ex)
