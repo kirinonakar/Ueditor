@@ -132,7 +132,105 @@ namespace Ueditor
         {
             this.Activated -= OnWindowActivated;
             
-            // 1. Load settings JSON
+            // 1. Handle command-line file opening or open a blank tab instantly
+            string[] args = Environment.GetCommandLineArgs();
+            var filesToOpen = new List<string>();
+
+            if (args != null && args.Length > 1)
+            {
+                for (int i = 1; i < args.Length; i++)
+                {
+                    string arg = args[i];
+                    if (arg.StartsWith("-") || arg.StartsWith("/"))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        string filePath = arg.Trim('"', '\'');
+                        if (!string.IsNullOrWhiteSpace(filePath) && File.Exists(filePath))
+                        {
+                            filesToOpen.Add(filePath);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed to pre-check command-line file '{arg}': {ex.Message}");
+                    }
+                }
+            }
+
+            if (filesToOpen.Count > 0)
+            {
+                foreach (var filePath in filesToOpen)
+                {
+                    // Read file size synchronously to decide whether to open normally or in large file mode
+                    long fileSizeBytes = 0;
+                    try
+                    {
+                        var fi = new FileInfo(filePath);
+                        fileSizeBytes = fi.Length;
+                    }
+                    catch { }
+
+                    // We use standard threshold since settings aren't loaded yet (default is 50MB, but let's be conservative, e.g., 20MB)
+                    long defaultThresholdBytes = 20 * 1024 * 1024; 
+                    if (fileSizeBytes >= defaultThresholdBytes)
+                    {
+                        // For large files, fall back to the async LoadFileIntoTabAsync flow which shows the dialog
+                        _ = LoadFileIntoTabAsync(filePath);
+                    }
+                    else
+                    {
+                        // Open the tab instantly with blank content so it is visible immediately as the window opens
+                        OpenNewTab(filePath, "");
+
+                        // Read the content asynchronously in the background and populate it once loaded
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                string content = await _fileService.ReadTextFileAsync(filePath);
+                                this.DispatcherQueue.TryEnqueue(async () =>
+                                {
+                                    var tab = _tabs.FirstOrDefault(t => t.FilePath == filePath);
+                                    if (tab != null)
+                                    {
+                                        tab.Content = content;
+                                        if (_tabBridges.TryGetValue(tab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
+                                        {
+                                            await bridgeGroup.Bridge.SetTextAsync(content);
+                                        }
+                                    }
+                                });
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Failed to load file '{filePath}' asynchronously: {ex.Message}");
+                            }
+                        });
+
+                        // Set Git repository root if applicable
+                        try
+                        {
+                            string? repoRoot = FindGitRepositoryRoot(Path.GetDirectoryName(filePath));
+                            if (!string.IsNullOrEmpty(repoRoot))
+                            {
+                                _currentRepoPath = repoRoot;
+                            }
+                        }
+                        catch { }
+                    }
+                }
+            }
+            else
+            {
+                // Open a blank tab instantly (so the tab and Monaco editor container are rendered immediately)
+                OpenNewTab();
+            }
+
+            // 2. Load settings JSON and initialize preview panel WebView2 in the background
             await _settingsService.LoadSettingsAsync();
             WordWrapToggle.IsChecked = _settingsService.CurrentSettings.WordWrap;
             LeftPanelToggle.IsChecked = true;
@@ -146,52 +244,20 @@ namespace Ueditor
             };
             ApplyUiPersonalization(_settingsService.CurrentSettings);
 
-            // 2. Initialize Preview Panel WebView2
+            // If we have a Git repo path from a loaded file, refresh Git status UI
+            if (!string.IsNullOrEmpty(_currentRepoPath))
+            {
+                _ = RefreshGitStatusUIAsync();
+            }
+
             await InitializePreviewWebViewAsync();
 
-            // 3. Handle command-line file opening or open a blank tab
-            string[] args = Environment.GetCommandLineArgs();
-            bool openedAnyFile = false;
-
-            if (args != null && args.Length > 1)
-            {
-                for (int i = 1; i < args.Length; i++)
-                {
-                    string arg = args[i];
-                    // Skip potential command line switches starting with - or / (e.g. VS debugger switches)
-                    if (arg.StartsWith("-") || arg.StartsWith("/"))
-                    {
-                        continue;
-                    }
-
-                    try
-                    {
-                        // Clean up quotes if present
-                        string filePath = arg.Trim('"', '\'');
-                        if (!string.IsNullOrWhiteSpace(filePath) && File.Exists(filePath))
-                        {
-                            await LoadFileIntoTabAsync(filePath);
-                            openedAnyFile = true;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Failed to open command-line file '{arg}': {ex.Message}");
-                    }
-                }
-            }
-
-            if (!openedAnyFile)
-            {
-                OpenNewTab();
-            }
-
-            // 4. Load Snippets and Favorites
+            // 3. Load Snippets and Favorites
             await _snippetService.LoadSnippetsAsync();
             RefreshSnippetsUI();
             RefreshFavoritesUI();
 
-            // 5. Initialize text color button with default color
+            // 4. Initialize text color button with default color
             if (TryParseHexColor(_lastTextColorHex, out var defaultColor))
             {
                 UpdateTextColorButtonVisual(defaultColor);
