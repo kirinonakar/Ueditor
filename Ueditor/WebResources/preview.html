@@ -109,6 +109,76 @@
             white-space: pre-wrap;
         }
 
+        .latex-render {
+            font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif;
+            font-size: 1.08em;
+        }
+
+        .latex-render.display {
+            display: block;
+            overflow-x: auto;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .frac {
+            display: inline-flex;
+            flex-direction: column;
+            vertical-align: middle;
+            text-align: center;
+            line-height: 1.1;
+            margin: 0 0.15em;
+        }
+
+        .frac > .num {
+            padding: 0 0.25em 0.12em;
+            border-bottom: 1px solid currentColor;
+        }
+
+        .frac > .den {
+            padding: 0.12em 0.25em 0;
+        }
+
+        .sqrt {
+            display: inline-flex;
+            align-items: stretch;
+            margin: 0 0.1em;
+        }
+
+        .sqrt-symbol {
+            font-size: 1.2em;
+            line-height: 1;
+        }
+
+        .sqrt-body {
+            border-top: 1px solid currentColor;
+            padding: 0 0.18em;
+        }
+
+        .matrix {
+            display: inline-table;
+            border-collapse: collapse;
+            margin: 0 0.3em;
+            vertical-align: middle;
+        }
+
+        .matrix td {
+            border: 0;
+            padding: 0.15em 0.55em;
+            text-align: center;
+        }
+
+        .matrix-wrap::before { content: "("; font-size: 2.2em; vertical-align: middle; }
+        .matrix-wrap::after { content: ")"; font-size: 2.2em; vertical-align: middle; }
+
+        .tok-keyword { color: #569cd6; }
+        .tok-type { color: #4ec9b0; }
+        .tok-string { color: #ce9178; }
+        .tok-number { color: #b5cea8; }
+        .tok-comment { color: #6a9955; font-style: italic; }
+        .tok-tag { color: #569cd6; }
+        .tok-attr { color: #9cdcfe; }
+
         .empty {
             color: var(--muted);
         }
@@ -152,13 +222,58 @@
 
         function inlineMarkdown(text) {
             let out = escapeHtml(text);
+            out = out.replace(/&lt;u&gt;([\s\S]*?)&lt;\/u&gt;/g, '<u>$1</u>');
+            out = out.replace(/&lt;span style=&quot;(color:\s*#[0-9a-fA-F]{6}|font-size:\s*(?:1\.2|0\.85)em)&quot;&gt;([\s\S]*?)&lt;\/span&gt;/g, '<span style="$1">$2</span>');
             out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
             out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
             out = out.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            out = out.replace(/==([^=]+)==/g, '<mark>$1</mark>');
+            out = out.replace(/~~([^~]+)~~/g, '<s>$1</s>');
             out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
-            out = out.replace(/\$\$([\s\S]+?)\$\$/g, '<span class="math-block">$1</span>');
-            out = out.replace(/\$([^$]+)\$/g, '<code>$1</code>');
+            out = out.replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => renderLatexInline(expr, true));
+            out = out.replace(/\$([^$]+)\$/g, (_, expr) => renderLatexInline(expr, false));
             return out;
+        }
+
+        function tokenSpan(className, value) {
+            return `<span class="${className}">${escapeHtml(value)}</span>`;
+        }
+
+        function highlightCode(text, language) {
+            const lang = (language || '').toLowerCase();
+            if (lang === 'html' || lang === 'xml') {
+                return escapeHtml(text).replace(/(&lt;\/?)([\w:-]+)([^&]*?)(&gt;)/g, (_, open, tag, attrs, close) => {
+                    const highlightedAttrs = attrs.replace(/([\w:-]+)(=)(&quot;.*?&quot;|'.*?')/g, '<span class="tok-attr">$1</span>$2<span class="tok-string">$3</span>');
+                    return `${open}<span class="tok-tag">${tag}</span>${highlightedAttrs}${close}`;
+                });
+            }
+
+            if (lang === 'json') {
+                return escapeHtml(text)
+                    .replace(/(&quot;[^&]*?&quot;)(\s*:)?/g, (_, key, colon) => colon ? `<span class="tok-attr">${key}</span>${colon}` : `<span class="tok-string">${key}</span>`)
+                    .replace(/\b(true|false|null)\b/g, '<span class="tok-keyword">$1</span>')
+                    .replace(/\b(-?\d+(?:\.\d+)?)\b/g, '<span class="tok-number">$1</span>');
+            }
+
+            const pattern = /(\/\/.*?$|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:class|interface|struct|enum|namespace|using|public|private|protected|internal|static|readonly|async|await|return|if|else|switch|case|break|continue|for|foreach|while|do|try|catch|finally|throw|new|var|let|const|function|import|export|from|extends|implements|void|null|true|false|this|base|get|set|record|sealed|override|virtual)\b|\b(?:string|int|long|double|float|decimal|bool|char|object|Task|List|Dictionary|IEnumerable|void)\b|\b\d+(?:\.\d+)?\b)/gim;
+            let html = '';
+            let lastIndex = 0;
+            for (const matchResult of text.matchAll(pattern)) {
+                const match = matchResult[0];
+                html += escapeHtml(text.slice(lastIndex, matchResult.index));
+                if (match.startsWith('//') || match.startsWith('/*')) html += tokenSpan('tok-comment', match);
+                else if (/^["'`]/.test(match)) html += tokenSpan('tok-string', match);
+                else if (/^\d/.test(match)) html += tokenSpan('tok-number', match);
+                else if (/^(string|int|long|double|float|decimal|bool|char|object|Task|List|Dictionary|IEnumerable|void)$/.test(match)) html += tokenSpan('tok-type', match);
+                else html += tokenSpan('tok-keyword', match);
+                lastIndex = matchResult.index + match.length;
+            }
+            html += escapeHtml(text.slice(lastIndex));
+            return html;
+        }
+
+        function renderCodeBlock(code, language) {
+            return `<pre><code>${highlightCode(code, language)}</code></pre>`;
         }
 
         function renderTable(lines) {
@@ -184,6 +299,7 @@
             let ordered = false;
             let quote = [];
             let code = [];
+            let codeLanguage = '';
             let table = [];
             let inCode = false;
 
@@ -216,11 +332,13 @@
                 const line = raw;
                 if (line.trim().startsWith('```')) {
                     if (inCode) {
-                        html.push(`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`);
+                        html.push(renderCodeBlock(code.join('\n'), codeLanguage));
                         code = [];
+                        codeLanguage = '';
                         inCode = false;
                     } else {
                         flushParagraph(); flushList(); flushQuote(); flushTable();
+                        codeLanguage = line.trim().slice(3).trim();
                         inCode = true;
                     }
                     continue;
@@ -279,12 +397,105 @@
                 return;
             }
 
-            const escaped = escapeHtml(text)
-                .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '<span>($1 / $2)</span>')
-                .replace(/\\sqrt\{([^}]+)\}/g, '<span>sqrt($1)</span>')
-                .replace(/\^(\w|\{[^}]+\})/g, '<sup>$1</sup>')
-                .replace(/_(\w|\{[^}]+\})/g, '<sub>$1</sub>');
-            container.innerHTML = `<div class="math-block">${escaped}</div>`;
+            container.innerHTML = renderLatexInline(text, true);
+        }
+
+        function renderLatexInline(text, display) {
+            const cleaned = cleanupLatex(text);
+            return `<span class="latex-render${display ? ' display math-block' : ''}">${renderLatexExpression(cleaned)}</span>`;
+        }
+
+        function cleanupLatex(text) {
+            return (text || '')
+                .replace(/\\begin\{document\}|\\end\{document\}/g, '')
+                .replace(/\\\(|\\\)|\\\[|\\\]|\$\$/g, '')
+                .trim();
+        }
+
+        function extractGroup(value, openIndex) {
+            if (value[openIndex] !== '{') return null;
+            let depth = 0;
+            for (let i = openIndex; i < value.length; i++) {
+                if (value[i] === '{') depth++;
+                if (value[i] === '}') depth--;
+                if (depth === 0) {
+                    return { content: value.slice(openIndex + 1, i), end: i + 1 };
+                }
+            }
+            return null;
+        }
+
+        function replaceCommandWithGroups(value, command, groupCount, renderer) {
+            let result = '';
+            let index = 0;
+            while (index < value.length) {
+                const found = value.indexOf(command, index);
+                if (found < 0) {
+                    result += value.slice(index);
+                    break;
+                }
+
+                result += value.slice(index, found);
+                let cursor = found + command.length;
+                const groups = [];
+                let ok = true;
+                for (let i = 0; i < groupCount; i++) {
+                    while (value[cursor] === ' ') cursor++;
+                    const group = extractGroup(value, cursor);
+                    if (!group) {
+                        ok = false;
+                        break;
+                    }
+                    groups.push(group.content);
+                    cursor = group.end;
+                }
+
+                if (ok) {
+                    result += renderer(groups);
+                    index = cursor;
+                } else {
+                    result += command;
+                    index = found + command.length;
+                }
+            }
+            return result;
+        }
+
+        function renderLatexExpression(input) {
+            let value = input;
+            const fragments = [];
+            const stash = html => {
+                const token = `\u0000${fragments.length}\u0000`;
+                fragments.push(html);
+                return token;
+            };
+
+            value = renderMatrix(value, stash);
+            value = replaceCommandWithGroups(value, '\\frac', 2, groups => stash(`<span class="frac"><span class="num">${renderLatexExpression(groups[0])}</span><span class="den">${renderLatexExpression(groups[1])}</span></span>`));
+            value = replaceCommandWithGroups(value, '\\sqrt', 1, groups => stash(`<span class="sqrt"><span class="sqrt-symbol">√</span><span class="sqrt-body">${renderLatexExpression(groups[0])}</span></span>`));
+
+            value = escapeHtml(value)
+                .replace(/\\alpha/g, 'α').replace(/\\beta/g, 'β').replace(/\\gamma/g, 'γ').replace(/\\delta/g, 'δ')
+                .replace(/\\epsilon/g, 'ε').replace(/\\theta/g, 'θ').replace(/\\lambda/g, 'λ').replace(/\\mu/g, 'μ')
+                .replace(/\\pi/g, 'π').replace(/\\sigma/g, 'σ').replace(/\\phi/g, 'φ').replace(/\\omega/g, 'ω')
+                .replace(/\\Gamma/g, 'Γ').replace(/\\Delta/g, 'Δ').replace(/\\Theta/g, 'Θ').replace(/\\Lambda/g, 'Λ')
+                .replace(/\\Pi/g, 'Π').replace(/\\Sigma/g, 'Σ').replace(/\\Omega/g, 'Ω')
+                .replace(/\\sum/g, '∑').replace(/\\int/g, '∫').replace(/\\infty/g, '∞')
+                .replace(/\\times/g, '×').replace(/\\cdot/g, '·').replace(/\\leq/g, '≤').replace(/\\geq/g, '≥').replace(/\\neq/g, '≠')
+                .replace(/\\rightarrow/g, '→').replace(/\\left|\\right/g, '')
+                .replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>').replace(/_\{([^}]+)\}/g, '<sub>$1</sub>')
+                .replace(/\^([A-Za-z0-9+\-=]+)/g, '<sup>$1</sup>').replace(/_([A-Za-z0-9+\-=]+)/g, '<sub>$1</sub>');
+            fragments.forEach((fragment, index) => {
+                value = value.split(`\u0000${index}\u0000`).join(fragment);
+            });
+            return value;
+        }
+
+        function renderMatrix(value, stash) {
+            return value.replace(/\\begin\{(?:p|b)?matrix\}([\s\S]*?)\\end\{(?:p|b)?matrix\}/g, (_, body) => {
+                const rows = body.trim().split(/\\\\/).map(row => row.split('&').map(cell => `<td>${renderLatexExpression(cell.trim())}</td>`).join(''));
+                return stash(`<span class="matrix-wrap"><table class="matrix">${rows.map(row => `<tr>${row}</tr>`).join('')}</table></span>`);
+            });
         }
 
         function applyTheme(message) {

@@ -17,6 +17,7 @@ namespace Ueditor.Core.Models
         public string CustomBackgroundColor { get; set; } = string.Empty; // Hex color string e.g., "#1e1e1e"
         public string CustomForegroundColor { get; set; } = string.Empty; // Hex color string e.g., "#d4d4d4"
         public string UiFontFamily { get; set; } = "Segoe UI, Malgun Gothic";
+        public string MarkdownToolbarBackgroundColor { get; set; } = string.Empty;
         public bool AutoSave { get; set; } = false;
         public string PreviewMode { get; set; } = "Markdown"; // "Markdown", "HTML", "LaTeX"
 

@@ -1315,6 +1315,8 @@ namespace Ueditor
 
         private async void OnMarkdownBoldClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("bold");
         private async void OnMarkdownItalicClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("italic");
+        private async void OnMarkdownUnderlineClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("underline");
+        private async void OnMarkdownHighlightClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("highlight");
         private async void OnMarkdownInlineCodeClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("inlineCode");
         private async void OnMarkdownCodeBlockClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("codeBlock");
         private async void OnMarkdownHeadingClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("heading");
@@ -1325,6 +1327,24 @@ namespace Ueditor
         private async void OnMarkdownTaskClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("task");
         private async void OnMarkdownTableClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("table");
         private async void OnMarkdownMathClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("math");
+        private async void OnMarkdownArrowClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("arrow");
+        private async void OnMarkdownFontIncreaseClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("fontIncrease");
+        private async void OnMarkdownFontDecreaseClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("fontDecrease");
+        private async void OnMarkdownTextColorClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("textColor");
+        private async void OnMarkdownCutLineClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("cutLine");
+
+        private async void OnMarkdownToolbarBackgroundClick(object sender, RoutedEventArgs e)
+        {
+            var settings = _settingsService.CurrentSettings;
+            settings.MarkdownToolbarBackgroundColor = settings.MarkdownToolbarBackgroundColor switch
+            {
+                "#243B53" => "#ECECEE",
+                "#ECECEE" => string.Empty,
+                _ => "#243B53"
+            };
+            await _settingsService.SaveSettingsAsync(settings);
+            ApplyUiPersonalization(settings);
+        }
 
         #endregion
 
@@ -1650,6 +1670,9 @@ namespace Ueditor
                     ? ElementTheme.Light
                     : ElementTheme.Dark;
 
+                ApplyTitleBarTheme(settings);
+                ApplyMarkdownToolbarTheme(settings);
+
                 try
                 {
                     var fontFamily = new Microsoft.UI.Xaml.Media.FontFamily(settings.UiFontFamily);
@@ -1687,12 +1710,117 @@ namespace Ueditor
             }
         }
 
+        private void ApplyTitleBarTheme(EditorSettings settings)
+        {
+            try
+            {
+                var titleBar = AppWindow.TitleBar;
+                bool light = settings.Theme == "Light";
+
+                Windows.UI.Color background = TryParseHexColor(settings.CustomBackgroundColor, out var customBg)
+                    ? customBg
+                    : (light ? Windows.UI.Color.FromArgb(255, 243, 243, 243) : Windows.UI.Color.FromArgb(255, 32, 32, 32));
+                Windows.UI.Color foreground = TryParseHexColor(settings.CustomForegroundColor, out var customFg)
+                    ? customFg
+                    : (light ? Windows.UI.Color.FromArgb(255, 32, 32, 32) : Windows.UI.Color.FromArgb(255, 242, 242, 242));
+                Windows.UI.Color inactiveBackground = light
+                    ? Windows.UI.Color.FromArgb(255, 232, 232, 232)
+                    : Windows.UI.Color.FromArgb(255, 38, 38, 38);
+                Windows.UI.Color hoverBackground = light
+                    ? Windows.UI.Color.FromArgb(255, 224, 224, 224)
+                    : Windows.UI.Color.FromArgb(255, 56, 56, 56);
+
+                titleBar.BackgroundColor = background;
+                titleBar.ForegroundColor = foreground;
+                titleBar.InactiveBackgroundColor = inactiveBackground;
+                titleBar.InactiveForegroundColor = foreground;
+                titleBar.ButtonBackgroundColor = background;
+                titleBar.ButtonForegroundColor = foreground;
+                titleBar.ButtonInactiveBackgroundColor = inactiveBackground;
+                titleBar.ButtonInactiveForegroundColor = foreground;
+                titleBar.ButtonHoverBackgroundColor = hoverBackground;
+                titleBar.ButtonHoverForegroundColor = foreground;
+                titleBar.ButtonPressedBackgroundColor = hoverBackground;
+                titleBar.ButtonPressedForegroundColor = foreground;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to apply titlebar theme: {ex.Message}");
+            }
+        }
+
+        private void ApplyMarkdownToolbarTheme(EditorSettings settings)
+        {
+            try
+            {
+                Windows.UI.Color background = TryParseHexColor(settings.MarkdownToolbarBackgroundColor, out var customToolbarBg)
+                    ? customToolbarBg
+                    : (settings.Theme == "Light"
+                        ? Windows.UI.Color.FromArgb(255, 236, 236, 238)
+                        : Windows.UI.Color.FromArgb(255, 43, 47, 54));
+                MarkdownToolbar.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(background);
+                MarkdownToolbar.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(GetReadableForeground(background));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to apply markdown toolbar theme: {ex.Message}");
+            }
+        }
+
+        private static bool TryParseHexColor(string? value, out Windows.UI.Color color)
+        {
+            color = Windows.UI.Color.FromArgb(255, 0, 0, 0);
+            string hex = (value ?? string.Empty).Trim().TrimStart('#');
+            if (hex.Length != 6)
+            {
+                return false;
+            }
+
+            try
+            {
+                byte r = byte.Parse(hex.Substring(0, 2), System.Globalization.NumberStyles.HexNumber);
+                byte g = byte.Parse(hex.Substring(2, 2), System.Globalization.NumberStyles.HexNumber);
+                byte b = byte.Parse(hex.Substring(4, 2), System.Globalization.NumberStyles.HexNumber);
+                color = Windows.UI.Color.FromArgb(255, r, g, b);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static Windows.UI.Color GetReadableForeground(Windows.UI.Color background)
+        {
+            double luminance = (0.2126 * background.R + 0.7152 * background.G + 0.0722 * background.B) / 255.0;
+            return luminance < 0.48
+                ? Windows.UI.Color.FromArgb(255, 245, 247, 250)
+                : Windows.UI.Color.FromArgb(255, 24, 24, 27);
+        }
+
         private void ApplyFontFamilyRecursively(DependencyObject parent, Microsoft.UI.Xaml.Media.FontFamily fontFamily)
         {
             if (parent == null) return;
-            
+
+            if (parent is IconElement)
+            {
+                return;
+            }
+
             if (parent is Control ctrl)
             {
+                if (ctrl.FontFamily.Source.Contains("Segoe MDL2 Assets", StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                if (ctrl is Microsoft.UI.Xaml.Controls.Primitives.ButtonBase button &&
+                    button.Content is string content &&
+                    content.Any(ch => ch >= '\uE000' && ch <= '\uF8FF'))
+                {
+                    return;
+                }
+
                 ctrl.FontFamily = fontFamily;
             }
             else if (parent is TextBlock tb)
@@ -1854,7 +1982,7 @@ namespace Ueditor
                         var info = new FileInfo(file);
                         if (info.Length > thresholdBytes)
                         {
-                            var largeResults = await _fileService.SearchLargeFileAsync(file, query, isRegex);
+                            var largeResults = await _fileService.SearchLargeFileAsync(file, query, isRegex, isMatchCase, isWholeWord);
                             foreach (var lr in largeResults)
                             {
                                 tempResults.Add(new SearchResultItem
