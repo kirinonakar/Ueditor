@@ -31,6 +31,8 @@ namespace Ueditor
         private readonly IGitService _gitService;
         private readonly ISnippetService _snippetService;
         private readonly ObservableCollection<FavoriteItem> _favoritesList = new ObservableCollection<FavoriteItem>();
+        private readonly ObservableCollection<RecentFileItem> _recentFilesList = new ObservableCollection<RecentFileItem>();
+        private readonly string _recentFilesFilePath;
         private readonly ObservableCollection<SnippetItem> _snippetsList = new ObservableCollection<SnippetItem>();
         private readonly ObservableCollection<GitFileItem> _gitFilesList = new ObservableCollection<GitFileItem>();
         private readonly ObservableCollection<SearchResultItem> _searchResultsList = new ObservableCollection<SearchResultItem>();
@@ -78,9 +80,14 @@ namespace Ueditor
             _gitService = new GitService();
             _snippetService = new SnippetService();
 
+            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            string settingsDir = Path.Combine(userProfile, ".ueditor");
+            _recentFilesFilePath = Path.Combine(settingsDir, "recent_files.json");
+
             // Bind Left Sidebar Tab items
             FileListView.ItemsSource = _explorerItems;
             FavoritesListView.ItemsSource = _favoritesList;
+            RecentFilesListView.ItemsSource = _recentFilesList;
             SnippetsListView.ItemsSource = _snippetsList;
             GitChangedFilesList.ItemsSource = _gitFilesList;
             SearchResultsList.ItemsSource = _searchResultsList;
@@ -254,10 +261,11 @@ namespace Ueditor
 
             await InitializePreviewWebViewAsync();
 
-            // 3. Load Snippets and Favorites
+            // 3. Load Snippets, Favorites and Recent Files
             await _snippetService.LoadSnippetsAsync();
             RefreshSnippetsUI();
             RefreshFavoritesUI();
+            LoadRecentFiles();
 
             // 4. Initialize text color button with default color
             if (TryParseHexColor(_lastTextColorHex, out var defaultColor))
@@ -321,6 +329,7 @@ namespace Ueditor
                 tab.Title = Path.GetFileName(filePath);
                 tab.Content = content;
                 tab.Language = GetMonacoLanguageName(filePath);
+                AddRecentFile(filePath);
             }
             else
             {
@@ -806,6 +815,7 @@ namespace Ueditor
         {
             if (e.Handled) return;
             e.Handled = true;
+            e.AcceptedOperation = DataPackageOperation.Copy;
 
             if (!e.DataView.Contains(StandardDataFormats.StorageItems))
             {
@@ -920,7 +930,8 @@ namespace Ueditor
                 FavoritesSidebarPage,
                 SnippetsSidebarPage,
                 GitSidebarPage,
-                SearchSidebarPage
+                SearchSidebarPage,
+                RecentSidebarPage
             };
 
             Microsoft.UI.Xaml.Controls.Primitives.ToggleButton[] buttons =
@@ -929,7 +940,8 @@ namespace Ueditor
                 FavoritesActivityButton,
                 SnippetsActivityButton,
                 GitActivityButton,
-                SearchActivityButton
+                SearchActivityButton,
+                RecentActivityButton
             };
 
             int safeIndex = Math.Clamp(index, 0, pages.Length - 1);
@@ -2537,6 +2549,121 @@ namespace Ueditor
 
         #endregion
 
+        #region Recent Files Handlers
+
+        private void LoadRecentFiles()
+        {
+            try
+            {
+                if (File.Exists(_recentFilesFilePath))
+                {
+                    string json = File.ReadAllText(_recentFilesFilePath);
+                    var items = System.Text.Json.JsonSerializer.Deserialize<List<RecentFileItem>>(json);
+                    if (items != null)
+                    {
+                        _recentFilesList.Clear();
+                        foreach (var item in items)
+                        {
+                            _recentFilesList.Add(item);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to load recent files: {ex.Message}");
+            }
+        }
+
+        private void SaveRecentFiles()
+        {
+            try
+            {
+                string? dir = Path.GetDirectoryName(_recentFilesFilePath);
+                if (dir != null && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                var list = _recentFilesList.ToList();
+                string json = System.Text.Json.JsonSerializer.Serialize(list, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(_recentFilesFilePath, json);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to save recent files: {ex.Message}");
+            }
+        }
+
+        private void AddRecentFile(string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath)) return;
+
+            this.DispatcherQueue.TryEnqueue(() =>
+            {
+                try
+                {
+                    string fullPath = Path.GetFullPath(filePath);
+                    var existing = _recentFilesList.FirstOrDefault(f => f.Path.Equals(fullPath, StringComparison.OrdinalIgnoreCase));
+                    if (existing != null)
+                    {
+                        _recentFilesList.Remove(existing);
+                    }
+
+                    var newItem = new RecentFileItem
+                    {
+                        Name = Path.GetFileName(fullPath),
+                        Path = fullPath,
+                        LastOpenedText = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+                    };
+
+                    _recentFilesList.Insert(0, newItem);
+
+                    while (_recentFilesList.Count > 30)
+                    {
+                        _recentFilesList.RemoveAt(_recentFilesList.Count - 1);
+                    }
+
+                    SaveRecentFiles();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Failed to add recent file: {ex.Message}");
+                }
+            });
+        }
+
+        private void OnRemoveRecentFileClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string path)
+            {
+                var existing = _recentFilesList.FirstOrDefault(f => f.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
+                if (existing != null)
+                {
+                    _recentFilesList.Remove(existing);
+                    SaveRecentFiles();
+                }
+            }
+        }
+
+        private async void OnRecentFileItemDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+        {
+            var item = GetDataContextFromOriginalSource<RecentFileItem>(e.OriginalSource) ?? RecentFilesListView.SelectedItem as RecentFileItem;
+            if (item != null)
+            {
+                if (File.Exists(item.Path))
+                {
+                    await LoadFileIntoTabAsync(item.Path);
+                }
+                else
+                {
+                    ShowErrorMessage("파일 열기 실패", $"최근 파일이 존재하지 않습니다:\n{item.Path}");
+                }
+            }
+        }
+
+        #endregion
+
         #region Snippets Handlers
 
         private void RefreshSnippetsUI()
@@ -3935,6 +4062,14 @@ namespace Ueditor
         }
 
         #endregion
+    }
+
+    public class RecentFileItem
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Path { get; set; } = string.Empty;
+        public string LastOpenedText { get; set; } = string.Empty;
+        public string IconGlyph => "\uE7C3"; // Document glyph
     }
 
     public class FavoriteItem

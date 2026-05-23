@@ -154,6 +154,9 @@
                         <ToggleButton x:Name="SearchActivityButton" Tag="4" Click="OnLeftActivityClick" Width="48" Height="44" Padding="0" ToolTipService.ToolTip="검색">
                             <FontIcon Glyph="&#xE721;" FontSize="20"/>
                         </ToggleButton>
+                        <ToggleButton x:Name="RecentActivityButton" Tag="5" Click="OnLeftActivityClick" Width="48" Height="44" Padding="0" ToolTipService.ToolTip="최근 파일">
+                            <FontIcon Glyph="&#xE81C;" FontSize="20"/>
+                        </ToggleButton>
                     </StackPanel>
                 </Border>
 
@@ -355,6 +358,34 @@
                                     </DataTemplate>
                                 </ListView.ItemTemplate>
                             </ListView>
+                    </Grid>
+
+                    <!-- Tab 6: Recent Files -->
+                    <Grid x:Name="RecentSidebarPage" Padding="10" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="최근 열린 파일 (더블클릭하여 열기)" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,10"/>
+                        <ListView x:Name="RecentFilesListView" Grid.Row="1" SelectionMode="Single" DoubleTapped="OnRecentFileItemDoubleTapped">
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Padding="0,5,0,5" ToolTipService.ToolTip="{Binding Path}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <FontIcon Grid.Column="0" Glyph="{Binding IconGlyph}" FontSize="16" Margin="0,0,10,0" VerticalAlignment="Center" Foreground="{ThemeResource SystemControlForegroundAccentBrush}"/>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Path}" FontSize="10" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="2" Content="&#xE74D;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnRemoveRecentFileClick" Tag="{Binding Path}" Padding="5" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
                     </Grid>
                 </Grid>
             </Grid>
