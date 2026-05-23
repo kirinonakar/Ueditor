@@ -115,6 +115,23 @@
             box-sizing: border-box;
             padding: 2px 5px;
         }
+
+        /* Custom scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(128, 128, 128, 0.35);
+            border: 2px solid var(--bg-color);
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(128, 128, 128, 0.55);
+        }
     </style>
 </head>
 <body>

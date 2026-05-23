@@ -39,6 +39,23 @@
             color: var(--fg);
         }
 
+        /* Custom scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: color-mix(in srgb, var(--fg) 22%, transparent);
+            border: 2px solid var(--bg);
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: color-mix(in srgb, var(--fg) 35%, transparent);
+        }
+
         #host {
             display: grid;
             grid-template-columns: 64px 1fr;
@@ -952,8 +969,8 @@
             replaceTextRange(removeStart, removeEnd, '', nextCursor);
         }
 
-        function applyMarkdownCommand(command) {
-            const current = selectedText();
+        function applyMarkdownCommand(command, color) {
+            const { start, end } = selectionRange();
             switch (command) {
                 case 'bold':
                     toggleWrappedSelection('**');
@@ -1007,7 +1024,7 @@
                     toggleWrappedSelection('<small>', '</small>');
                     break;
                 case 'textColor':
-                    applyMarkdownTextColor('#E53935');
+                    applyMarkdownTextColor(color || '#E53935');
                     break;
                 case 'cutLine':
                     cutCurrentLine();
@@ -1060,7 +1077,7 @@
                     replaceSelection(msg.text || "");
                     break;
                 case 'markdownCommand':
-                    applyMarkdownCommand(msg.command);
+                    applyMarkdownCommand(msg.command, msg.color);
                     break;
                 case 'revealLine':
                     const lines = editor.value.split(/\r\n|\r|\n/);

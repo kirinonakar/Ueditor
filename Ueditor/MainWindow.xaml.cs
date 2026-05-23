@@ -64,6 +64,7 @@ namespace Ueditor
         private const double PreviewPanelMinWidth = 150;
         private static IReadOnlyList<string>? _installedFontFamiliesCache;
 
+
         public MainWindow()
         {
             this.InitializeComponent();
@@ -83,16 +84,25 @@ namespace Ueditor
             GitChangedFilesList.ItemsSource = _gitFilesList;
             SearchResultsList.ItemsSource = _searchResultsList;
 
-            // Initialize Preview Debounce Timer (300ms)
+            // Initialize Preview Debounce Timer (50ms for near-real-time preview)
             _previewDebounceTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMilliseconds(300)
+                Interval = TimeSpan.FromMilliseconds(50)
             };
             _previewDebounceTimer.Tick += OnPreviewDebounceTimerTick;
 
             // Load local configurations and boot initial states
+            // Setup custom title bar
+            SetupCustomTitleBar();
+
             this.Activated += OnWindowActivated;
             this.Closed += OnWindowClosed;
+        }
+
+        private void SetupCustomTitleBar()
+        {
+            this.ExtendsContentIntoTitleBar = true;
+            this.SetTitleBar(AppTitleBar);
         }
 
         private void OnWindowClosed(object sender, WindowEventArgs args)
@@ -1399,16 +1409,44 @@ namespace Ueditor
             ExplorerStatusText.Text = $"{folderPath}\n{_explorerItems.Count:N0}개 항목";
         }
 
+        private async Task NavigateExplorerToFolderAsync(string folderPath)
+        {
+            if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath)) return;
+
+            _currentFolderPath = folderPath;
+            _currentRepoPath = FindGitRepositoryRoot(folderPath) ?? string.Empty;
+            LoadDirectoryRoot(folderPath);
+
+            // Ensure the left panel is visible and switch to Explorer page (index 0)
+            EnsureLeftPanelVisible();
+            ShowLeftSidebarPage(0);
+
+            await RefreshGitStatusUIAsync();
+        }
+
         private void OnOpenTerminalClick(object sender, RoutedEventArgs e)
         {
-            string workingDirectory = GetTerminalWorkingDirectory();
-            if (string.IsNullOrWhiteSpace(workingDirectory) || !Directory.Exists(workingDirectory))
+            // Toggle terminal panel visibility
+            if (TerminalPanel.Visibility == Visibility.Visible)
             {
-                ShowErrorMessage("터미널 오류", "터미널을 열 폴더를 찾을 수 없습니다. 먼저 폴더를 선택해 주세요.");
-                return;
+                // Close terminal
+                StopEmbeddedTerminal();
+                TerminalPanel.Visibility = Visibility.Collapsed;
+                TerminalPanelRow.Height = new GridLength(0);
+                if (TerminalToggleButton != null) TerminalToggleButton.IsChecked = false;
             }
-
-            OpenEmbeddedTerminal(workingDirectory);
+            else
+            {
+                string workingDirectory = GetTerminalWorkingDirectory();
+                if (string.IsNullOrWhiteSpace(workingDirectory) || !Directory.Exists(workingDirectory))
+                {
+                    ShowErrorMessage("터미널 오류", "터미널을 열 폴더를 찾을 수 없습니다. 먼저 폴더를 선택해 주세요.");
+                    if (TerminalToggleButton != null) TerminalToggleButton.IsChecked = false;
+                    return;
+                }
+                OpenEmbeddedTerminal(workingDirectory);
+                if (TerminalToggleButton != null) TerminalToggleButton.IsChecked = true;
+            }
         }
 
         private string GetTerminalWorkingDirectory()
@@ -1777,14 +1815,14 @@ namespace Ueditor
 
         #region Markdown Toolbar
 
-        private async Task ApplyMarkdownCommandToActiveEditorAsync(string command)
+        private async Task ApplyMarkdownCommandToActiveEditorAsync(string command, string? color = null)
         {
             if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
                 activeTabItem.Tag is string tabId &&
                 _tabBridges.TryGetValue(tabId, out var bridgeGroup) &&
                 bridgeGroup.Bridge != null)
             {
-                await bridgeGroup.Bridge.ApplyMarkdownCommandAsync(command);
+                await bridgeGroup.Bridge.ApplyMarkdownCommandAsync(command, color);
             }
         }
 
@@ -1819,6 +1857,46 @@ namespace Ueditor
             };
             await _settingsService.SaveSettingsAsync(settings);
             ApplyUiPersonalization(settings);
+        }
+
+        private void OnToggleMarkdownToolbarClick(object sender, RoutedEventArgs e)
+        {
+            bool show = MarkdownToolbarToggle?.IsChecked == true;
+            MarkdownToolbar.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void OnTextColorButtonRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+        {
+            ColorPickerFlyout.ShowAt(TextColorButton);
+        }
+
+        private async void OnApplyTextColorClick(object sender, RoutedEventArgs e)
+        {
+            ColorPickerFlyout.Hide();
+            var color = TextColorPicker.Color;
+            string hex = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+            await ApplyMarkdownCommandToActiveEditorAsync("textColor", hex);
+        }
+
+        private async void OnAddFolderToFavoritesClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuFlyoutItem item &&
+                (item.Tag as ExplorerItem ?? item.DataContext as ExplorerItem ?? FileListView.SelectedItem as ExplorerItem) is ExplorerItem explorerItem)
+            {
+                string folderPath = explorerItem.IsFolder
+                    ? explorerItem.Path
+                    : (Path.GetDirectoryName(explorerItem.Path) ?? string.Empty);
+
+                if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath)) return;
+
+                var settings = _settingsService.CurrentSettings;
+                if (!settings.FavoritePaths.Contains(folderPath, StringComparer.OrdinalIgnoreCase))
+                {
+                    settings.FavoritePaths.Add(folderPath);
+                    await _settingsService.SaveSettingsAsync(settings);
+                    RefreshFavoritesUI();
+                }
+            }
         }
 
         #endregion
@@ -2079,7 +2157,7 @@ namespace Ueditor
             if (sender is MenuFlyoutItem item &&
                 (item.Tag as ExplorerItem ?? item.DataContext as ExplorerItem ?? FileListView.SelectedItem as ExplorerItem) is ExplorerItem explorerItem)
             {
-                if (explorerItem.IsFolder) return; // File only for simplicity
+                if (explorerItem.IsFolder) return; // This handler is for files only
 
                 var settings = _settingsService.CurrentSettings;
                 if (!settings.FavoritePaths.Contains(explorerItem.Path, StringComparer.OrdinalIgnoreCase))
@@ -2097,12 +2175,15 @@ namespace Ueditor
             var settings = _settingsService.CurrentSettings;
             foreach (var path in settings.FavoritePaths)
             {
-                if (File.Exists(path))
+                bool isFolder = Directory.Exists(path);
+                bool isFile = !isFolder && File.Exists(path);
+                if (isFolder || isFile)
                 {
                     _favoritesList.Add(new FavoriteItem
                     {
-                        Name = Path.GetFileName(path),
-                        Path = path
+                        Name = isFolder ? Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) : Path.GetFileName(path),
+                        Path = path,
+                        IsFolder = isFolder
                     });
                 }
             }
@@ -2956,6 +3037,12 @@ namespace Ueditor
     {
         public string Name { get; set; } = string.Empty;
         public string Path { get; set; } = string.Empty;
+        public bool IsFolder { get; set; } = false;
+        /// <summary>Returns the appropriate glyph for display in the favorites list.</summary>
+        public string IconGlyph => IsFolder ? "\uE8B7" : "\uE734"; // Folder or Star glyph
+        public Windows.UI.Color IconColor => IsFolder
+            ? Windows.UI.Color.FromArgb(255, 255, 195, 0)   // Amber for folders
+            : Windows.UI.Color.FromArgb(255, 255, 215, 0);  // Gold for files
     }
 
     public class GitFileItem

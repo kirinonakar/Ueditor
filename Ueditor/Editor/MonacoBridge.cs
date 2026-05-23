@@ -144,9 +144,11 @@ namespace Ueditor.Editor
             await SendMessageAsync(msg);
         }
 
-        public async Task ApplyMarkdownCommandAsync(string command)
+        public async Task ApplyMarkdownCommandAsync(string command, string? color = null)
         {
-            var msg = new { action = "markdownCommand", command = command };
+            object msg = color != null
+                ? (object)new { action = "markdownCommand", command = command, color = color }
+                : (object)new { action = "markdownCommand", command = command };
             await SendMessageAsync(msg);
         }
 
