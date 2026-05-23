@@ -20,11 +20,12 @@ namespace Ueditor.Core.Models
         public string MarkdownToolbarBackgroundColor { get; set; } = string.Empty;
         public bool AutoSave { get; set; } = false;
         public string PreviewMode { get; set; } = "Markdown"; // "Markdown", "HTML", "LaTeX"
+        public bool DefaultMarkdownEnabled { get; set; } = true;
 
         // LLM Config
         public string LlmProvider { get; set; } = "OpenAI"; // "OpenAI" or "Gemini"
         public string LlmEndpoint { get; set; } = "https://api.openai.com/v1";
-        public string LlmModel { get; set; } = "gpt-4";
+        public string LlmModel { get; set; } = "gpt-5.5";
 
         // Git Config
         public bool AutoGitDetect { get; set; } = true;

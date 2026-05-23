@@ -49,7 +49,14 @@ namespace Ueditor.Core.Services
             try
             {
                 string targetName = $"Ueditor_LLM_{provider}";
-                _credentialService.WriteCredential(targetName, "ueditor_user", apiKey);
+                if (string.IsNullOrEmpty(apiKey))
+                {
+                    _credentialService.DeleteCredential(targetName);
+                }
+                else
+                {
+                    _credentialService.WriteCredential(targetName, "ueditor_user", apiKey);
+                }
             }
             catch (Exception ex)
             {

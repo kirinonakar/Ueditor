@@ -270,6 +270,10 @@
 
         // Listen scroll event
         scrollContainer.addEventListener('scroll', render);
+        
+        // Prevent duplicate window launching on drag-and-drop
+        window.addEventListener('dragover', e => e.preventDefault(), false);
+        window.addEventListener('drop', e => e.preventDefault(), false);
         window.addEventListener('resize', () => {
             visibleCount = Math.ceil(scrollContainer.clientHeight / LINE_HEIGHT) + 10;
             render();

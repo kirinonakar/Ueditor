@@ -14,6 +14,9 @@
     </Window.SystemBackdrop>
 
     <Grid Background="Transparent" AllowDrop="True" DragOver="OnRootDragOver" Drop="OnRootDrop">
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Key="W" Modifiers="Control" Invoked="OnCloseActiveTabShortcutInvoked"/>
+        </Grid.KeyboardAccelerators>
         <Grid.RowDefinitions>
             <RowDefinition x:Name="TitleBarRow" Height="36"/> <!-- Custom Title Bar -->
             <RowDefinition Height="Auto"/> <!-- Top Command Toolbar -->
@@ -35,10 +38,26 @@
 
         <!-- 1. Top Command Toolbar (상단 툴바) -->
         <CommandBar Grid.Row="1" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}" DefaultLabelPosition="Right">
-            <AppBarButton Icon="OpenFile" Label="파일 열기" Click="OnOpenFileClick" AccessKey="O"/>
-            <AppBarButton Icon="Save" Label="저장" Click="OnSaveFileClick" AccessKey="S"/>
+            <AppBarButton Icon="OpenFile" Label="파일 열기" Click="OnOpenFileClick" AccessKey="O" ToolTipService.ToolTip="파일 열기 (Ctrl+O)">
+                <AppBarButton.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="O" Modifiers="Control"/>
+                </AppBarButton.KeyboardAccelerators>
+            </AppBarButton>
+            <AppBarButton Icon="Save" Label="저장" Click="OnSaveFileClick" AccessKey="S" ToolTipService.ToolTip="저장 (Ctrl+S)">
+                <AppBarButton.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="S" Modifiers="Control"/>
+                </AppBarButton.KeyboardAccelerators>
+            </AppBarButton>
+            <AppBarButton Label="비교" Click="OnCompareFilesClick" ToolTipService.ToolTip="파일 비교 (Diff)">
+                <AppBarButton.Icon>
+                    <FontIcon Glyph="&#xE8D4;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
             <AppBarSeparator/>
-            <AppBarToggleButton x:Name="TerminalToggleButton" Click="OnOpenTerminalClick" ToolTipService.ToolTip="터미널 패널 토글">
+            <AppBarToggleButton x:Name="TerminalToggleButton" Click="OnOpenTerminalClick" ToolTipService.ToolTip="터미널 실행 (Ctrl+T)">
+                <AppBarToggleButton.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="T" Modifiers="Control"/>
+                </AppBarToggleButton.KeyboardAccelerators>
                 <AppBarToggleButton.Icon>
                     <FontIcon Glyph="&#xE756;"/>
                 </AppBarToggleButton.Icon>
@@ -46,7 +65,11 @@
             </AppBarToggleButton>
             <AppBarSeparator/>
             <AppBarToggleButton x:Name="WordWrapToggle" Icon="AlignLeft" Label="Word Wrap" Click="OnWordWrapToggleClick" IsChecked="True"/>
-            <AppBarButton Icon="Find" Label="검색" Click="OnFindClick"/>
+            <AppBarButton Icon="Find" Label="검색" Click="OnFindClick" ToolTipService.ToolTip="검색 (Ctrl+F)">
+                <AppBarButton.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="F" Modifiers="Control"/>
+                </AppBarButton.KeyboardAccelerators>
+            </AppBarButton>
             <AppBarSeparator/>
             <AppBarToggleButton x:Name="MarkdownToolbarToggle" Click="OnToggleMarkdownToolbarClick" ToolTipService.ToolTip="마크다운 툴바 토글">
                 <AppBarToggleButton.Icon>
@@ -72,10 +95,23 @@
                     DefaultLabelPosition="Right"
                     Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}">
             <AppBarButton Label="Hx" Click="OnMarkdownHeadingClick" ToolTipService.ToolTip="제목"/>
-            <AppBarButton Label="B" Click="OnMarkdownBoldClick" ToolTipService.ToolTip="굵게"/>
-            <AppBarButton Label="I" Click="OnMarkdownItalicClick" ToolTipService.ToolTip="기울임"/>
-            <AppBarButton Label="U" Click="OnMarkdownUnderlineClick" ToolTipService.ToolTip="밑줄"/>
-            <AppBarButton Label="HL" Click="OnMarkdownHighlightClick" ToolTipService.ToolTip="형광펜"/>
+            <AppBarButton Click="OnMarkdownBoldClick" ToolTipService.ToolTip="굵게 (Ctrl+B)" Label="굵게">
+                <TextBlock Text="B" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </AppBarButton>
+            <AppBarButton Click="OnMarkdownItalicClick" ToolTipService.ToolTip="기울임 (Ctrl+I)" Label="기울임">
+                <TextBlock Text="I" FontSize="16" FontStyle="Italic" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </AppBarButton>
+            <AppBarButton Click="OnMarkdownUnderlineClick" ToolTipService.ToolTip="밑줄 (Ctrl+U)" Label="밑줄">
+                <Grid Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="U" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Border Height="1.5" Background="{ThemeResource SystemControlForegroundBaseHighBrush}" VerticalAlignment="Bottom" Margin="1,0,1,0"/>
+                </Grid>
+            </AppBarButton>
+            <AppBarButton Click="OnMarkdownHighlightClick" ToolTipService.ToolTip="형광펜" Label="형광펜">
+                <Border Background="#FFEB3B" CornerRadius="2" Padding="2,0,2,0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="HL" FontSize="12" FontWeight="Bold" Foreground="Black"/>
+                </Border>
+            </AppBarButton>
             <AppBarSeparator/>
             <AppBarButton Label="•" Click="OnMarkdownUlClick" ToolTipService.ToolTip="글머리 목록"/>
             <AppBarButton Label="✂" Click="OnMarkdownCutLineClick" ToolTipService.ToolTip="현재 줄 자르기"/>
@@ -297,7 +333,7 @@
                             
                             <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,10">
                                 <TextBlock Text="폴더 전체 검색 및 치환" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
-                                <TextBox x:Name="SearchQueryInput" PlaceholderText="검색어 입력..."/>
+                                <TextBox x:Name="SearchQueryInput" PlaceholderText="검색어 입력..." KeyDown="OnSearchQueryInputKeyDown"/>
                                 <TextBox x:Name="ReplaceQueryInput" PlaceholderText="치환할 단어 입력..."/>
                                 
                                 <Grid ColumnSpacing="5">
@@ -537,6 +573,7 @@
                     <Border Background="{ThemeResource SystemControlBackgroundAccentBrush}" CornerRadius="3" Padding="6,1,6,1">
                         <TextBlock x:Name="StatusMode" Text="일반 모드" FontSize="10" FontWeight="Bold" Foreground="White"/>
                     </Border>
+                    <TextBlock x:Name="StatusLanguage" Text="PLAINTEXT" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
                     <TextBlock Text="UTF-8" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
                 </StackPanel>
 

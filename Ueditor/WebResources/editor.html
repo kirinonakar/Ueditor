@@ -1135,6 +1135,10 @@
         findNextButton.addEventListener('click', () => findNextMatch(1));
         findClose.addEventListener('click', closeFindPanel);
 
+        // Prevent duplicate window launching on drag-and-drop
+        window.addEventListener('dragover', e => e.preventDefault(), false);
+        window.addEventListener('drop', e => e.preventDefault(), false);
+
         if (window.chrome && window.chrome.webview) {
             window.chrome.webview.addEventListener('message', event => {
                 const msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;

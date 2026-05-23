@@ -15,8 +15,20 @@ namespace Ueditor.Core.Services.LLM
             if (string.IsNullOrEmpty(apiKey))
                 throw new ArgumentException("API Key가 유효하지 않습니다. 설정을 먼저 확인해 주십시오.");
 
-            // Standard Gemini API endpoint matching Google developer specifications
-            string requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent";
+            string baseUrl = string.IsNullOrWhiteSpace(endpoint) ? "https://generativelanguage.googleapis.com" : endpoint.TrimEnd('/');
+            string requestUrl;
+            if (baseUrl.Contains("/v1beta/models") || baseUrl.Contains("/v1/models"))
+            {
+                requestUrl = $"{baseUrl}/{model}:generateContent";
+            }
+            else if (baseUrl.Contains("/v1beta") || baseUrl.Contains("/v1"))
+            {
+                requestUrl = $"{baseUrl}/models/{model}:generateContent";
+            }
+            else
+            {
+                requestUrl = $"{baseUrl}/v1beta/models/{model}:generateContent";
+            }
 
             var payload = new
             {

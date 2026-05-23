@@ -98,6 +98,7 @@ namespace Ueditor
 
             this.Activated += OnWindowActivated;
             this.Closed += OnWindowClosed;
+            this.AppWindow.Closing += OnAppWindowClosing;
         }
 
         private void SetupCustomTitleBar()
@@ -135,7 +136,8 @@ namespace Ueditor
             await _settingsService.LoadSettingsAsync();
             WordWrapToggle.IsChecked = _settingsService.CurrentSettings.WordWrap;
             LeftPanelToggle.IsChecked = true;
-            RightPanelToggle.IsChecked = true;
+            RightPanelToggle.IsChecked = _settingsService.CurrentSettings.DefaultMarkdownEnabled;
+            ApplyPreviewVisibility(_settingsService.CurrentSettings.DefaultMarkdownEnabled);
             PreviewModeCombo.SelectedIndex = _settingsService.CurrentSettings.PreviewMode switch
             {
                 "HTML" => 1,
@@ -168,6 +170,7 @@ namespace Ueditor
         {
             try
             {
+                PreviewWebView.DefaultBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
                 string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
                 string cacheFolder = Path.Combine(localAppData, "Ueditor", "WebView2Cache");
                 var env = await CoreWebView2Environment.CreateWithOptionsAsync(null, cacheFolder, null);
@@ -231,7 +234,8 @@ namespace Ueditor
             {
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Stretch,
-                AllowDrop = true
+                AllowDrop = true,
+                DefaultBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0)
             };
             editorWebView.DragOver += OnRootDragOver;
             editorWebView.Drop += OnRootDrop;
@@ -287,6 +291,9 @@ namespace Ueditor
                     _activeTabForPreview = tab;
                     _previewDebounceTimer.Stop();
                     _previewDebounceTimer.Start();
+
+                    // Real-time language detection
+                    UpdateLanguageUI(tab);
                 };
 
                 bridge.CursorChanged += (line, col) =>
@@ -693,89 +700,9 @@ namespace Ueditor
                 activeTabItem.Tag is string tabId)
             {
                 var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
-                if (tab == null) return;
-
-                if (tab.IsLargeFileMode)
+                if (tab != null)
                 {
-                    if (string.IsNullOrEmpty(tab.FilePath)) return;
-
-                    try
-                    {
-                        await _fileService.SaveLargeFileWithPatchesAsync(tab.FilePath, tab.LargeFilePatches);
-                        tab.LargeFilePatches.Clear();
-                        tab.IsDirty = false;
-                        activeTabItem.Header = tab.DisplayTitle;
-
-                        // Find WebView2 in grid hierarchy to post init and refresh
-                        WebView2? wv = null;
-                        if (activeTabItem.Content is Grid grid)
-                        {
-                            wv = grid.Children.FirstOrDefault(c => c is WebView2) as WebView2;
-                        }
-
-                        if (wv != null && wv.CoreWebView2 != null)
-                        {
-                            int count = await _fileService.GetLargeFileLineCountAsync(tab.FilePath);
-                            var initMsg = new
-                            {
-                                action = "init",
-                                filePath = tab.FilePath,
-                                lineCount = count,
-                                theme = _settingsService.CurrentSettings.Theme,
-                                fontSize = _settingsService.CurrentSettings.FontSize,
-                                fontFamily = _settingsService.CurrentSettings.FontFamily,
-                                customBackgroundColor = _settingsService.CurrentSettings.CustomBackgroundColor,
-                                customForegroundColor = _settingsService.CurrentSettings.CustomForegroundColor,
-                                readOnly = true
-                            };
-                            string initJson = System.Text.Json.JsonSerializer.Serialize(initMsg);
-                            wv.CoreWebView2.PostWebMessageAsJson(initJson);
-                        }
-
-                        UpdateStatusFileStats(tab);
-                        await RefreshGitStatusUIAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        ShowErrorMessage("대용량 파일 저장 실패", ex.Message);
-                    }
-                    return;
-                }
-
-                if (string.IsNullOrEmpty(tab.FilePath))
-                {
-                    // Open Save File Picker
-                    var picker = new FileSavePicker();
-                    InitializePickerWindow(picker);
-                    picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
-                    picker.FileTypeChoices.Add("텍스트 파일", new List<string>() { ".txt" });
-                    picker.FileTypeChoices.Add("마크다운 파일", new List<string>() { ".md", ".markdown" });
-                    picker.FileTypeChoices.Add("HTML 파일", new List<string>() { ".html" });
-                    picker.FileTypeChoices.Add("LaTeX 파일", new List<string>() { ".tex" });
-                    picker.SuggestedFileName = tab.Title;
-
-                    var file = await picker.PickSaveFileAsync();
-                    if (file != null)
-                    {
-                        tab.FilePath = file.Path;
-                        tab.Title = file.Name;
-                    }
-                    else
-                    {
-                        return; // Canceled
-                    }
-                }
-
-                try
-                {
-                    await _fileService.SaveTextFileAsync(tab.FilePath, tab.Content);
-                    tab.IsDirty = false;
-                    activeTabItem.Header = tab.DisplayTitle;
-                    UpdateStatusFileStats(tab);
-                }
-                catch (Exception ex)
-                {
-                    ShowErrorMessage("저장 실패", ex.Message);
+                    await SaveTabAsync(tab);
                 }
             }
         }
@@ -907,32 +834,7 @@ namespace Ueditor
 
         private void OnTogglePreviewClick(object sender, RoutedEventArgs e)
         {
-            bool show = RightPanelToggle.IsChecked == true;
-            if (!show)
-            {
-                double currentWidth = PreviewGrid.ActualWidth > 0 ? PreviewGrid.ActualWidth : PreviewColumn.Width.Value;
-                if (currentWidth > 0)
-                {
-                    _lastPreviewWidth = currentWidth;
-                }
-                PreviewColumn.MinWidth = 0;
-                PreviewColumn.Width = new GridLength(0);
-                RightSplitter.Visibility = Visibility.Collapsed;
-                PreviewGrid.Visibility = Visibility.Collapsed;
-            }
-            else
-            {
-                PreviewColumn.MinWidth = PreviewPanelMinWidth;
-                PreviewColumn.Width = new GridLength(Math.Max(_lastPreviewWidth, PreviewColumn.MinWidth));
-                RightSplitter.Visibility = Visibility.Visible;
-                PreviewGrid.Visibility = Visibility.Visible;
-                if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
-                    activeTabItem.Tag is string tabId)
-                {
-                    var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
-                    if (tab != null) UpdateLivePreview(tab);
-                }
-            }
+            ApplyPreviewVisibility(RightPanelToggle.IsChecked == true);
         }
 
         private async void OnToggleThemeClick(object sender, RoutedEventArgs e)
@@ -1011,6 +913,7 @@ namespace Ueditor
             var minimapCheck = new CheckBox { Content = "미니맵 표시 (로컬 Monaco 번들 사용 시)", IsChecked = settings.MinimapEnabled };
             var bracketPairCheck = new CheckBox { Content = "Bracket pair colorization (로컬 Monaco 번들 사용 시)", IsChecked = settings.BracketPairColorizationEnabled };
             var autoSaveCheck = new CheckBox { Content = "Autosave 사용", IsChecked = settings.AutoSave };
+            var defaultMarkdownCheck = new CheckBox { Content = "실시간 미리보기 기본 활성화", IsChecked = settings.DefaultMarkdownEnabled };
             var tabSizeBox = new TextBox { PlaceholderText = "예: 4", Text = settings.TabSize.ToString(), HorizontalAlignment = HorizontalAlignment.Stretch };
             var largeThresholdBox = new TextBox { PlaceholderText = "예: 50", Text = settings.LargeFileThresholdMB.ToString(), HorizontalAlignment = HorizontalAlignment.Stretch };
 
@@ -1028,7 +931,12 @@ namespace Ueditor
 
             var llmEndpointBox = new TextBox { PlaceholderText = "예: http://localhost:1234/v1", Text = settings.LlmEndpoint, HorizontalAlignment = HorizontalAlignment.Stretch };
             var llmModelCombo = new ComboBox { PlaceholderText = "모델 선택", HorizontalAlignment = HorizontalAlignment.Stretch };
-            var llmApiKeyBox = new PasswordBox { PasswordChar = "●", PlaceholderText = "새 API Key 입력 (비워두면 기존 Key 유지)", HorizontalAlignment = HorizontalAlignment.Stretch };
+            var llmApiKeyBox = new PasswordBox { PasswordChar = "●", PlaceholderText = "API Key 입력 (비워두면 저장된 Key 삭제)", HorizontalAlignment = HorizontalAlignment.Stretch };
+            
+            // Async load the stored key for currently selected provider
+            string initialKey = await _llmService.GetApiKeyAsync(providerNames[providerIndex]);
+            llmApiKeyBox.Password = initialKey;
+
             var refreshLmStudioModelsButton = new Button { Content = "LM Studio 모델 불러오기", HorizontalAlignment = HorizontalAlignment.Stretch };
             var llmModelStatusText = new TextBlock
             {
@@ -1069,14 +977,30 @@ namespace Ueditor
 
                 if (provider.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
                 {
-                    AddModelChoice("gemini-2.5-flash");
-                    AddModelChoice("gemini-2.5-pro");
+                    AddModelChoice("gemini-flash-lite-latest");
+                    AddModelChoice("gemini-flash-latest");
+                    AddModelChoice("gemini-pro-latest");
+                    AddModelChoice("gemma-4-26b-a4b-it");
+                    AddModelChoice("gemma-4-31b-it");
+
+                    if (selectedModel == null || 
+                        (!selectedModel.Equals("gemini-flash-lite-latest", StringComparison.OrdinalIgnoreCase) &&
+                         !selectedModel.Equals("gemini-flash-latest", StringComparison.OrdinalIgnoreCase) &&
+                         !selectedModel.Equals("gemini-pro-latest", StringComparison.OrdinalIgnoreCase) &&
+                         !selectedModel.Equals("gemma-4-26b-a4b-it", StringComparison.OrdinalIgnoreCase) &&
+                         !selectedModel.Equals("gemma-4-31b-it", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        selectedModel = "gemini-flash-lite-latest";
+                    }
                 }
                 else if (provider.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
                 {
-                    AddModelChoice("gpt-4o");
-                    AddModelChoice("gpt-4o-mini");
-                    AddModelChoice("gpt-4");
+                    AddModelChoice("gpt-5.5");
+
+                    if (selectedModel == null || !selectedModel.Equals("gpt-5.5", StringComparison.OrdinalIgnoreCase))
+                    {
+                        selectedModel = "gpt-5.5";
+                    }
                 }
 
                 SelectModelChoice(selectedModel);
@@ -1086,7 +1010,8 @@ namespace Ueditor
             {
                 return string.IsNullOrWhiteSpace(endpoint) ||
                        endpoint.Equals("https://api.openai.com/v1", StringComparison.OrdinalIgnoreCase) ||
-                       endpoint.Equals("http://localhost:1234/v1", StringComparison.OrdinalIgnoreCase);
+                       endpoint.Equals("http://localhost:1234/v1", StringComparison.OrdinalIgnoreCase) ||
+                       endpoint.Equals("https://generativelanguage.googleapis.com", StringComparison.OrdinalIgnoreCase);
             }
 
             void ApplyProviderDefaults(string provider)
@@ -1103,6 +1028,10 @@ namespace Ueditor
                 else if (provider.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
                 {
                     llmEndpointBox.Text = "https://api.openai.com/v1";
+                }
+                else if (provider.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
+                {
+                    llmEndpointBox.Text = "https://generativelanguage.googleapis.com";
                 }
             }
 
@@ -1144,7 +1073,7 @@ namespace Ueditor
 
             PopulateModelChoices(GetSelectedProviderName(), settings.LlmModel);
 
-            llmProviderCombo.SelectionChanged += (_, __) =>
+            llmProviderCombo.SelectionChanged += async (_, __) =>
             {
                 string provider = GetSelectedProviderName();
                 ApplyProviderDefaults(provider);
@@ -1154,6 +1083,10 @@ namespace Ueditor
                 {
                     llmModelStatusText.Text = "LM Studio 모델 목록은 버튼을 눌러 필요할 때 불러옵니다.";
                 }
+
+                // Dynamic API Key Loading per provider
+                string key = await _llmService.GetApiKeyAsync(provider);
+                llmApiKeyBox.Password = key;
             };
 
             refreshLmStudioModelsButton.Click += async (_, __) => await RefreshLmStudioModelsAsync();
@@ -1187,17 +1120,11 @@ namespace Ueditor
             editorSection.Children.Add(minimapCheck);
             editorSection.Children.Add(bracketPairCheck);
             editorSection.Children.Add(autoSaveCheck);
+            editorSection.Children.Add(defaultMarkdownCheck);
             AddLabel(editorSection, "Tab size");
             editorSection.Children.Add(tabSizeBox);
             AddLabel(editorSection, "Large File Mode 제안 기준 (MB)");
             editorSection.Children.Add(largeThresholdBox);
-
-            var previewSection = CreateSection();
-            previewSection.Children.Add(new TextBlock
-            {
-                Text = "Preview는 외부 CDN 없이 내장 렌더러로 동작합니다. Markdown/HTML/LaTeX 모드를 우측 패널 상단에서 전환할 수 있고, 앱 테마와 커스텀 색상이 함께 적용됩니다.",
-                TextWrapping = TextWrapping.Wrap
-            });
 
             var llmSection = CreateSection();
             AddLabel(llmSection, "LLM 공급자");
@@ -1219,7 +1146,6 @@ namespace Ueditor
             var settingsPivot = new Pivot { Width = 500, Height = 440 };
             settingsPivot.Items.Add(new PivotItem { Header = "모양", Content = new ScrollViewer { Content = appearanceSection } });
             settingsPivot.Items.Add(new PivotItem { Header = "편집", Content = new ScrollViewer { Content = editorSection } });
-            settingsPivot.Items.Add(new PivotItem { Header = "Preview", Content = new ScrollViewer { Content = previewSection } });
             settingsPivot.Items.Add(new PivotItem { Header = "LLM", Content = new ScrollViewer { Content = llmSection } });
 
             var dialog = new ContentDialog
@@ -1255,14 +1181,21 @@ namespace Ueditor
                 settings.LlmProvider = GetSelectedProviderName();
                 settings.LlmEndpoint = llmEndpointBox.Text.Trim();
                 settings.LlmModel = (llmModelCombo.SelectedItem as string ?? settings.LlmModel).Trim();
+                settings.DefaultMarkdownEnabled = defaultMarkdownCheck.IsChecked == true;
+                
                 string newApiKey = llmApiKeyBox.Password.Trim();
-                if (!string.IsNullOrEmpty(newApiKey))
+                await _llmService.SaveApiKeyAsync(settings.LlmProvider, newApiKey);
+                if (string.IsNullOrEmpty(newApiKey))
                 {
-                    await _llmService.SaveApiKeyAsync(settings.LlmProvider, newApiKey);
+                    LlmOutputText.Text = $"{settings.LlmProvider} API Key가 Windows 자격 증명 저장소에서 삭제되었습니다.";
+                }
+                else
+                {
                     LlmOutputText.Text = $"{settings.LlmProvider} API Key가 Windows 자격 증명 저장소에 저장되었습니다.";
                 }
 
                 await _settingsService.SaveSettingsAsync(settings);
+                ApplyPreviewVisibility(settings.DefaultMarkdownEnabled);
                 WordWrapToggle.IsChecked = settings.WordWrap;
                 ApplyUiPersonalization(settings);
 
@@ -1433,27 +1366,29 @@ namespace Ueditor
 
         private void OnOpenTerminalClick(object sender, RoutedEventArgs e)
         {
-            // Toggle terminal panel visibility
-            if (TerminalPanel.Visibility == Visibility.Visible)
+            string workingDirectory = GetTerminalWorkingDirectory();
+            if (string.IsNullOrWhiteSpace(workingDirectory) || !Directory.Exists(workingDirectory))
             {
-                // Close terminal
-                StopEmbeddedTerminal();
-                TerminalPanel.Visibility = Visibility.Collapsed;
-                TerminalPanelRow.Height = new GridLength(0);
+                ShowErrorMessage("터미널 오류", "터미널을 열 폴더를 찾을 수 없습니다. 먼저 폴더를 선택해 주세요.");
                 if (TerminalToggleButton != null) TerminalToggleButton.IsChecked = false;
+                return;
             }
-            else
+
+            try
             {
-                string workingDirectory = GetTerminalWorkingDirectory();
-                if (string.IsNullOrWhiteSpace(workingDirectory) || !Directory.Exists(workingDirectory))
+                Process.Start(new ProcessStartInfo
                 {
-                    ShowErrorMessage("터미널 오류", "터미널을 열 폴더를 찾을 수 없습니다. 먼저 폴더를 선택해 주세요.");
-                    if (TerminalToggleButton != null) TerminalToggleButton.IsChecked = false;
-                    return;
-                }
-                OpenEmbeddedTerminal(workingDirectory);
-                if (TerminalToggleButton != null) TerminalToggleButton.IsChecked = true;
+                    FileName = "powershell.exe",
+                    WorkingDirectory = workingDirectory,
+                    UseShellExecute = true
+                });
             }
+            catch (Exception ex)
+            {
+                ShowErrorMessage("터미널 실행 실패", $"터미널을 열지 못했습니다: {ex.Message}");
+            }
+
+            if (TerminalToggleButton != null) TerminalToggleButton.IsChecked = false;
         }
 
         private string GetTerminalWorkingDirectory()
@@ -1735,8 +1670,8 @@ namespace Ueditor
             }
             else if (result == ContentDialogResult.Secondary)
             {
-                OnSaveFileClick(this, new RoutedEventArgs());
-                if (!tab.IsDirty)
+                bool saved = await SaveTabAsync(tab);
+                if (saved)
                 {
                     CloseTabAndCleanup(tab, tabItem);
                 }
@@ -1774,6 +1709,7 @@ namespace Ueditor
                 {
                     UpdateStatusFileStats(tab);
                     UpdateLivePreview(tab);
+                    UpdateLanguageUI(tab);
 
                     // Sync selection for active Monaco editor
                     if (_tabBridges.TryGetValue(tab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
@@ -1889,7 +1825,10 @@ namespace Ueditor
 
         private void UpdateTextColorButtonVisual(Windows.UI.Color color)
         {
-            TextColorButton.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(color);
+            var brush = new Microsoft.UI.Xaml.Media.SolidColorBrush(color);
+            TextColorButton.Foreground = brush;
+            TextColorButton.Resources["AppBarButtonForegroundPointerOver"] = brush;
+            TextColorButton.Resources["AppBarButtonForegroundPressed"] = brush;
         }
 
         private async void OnAddFolderToFavoritesClick(object sender, RoutedEventArgs e)
@@ -2389,9 +2328,9 @@ namespace Ueditor
                 titleBar.ForegroundColor = foreground;
                 titleBar.InactiveBackgroundColor = inactiveBackground;
                 titleBar.InactiveForegroundColor = foreground;
-                titleBar.ButtonBackgroundColor = background;
+                titleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
                 titleBar.ButtonForegroundColor = foreground;
-                titleBar.ButtonInactiveBackgroundColor = inactiveBackground;
+                titleBar.ButtonInactiveBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
                 titleBar.ButtonInactiveForegroundColor = foreground;
                 titleBar.ButtonHoverBackgroundColor = hoverBackground;
                 titleBar.ButtonHoverForegroundColor = foreground;
@@ -3054,6 +2993,465 @@ namespace Ueditor
                     }
                 }
             }
+        }
+
+        
+        // ----------------------------------------------------
+        // Premium Helpers added for Ueditor Enhancements
+        // ----------------------------------------------------
+
+        private async Task<bool> SaveTabAsync(OpenedTab tab)
+        {
+            var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id);
+            if (tabItem == null) return false;
+
+            if (tab.IsLargeFileMode)
+            {
+                if (string.IsNullOrEmpty(tab.FilePath)) return false;
+
+                try
+                {
+                    await _fileService.SaveLargeFileWithPatchesAsync(tab.FilePath, tab.LargeFilePatches);
+                    tab.LargeFilePatches.Clear();
+                    tab.IsDirty = false;
+                    tabItem.Header = tab.DisplayTitle;
+
+                    WebView2? wv = null;
+                    if (tabItem.Content is Grid grid)
+                    {
+                        wv = grid.Children.FirstOrDefault(c => c is WebView2) as WebView2;
+                    }
+
+                    if (wv != null && wv.CoreWebView2 != null)
+                    {
+                        int count = await _fileService.GetLargeFileLineCountAsync(tab.FilePath);
+                        var initMsg = new
+                        {
+                            action = "init",
+                            filePath = tab.FilePath,
+                            lineCount = count,
+                            theme = _settingsService.CurrentSettings.Theme,
+                            fontSize = _settingsService.CurrentSettings.FontSize,
+                            fontFamily = _settingsService.CurrentSettings.FontFamily,
+                            customBackgroundColor = _settingsService.CurrentSettings.CustomBackgroundColor,
+                            customForegroundColor = _settingsService.CurrentSettings.CustomForegroundColor,
+                            readOnly = true
+                        };
+                        string initJson = System.Text.Json.JsonSerializer.Serialize(initMsg);
+                        wv.CoreWebView2.PostWebMessageAsJson(initJson);
+                    }
+
+                    UpdateStatusFileStats(tab);
+                    await RefreshGitStatusUIAsync();
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    ShowErrorMessage("대용량 파일 저장 실패", ex.Message);
+                    return false;
+                }
+            }
+
+            if (string.IsNullOrEmpty(tab.FilePath))
+            {
+                var picker = new FileSavePicker();
+                InitializePickerWindow(picker);
+                picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+                picker.FileTypeChoices.Add("텍스트 파일", new List<string>() { ".txt" });
+                picker.FileTypeChoices.Add("마크다운 파일", new List<string>() { ".md", ".markdown" });
+                picker.FileTypeChoices.Add("HTML 파일", new List<string>() { ".html" });
+                picker.FileTypeChoices.Add("LaTeX 파일", new List<string>() { ".tex" });
+                picker.SuggestedFileName = tab.Title;
+
+                var file = await picker.PickSaveFileAsync();
+                if (file != null)
+                {
+                    tab.FilePath = file.Path;
+                    tab.Title = file.Name;
+                    tab.Language = GetMonacoLanguageName(file.Path);
+                }
+                else
+                {
+                    return false; // Canceled
+                }
+            }
+
+            try
+            {
+                await _fileService.SaveTextFileAsync(tab.FilePath, tab.Content);
+                tab.IsDirty = false;
+                tabItem.Header = tab.DisplayTitle;
+                UpdateStatusFileStats(tab);
+                UpdateLanguageUI(tab);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage("저장 실패", ex.Message);
+                return false;
+            }
+        }
+
+        private void OnCloseActiveTabShortcutInvoked(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+        {
+            args.Handled = true;
+            if (EditorTabView.SelectedItem is TabViewItem tabItem && tabItem.Tag is string tabId)
+            {
+                var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
+                if (tab != null)
+                {
+                    if (tab.IsDirty)
+                    {
+                        WarnUnsavedAndClose(tab, tabItem);
+                    }
+                    else
+                    {
+                        CloseTabAndCleanup(tab, tabItem);
+                    }
+                }
+            }
+        }
+
+        private bool _isClosingConfirmed = false;
+        private async void OnAppWindowClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
+        {
+            if (_isClosingConfirmed) return;
+
+            var dirtyTabs = _tabs.Where(t => t.IsDirty).ToList();
+            if (dirtyTabs.Count == 0) return;
+
+            args.Cancel = true; // Prevent immediate close
+
+            var dialog = new ContentDialog
+            {
+                Title = "저장되지 않은 변경 사항",
+                Content = $"저장되지 않은 탭이 {dirtyTabs.Count}개 있습니다. 종료하기 전에 저장하시겠습니까?",
+                PrimaryButtonText = "저장하고 종료",
+                SecondaryButtonText = "저장하지 않고 종료",
+                CloseButtonText = "취소",
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                foreach (var tab in dirtyTabs)
+                {
+                    bool saved = await SaveTabAsync(tab);
+                    if (!saved) return; // Abort exit if save fails or cancels
+                }
+                _isClosingConfirmed = true;
+                this.Close();
+            }
+            else if (result == ContentDialogResult.Secondary)
+            {
+                _isClosingConfirmed = true;
+                this.Close();
+            }
+        }
+
+        private string DetectLanguageFromContent(string text, string defaultLanguage = "plaintext")
+        {
+            if (string.IsNullOrWhiteSpace(text)) return defaultLanguage;
+
+            string sample = text.Trim();
+            if (sample.Length > 2000) sample = sample.Substring(0, 2000);
+
+            if (sample.StartsWith("{") && sample.EndsWith("}") && sample.Contains("\"")) return "json";
+            if (sample.StartsWith("[") && sample.EndsWith("]") && sample.Contains("{\"")) return "json";
+
+            if (sample.Contains("<!DOCTYPE html", StringComparison.OrdinalIgnoreCase) ||
+                sample.Contains("<html", StringComparison.OrdinalIgnoreCase) ||
+                sample.Contains("<head", StringComparison.OrdinalIgnoreCase) ||
+                sample.Contains("<body", StringComparison.OrdinalIgnoreCase)) return "html";
+
+            if (sample.Contains("\\documentclass") ||
+                sample.Contains("\\begin{document}") ||
+                sample.Contains("\\begin{align}") ||
+                sample.Contains("$$\n") ||
+                sample.Contains("\\frac{")) return "latex";
+
+            if (sample.Contains("\n# ") || sample.StartsWith("# ") ||
+                sample.Contains("## ") ||
+                sample.Contains("```") ||
+                sample.Contains("- [ ] ") ||
+                sample.Contains("**")) return "markdown";
+
+            if (sample.Contains("using System;") ||
+                sample.Contains("namespace ") ||
+                (sample.Contains("public class ") && sample.Contains("void Main")) ||
+                sample.Contains("Console.WriteLine(")) return "csharp";
+
+            if (sample.Contains("#include <iostream>") ||
+                sample.Contains("std::cout") ||
+                sample.Contains("int main()")) return "cpp";
+
+            if (sample.Contains("public class ") && sample.Contains("public static void main") ||
+                sample.Contains("System.out.println(")) return "java";
+
+            if (sample.Contains("import os") ||
+                (sample.Contains("def ") && sample.Contains(":")) ||
+                (sample.Contains("print(") && sample.Contains("if __name__ == ")) ||
+                sample.Contains("elif ")) return "python";
+
+            if ((sample.Contains("const ") && sample.Contains(" = require(")) ||
+                (sample.Contains("import ") && sample.Contains(" from ")) ||
+                sample.Contains("console.log(") ||
+                sample.Contains("document.getElementById(")) return "javascript";
+
+            return defaultLanguage;
+        }
+
+        private void UpdateLanguageUI(OpenedTab tab)
+        {
+            if (tab == null) return;
+            string detected = tab.Language;
+            if (detected == "plaintext" || string.IsNullOrEmpty(detected))
+            {
+                detected = DetectLanguageFromContent(tab.Content, "plaintext");
+            }
+
+            if (StatusLanguage != null)
+            {
+                StatusLanguage.Text = detected.ToUpper();
+            }
+
+            if (tab.Language != detected)
+            {
+                tab.Language = detected;
+                if (_tabBridges.TryGetValue(tab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
+                {
+                    _ = bridgeGroup.Bridge.SetLanguageAsync(detected);
+                }
+            }
+        }
+
+        private async Task LoadFileIntoTabAndHighlightAsync(SearchResultItem item)
+        {
+            await LoadFileIntoTabAsync(item.Path);
+            await Task.Delay(250);
+            if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
+                activeTabItem.Tag is string tabId &&
+                _tabBridges.TryGetValue(tabId, out var bridgeGroup))
+            {
+                if (bridgeGroup.Bridge != null)
+                {
+                    await bridgeGroup.Bridge.RevealLineAsync(item.LineNumber);
+                }
+                else if (bridgeGroup.WebView?.CoreWebView2 != null)
+                {
+                    var revealMsg = new { action = "revealLine", lineNumber = item.LineNumber };
+                    bridgeGroup.WebView.CoreWebView2.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(revealMsg));
+                }
+            }
+        }
+
+        private async void OnSearchQueryInputKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                e.Handled = true;
+                string query = SearchQueryInput.Text;
+                if (string.IsNullOrWhiteSpace(query)) return;
+
+                if (_searchResultsList.Count == 0)
+                {
+                    OnSearchAllFilesClick(this, new RoutedEventArgs());
+                }
+                else
+                {
+                    int nextIndex = 0;
+                    if (SearchResultsList.SelectedIndex >= 0)
+                    {
+                        nextIndex = (SearchResultsList.SelectedIndex + 1) % _searchResultsList.Count;
+                    }
+                    SearchResultsList.SelectedIndex = nextIndex;
+                    SearchResultsList.ScrollIntoView(SearchResultsList.SelectedItem);
+                    
+                    if (SearchResultsList.SelectedItem is SearchResultItem selectedItem)
+                    {
+                        await LoadFileIntoTabAndHighlightAsync(selectedItem);
+                    }
+                }
+            }
+        }
+
+        private void ApplyPreviewVisibility(bool show)
+        {
+            RightPanelToggle.IsChecked = show;
+            if (!show)
+            {
+                double currentWidth = PreviewGrid.ActualWidth > 0 ? PreviewGrid.ActualWidth : PreviewColumn.Width.Value;
+                if (currentWidth > 0)
+                {
+                    _lastPreviewWidth = currentWidth;
+                }
+                PreviewColumn.MinWidth = 0;
+                PreviewColumn.Width = new GridLength(0);
+                RightSplitter.Visibility = Visibility.Collapsed;
+                PreviewGrid.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                PreviewColumn.MinWidth = PreviewPanelMinWidth;
+                PreviewColumn.Width = new GridLength(Math.Max(_lastPreviewWidth, PreviewColumn.MinWidth));
+                RightSplitter.Visibility = Visibility.Visible;
+                PreviewGrid.Visibility = Visibility.Visible;
+                if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
+                    activeTabItem.Tag is string tabId)
+                {
+                    var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
+                    if (tab != null) UpdateLivePreview(tab);
+                }
+            }
+        }
+
+        private async void OnCompareFilesClick(object sender, RoutedEventArgs e)
+        {
+            var panel = new StackPanel { Spacing = 12, Width = 400 };
+            
+            var originalLabel = new TextBlock { Text = "원본 파일 (Original File)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+            var originalPathBox = new TextBox { PlaceholderText = "원본 파일 경로...", IsReadOnly = true };
+            var originalBrowseBtn = new Button { Content = "찾아보기..." };
+            var originalRow = new Grid();
+            originalRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            originalRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Grid.SetColumn(originalPathBox, 0);
+            Grid.SetColumn(originalBrowseBtn, 1);
+            originalBrowseBtn.Margin = new Thickness(8, 0, 0, 0);
+            originalRow.Children.Add(originalPathBox);
+            originalRow.Children.Add(originalBrowseBtn);
+
+            var modifiedLabel = new TextBlock { Text = "비교 대상 파일 (Modified File)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+            var modifiedPathBox = new TextBox { PlaceholderText = "비교 대상 파일 경로...", IsReadOnly = true };
+            var modifiedBrowseBtn = new Button { Content = "찾아보기..." };
+            var modifiedRow = new Grid();
+            modifiedRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            modifiedRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Grid.SetColumn(modifiedPathBox, 0);
+            Grid.SetColumn(modifiedBrowseBtn, 1);
+            modifiedBrowseBtn.Margin = new Thickness(8, 0, 0, 0);
+            modifiedRow.Children.Add(modifiedPathBox);
+            modifiedRow.Children.Add(modifiedBrowseBtn);
+
+            panel.Children.Add(originalLabel);
+            panel.Children.Add(originalRow);
+            panel.Children.Add(new MenuFlyoutSeparator());
+            panel.Children.Add(modifiedLabel);
+            panel.Children.Add(modifiedRow);
+
+            originalBrowseBtn.Click += async (_, __) =>
+            {
+                var picker = new FileOpenPicker();
+                InitializePickerWindow(picker);
+                picker.FileTypeFilter.Add("*");
+                var file = await picker.PickSingleFileAsync();
+                if (file != null) originalPathBox.Text = file.Path;
+            };
+
+            modifiedBrowseBtn.Click += async (_, __) =>
+            {
+                var picker = new FileOpenPicker();
+                InitializePickerWindow(picker);
+                picker.FileTypeFilter.Add("*");
+                var file = await picker.PickSingleFileAsync();
+                if (file != null) modifiedPathBox.Text = file.Path;
+            };
+
+            var dialog = new ContentDialog
+            {
+                Title = "파일 비교 (File Compare)",
+                Content = panel,
+                PrimaryButtonText = "비교하기",
+                CloseButtonText = "취소",
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                string pathA = originalPathBox.Text.Trim();
+                string pathB = modifiedPathBox.Text.Trim();
+                if (!string.IsNullOrEmpty(pathA) && !string.IsNullOrEmpty(pathB) && File.Exists(pathA) && File.Exists(pathB))
+                {
+                    await OpenCompareTabAsync(pathA, pathB);
+                }
+                else
+                {
+                    ShowErrorMessage("비교 오류", "올바른 두 파일을 선택해 주세요.");
+                }
+            }
+        }
+
+        private async Task OpenCompareTabAsync(string pathA, string pathB)
+        {
+            string contentA = await _fileService.ReadTextFileAsync(pathA);
+            string contentB = await _fileService.ReadTextFileAsync(pathB);
+
+            string title = $"비교: {Path.GetFileName(pathA)} ↔ {Path.GetFileName(pathB)}";
+
+            var tab = new OpenedTab
+            {
+                Title = title,
+                FilePath = "",
+                Content = ""
+            };
+
+            _tabs.Add(tab);
+
+            var grid = new Grid();
+            var diffWebView = new WebView2
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch
+            };
+            grid.Children.Add(diffWebView);
+
+            var tabItem = new TabViewItem
+            {
+                Header = tab.Title,
+                Content = grid,
+                Tag = tab.Id
+            };
+
+            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string cacheFolder = Path.Combine(localAppData, "Ueditor", "WebView2Cache");
+            var env = await CoreWebView2Environment.CreateWithOptionsAsync(null, cacheFolder, null);
+            await diffWebView.EnsureCoreWebView2Async(env);
+
+            string webResourcesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "WebResources");
+            diffWebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                "ueditor.local",
+                webResourcesPath,
+                CoreWebView2HostResourceAccessKind.Allow
+            );
+
+            diffWebView.CoreWebView2.Settings.IsWebMessageEnabled = true;
+            diffWebView.CoreWebView2.Settings.IsScriptEnabled = true;
+            diffWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+
+            diffWebView.Source = new Uri("http://ueditor.local/diff.html");
+
+            diffWebView.NavigationCompleted += (s, e) =>
+            {
+                var msg = new
+                {
+                    action = "compare",
+                    titleA = Path.GetFileName(pathA),
+                    titleB = Path.GetFileName(pathB),
+                    textA = contentA,
+                    textB = contentB,
+                    theme = _settingsService.CurrentSettings.Theme,
+                    uiFontFamily = _settingsService.CurrentSettings.UiFontFamily
+                };
+                string json = System.Text.Json.JsonSerializer.Serialize(msg);
+                diffWebView.CoreWebView2.PostWebMessageAsJson(json);
+            };
+
+            _tabBridges[tab.Id] = (diffWebView, null!);
+
+            EditorTabView.TabItems.Add(tabItem);
+            EditorTabView.SelectedItem = tabItem;
         }
 
         #endregion

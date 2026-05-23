@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ueditor File Compare</title>
+    <style>
+        :root {
+            --bg: #1e1e1e;
+            --fg: #d4d4d4;
+            --border: #3e3e3e;
+            --header-bg: #252526;
+            --gutter-bg: #1e1e1e;
+            --gutter-fg: #858585;
+            --added-bg: rgba(46, 160, 67, 0.15);
+            --added-border: rgba(46, 160, 67, 0.4);
+            --removed-bg: rgba(248, 81, 73, 0.15);
+            --removed-border: rgba(248, 81, 73, 0.4);
+            --font-family: Consolas, "Courier New", monospace;
+            --ui-font: "Segoe UI", "Malgun Gothic", sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: var(--ui-font);
+        }
+
+        #container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+        }
+
+        #title-bar {
+            display: flex;
+            justify-content: space-between;
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        #diff-panels {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .diff-column {
+            display: flex;
+            flex-direction: column;
+            width: 50%;
+            height: 100%;
+            overflow: hidden;
+            border-right: 1px solid var(--border);
+        }
+
+        .diff-column:last-child {
+            border-right: 0;
+        }
+
+        .panel-header {
+            background: var(--header-bg);
+            padding: 6px 12px;
+            font-size: 12px;
+            color: var(--gutter-fg);
+            border-bottom: 1px solid var(--border);
+            font-family: var(--ui-font);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .view-wrapper {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+        }
+
+        .diff-view {
+            display: table;
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-family);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .diff-row {
+            display: table-row;
+        }
+
+        .line-number {
+            display: table-cell;
+            width: 50px;
+            text-align: right;
+            padding-right: 10px;
+            color: var(--gutter-fg);
+            background: var(--gutter-bg);
+            user-select: none;
+            border-right: 1px solid var(--border);
+        }
+
+        .line-content {
+            display: table-cell;
+            padding-left: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* Diff styling states */
+        .row-added {
+            background: var(--added-bg);
+        }
+        .row-added .line-content {
+            background: rgba(46, 160, 67, 0.08);
+            border-left: 3px solid var(--added-border);
+        }
+
+        .row-removed {
+            background: var(--removed-bg);
+        }
+        .row-removed .line-content {
+            background: rgba(248, 81, 73, 0.08);
+            border-left: 3px solid var(--removed-border);
+        }
+
+        .row-empty {
+            background: #171717;
+            user-select: none;
+        }
+        .row-empty .line-number {
+            color: transparent;
+            background: #171717;
+        }
+
+        /* Scrollbar aesthetics */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(127, 127, 127, 0.25);
+            border: 2px solid var(--bg);
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(127, 127, 127, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="title-bar">
+            <span>Ueditor 파일 비교 도구 (File Compare)</span>
+            <span id="diff-stats" style="font-weight: normal; color: var(--gutter-fg);">수집 중...</span>
+        </div>
+        <div id="diff-panels">
+            <!-- Left Panel (Original) -->
+            <div class="diff-column">
+                <div class="panel-header" id="left-header">원본 파일 (Original)</div>
+                <div class="view-wrapper" id="left-wrapper">
+                    <div class="diff-view" id="left-view"></div>
+                </div>
+            </div>
+            <!-- Right Panel (Modified) -->
+            <div class="diff-column">
+                <div class="panel-header" id="right-header">비교 대상 파일 (Modified)</div>
+                <div class="view-wrapper" id="right-wrapper">
+                    <div class="diff-view" id="right-view"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const leftWrapper = document.getElementById('left-wrapper');
+        const rightWrapper = document.getElementById('right-wrapper');
+        const leftView = document.getElementById('left-view');
+        const rightView = document.getElementById('right-view');
+
+        // Prevent dragging duplicate windows
+        window.addEventListener('dragover', e => e.preventDefault());
+        window.addEventListener('drop', e => e.preventDefault());
+
+        // LCS diff comparison logic
+        function computeLineDiff(textA, textB) {
+            const linesA = textA.split(/\r?\n/);
+            const linesB = textB.split(/\r?\n/);
+
+            const dp = Array(linesA.length + 1).fill(null).map(() => Array(linesB.length + 1).fill(0));
+            for (let i = 1; i <= linesA.length; i++) {
+                for (let j = 1; j <= linesB.length; j++) {
+                    if (linesA[i - 1] === linesB[j - 1]) {
+                        dp[i][j] = dp[i - 1][j - 1] + 1;
+                    } else {
+                        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+                    }
+                }
+            }
+
+            let i = linesA.length;
+            let j = linesB.length;
+            const diffA = [];
+            const diffB = [];
+
+            while (i > 0 || j > 0) {
+                if (i > 0 && j > 0 && linesA[i - 1] === linesB[j - 1]) {
+                    diffA.unshift({ type: 'unchanged', text: linesA[i - 1], lineNum: i });
+                    diffB.unshift({ type: 'unchanged', text: linesB[j - 1], lineNum: j });
+                    i--; j--;
+                } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+                    diffA.unshift({ type: 'empty', text: '', lineNum: null });
+                    diffB.unshift({ type: 'added', text: linesB[j - 1], lineNum: j });
+                    j--;
+                } else {
+                    diffA.unshift({ type: 'removed', text: linesA[i - 1], lineNum: i });
+                    diffB.unshift({ type: 'empty', text: '', lineNum: null });
+                    i--;
+                }
+            }
+
+            return { diffA, diffB };
+        }
+
+        function renderDiff(data) {
+            const { diffA, diffB } = computeLineDiff(data.textA, data.textB);
+
+            document.getElementById('left-header').textContent = `원본: ${data.titleA || '원본 파일'}`;
+            document.getElementById('right-header').textContent = `수정본: ${data.titleB || '비교 대상 파일'}`;
+
+            let leftHtml = '';
+            let rightHtml = '';
+            let additions = 0;
+            let deletions = 0;
+
+            for (let k = 0; k < diffA.length; k++) {
+                const itemA = diffA[k];
+                const itemB = diffB[k];
+
+                // Left row
+                if (itemA.type === 'removed') {
+                    leftHtml += `<div class="diff-row row-removed"><div class="line-number">${itemA.lineNum}</div><div class="line-content">- ${escapeHtml(itemA.text)}</div></div>`;
+                    deletions++;
+                } else if (itemA.type === 'empty') {
+                    leftHtml += `<div class="diff-row row-empty"><div class="line-number"></div><div class="line-content"></div></div>`;
+                } else {
+                    leftHtml += `<div class="diff-row"><div class="line-number">${itemA.lineNum}</div><div class="line-content">  ${escapeHtml(itemA.text)}</div></div>`;
+                }
+
+                // Right row
+                if (itemB.type === 'added') {
+                    rightHtml += `<div class="diff-row row-added"><div class="line-number">${itemB.lineNum}</div><div class="line-content">+ ${escapeHtml(itemB.text)}</div></div>`;
+                    additions++;
+                } else if (itemB.type === 'empty') {
+                    rightHtml += `<div class="diff-row row-empty"><div class="line-number"></div><div class="line-content"></div></div>`;
+                } else {
+                    rightHtml += `<div class="diff-row"><div class="line-number">${itemB.lineNum}</div><div class="line-content">  ${escapeHtml(itemB.text)}</div></div>`;
+                }
+            }
+
+            leftView.innerHTML = leftHtml;
+            rightView.innerHTML = rightHtml;
+
+            document.getElementById('diff-stats').textContent = `변경사항: 추가 ${additions}줄, 삭제 ${deletions}줄`;
+        }
+
+        function escapeHtml(value) {
+            return (value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // Synchronized Scrolling Logic
+        let isSyncingLeftScroll = false;
+        let isSyncingRightScroll = false;
+
+        leftWrapper.addEventListener('scroll', () => {
+            if (isSyncingLeftScroll) {
+                isSyncingLeftScroll = false;
+                return;
+            }
+            isSyncingRightScroll = true;
+            rightWrapper.scrollTop = leftWrapper.scrollTop;
+            rightWrapper.scrollLeft = leftWrapper.scrollLeft;
+        });
+
+        rightWrapper.addEventListener('scroll', () => {
+            if (isSyncingRightScroll) {
+                isSyncingRightScroll = false;
+                return;
+            }
+            isSyncingLeftScroll = true;
+            leftWrapper.scrollTop = rightWrapper.scrollTop;
+            leftWrapper.scrollLeft = rightWrapper.scrollLeft;
+        });
+
+        // WebView2 IPC communication
+        if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.addEventListener('message', event => {
+                const msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                if (msg.action === 'compare') {
+                    // Apply theme personalization if possible
+                    const theme = msg.theme || 'Dark';
+                    const bg = theme === 'Light' ? '#ffffff' : '#1e1e1e';
+                    const fg = theme === 'Light' ? '#1a1a1a' : '#d4d4d4';
+                    document.documentElement.style.setProperty('--bg', bg);
+                    document.documentElement.style.setProperty('--fg', fg);
+                    document.documentElement.style.setProperty('--header-bg', theme === 'Light' ? '#f3f3f3' : '#252526');
+                    document.documentElement.style.setProperty('--gutter-bg', theme === 'Light' ? '#f3f3f3' : '#1e1e1e');
+                    document.documentElement.style.setProperty('--border', theme === 'Light' ? '#e1e4e8' : '#3e3e3e');
+                    document.documentElement.style.setProperty('--ui-font', msg.uiFontFamily || '"Segoe UI", "Malgun Gothic", sans-serif');
+                    
+                    renderDiff(msg);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
