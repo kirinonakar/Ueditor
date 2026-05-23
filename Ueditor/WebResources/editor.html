@@ -138,6 +138,13 @@
                 case 'triggerFind':
                     editor.trigger('keyboard', 'actions.find', null);
                     break;
+                case 'getSelection':
+                    const selectionText = editor.getModel().getValueInRange(editor.getSelection());
+                    sendNotificationToCsharp({
+                        type: 'selectionResult',
+                        text: selectionText
+                    });
+                    break;
                 case 'focus':
                     editor.focus();
                     break;

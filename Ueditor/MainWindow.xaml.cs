@@ -21,6 +21,9 @@ namespace Ueditor
     {
         private readonly IFileService _fileService;
         private readonly ISettingsService _settingsService;
+        private readonly ICredentialService _credentialService;
+        private readonly ILLMService _llmService;
+        private string _lastSelectionText = string.Empty;
         
         // Dynamic tabs collection
         private readonly ObservableCollection<OpenedTab> _tabs = new ObservableCollection<OpenedTab>();
@@ -46,6 +49,8 @@ namespace Ueditor
 
             _fileService = new FileService();
             _settingsService = new SettingsService();
+            _credentialService = new CredentialService();
+            _llmService = new LLMService(_settingsService, _credentialService);
 
             // Initialize Preview Debounce Timer (300ms)
             _previewDebounceTimer = new DispatcherTimer
@@ -186,6 +191,23 @@ namespace Ueditor
                     {
                         StatusLine.Text = line.ToString();
                         StatusCol.Text = col.ToString();
+                        _ = bridge.RequestSelectionAsync(); // Auto sync selection on cursor move
+                    }
+                };
+
+                bridge.SelectionReceived += (selectedText) =>
+                {
+                    _lastSelectionText = selectedText;
+                    if (EditorTabView.SelectedItem as TabViewItem == tabItem)
+                    {
+                        if (string.IsNullOrEmpty(selectedText))
+                        {
+                            SelectionStatsText.Text = "선택 영역: 없음 (전체 전송 차단 활성화)";
+                        }
+                        else
+                        {
+                            SelectionStatsText.Text = $"선택 영역: {selectedText.Length:N0} 글자 수 (약 {selectedText.Length / 4} 토큰)";
+                        }
                     }
                 };
 
@@ -891,6 +913,98 @@ namespace Ueditor
                 XamlRoot = this.Content.XamlRoot
             };
             await dialog.ShowAsync();
+        }
+
+        private async void OnSaveApiKeyClick(object sender, RoutedEventArgs e)
+        {
+            var settings = _settingsService.CurrentSettings;
+            string apiKey = LlmApiKeyInput.Password;
+            if (!string.IsNullOrEmpty(apiKey))
+            {
+                await _llmService.SaveApiKeyAsync(settings.LlmProvider, apiKey);
+                LlmApiKeyInput.Password = string.Empty;
+                LlmOutputText.Text = $"{settings.LlmProvider} API Key가 Windows 자격 증명 저장소에 성공적으로 암호화 저장되었습니다.";
+            }
+        }
+
+        private async void OnLlmExplainClick(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_lastSelectionText))
+            {
+                ShowErrorMessage("AI 오류", "선택된 텍스트가 없습니다. 에디터에서 분석할 범위를 드래그한 후 실행하십시오.");
+                return;
+            }
+            await PreflightCheckAndRunAsync("선택 영역 설명 (Explain)", _lastSelectionText, 
+                () => _llmService.ExplainCodeAsync(_lastSelectionText, "csharp"));
+        }
+
+        private async void OnLlmSummarizeClick(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_lastSelectionText))
+            {
+                ShowErrorMessage("AI 오류", "선택된 텍스트가 없습니다. 요약할 범위를 드래그하십시오.");
+                return;
+            }
+            await PreflightCheckAndRunAsync("선택 영역 요약 (Summarize)", _lastSelectionText, 
+                () => _llmService.SummarizeTextAsync(_lastSelectionText));
+        }
+
+        private async void OnLlmImproveClick(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_lastSelectionText))
+            {
+                ShowErrorMessage("AI 오류", "선택된 텍스트가 없습니다. 개선할 범위를 드래그하십시오.");
+                return;
+            }
+            await PreflightCheckAndRunAsync("수식 및 마크다운 개선", _lastSelectionText, 
+                () => _llmService.CustomPromptAsync("제공된 텍스트의 가독성, 마크다운 형식, 또는 LaTeX 수학 공식을 표준 문법에 맞게 개선하여 한글로 정제해 주십시오.", _lastSelectionText));
+        }
+
+        private async void OnLlmCustomClick(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_lastSelectionText))
+            {
+                ShowErrorMessage("AI 오류", "선택된 컨텍스트가 없습니다. 지시사항의 기반이 될 텍스트 범위를 드래그하십시오.");
+                return;
+            }
+            string prompt = LlmCustomPromptInput.Text;
+            if (string.IsNullOrEmpty(prompt))
+            {
+                ShowErrorMessage("AI 오류", "커스텀 지시사항 입력란이 비어 있습니다.");
+                return;
+            }
+            await PreflightCheckAndRunAsync("커스텀 지시사항 실행", _lastSelectionText, 
+                () => _llmService.CustomPromptAsync(prompt, _lastSelectionText));
+        }
+
+        private async Task PreflightCheckAndRunAsync(string actionName, string contentText, Func<Task<string>> llmCall)
+        {
+            var textPreview = contentText.Length > 200 ? contentText.Substring(0, 200) + "..." : contentText;
+            var dialog = new ContentDialog
+            {
+                Title = "AI 전송 사전 확인 (Pre-flight Check)",
+                Content = $"액션: {actionName}\n\n전송될 AI 공급자: {_settingsService.CurrentSettings.LlmProvider} ({_settingsService.CurrentSettings.LlmModel})\n전송 텍스트 크기: {contentText.Length:N0} 자 (약 {contentText.Length / 4:N0} 토큰 소모)\n\n[전송 내용 미리보기]\n{textPreview}\n\n보안상의 문제나 의도하지 않은 토큰 대량 유실이 없는지 확인 후 전송해 주십시오.",
+                PrimaryButtonText = "API 전송 승인",
+                CloseButtonText = "취소",
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                LlmOutputText.Text = "AI 분석 및 응답 생성이 비동기 구동 중입니다. 잠시만 대기해 주십시오...";
+                RightTabView.SelectedIndex = 1; // Focus to AI Tab
+                
+                try
+                {
+                    string aiResponse = await llmCall();
+                    LlmOutputText.Text = aiResponse;
+                }
+                catch (Exception ex)
+                {
+                    LlmOutputText.Text = $"AI 실행 도중 예외가 터졌습니다: {ex.Message}";
+                }
+            }
         }
 
         #endregion

@@ -96,31 +96,100 @@
                                   PointerMoved="OnRightSplitterPointerMoved"
                                   PointerReleased="OnRightSplitterPointerReleased"/>
 
-            <!-- E. Right Live Preview Panel -->
+            <!-- E. Right Tabbed Panel (Live Preview & AI Assistant) -->
             <Grid Grid.Column="4" x:Name="PreviewGrid" Background="{ThemeResource SystemControlBackgroundAltHighBrush}">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
+                <TabView x:Name="RightTabView" 
+                         VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                         IsAddTabButtonVisible="False" AllowDropTabs="False">
+                    
+                    <!-- Tab 1: Live Preview -->
+                    <TabViewItem Header="실시간 프리뷰" IsClosable="False">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            
+                            <!-- Preview Toolbar -->
+                            <CommandBar Grid.Row="0" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}" Height="40" DefaultLabelPosition="Right">
+                                <AppBarButton Icon="Refresh" Label="새로고침" Click="OnRefreshPreviewClick" Width="40" Height="40"/>
+                                <AppBarSeparator/>
+                                <CommandBar.Content>
+                                    <StackPanel Orientation="Horizontal" Margin="10,8,0,0" Spacing="10">
+                                        <ComboBox x:Name="PreviewModeCombo" SelectedIndex="0" Height="24" Padding="5,0,5,0" Width="120" FontSize="11" SelectionChanged="OnPreviewModeComboSelectionChanged">
+                                            <ComboBoxItem Content="Markdown"/>
+                                            <ComboBoxItem Content="HTML Source"/>
+                                            <ComboBoxItem Content="LaTeX Block"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </CommandBar.Content>
+                            </CommandBar>
 
-                <!-- Preview Controls Header -->
-                <CommandBar Grid.Row="0" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}" Height="40" DefaultLabelPosition="Right">
-                    <AppBarButton Icon="Refresh" Label="새로고침" Click="OnRefreshPreviewClick" Width="40" Height="40"/>
-                    <AppBarSeparator/>
-                    <CommandBar.Content>
-                        <StackPanel Orientation="Horizontal" Margin="10,8,0,0" Spacing="10">
-                            <TextBlock Text="실시간 프리뷰" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/>
-                            <ComboBox x:Name="PreviewModeCombo" SelectedIndex="0" Height="24" Padding="5,0,5,0" Width="120" FontSize="11" SelectionChanged="OnPreviewModeComboSelectionChanged">
-                                <ComboBoxItem Content="Markdown"/>
-                                <ComboBoxItem Content="HTML Source"/>
-                                <ComboBoxItem Content="LaTeX Block"/>
-                            </ComboBox>
-                        </StackPanel>
-                    </CommandBar.Content>
-                </CommandBar>
+                            <WebView2 x:Name="PreviewWebView" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                        </Grid>
+                    </TabViewItem>
 
-                <!-- WebView2 hosting Preview render content -->
-                <WebView2 x:Name="PreviewWebView" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                    <!-- Tab 2: AI Assistant -->
+                    <TabViewItem Header="AI Assistant" IsClosable="False">
+                        <Grid Padding="15" RowSpacing="15">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/> <!-- Setup & API Key Config -->
+                                <RowDefinition Height="*"/>    <!-- AI Chat Logs Area -->
+                                <RowDefinition Height="Auto"/> <!-- Selection Context Visualizer -->
+                                <RowDefinition Height="Auto"/> <!-- Quick Action Buttons -->
+                            </Grid.RowDefinitions>
+
+                            <!-- Row 0: API Key Setup Module -->
+                            <StackPanel Grid.Row="0" Spacing="8">
+                                <TextBlock Text="AI 서비스 설정" FontWeight="Bold" FontSize="12"/>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <PasswordBox x:Name="LlmApiKeyInput" Grid.Column="0" PasswordChar="●" PlaceholderText="API Key 입력..." Height="32"/>
+                                    <Button Content="Key 저장" Grid.Column="1" Click="OnSaveApiKeyClick" Style="{StaticResource AccentButtonStyle}"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- Row 1: AI Chat Output Area -->
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1" Padding="10" CornerRadius="4">
+                                <TextBlock x:Name="LlmOutputText" Text="대기 중... Monaco 에디터에서 영역을 선택한 후 하단의 AI 분석 도구를 사용해 보세요." TextWrapping="Wrap" FontSize="13" LineHeight="1.5" IsTextSelectionEnabled="True"/>
+                            </ScrollViewer>
+
+                            <!-- Row 2: Selected Context Info visualizer -->
+                            <Border Grid.Row="2" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" Padding="8" CornerRadius="4">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <FontIcon Glyph="&#xE94A;" FontSize="14" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="SelectionStatsText" Text="선택 영역: 없음 (전체 전송 차단 활성화)" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Row 3: Quick Action Buttons -->
+                            <StackPanel Grid.Row="3" Spacing="8">
+                                <Button Content="선택 영역 설명 (Explain)" HorizontalAlignment="Stretch" Click="OnLlmExplainClick" Style="{StaticResource AccentButtonStyle}"/>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Content="선택 영역 요약" Grid.Column="0" HorizontalAlignment="Stretch" Click="OnLlmSummarizeClick"/>
+                                    <Button Content="수식/마크다운 개선" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnLlmImproveClick"/>
+                                </Grid>
+                                
+                                <Grid ColumnSpacing="8" Margin="0,5,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="LlmCustomPromptInput" Grid.Column="0" PlaceholderText="질문이나 커스텀 지시사항 입력..." Height="32"/>
+                                    <Button Content="실행" Grid.Column="1" Click="OnLlmCustomClick" Style="{StaticResource AccentButtonStyle}"/>
+                                </Grid>
+                            </StackPanel>
+                        </Grid>
+                    </TabViewItem>
+
+                </TabView>
             </Grid>
         </Grid>
 

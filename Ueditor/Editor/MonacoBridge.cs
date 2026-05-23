@@ -14,6 +14,7 @@ namespace Ueditor.Editor
         private string? _pendingText = null;
 
         public event Action<string>? ContentChanged;
+        public event Action<string>? SelectionReceived;
         public event Action<int, int>? CursorChanged;
         public event Action? EditorReady;
 
@@ -121,6 +122,12 @@ namespace Ueditor.Editor
             await SendMessageAsync(msg);
         }
 
+        public async Task RequestSelectionAsync()
+        {
+            var msg = new { action = "getSelection" };
+            await SendMessageAsync(msg);
+        }
+
         private async Task SendMessageAsync(object obj)
         {
             if (!_isReady) return;
@@ -172,6 +179,13 @@ namespace Ueditor.Editor
                                 root.TryGetProperty("column", out JsonElement colProp))
                             {
                                 CursorChanged?.Invoke(lineProp.GetInt32(), colProp.GetInt32());
+                            }
+                            break;
+
+                        case "selectionResult":
+                            if (root.TryGetProperty("text", out JsonElement selectionProp))
+                            {
+                                SelectionReceived?.Invoke(selectionProp.GetString() ?? string.Empty);
                             }
                             break;
                     }
