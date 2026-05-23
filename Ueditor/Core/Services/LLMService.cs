@@ -73,8 +73,10 @@ namespace Ueditor.Core.Services
             var settings = _settingsService.CurrentSettings;
             string providerName = settings.LlmProvider;
             string apiKey = await GetApiKeyAsync(providerName);
+            bool requiresApiKey = !providerName.Equals("LM Studio", StringComparison.OrdinalIgnoreCase) &&
+                                  !providerName.Equals("LMStudio", StringComparison.OrdinalIgnoreCase);
 
-            if (string.IsNullOrEmpty(apiKey))
+            if (requiresApiKey && string.IsNullOrEmpty(apiKey))
             {
                 return "에러: 해당 LLM API Key가 자격 증명 관리자에 등록되어 있지 않습니다. 설정을 열어 API Key를 먼저 저장해 주십시오.";
             }
@@ -82,6 +84,8 @@ namespace Ueditor.Core.Services
             ILLMProvider provider = providerName.ToLower() switch
             {
                 "gemini" => new GeminiProvider(),
+                "lm studio" => new LMStudioProvider(),
+                "lmstudio" => new LMStudioProvider(),
                 _ => new OpenAIProvider()
             };
 

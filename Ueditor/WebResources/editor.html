@@ -10,7 +10,15 @@
             --fg: #d4d4d4;
             --gutter-bg: #252526;
             --gutter-fg: #858585;
-            --selection: #264f78;
+            --selection: rgba(0, 120, 212, 0.38);
+            --selection-fg: #ffffff;
+            --tok-keyword: #569cd6;
+            --tok-type: #4ec9b0;
+            --tok-string: #ce9178;
+            --tok-number: #b5cea8;
+            --tok-comment: #6a9955;
+            --tok-attr: #9cdcfe;
+            --tok-md: #d7ba7d;
             --font-family: Consolas, "Courier New", monospace;
             --font-size: 14px;
             --line-height: 1.45;
@@ -97,17 +105,24 @@
 
         #editor::selection {
             background: var(--selection);
+            color: var(--selection-fg);
+            -webkit-text-fill-color: var(--selection-fg);
         }
 
-        .tok-keyword { color: #569cd6; }
-        .tok-type { color: #4ec9b0; }
-        .tok-string { color: #ce9178; }
-        .tok-number { color: #b5cea8; }
-        .tok-comment { color: #6a9955; font-style: italic; }
-        .tok-operator { color: #d4d4d4; }
-        .tok-tag { color: #569cd6; }
-        .tok-attr { color: #9cdcfe; }
-        .tok-md { color: #d7ba7d; font-weight: 600; }
+        #editor::-moz-selection {
+            background: var(--selection);
+            color: var(--selection-fg);
+        }
+
+        .tok-keyword { color: var(--tok-keyword); }
+        .tok-type { color: var(--tok-type); }
+        .tok-string { color: var(--tok-string); }
+        .tok-number { color: var(--tok-number); }
+        .tok-comment { color: var(--tok-comment); font-style: italic; }
+        .tok-operator { color: var(--fg); }
+        .tok-tag { color: var(--tok-keyword); }
+        .tok-attr { color: var(--tok-attr); }
+        .tok-md { color: var(--tok-md); font-weight: 600; }
     </style>
 </head>
 <body>
@@ -126,6 +141,97 @@
         let isProgrammaticChange = false;
         let tabSize = 4;
         let currentLanguage = 'plaintext';
+
+        function parseHexColor(value) {
+            if (!value || typeof value !== 'string') return null;
+            const raw = value.trim();
+            const match = raw.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+            if (!match) return null;
+
+            let hex = match[1];
+            if (hex.length === 3) {
+                hex = hex.split('').map(ch => ch + ch).join('');
+            }
+
+            return {
+                r: parseInt(hex.slice(0, 2), 16),
+                g: parseInt(hex.slice(2, 4), 16),
+                b: parseInt(hex.slice(4, 6), 16)
+            };
+        }
+
+        function colorToHex(color) {
+            const part = value => value.toString(16).padStart(2, '0');
+            return `#${part(color.r)}${part(color.g)}${part(color.b)}`;
+        }
+
+        function relativeLuminance(color) {
+            const normalize = value => {
+                const channel = value / 255;
+                return channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+            };
+
+            return 0.2126 * normalize(color.r) + 0.7152 * normalize(color.g) + 0.0722 * normalize(color.b);
+        }
+
+        function contrastRatio(a, b) {
+            const l1 = relativeLuminance(a);
+            const l2 = relativeLuminance(b);
+            const lighter = Math.max(l1, l2);
+            const darker = Math.min(l1, l2);
+            return (lighter + 0.05) / (darker + 0.05);
+        }
+
+        function readableForegroundFor(background) {
+            const white = { r: 255, g: 255, b: 255 };
+            const black = { r: 17, g: 17, b: 17 };
+            return contrastRatio(background, white) >= contrastRatio(background, black) ? white : black;
+        }
+
+        function resolveReadableColor(backgroundValue, foregroundValue, fallbackForeground) {
+            const background = parseHexColor(backgroundValue);
+            const foreground = parseHexColor(foregroundValue);
+            const fallback = parseHexColor(fallbackForeground) || { r: 212, g: 212, b: 212 };
+
+            if (!background) {
+                return foregroundValue || fallbackForeground;
+            }
+
+            if (foreground && contrastRatio(background, foreground) >= 4.5) {
+                return colorToHex(foreground);
+            }
+
+            if (contrastRatio(background, fallback) >= 4.5) {
+                return colorToHex(fallback);
+            }
+
+            return colorToHex(readableForegroundFor(background));
+        }
+
+        function applySyntaxPalette(theme, background, foreground) {
+            const parsedBackground = parseHexColor(background);
+            const useLightPalette = parsedBackground ? relativeLuminance(parsedBackground) > 0.55 : theme === 'Light';
+
+            if (useLightPalette) {
+                document.documentElement.style.setProperty('--tok-keyword', '#0000ff');
+                document.documentElement.style.setProperty('--tok-type', '#267f99');
+                document.documentElement.style.setProperty('--tok-string', '#a31515');
+                document.documentElement.style.setProperty('--tok-number', '#098658');
+                document.documentElement.style.setProperty('--tok-comment', '#008000');
+                document.documentElement.style.setProperty('--tok-attr', '#001080');
+                document.documentElement.style.setProperty('--tok-md', '#795e26');
+            } else {
+                document.documentElement.style.setProperty('--tok-keyword', '#569cd6');
+                document.documentElement.style.setProperty('--tok-type', '#4ec9b0');
+                document.documentElement.style.setProperty('--tok-string', '#ce9178');
+                document.documentElement.style.setProperty('--tok-number', '#b5cea8');
+                document.documentElement.style.setProperty('--tok-comment', '#6a9955');
+                document.documentElement.style.setProperty('--tok-attr', '#9cdcfe');
+                document.documentElement.style.setProperty('--tok-md', '#d7ba7d');
+            }
+
+            document.documentElement.style.setProperty('--selection-fg', foreground);
+        }
 
         function post(msg) {
             if (window.chrome && window.chrome.webview) {
@@ -250,6 +356,28 @@
             return editor.value.substring(editor.selectionStart, editor.selectionEnd);
         }
 
+        function selectionRange() {
+            return {
+                start: Math.min(editor.selectionStart, editor.selectionEnd),
+                end: Math.max(editor.selectionStart, editor.selectionEnd)
+            };
+        }
+
+        function setTextAndSelection(text, selectionStart, selectionEnd = selectionStart) {
+            editor.value = text;
+            editor.selectionStart = Math.max(0, Math.min(selectionStart, text.length));
+            editor.selectionEnd = Math.max(0, Math.min(selectionEnd, text.length));
+            editor.focus();
+            notifyContentChanged();
+            reportCursorAndSelection();
+        }
+
+        function replaceTextRange(start, end, replacement, selectionStart, selectionEnd = selectionStart) {
+            const text = editor.value;
+            const nextText = text.slice(0, start) + replacement + text.slice(end);
+            setTextAndSelection(nextText, selectionStart, selectionEnd);
+        }
+
         function replaceSelection(text, selectStartOffset = null, selectEndOffset = null) {
             const start = editor.selectionStart;
             const end = editor.selectionEnd;
@@ -265,71 +393,448 @@
             reportCursorAndSelection();
         }
 
-        function wrapSelection(prefix, suffix, placeholder) {
-            const current = selectedText() || placeholder;
-            const text = `${prefix}${current}${suffix}`;
-            replaceSelection(text, prefix.length, prefix.length + current.length);
+        function hasAt(text, index, marker) {
+            return index >= 0 && index + marker.length <= text.length && text.slice(index, index + marker.length) === marker;
+        }
+
+        function isStandaloneDelimiter(text, index, delimiter) {
+            if (!hasAt(text, index, delimiter)) return false;
+            if (delimiter.length === 1) {
+                const marker = delimiter[0];
+                if (index > 0 && text[index - 1] === marker) return false;
+                if (index + 1 < text.length && text[index + 1] === marker) return false;
+            }
+            return true;
+        }
+
+        function areStandaloneWrapperDelimiters(text, openingIndex, closingIndex, opening, closing) {
+            if (opening !== closing) return true;
+            return isStandaloneDelimiter(text, openingIndex, opening) && isStandaloneDelimiter(text, closingIndex, closing);
+        }
+
+        function wrapSelection(opening, closing = opening) {
+            const text = editor.value;
+            const { start, end } = selectionRange();
+            const content = text.slice(start, end);
+            const replacement = opening + content + closing;
+            const selectionStart = start + opening.length;
+            const selectionEnd = end + opening.length;
+            replaceTextRange(start, end, replacement, selectionStart, selectionEnd);
+        }
+
+        function toggleWrappedSelection(opening, closing = opening) {
+            const text = editor.value;
+            const { start, end } = selectionRange();
+            const openingLength = opening.length;
+            const closingLength = closing.length;
+            const selected = text.slice(start, end);
+
+            if (
+                end - start >= openingLength + closingLength &&
+                hasAt(text, start, opening) &&
+                hasAt(text, end - closingLength, closing) &&
+                areStandaloneWrapperDelimiters(text, start, end - closingLength, opening, closing)
+            ) {
+                const inner = selected.slice(openingLength, selected.length - closingLength);
+                replaceTextRange(start, end, inner, start, start + inner.length);
+                return;
+            }
+
+            const surroundingStart = start - openingLength;
+            const hasSurrounding =
+                hasAt(text, surroundingStart, opening) &&
+                hasAt(text, end, closing) &&
+                (start === end || areStandaloneWrapperDelimiters(text, surroundingStart, end, opening, closing));
+
+            if (hasSurrounding) {
+                const nextText = text.slice(0, surroundingStart) + selected + text.slice(end + closingLength);
+                setTextAndSelection(nextText, start - openingLength, end - openingLength);
+                return;
+            }
+
+            wrapSelection(opening, closing);
+        }
+
+        function selectedLineRange() {
+            const text = editor.value;
+            const { start, end } = selectionRange();
+            const lineStart = start === 0 ? 0 : text.lastIndexOf('\n', start - 1) + 1;
+            const anchor = end > start && text[end - 1] === '\n' ? end - 1 : end;
+            const nextBreak = text.indexOf('\n', Math.max(0, anchor));
+            const lineEnd = nextBreak < 0 ? text.length : nextBreak;
+            return { lineStart, lineEnd, start, end };
+        }
+
+        function findHeadingPrefix(line) {
+            if (!line.startsWith('#')) return null;
+            const markerEnd = line.search(/[^#]/);
+            const level = markerEnd < 0 ? line.length : markerEnd;
+            if (level < 1 || level > 6) return null;
+            if (markerEnd < 0) return { level, length: level };
+            return line[markerEnd] === ' ' ? { level, length: level + 1 } : null;
+        }
+
+        function cycleHeadingLine(line) {
+            const prefix = findHeadingPrefix(line);
+            if (!prefix) return `# ${line}`;
+            if (prefix.level < 6) return `#${line}`;
+            return line.slice(prefix.length);
+        }
+
+        function cycleHeadingPrefix() {
+            const text = editor.value;
+            const { lineStart, lineEnd, start, end } = selectedLineRange();
+            const block = text.slice(lineStart, lineEnd);
+            const nextBlock = block.split('\n').map(cycleHeadingLine).join('\n');
+            const nextText = text.slice(0, lineStart) + nextBlock + text.slice(lineEnd);
+
+            if (start !== end) {
+                setTextAndSelection(nextText, lineStart, lineStart + nextBlock.length);
+                return;
+            }
+
+            const prefix = findHeadingPrefix(block);
+            const cursorDelta = !prefix ? 2 : prefix.level < 6 ? 1 : -Math.min(prefix.length, start - lineStart);
+            setTextAndSelection(nextText, start + cursorDelta);
+        }
+
+        function toggleLinePrefix(prefix) {
+            const text = editor.value;
+            const { lineStart, lineEnd, start, end } = selectedLineRange();
+            const block = text.slice(lineStart, lineEnd);
+            const lines = block.split('\n');
+            const shouldRemove = lines.length > 0 && lines.every(line => line.startsWith(prefix));
+            const nextBlock = lines.map(line => shouldRemove ? line.slice(prefix.length) : prefix + line).join('\n');
+            const nextText = text.slice(0, lineStart) + nextBlock + text.slice(lineEnd);
+
+            if (start !== end) {
+                setTextAndSelection(nextText, lineStart, lineStart + nextBlock.length);
+                return;
+            }
+
+            const delta = shouldRemove ? -Math.min(prefix.length, start - lineStart) : prefix.length;
+            setTextAndSelection(nextText, start + delta);
+        }
+
+        function toggleOrderedList() {
+            const text = editor.value;
+            const { lineStart, lineEnd, start, end } = selectedLineRange();
+            const block = text.slice(lineStart, lineEnd);
+            const lines = block.split('\n');
+            const markerPattern = /^\d+\.\s/;
+            const shouldRemove = lines.length > 0 && lines.every(line => markerPattern.test(line));
+            const nextBlock = lines.map((line, index) => shouldRemove ? line.replace(markerPattern, '') : `${index + 1}. ${line}`).join('\n');
+            const nextText = text.slice(0, lineStart) + nextBlock + text.slice(lineEnd);
+
+            if (start !== end) {
+                setTextAndSelection(nextText, lineStart, lineStart + nextBlock.length);
+                return;
+            }
+
+            const existingMarker = lines[0].match(markerPattern)?.[0] || '';
+            const delta = shouldRemove ? -Math.min(existingMarker.length, start - lineStart) : '1. '.length;
+            setTextAndSelection(nextText, start + delta);
+        }
+
+        const inlineCodeDelimiter = '`';
+        const codeBlockOpening = '```\n';
+        const codeBlockClosing = '\n```';
+
+        function findWrappedAroundSelection(opening, closing = opening) {
+            const text = editor.value;
+            const { start, end } = selectionRange();
+
+            if (end - start >= opening.length + closing.length && hasAt(text, start, opening) && hasAt(text, end - closing.length, closing)) {
+                return { openingStart: start, contentStart: start + opening.length, contentEnd: end - closing.length, closingEnd: end };
+            }
+
+            const surroundingStart = start - opening.length;
+            if (hasAt(text, surroundingStart, opening) && hasAt(text, end, closing)) {
+                return { openingStart: surroundingStart, contentStart: start, contentEnd: end, closingEnd: end + closing.length };
+            }
+
+            return null;
+        }
+
+        function removeWrappedRange(range) {
+            const text = editor.value;
+            const content = text.slice(range.contentStart, range.contentEnd);
+            const selectionStartOffset = Math.max(0, Math.min(editor.selectionStart - range.contentStart, content.length));
+            const selectionEndOffset = Math.max(0, Math.min(editor.selectionEnd - range.contentStart, content.length));
+            replaceTextRange(range.openingStart, range.closingEnd, content, range.openingStart + selectionStartOffset, range.openingStart + selectionEndOffset);
+        }
+
+        function replaceWrappedRange(range, opening, closing) {
+            const text = editor.value;
+            const content = text.slice(range.contentStart, range.contentEnd);
+            const replacement = opening + content + closing;
+            const selectionStartOffset = Math.max(0, Math.min(editor.selectionStart - range.contentStart, content.length));
+            const selectionEndOffset = Math.max(0, Math.min(editor.selectionEnd - range.contentStart, content.length));
+            replaceTextRange(range.openingStart, range.closingEnd, replacement, range.openingStart + opening.length + selectionStartOffset, range.openingStart + opening.length + selectionEndOffset);
+        }
+
+        function findContainingWrappedRange(opening, closing = opening) {
+            const text = editor.value;
+            const { start, end } = selectionRange();
+            const openingStart = text.lastIndexOf(opening, start);
+            if (openingStart < 0) return null;
+            const contentStart = openingStart + opening.length;
+            const closingStart = text.indexOf(closing, Math.max(contentStart, end));
+            if (closingStart < 0) return null;
+            const closingEnd = closingStart + closing.length;
+            if (start >= contentStart && end <= closingStart) {
+                return { openingStart, contentStart, contentEnd: closingStart, closingEnd };
+            }
+            return null;
+        }
+
+        function cycleCodeFormatting() {
+            const codeBlock = findWrappedAroundSelection(codeBlockOpening, codeBlockClosing) || findContainingWrappedRange(codeBlockOpening, codeBlockClosing);
+            if (codeBlock) {
+                removeWrappedRange(codeBlock);
+                return;
+            }
+
+            const inline = findWrappedAroundSelection(inlineCodeDelimiter) || findContainingWrappedRange(inlineCodeDelimiter);
+            if (inline) {
+                replaceWrappedRange(inline, codeBlockOpening, codeBlockClosing);
+                return;
+            }
+
+            toggleWrappedSelection(inlineCodeDelimiter);
+        }
+
+        function buildMarkdownTable(size) {
+            const header = '|' + Array(size).fill('  |').join('');
+            const separator = '| ' + Array(size).fill('---').join(' | ') + ' |';
+            const rows = Array(size - 1).fill(header);
+            return [header, separator, ...rows].join('\n');
+        }
+
+        function firstMarkdownTableCellCursor(tableStart) {
+            return tableStart + 2;
+        }
+
+        function findGeneratedMarkdownTable() {
+            const text = editor.value;
+            const { start, end } = selectionRange();
+            for (const size of [3, 2]) {
+                const table = buildMarkdownTable(size);
+                let tableStart = text.indexOf(table);
+                while (tableStart >= 0) {
+                    const tableEnd = tableStart + table.length;
+                    if (start >= tableStart && start <= tableEnd && end >= tableStart && end <= tableEnd) {
+                        return { start: tableStart, end: tableEnd, size };
+                    }
+                    tableStart = text.indexOf(table, tableStart + table.length);
+                }
+            }
+            return null;
+        }
+
+        function removeMarkdownTable(range) {
+            const text = editor.value;
+            let removeStart = range.start;
+            let removeEnd = range.end;
+            if (removeStart > 0 && text[removeStart - 1] === '\n' && removeEnd < text.length && text[removeEnd] === '\n') {
+                removeEnd += 1;
+            } else if (removeStart > 0 && text[removeStart - 1] === '\n' && removeEnd === text.length) {
+                removeStart -= 1;
+            } else if (removeStart === 0 && removeEnd < text.length && text[removeEnd] === '\n') {
+                removeEnd += 1;
+            }
+            replaceTextRange(removeStart, removeEnd, '', removeStart);
+        }
+
+        function cycleMarkdownTable() {
+            const existing = findGeneratedMarkdownTable();
+            if (existing) {
+                if (existing.size === 2) {
+                    const table = buildMarkdownTable(3);
+                    replaceTextRange(existing.start, existing.end, table, firstMarkdownTableCellCursor(existing.start));
+                } else {
+                    removeMarkdownTable(existing);
+                }
+                return;
+            }
+
+            const text = editor.value;
+            const { start, end } = selectionRange();
+            const needsLeadingBreak = start > 0 && text[start - 1] !== '\n';
+            const needsTrailingBreak = end < text.length && text[end] !== '\n';
+            const table = buildMarkdownTable(2);
+            const replacement = `${needsLeadingBreak ? '\n' : ''}${table}${needsTrailingBreak ? '\n' : ''}`;
+            const tableStart = start + (needsLeadingBreak ? 1 : 0);
+            replaceTextRange(start, end, replacement, firstMarkdownTableCellCursor(tableStart));
+        }
+
+        function findMarkdownLinkRange() {
+            const text = editor.value;
+            const { start, end } = selectionRange();
+            const lineStart = start === 0 ? 0 : text.lastIndexOf('\n', start - 1) + 1;
+            const lineEnd = text.indexOf('\n', end) < 0 ? text.length : text.indexOf('\n', end);
+            let open = text.lastIndexOf('[', Math.min(start, text.length - 1));
+
+            while (open >= lineStart) {
+                const textEnd = text.indexOf('](', open + 1);
+                const urlEnd = textEnd >= 0 ? text.indexOf(')', textEnd + 2) : -1;
+                if (textEnd >= 0 && urlEnd >= 0 && urlEnd <= lineEnd && start >= open && end <= urlEnd + 1) {
+                    return { fullStart: open, textStart: open + 1, textEnd, urlStart: textEnd + 2, urlEnd, fullEnd: urlEnd + 1 };
+                }
+                open = text.lastIndexOf('[', open - 1);
+            }
+            return null;
+        }
+
+        function toggleMarkdownLink() {
+            const link = findMarkdownLinkRange();
+            const text = editor.value;
+            if (link) {
+                const linkText = text.slice(link.textStart, link.textEnd);
+                replaceTextRange(link.fullStart, link.fullEnd, linkText, link.fullStart, link.fullStart + linkText.length);
+                return;
+            }
+
+            const { start, end } = selectionRange();
+            const selected = text.slice(start, end);
+            const linkText = selected || '링크';
+            const replacement = `[${linkText}](url)`;
+            const urlStart = start + linkText.length + 3;
+            replaceTextRange(start, end, replacement, selected ? urlStart : start + 1, selected ? urlStart + 3 : start + 1 + linkText.length);
+        }
+
+        function cycleOrInsertArrow() {
+            const arrows = ['→', '←', '↑', '↓'];
+            const text = editor.value;
+            const { start, end } = selectionRange();
+            const nextArrow = arrow => arrows[(arrows.indexOf(arrow) + 1) % arrows.length] || '→';
+
+            if (start < end) {
+                const selected = text.slice(start, end);
+                if (arrows.includes(selected)) {
+                    const next = nextArrow(selected);
+                    replaceTextRange(start, end, next, start, start + next.length);
+                    return;
+                }
+            }
+
+            if (start > 0 && arrows.includes(text.slice(start - 1, start))) {
+                const next = nextArrow(text.slice(start - 1, start));
+                replaceTextRange(start - 1, start, next, start);
+                return;
+            }
+
+            replaceTextRange(start, end, '→', start + 1);
+        }
+
+        function applyMarkdownTextColor(colorHex) {
+            const colorOpeningPattern = /<span\s+style\s*=\s*["']\s*color\s*:\s*#[0-9a-fA-F]{6}\s*;?\s*["']\s*>/gi;
+            const text = editor.value;
+            const { start, end } = selectionRange();
+            let match;
+            let range = null;
+            while ((match = colorOpeningPattern.exec(text)) !== null) {
+                const contentStart = match.index + match[0].length;
+                const closingStart = text.indexOf('</span>', contentStart);
+                if (closingStart < 0) continue;
+                const closingEnd = closingStart + '</span>'.length;
+                if (start >= contentStart && end <= closingStart) {
+                    range = { openingStart: match.index, contentStart, contentEnd: closingStart, closingEnd };
+                }
+            }
+
+            if (range) {
+                removeWrappedRange(range);
+                return;
+            }
+
+            toggleWrappedSelection(`<span style="color: ${colorHex}">`, '</span>');
+        }
+
+        function cutCurrentLine() {
+            const text = editor.value;
+            if (!text) return;
+            const cursor = editor.selectionStart;
+            const lineStart = cursor === 0 ? 0 : text.lastIndexOf('\n', cursor - 1) + 1;
+            const nextBreak = text.indexOf('\n', cursor);
+            const lineEnd = nextBreak < 0 ? text.length : nextBreak;
+            const clipboardText = text.slice(lineStart, lineEnd);
+            let removeStart = lineStart;
+            let removeEnd = lineEnd;
+            let nextCursor = lineStart;
+
+            if (lineEnd < text.length) {
+                removeEnd = lineEnd + 1;
+            } else if (lineStart > 0) {
+                removeStart = lineStart - 1;
+                nextCursor = removeStart;
+            }
+
+            if (navigator.clipboard && clipboardText) {
+                navigator.clipboard.writeText(clipboardText).catch(() => {});
+            }
+            replaceTextRange(removeStart, removeEnd, '', nextCursor);
         }
 
         function applyMarkdownCommand(command) {
             const current = selectedText();
             switch (command) {
                 case 'bold':
-                    wrapSelection('**', '**', '굵은 텍스트');
+                    toggleWrappedSelection('**');
                     break;
                 case 'italic':
-                    wrapSelection('*', '*', '기울임 텍스트');
+                    toggleWrappedSelection('*');
                     break;
                 case 'underline':
-                    wrapSelection('<u>', '</u>', '밑줄 텍스트');
+                    toggleWrappedSelection('<u>', '</u>');
                     break;
                 case 'highlight':
-                    wrapSelection('==', '==', '강조 텍스트');
+                    toggleWrappedSelection('==');
                     break;
                 case 'inlineCode':
-                    wrapSelection('`', '`', 'code');
+                    cycleCodeFormatting();
                     break;
                 case 'codeBlock':
-                    wrapSelection('```\n', '\n```', current || 'code');
+                    toggleWrappedSelection(codeBlockOpening, codeBlockClosing);
                     break;
                 case 'heading':
-                    replaceSelection(`# ${current || '제목'}`, 2, 2 + (current || '제목').length);
+                    cycleHeadingPrefix();
                     break;
                 case 'link':
-                    wrapSelection('[', '](https://example.com)', current || '링크 텍스트');
+                    toggleMarkdownLink();
                     break;
                 case 'quote':
-                    replaceSelection((current || '인용문').split(/\r?\n/).map(line => `> ${line}`).join('\n'));
+                    toggleLinePrefix('> ');
                     break;
                 case 'ul':
-                    replaceSelection((current || '목록 항목').split(/\r?\n/).map(line => `- ${line}`).join('\n'));
+                    toggleLinePrefix('- ');
                     break;
                 case 'ol':
-                    replaceSelection((current || '목록 항목').split(/\r?\n/).map((line, idx) => `${idx + 1}. ${line}`).join('\n'));
+                    toggleOrderedList();
                     break;
                 case 'task':
-                    replaceSelection((current || '할 일').split(/\r?\n/).map(line => `- [ ] ${line}`).join('\n'));
+                    toggleLinePrefix('- [ ] ');
                     break;
                 case 'table':
-                    replaceSelection('| 항목 | 값 |\n| --- | --- |\n| A | B |');
+                    cycleMarkdownTable();
                     break;
                 case 'math':
-                    wrapSelection('$$\n', '\n$$', current || 'E = mc^2');
+                    toggleWrappedSelection('$$\n', '\n$$');
                     break;
                 case 'arrow':
-                    replaceSelection(current ? `${current} → ` : '→ ');
+                    cycleOrInsertArrow();
                     break;
                 case 'fontIncrease':
-                    wrapSelection('<span style="font-size:1.2em">', '</span>', current || '큰 글자');
+                    toggleWrappedSelection('<big>', '</big>');
                     break;
                 case 'fontDecrease':
-                    wrapSelection('<span style="font-size:0.85em">', '</span>', current || '작은 글자');
+                    toggleWrappedSelection('<small>', '</small>');
                     break;
                 case 'textColor':
-                    wrapSelection('<span style="color:#E53935">', '</span>', current || '색상 텍스트');
+                    applyMarkdownTextColor('#E53935');
                     break;
                 case 'cutLine':
-                    wrapSelection('~~', '~~', current || '취소선 텍스트');
+                    cutCurrentLine();
                     break;
             }
         }
@@ -351,14 +856,17 @@
                 case 'updateOptions':
                     const theme = msg.theme || 'Dark';
                     const bg = msg.customBackgroundColor || (theme === 'Light' ? '#ffffff' : '#1e1e1e');
-                    const fg = msg.customForegroundColor || (theme === 'Light' ? '#111111' : '#d4d4d4');
+                    const preferredFg = msg.customForegroundColor || (theme === 'Light' ? '#111111' : '#d4d4d4');
+                    const fg = resolveReadableColor(bg, preferredFg, theme === 'Light' ? '#111111' : '#d4d4d4');
                     document.documentElement.style.setProperty('--bg', bg);
                     document.documentElement.style.setProperty('--fg', fg);
                     document.documentElement.style.setProperty('--gutter-bg', theme === 'Light' ? '#f3f3f3' : '#252526');
                     document.documentElement.style.setProperty('--gutter-fg', theme === 'Light' ? '#6b6b6b' : '#858585');
+                    document.documentElement.style.setProperty('--selection', theme === 'Light' ? 'rgba(0, 95, 184, 0.28)' : 'rgba(0, 120, 212, 0.38)');
                     document.documentElement.style.setProperty('--font-size', `${msg.fontSize || 14}px`);
                     document.documentElement.style.setProperty('--font-family', msg.fontFamily || 'Consolas, "Courier New", monospace');
                     document.documentElement.style.setProperty('--wrap', msg.wordWrap ? 'pre-wrap' : 'pre');
+                    applySyntaxPalette(theme, bg, fg);
                     editor.style.overflowWrap = msg.wordWrap ? 'break-word' : 'normal';
                     editor.readOnly = !!msg.readOnly;
                     tabSize = msg.tabSize || 4;

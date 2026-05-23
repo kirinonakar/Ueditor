@@ -9,6 +9,8 @@
             --bg-color: #1e1e1e;
             --text-color: #858585;
             --code-color: #d4d4d4;
+            --edit-bg-color: #2d2d2d;
+            --edit-fg-color: #ffffff;
             --font-family: Consolas, "Courier New", monospace;
             --font-size: 14px;
             --line-height: 22px;
@@ -20,6 +22,8 @@
             --bg-color: #ffffff;
             --text-color: #a0a0a0;
             --code-color: #000000;
+            --edit-bg-color: #ffffff;
+            --edit-fg-color: #111111;
             --selected-bg: #f0f0f0;
         }
 
@@ -92,6 +96,24 @@
             color: var(--code-color);
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+
+        .line-text::selection,
+        .line-input::selection {
+            background: rgba(0, 120, 212, 0.35);
+            color: var(--edit-fg-color);
+        }
+
+        .line-input {
+            width: 95%;
+            background: var(--edit-bg-color);
+            color: var(--edit-fg-color);
+            border: 1px solid #0078d4;
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+            box-sizing: border-box;
+            padding: 2px 5px;
         }
     </style>
 </head>
@@ -195,7 +217,7 @@
             if (readOnly) return;
             if (el.querySelector('input')) return; // Already editing
             const originalText = lineBuffer[lineNum] !== undefined ? lineBuffer[lineNum] : el.innerText;
-            el.innerHTML = `<input type="text" class="line-input" value="${escapeHtml(originalText)}" style="width: 95%; background: #2d2d2d; color: #fff; border: 1px solid #0078d4; font-family: inherit; font-size: inherit; outline: none; box-sizing: border-box; padding: 2px 5px;" />`;
+            el.innerHTML = `<input type="text" class="line-input" value="${escapeHtml(originalText)}" />`;
             const input = el.querySelector('input');
             input.focus();
             input.select();
@@ -307,6 +329,10 @@
         }
 
         function applyTheme(msg) {
+            const bg = msg.customBackgroundColor || (msg.theme === 'Light' ? '#ffffff' : '#1e1e1e');
+            const preferredFg = msg.customForegroundColor || (msg.theme === 'Light' ? '#000000' : '#d4d4d4');
+            const fg = resolveReadableColor(bg, preferredFg, msg.theme === 'Light' ? '#000000' : '#d4d4d4');
+
             if (msg.customBackgroundColor) {
                 document.documentElement.style.setProperty('--bg-color', msg.customBackgroundColor);
             } else if (msg.theme === 'Light') {
@@ -315,19 +341,81 @@
                 document.documentElement.style.setProperty('--bg-color', '#1e1e1e');
             }
 
-            if (msg.customForegroundColor) {
-                document.documentElement.style.setProperty('--code-color', msg.customForegroundColor);
-            } else if (msg.theme === 'Light') {
-                document.documentElement.style.setProperty('--code-color', '#000000');
-            } else {
-                document.documentElement.style.setProperty('--code-color', '#d4d4d4');
-            }
+            document.documentElement.style.setProperty('--code-color', fg);
+            document.documentElement.style.setProperty('--edit-bg-color', bg);
+            document.documentElement.style.setProperty('--edit-fg-color', fg);
 
             if (msg.theme === 'Light') {
                 document.body.classList.add('light-theme');
             } else {
                 document.body.classList.remove('light-theme');
             }
+        }
+
+        function parseHexColor(value) {
+            if (!value || typeof value !== 'string') return null;
+            const raw = value.trim();
+            const match = raw.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+            if (!match) return null;
+
+            let hex = match[1];
+            if (hex.length === 3) {
+                hex = hex.split('').map(ch => ch + ch).join('');
+            }
+
+            return {
+                r: parseInt(hex.slice(0, 2), 16),
+                g: parseInt(hex.slice(2, 4), 16),
+                b: parseInt(hex.slice(4, 6), 16)
+            };
+        }
+
+        function colorToHex(color) {
+            const part = value => value.toString(16).padStart(2, '0');
+            return `#${part(color.r)}${part(color.g)}${part(color.b)}`;
+        }
+
+        function relativeLuminance(color) {
+            const normalize = value => {
+                const channel = value / 255;
+                return channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+            };
+
+            return 0.2126 * normalize(color.r) + 0.7152 * normalize(color.g) + 0.0722 * normalize(color.b);
+        }
+
+        function contrastRatio(a, b) {
+            const l1 = relativeLuminance(a);
+            const l2 = relativeLuminance(b);
+            const lighter = Math.max(l1, l2);
+            const darker = Math.min(l1, l2);
+            return (lighter + 0.05) / (darker + 0.05);
+        }
+
+        function readableForegroundFor(background) {
+            const white = { r: 255, g: 255, b: 255 };
+            const black = { r: 17, g: 17, b: 17 };
+            return contrastRatio(background, white) >= contrastRatio(background, black) ? white : black;
+        }
+
+        function resolveReadableColor(backgroundValue, foregroundValue, fallbackForeground) {
+            const background = parseHexColor(backgroundValue);
+            const foreground = parseHexColor(foregroundValue);
+            const fallback = parseHexColor(fallbackForeground) || { r: 212, g: 212, b: 212 };
+
+            if (!background) {
+                return foregroundValue || fallbackForeground;
+            }
+
+            if (foreground && contrastRatio(background, foreground) >= 4.5) {
+                return colorToHex(foreground);
+            }
+
+            if (contrastRatio(background, fallback) >= 4.5) {
+                return colorToHex(fallback);
+            }
+
+            return colorToHex(readableForegroundFor(background));
         }
     </script>
 </body>

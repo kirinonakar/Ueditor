@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
@@ -852,12 +855,153 @@ namespace Ueditor
             var largeThresholdBox = new TextBox { PlaceholderText = "예: 50", Text = settings.LargeFileThresholdMB.ToString(), HorizontalAlignment = HorizontalAlignment.Stretch };
 
             // LLM Settings Injection
-            var llmProviderCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, SelectedIndex = settings.LlmProvider.Equals("Gemini", StringComparison.OrdinalIgnoreCase) ? 0 : 1 };
-            llmProviderCombo.Items.Add("Gemini");
-            llmProviderCombo.Items.Add("OpenAI");
+            string[] providerNames = { "Gemini", "OpenAI", "LM Studio" };
+            int providerIndex = Array.FindIndex(providerNames, p => p.Equals(settings.LlmProvider, StringComparison.OrdinalIgnoreCase));
+            if (providerIndex < 0) providerIndex = 1;
 
-            var llmEndpointBox = new TextBox { PlaceholderText = "예: https://api.openai.com/v1", Text = settings.LlmEndpoint, HorizontalAlignment = HorizontalAlignment.Stretch };
-            var llmModelBox = new TextBox { PlaceholderText = "예: gemini-2.5-flash 또는 gpt-4o", Text = settings.LlmModel, HorizontalAlignment = HorizontalAlignment.Stretch };
+            var llmProviderCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
+            foreach (var providerName in providerNames)
+            {
+                llmProviderCombo.Items.Add(providerName);
+            }
+            llmProviderCombo.SelectedIndex = providerIndex;
+
+            var llmEndpointBox = new TextBox { PlaceholderText = "예: http://localhost:1234/v1", Text = settings.LlmEndpoint, HorizontalAlignment = HorizontalAlignment.Stretch };
+            var llmModelCombo = new ComboBox { PlaceholderText = "모델 선택", HorizontalAlignment = HorizontalAlignment.Stretch };
+            var llmApiKeyBox = new PasswordBox { PasswordChar = "●", PlaceholderText = "새 API Key 입력 (비워두면 기존 Key 유지)", HorizontalAlignment = HorizontalAlignment.Stretch };
+            var refreshLmStudioModelsButton = new Button { Content = "LM Studio 모델 불러오기", HorizontalAlignment = HorizontalAlignment.Stretch };
+            var llmModelStatusText = new TextBlock
+            {
+                Text = "LM Studio는 서버가 켜져 있을 때 http://localhost:1234/v1/models 에서 모델 목록을 불러옵니다.",
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = 11
+            };
+
+            string GetSelectedProviderName()
+            {
+                return llmProviderCombo.SelectedItem as string ?? "OpenAI";
+            }
+
+            void AddModelChoice(string model)
+            {
+                if (!string.IsNullOrWhiteSpace(model) && !llmModelCombo.Items.Contains(model))
+                {
+                    llmModelCombo.Items.Add(model);
+                }
+            }
+
+            void SelectModelChoice(string model)
+            {
+                AddModelChoice(model);
+                if (!string.IsNullOrWhiteSpace(model))
+                {
+                    llmModelCombo.SelectedItem = model;
+                }
+                else if (llmModelCombo.Items.Count > 0)
+                {
+                    llmModelCombo.SelectedIndex = 0;
+                }
+            }
+
+            void PopulateModelChoices(string provider, string selectedModel)
+            {
+                llmModelCombo.Items.Clear();
+
+                if (provider.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
+                {
+                    AddModelChoice("gemini-2.5-flash");
+                    AddModelChoice("gemini-2.5-pro");
+                }
+                else if (provider.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
+                {
+                    AddModelChoice("gpt-4o");
+                    AddModelChoice("gpt-4o-mini");
+                    AddModelChoice("gpt-4");
+                }
+
+                SelectModelChoice(selectedModel);
+            }
+
+            bool IsKnownDefaultEndpoint(string endpoint)
+            {
+                return string.IsNullOrWhiteSpace(endpoint) ||
+                       endpoint.Equals("https://api.openai.com/v1", StringComparison.OrdinalIgnoreCase) ||
+                       endpoint.Equals("http://localhost:1234/v1", StringComparison.OrdinalIgnoreCase);
+            }
+
+            void ApplyProviderDefaults(string provider)
+            {
+                if (!IsKnownDefaultEndpoint(llmEndpointBox.Text.Trim()))
+                {
+                    return;
+                }
+
+                if (provider.Equals("LM Studio", StringComparison.OrdinalIgnoreCase))
+                {
+                    llmEndpointBox.Text = "http://localhost:1234/v1";
+                }
+                else if (provider.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
+                {
+                    llmEndpointBox.Text = "https://api.openai.com/v1";
+                }
+            }
+
+            async Task RefreshLmStudioModelsAsync()
+            {
+                if (!GetSelectedProviderName().Equals("LM Studio", StringComparison.OrdinalIgnoreCase))
+                {
+                    llmModelStatusText.Text = "LM Studio 공급자를 선택하면 로컬 모델 목록을 불러올 수 있습니다.";
+                    return;
+                }
+
+                try
+                {
+                    refreshLmStudioModelsButton.IsEnabled = false;
+                    llmModelStatusText.Text = "LM Studio 모델 목록을 불러오는 중입니다...";
+                    var models = await FetchLmStudioModelsAsync(llmEndpointBox.Text.Trim());
+
+                    llmModelCombo.Items.Clear();
+                    foreach (var model in models)
+                    {
+                        AddModelChoice(model);
+                    }
+
+                    SelectModelChoice(models.Contains(settings.LlmModel) ? settings.LlmModel : models.FirstOrDefault() ?? settings.LlmModel);
+                    llmModelStatusText.Text = models.Count > 0
+                        ? $"{models.Count}개 모델을 불러왔습니다."
+                        : "LM Studio에서 사용 가능한 모델을 찾지 못했습니다.";
+                }
+                catch (Exception ex)
+                {
+                    SelectModelChoice(settings.LlmModel);
+                    llmModelStatusText.Text = $"LM Studio 모델 목록을 불러오지 못했습니다: {ex.Message}";
+                }
+                finally
+                {
+                    refreshLmStudioModelsButton.IsEnabled = true;
+                }
+            }
+
+            PopulateModelChoices(GetSelectedProviderName(), settings.LlmModel);
+
+            llmProviderCombo.SelectionChanged += async (_, __) =>
+            {
+                string provider = GetSelectedProviderName();
+                ApplyProviderDefaults(provider);
+                PopulateModelChoices(provider, llmModelCombo.SelectedItem as string ?? settings.LlmModel);
+
+                if (provider.Equals("LM Studio", StringComparison.OrdinalIgnoreCase))
+                {
+                    await RefreshLmStudioModelsAsync();
+                }
+            };
+
+            refreshLmStudioModelsButton.Click += async (_, __) => await RefreshLmStudioModelsAsync();
+
+            if (GetSelectedProviderName().Equals("LM Studio", StringComparison.OrdinalIgnoreCase))
+            {
+                await RefreshLmStudioModelsAsync();
+            }
 
             StackPanel CreateSection()
             {
@@ -906,10 +1050,14 @@ namespace Ueditor
             AddLabel(llmSection, "LLM API Endpoint");
             llmSection.Children.Add(llmEndpointBox);
             AddLabel(llmSection, "LLM 모델명");
-            llmSection.Children.Add(llmModelBox);
+            llmSection.Children.Add(llmModelCombo);
+            llmSection.Children.Add(refreshLmStudioModelsButton);
+            llmSection.Children.Add(llmModelStatusText);
+            AddLabel(llmSection, "LLM API Key");
+            llmSection.Children.Add(llmApiKeyBox);
             llmSection.Children.Add(new TextBlock
             {
-                Text = "API Key는 이 설정 파일에 저장하지 않고 우측 AI 패널에서 Windows 자격 증명 관리자에 저장합니다.",
+                Text = "API Key는 설정 파일에 저장하지 않고 Windows 자격 증명 관리자에 저장합니다. 비워두고 저장하면 기존 Key를 유지합니다. LM Studio는 기본 로컬 서버 설정에서 API Key 없이 사용할 수 있습니다.",
                 TextWrapping = TextWrapping.Wrap
             });
 
@@ -949,9 +1097,15 @@ namespace Ueditor
                 {
                     settings.LargeFileThresholdMB = Math.Clamp(thresholdMb, 1, 1024);
                 }
-                settings.LlmProvider = llmProviderCombo.SelectedIndex == 0 ? "Gemini" : "OpenAI";
+                settings.LlmProvider = GetSelectedProviderName();
                 settings.LlmEndpoint = llmEndpointBox.Text.Trim();
-                settings.LlmModel = llmModelBox.Text.Trim();
+                settings.LlmModel = (llmModelCombo.SelectedItem as string ?? settings.LlmModel).Trim();
+                string newApiKey = llmApiKeyBox.Password.Trim();
+                if (!string.IsNullOrEmpty(newApiKey))
+                {
+                    await _llmService.SaveApiKeyAsync(settings.LlmProvider, newApiKey);
+                    LlmOutputText.Text = $"{settings.LlmProvider} API Key가 Windows 자격 증명 저장소에 저장되었습니다.";
+                }
 
                 await _settingsService.SaveSettingsAsync(settings);
                 WordWrapToggle.IsChecked = settings.WordWrap;
@@ -1087,61 +1241,176 @@ namespace Ueditor
             {
                 _currentFolderPath = folder.Path;
                 _currentRepoPath = FindGitRepositoryRoot(folder.Path) ?? string.Empty;
-                FileTreeView.RootNodes.Clear();
-                var rootNode = new TreeViewNode
-                {
-                    Content = new ExplorerItem
-                    {
-                        Name = folder.Name,
-                        Path = folder.Path,
-                        IsFolder = true
-                    },
-                    IsExpanded = true
-                };
-
-                // Populate initial children
-                LoadDirectoryChildren(folder.Path, rootNode);
-                FileTreeView.RootNodes.Add(rootNode);
+                LoadDirectoryRoot(folder.Path);
 
                 // Trigger Git branch detection & status update
                 await RefreshGitStatusUIAsync();
             }
         }
 
-        private void LoadDirectoryChildren(string parentPath, TreeViewNode parentNode)
+        private void LoadDirectoryRoot(string folderPath)
+        {
+            FileTreeView.RootNodes.Clear();
+            var folderInfo = new DirectoryInfo(folderPath);
+            var rootNode = new TreeViewNode
+            {
+                Content = new ExplorerItem
+                {
+                    Name = string.IsNullOrWhiteSpace(folderInfo.Name) ? folderPath : folderInfo.Name,
+                    Path = folderPath,
+                    IsFolder = true
+                }
+            };
+
+            FileTreeView.RootNodes.Add(rootNode);
+            int itemCount = LoadDirectoryChildren(folderPath, rootNode);
+            rootNode.IsExpanded = true;
+            FileTreeView.SelectedNode = rootNode;
+            ExplorerStatusText.Text = $"{folderPath}\n{itemCount:N0}개 항목";
+
+            DispatcherQueue.TryEnqueue(() => rootNode.IsExpanded = true);
+        }
+
+        private void OnOpenTerminalClick(object sender, RoutedEventArgs e)
+        {
+            string workingDirectory = GetTerminalWorkingDirectory();
+            if (string.IsNullOrWhiteSpace(workingDirectory) || !Directory.Exists(workingDirectory))
+            {
+                ShowErrorMessage("터미널 오류", "터미널을 열 폴더를 찾을 수 없습니다. 먼저 폴더를 선택해 주세요.");
+                return;
+            }
+
+            try
+            {
+                StartWindowsTerminal(workingDirectory);
+            }
+            catch (Exception wtEx)
+            {
+                try
+                {
+                    StartPowerShellTerminal(workingDirectory);
+                }
+                catch (Exception psEx)
+                {
+                    ShowErrorMessage("터미널 오류", $"터미널을 열지 못했습니다.\n\nWindows Terminal: {wtEx.Message}\nPowerShell: {psEx.Message}");
+                }
+            }
+        }
+
+        private string GetTerminalWorkingDirectory()
+        {
+            if (FileTreeView.SelectedNode?.Content is ExplorerItem selectedItem)
+            {
+                if (selectedItem.IsFolder && Directory.Exists(selectedItem.Path))
+                {
+                    return selectedItem.Path;
+                }
+
+                string? selectedFileDirectory = Path.GetDirectoryName(selectedItem.Path);
+                if (!string.IsNullOrWhiteSpace(selectedFileDirectory) && Directory.Exists(selectedFileDirectory))
+                {
+                    return selectedFileDirectory;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(_currentFolderPath) && Directory.Exists(_currentFolderPath))
+            {
+                return _currentFolderPath;
+            }
+
+            if (!string.IsNullOrWhiteSpace(_currentRepoPath) && Directory.Exists(_currentRepoPath))
+            {
+                return _currentRepoPath;
+            }
+
+            return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        }
+
+        private static void StartWindowsTerminal(string workingDirectory)
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "wt.exe",
+                UseShellExecute = false
+            };
+            startInfo.ArgumentList.Add("-d");
+            startInfo.ArgumentList.Add(workingDirectory);
+            Process.Start(startInfo);
+        }
+
+        private static void StartPowerShellTerminal(string workingDirectory)
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = "-NoExit",
+                WorkingDirectory = workingDirectory,
+                UseShellExecute = false,
+                CreateNoWindow = false
+            };
+            Process.Start(startInfo);
+        }
+
+        private int LoadDirectoryChildren(string parentPath, TreeViewNode parentNode)
         {
             try
             {
                 parentNode.Children.Clear();
+                foreach (var node in CreateDirectoryNodes(parentPath))
+                {
+                    parentNode.Children.Add(node);
+                }
+
+                parentNode.HasUnrealizedChildren = false;
+                return parentNode.Children.Count;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed reading folder hierarchy: {ex.Message}");
+                parentNode.HasUnrealizedChildren = false;
+                return 0;
+            }
+        }
+
+        private IEnumerable<TreeViewNode> CreateDirectoryNodes(string parentPath)
+        {
+            var nodes = new List<TreeViewNode>();
+            try
+            {
                 var dirInfo = new DirectoryInfo(parentPath);
-                
+                var enumerationOptions = new EnumerationOptions
+                {
+                    IgnoreInaccessible = true,
+                    ReturnSpecialDirectories = false
+                };
+
                 // 1. Folders first
-                foreach (var dir in dirInfo.GetDirectories())
+                foreach (var dir in dirInfo.EnumerateDirectories("*", enumerationOptions))
                 {
                     // Ignore hidden directories like .git
                     if (dir.Attributes.HasFlag(FileAttributes.Hidden) || dir.Name.StartsWith("."))
                         continue;
 
                     var item = new ExplorerItem { Name = dir.Name, Path = dir.FullName, IsFolder = true };
-                    var node = new TreeViewNode { Content = item, HasUnrealizedChildren = true };
-                    parentNode.Children.Add(node);
+                    nodes.Add(new TreeViewNode { Content = item, HasUnrealizedChildren = true });
                 }
 
                 // 2. Files next
-                foreach (var file in dirInfo.GetFiles())
+                foreach (var file in dirInfo.EnumerateFiles("*", enumerationOptions))
                 {
                     if (file.Attributes.HasFlag(FileAttributes.Hidden))
                         continue;
 
                     var item = new ExplorerItem { Name = file.Name, Path = file.FullName, IsFolder = false };
-                    var node = new TreeViewNode { Content = item, HasUnrealizedChildren = false };
-                    parentNode.Children.Add(node);
+                    nodes.Add(new TreeViewNode { Content = item, HasUnrealizedChildren = false });
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Failed reading folder hierarchy: {ex.Message}");
             }
+
+            return nodes;
         }
 
         private void OnFileTreeViewItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
@@ -1152,12 +1421,16 @@ namespace Ueditor
 
             if (item.IsFolder)
             {
+                if (node == null || !ReferenceEquals(node.Content, item))
+                {
+                    node = FindTreeViewNode(sender.RootNodes, item.Path);
+                }
                 if (node == null) return;
+
                 // Lazy Expansion
                 if (node.HasUnrealizedChildren)
                 {
                     LoadDirectoryChildren(item.Path, node);
-                    node.HasUnrealizedChildren = false;
                 }
                 node.IsExpanded = !node.IsExpanded;
             }
@@ -1166,6 +1439,25 @@ namespace Ueditor
                 // Open file in new Tab
                 _ = LoadFileIntoTabAsync(item.Path);
             }
+        }
+
+        private static TreeViewNode? FindTreeViewNode(IList<TreeViewNode> nodes, string path)
+        {
+            foreach (var node in nodes)
+            {
+                if (node.Content is ExplorerItem item && item.Path.Equals(path, StringComparison.OrdinalIgnoreCase))
+                {
+                    return node;
+                }
+
+                var childMatch = FindTreeViewNode(node.Children, path);
+                if (childMatch != null)
+                {
+                    return childMatch;
+                }
+            }
+
+            return null;
         }
 
         #endregion
@@ -1405,15 +1697,40 @@ namespace Ueditor
             await dialog.ShowAsync();
         }
 
-        private async void OnSaveApiKeyClick(object sender, RoutedEventArgs e)
+        private static async Task<IReadOnlyList<string>> FetchLmStudioModelsAsync(string endpoint)
         {
-            var settings = _settingsService.CurrentSettings;
-            string apiKey = LlmApiKeyInput.Password;
-            if (!string.IsNullOrEmpty(apiKey))
+            string baseEndpoint = string.IsNullOrWhiteSpace(endpoint) ? "http://localhost:1234/v1" : endpoint.Trim();
+            string requestUrl = baseEndpoint.TrimEnd('/') + "/models";
+
+            using (var client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) })
+            using (var response = await client.GetAsync(requestUrl))
             {
-                await _llmService.SaveApiKeyAsync(settings.LlmProvider, apiKey);
-                LlmApiKeyInput.Password = string.Empty;
-                LlmOutputText.Text = $"{settings.LlmProvider} API Key가 Windows 자격 증명 저장소에 성공적으로 암호화 저장되었습니다.";
+                string responseBody = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new HttpRequestException($"모델 목록 요청 실패 ({response.StatusCode}): {responseBody}");
+                }
+
+                using (var doc = JsonDocument.Parse(responseBody))
+                {
+                    var models = new List<string>();
+                    if (doc.RootElement.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var item in data.EnumerateArray())
+                        {
+                            if (item.TryGetProperty("id", out var idElement))
+                            {
+                                string? id = idElement.GetString();
+                                if (!string.IsNullOrWhiteSpace(id))
+                                {
+                                    models.Add(id);
+                                }
+                            }
+                        }
+                    }
+
+                    return models;
+                }
             }
         }
 

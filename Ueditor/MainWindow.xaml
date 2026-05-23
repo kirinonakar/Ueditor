@@ -26,6 +26,12 @@
             <AppBarButton Icon="OpenFile" Label="파일 열기" Click="OnOpenFileClick" AccessKey="O"/>
             <AppBarButton Icon="Save" Label="저장" Click="OnSaveFileClick" AccessKey="S"/>
             <AppBarSeparator/>
+            <AppBarButton Label="터미널" Click="OnOpenTerminalClick" ToolTipService.ToolTip="현재 폴더에서 터미널 열기">
+                <AppBarButton.Icon>
+                    <FontIcon Glyph="&#xE756;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarSeparator/>
             <AppBarToggleButton x:Name="WordWrapToggle" Icon="AlignLeft" Label="Word Wrap" Click="OnWordWrapToggleClick" IsChecked="True"/>
             <AppBarButton Icon="Find" Label="검색" Click="OnFindClick"/>
             <AppBarSeparator/>
@@ -80,21 +86,18 @@
             <AppBarButton Label="HL" Click="OnMarkdownHighlightClick" ToolTipService.ToolTip="형광펜"/>
             <AppBarSeparator/>
             <AppBarButton Label="•" Click="OnMarkdownUlClick" ToolTipService.ToolTip="글머리 목록"/>
-            <AppBarButton Label="1." Click="OnMarkdownOlClick" ToolTipService.ToolTip="번호 목록"/>
-            <AppBarButton Label="☑" Click="OnMarkdownTaskClick" ToolTipService.ToolTip="체크리스트"/>
+            <AppBarButton Label="✂" Click="OnMarkdownCutLineClick" ToolTipService.ToolTip="현재 줄 자르기"/>
             <AppBarButton Label="❝" Click="OnMarkdownQuoteClick" ToolTipService.ToolTip="인용문"/>
             <AppBarButton Label="→" Click="OnMarkdownArrowClick" ToolTipService.ToolTip="화살표"/>
             <AppBarSeparator/>
             <AppBarButton Label="`" Click="OnMarkdownInlineCodeClick" ToolTipService.ToolTip="인라인 코드"/>
-            <AppBarButton Label="{}" Click="OnMarkdownCodeBlockClick" ToolTipService.ToolTip="코드 블록"/>
-            <AppBarButton Label="Σ" Click="OnMarkdownMathClick" ToolTipService.ToolTip="LaTeX 수식 블록"/>
+            <AppBarButton Label="☑" Click="OnMarkdownTaskClick" ToolTipService.ToolTip="체크리스트"/>
             <AppBarButton Label="표" Click="OnMarkdownTableClick" ToolTipService.ToolTip="표"/>
             <AppBarSeparator/>
             <AppBarButton Label="A+" Click="OnMarkdownFontIncreaseClick" ToolTipService.ToolTip="글자 크게"/>
             <AppBarButton Label="A-" Click="OnMarkdownFontDecreaseClick" ToolTipService.ToolTip="글자 작게"/>
             <AppBarButton Label="색" Click="OnMarkdownTextColorClick" ToolTipService.ToolTip="글자색"/>
             <AppBarButton Label="링크" Click="OnMarkdownLinkClick" ToolTipService.ToolTip="링크"/>
-            <AppBarButton Label="~~" Click="OnMarkdownCutLineClick" ToolTipService.ToolTip="취소선"/>
             <AppBarButton Label="바" Click="OnMarkdownToolbarBackgroundClick" ToolTipService.ToolTip="툴바 배경 전환"/>
         </CommandBar>
 
@@ -120,7 +123,17 @@
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
                             <StackPanel Grid.Row="0" Margin="10" Spacing="8">
-                                <Button Content="폴더 선택..." HorizontalAlignment="Stretch" Click="OnSelectFolderClick" Style="{StaticResource AccentButtonStyle}"/>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Content="폴더 선택..." HorizontalAlignment="Stretch" Click="OnSelectFolderClick" Style="{StaticResource AccentButtonStyle}"/>
+                                    <Button Grid.Column="1" Click="OnOpenTerminalClick" ToolTipService.ToolTip="현재 폴더에서 터미널 열기" Padding="10,4,10,4">
+                                        <FontIcon Glyph="&#xE756;" FontSize="14"/>
+                                    </Button>
+                                </Grid>
+                                <TextBlock x:Name="ExplorerStatusText" Text="폴더를 선택하세요." FontSize="11" TextWrapping="Wrap" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
                             </StackPanel>
                             <TreeView x:Name="FileTreeView" Grid.Row="1" Margin="5" SelectionMode="Single" ItemInvoked="OnFileTreeViewItemInvoked">
                                 <TreeView.ItemTemplate>
@@ -363,23 +376,16 @@
                     <TabViewItem Header="AI Assistant" IsClosable="False">
                         <Grid Padding="15" RowSpacing="15">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/> <!-- Setup & API Key Config -->
+                                <RowDefinition Height="Auto"/> <!-- AI Settings Summary -->
                                 <RowDefinition Height="*"/>    <!-- AI Chat Logs Area -->
                                 <RowDefinition Height="Auto"/> <!-- Selection Context Visualizer -->
                                 <RowDefinition Height="Auto"/> <!-- Quick Action Buttons -->
                             </Grid.RowDefinitions>
 
-                            <!-- Row 0: API Key Setup Module -->
+                            <!-- Row 0: AI Settings Summary -->
                             <StackPanel Grid.Row="0" Spacing="8">
                                 <TextBlock Text="AI 서비스 설정" FontWeight="Bold" FontSize="12"/>
-                                <Grid ColumnSpacing="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <PasswordBox x:Name="LlmApiKeyInput" Grid.Column="0" PasswordChar="●" PlaceholderText="API Key 입력..." Height="32"/>
-                                    <Button Content="Key 저장" Grid.Column="1" Click="OnSaveApiKeyClick" Style="{StaticResource AccentButtonStyle}"/>
-                                </Grid>
+                                <TextBlock Text="API Key와 모델은 상단 설정 > LLM에서 관리합니다." TextWrapping="Wrap" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
                             </StackPanel>
 
                             <!-- Row 1: AI Chat Output Area -->
