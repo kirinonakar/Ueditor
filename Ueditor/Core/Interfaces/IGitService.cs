@@ -16,7 +16,7 @@ namespace Ueditor.Core.Interfaces
         Task<bool> RestoreAllAsync(string repoPath);
         Task<bool> CommitAsync(string repoPath, string message);
         Task<bool> PushAsync(string repoPath);
-        Task<IReadOnlyList<string>> GetRecentHistoryAsync(string repoPath, int maxCount = 20);
+        Task<IReadOnlyList<string>> GetRecentHistoryAsync(string repoPath, int maxCount = 50);
         Task<IReadOnlyList<string>> GetBranchesAsync(string repoPath);
         Task<string> RunGitCommandAsync(string workingDir, string arguments);
         Task<IReadOnlyList<(string Status, string Path)>> GetCommitChangedFilesAsync(string repoPath, string commitHash);
