@@ -2081,7 +2081,12 @@ namespace Ueditor
             {
                 if (TerminalPane.HasSessions)
                     TerminalPane.StopAllSessions();
-                HideTerminalPanel();
+                TerminalPane.Visibility = Visibility.Collapsed;
+                TerminalSplitter.Visibility = Visibility.Collapsed;
+                TerminalSplitterRow.Height = new GridLength(0);
+                TerminalPanelRow.Height = new GridLength(0);
+                if (TerminalToggleButton != null)
+                    TerminalToggleButton.IsChecked = false;
             }
             else
             {
@@ -4204,17 +4209,13 @@ namespace Ueditor
 
         private async void OnPrintClick(object sender, RoutedEventArgs e)
         {
-            var activeTab = GetActiveTab();
-            if (activeTab == null) { ShowErrorMessage("인쇄", "인쇄할 활성 탭이 없습니다."); return; }
-            try
+            if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
+                activeTabItem.Tag is string tabId &&
+                _tabBridges.TryGetValue(tabId, out var bridgeGroup) &&
+                bridgeGroup.WebView.CoreWebView2 != null)
             {
-                string htmlContent = $"<html><body><pre style='font-family:Consolas;font-size:12pt;'>{System.Net.WebUtility.HtmlEncode(activeTab.Content)}</pre></body></html>";
-                string tempFile = Path.Combine(Path.GetTempPath(), "Ueditor", "print.html");
-                Directory.CreateDirectory(Path.GetDirectoryName(tempFile) ?? string.Empty);
-                await File.WriteAllTextAsync(tempFile, htmlContent);
-                Process.Start(new ProcessStartInfo { FileName = tempFile, UseShellExecute = true });
+                await bridgeGroup.WebView.CoreWebView2.ExecuteScriptAsync("window.print()");
             }
-            catch (Exception ex) { ShowErrorMessage("인쇄 실패", ex.Message); }
         }
 
         private async void OnStatusLineNumberClick(object sender, RoutedEventArgs e)

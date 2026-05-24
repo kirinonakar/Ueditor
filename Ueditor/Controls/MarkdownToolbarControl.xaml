@@ -63,26 +63,26 @@
                 </Button>
                 <Border Width="1" Height="18" Margin="5,0" Background="{ThemeResource DividerStrokeColorDefaultBrush}" VerticalAlignment="Center"/>
                 <Button x:Name="MarkdownUlButton" Tag="ul" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="글머리 목록">
-                    <TextBlock Text="&#xE8FD;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                    <FontIcon Glyph="&#xE8FD;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
                 </Button>
                 <Button x:Name="MarkdownCutLineButton" Tag="cutLine" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="현재 줄 자르기">
-                    <TextBlock Text="&#xE8C6;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                    <FontIcon Glyph="&#xE8C6;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
                 </Button>
                 <Button x:Name="MarkdownQuoteButton" Tag="quote" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="인용문">
-                    <TextBlock Text="&#xE90A;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                    <FontIcon Glyph="&#xE90A;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
                 </Button>
                 <Button x:Name="MarkdownArrowButton" Tag="arrow" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="화살표">
-                    <TextBlock Text="&#xE72A;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                    <FontIcon Glyph="&#xE72A;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
                 </Button>
                 <Border Width="1" Height="18" Margin="5,0" Background="{ThemeResource DividerStrokeColorDefaultBrush}" VerticalAlignment="Center"/>
                 <Button x:Name="MarkdownInlineCodeButton" Tag="inlineCode" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="인라인 코드">
-                    <TextBlock Text="&#xE943;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                    <FontIcon Glyph="&#xE943;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
                 </Button>
                 <Button x:Name="MarkdownTaskButton" Tag="task" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="체크리스트">
-                    <TextBlock Text="&#xE73A;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                    <FontIcon Glyph="&#xE73A;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
                 </Button>
                 <Button x:Name="MarkdownTableButton" Tag="table" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="표">
-                    <TextBlock Text="&#xE80A;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                    <FontIcon Glyph="&#xE80A;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
                 </Button>
                 <Border Width="1" Height="18" Margin="5,0" Background="{ThemeResource DividerStrokeColorDefaultBrush}" VerticalAlignment="Center"/>
                 <Button x:Name="MarkdownFontIncreaseButton" Tag="fontIncrease" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="글자 크게">
@@ -92,7 +92,7 @@
                     <TextBlock Text="A-" FontSize="10" LineHeight="12" FontWeight="SemiBold" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                 </Button>
                 <Button x:Name="TextColorButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnTextColorButtonClick" ToolTipService.ToolTip="글자색 (우클릭: 색상 선택)" RightTapped="OnTextColorButtonRightTapped">
-                    <TextBlock Text="&#xE8D3;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                    <FontIcon Glyph="&#xE8D3;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
                     <Button.ContextFlyout>
                         <Flyout x:Name="ColorPickerFlyout" Placement="Bottom">
                             <StackPanel Spacing="8" Padding="4">
@@ -104,7 +104,7 @@
                     </Button.ContextFlyout>
                 </Button>
                 <Button x:Name="MarkdownLinkButton" Tag="link" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="링크">
-                    <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                    <FontIcon Glyph="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
                 </Button>
             </StackPanel>
         </ScrollViewer>
