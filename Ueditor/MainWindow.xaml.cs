@@ -558,6 +558,15 @@ namespace Ueditor
                 PreviewWebView.CoreWebView2.Settings.IsScriptEnabled = true;
                 PreviewWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
 
+                PreviewWebView.NavigationCompleted += (s, e) =>
+                {
+                    var tab = GetActiveTab();
+                    if (tab != null)
+                    {
+                        UpdateLivePreview(tab);
+                    }
+                };
+
                 // Load preview renderer page
                 PreviewWebView.Source = new Uri("http://ueditor.local/preview.html");
             }
@@ -861,7 +870,7 @@ namespace Ueditor
                             fontFamily = _settingsService.CurrentSettings.FontFamily,
                             customBackgroundColor = _settingsService.CurrentSettings.CustomBackgroundColor,
                             customForegroundColor = _settingsService.CurrentSettings.CustomForegroundColor,
-                            readOnly = true
+                            readOnly = false
                         };
                         string initJson = System.Text.Json.JsonSerializer.Serialize(initMsg);
                         wv.CoreWebView2.PostWebMessageAsJson(initJson);

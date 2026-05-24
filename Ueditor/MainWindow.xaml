@@ -67,7 +67,11 @@
                 </AppBarButton.Icon>
             </AppBarButton>
             <AppBarSeparator/>
-            <AppBarToggleButton x:Name="WordWrapToggle" Icon="AlignLeft" Label="Word Wrap" Click="OnWordWrapToggleClick" IsChecked="True"/>
+            <AppBarToggleButton x:Name="WordWrapToggle" Label="Word Wrap" Click="OnWordWrapToggleClick" IsChecked="True">
+                <AppBarToggleButton.Icon>
+                    <FontIcon Glyph="&#xE751;"/>
+                </AppBarToggleButton.Icon>
+            </AppBarToggleButton>
             <AppBarButton x:Name="SearchButton" Icon="Find" Label="검색" Click="OnFindClick" ToolTipService.ToolTip="검색 (Ctrl+F)"/>
             <AppBarSeparator/>
             <AppBarToggleButton x:Name="MarkdownToolbarToggle" Click="OnToggleMarkdownToolbarClick" ToolTipService.ToolTip="마크다운 툴바 토글">

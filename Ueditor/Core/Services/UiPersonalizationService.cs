@@ -94,6 +94,11 @@ namespace Ueditor.Core.Services
             try
             {
                 var fontFamily = new Microsoft.UI.Xaml.Media.FontFamily(settings.UiFontFamily);
+                
+                // Override theme resource font families at the root element level
+                rootElement.Resources["ContentControlThemeFontFamily"] = fontFamily;
+                rootElement.Resources["SystemControlFontFamily"] = fontFamily;
+                
                 ApplyFontFamilyRecursively(rootElement, fontFamily);
             }
             catch
@@ -155,6 +160,13 @@ namespace Ueditor.Core.Services
             if (parent is IconElement)
             {
                 return;
+            }
+
+            if (parent is FrameworkElement fe)
+            {
+                // Force font family resource overrides on all FrameworkElements
+                fe.Resources["ContentControlThemeFontFamily"] = fontFamily;
+                fe.Resources["SystemControlFontFamily"] = fontFamily;
             }
 
             if (parent is Control ctrl)
