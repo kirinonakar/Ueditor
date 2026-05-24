@@ -76,10 +76,21 @@ namespace Ueditor
         private const double PreviewPanelMinWidth = 150;
         private static IReadOnlyList<string>? _installedFontFamiliesCache;
 
+        // Split Editor State
+        private TabView? _activeTabView;
+        private bool _isDraggingEditorSplitter = false;
+        private double _editorSplitterStartWidth = 0;
+        private double _editorSplitterStartHeight = 0;
+        private double _editorSplitterStartPointerX = 0;
+        private double _editorSplitterStartPointerY = 0;
+        private bool _isVerticalSplit = true;
+        private enum SplitMode { None, Vertical, Horizontal }
+        private SplitMode _currentSplitMode = SplitMode.None;
 
         public MainWindow()
         {
             this.InitializeComponent();
+            _activeTabView = EditorTabView;
             SetWindowIcon();
 
             _fileService = new FileService();
@@ -185,7 +196,10 @@ namespace Ueditor
                 var position = AppWindow.Position;
                 var size = AppWindow.Size;
 
-                if (size.Width >= 400 && size.Height >= 300)
+                var overlappedPresenter = AppWindow.Presenter as Microsoft.UI.Windowing.OverlappedPresenter;
+                bool isRestored = overlappedPresenter == null || overlappedPresenter.State == Microsoft.UI.Windowing.OverlappedPresenterState.Restored;
+
+                if (isRestored && size.Width >= 400 && size.Height >= 300)
                 {
                     settings.WindowX = position.X;
                     settings.WindowY = position.Y;
@@ -353,6 +367,7 @@ namespace Ueditor
                 _ => 0
             };
             ApplyUiPersonalization(_settingsService.CurrentSettings);
+            LocalizeUi();
 
             // If we have a Git repo path from a loaded file, refresh Git status UI
             if (!string.IsNullOrEmpty(_currentRepoPath))
@@ -543,7 +558,7 @@ namespace Ueditor
 
                 bridge.CursorChanged += (line, col) =>
                 {
-                    if (EditorTabView.SelectedItem as TabViewItem == tabItem)
+                    if (GetActiveTab() == tab)
                     {
                         StatusLine.Text = line.ToString();
                         StatusCol.Text = col.ToString();
@@ -554,7 +569,7 @@ namespace Ueditor
                 bridge.SelectionReceived += (selectedText) =>
                 {
                     _lastSelectionText = selectedText;
-                    if (EditorTabView.SelectedItem as TabViewItem == tabItem)
+                    if (GetActiveTab() == tab)
                     {
                         if (string.IsNullOrEmpty(selectedText))
                         {
@@ -571,8 +586,9 @@ namespace Ueditor
                 InitializeEditorWebView(editorWebView, bridge);
             }
 
-            EditorTabView.TabItems.Add(tabItem);
-            EditorTabView.SelectedItem = tabItem;
+            var targetTabView = GetCurrentActiveTabView();
+            targetTabView.TabItems.Add(tabItem);
+            targetTabView.SelectedItem = tabItem;
 
             UpdateStatusFileStats(tab);
             SyncEncodingCombo(tab);
@@ -1367,10 +1383,131 @@ namespace Ueditor
             }
         }
 
+        private void LocalizeUi()
+        {
+            try
+            {
+                var loader = new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader();
+                
+                string GetString(string key, string fallback)
+                {
+                    try
+                    {
+                        string val = loader.GetString(key);
+                        return string.IsNullOrEmpty(val) ? fallback : val;
+                    }
+                    catch
+                    {
+                        return fallback;
+                    }
+                }
+
+                // 1. Top Toolbar Buttons
+                if (OpenFileButton != null)
+                {
+                    OpenFileButton.Label = GetString("OpenFile", "파일 열기");
+                    ToolTipService.SetToolTip(OpenFileButton, GetString("OpenFile", "파일 열기") + " (Ctrl+O)");
+                }
+                if (SaveFileButton != null)
+                {
+                    SaveFileButton.Label = GetString("SaveFile", "저장");
+                    ToolTipService.SetToolTip(SaveFileButton, GetString("SaveFile", "저장") + " (Ctrl+S)");
+                }
+                if (CompareButton != null)
+                {
+                    CompareButton.Label = GetString("Compare", "비교");
+                    ToolTipService.SetToolTip(CompareButton, GetString("Compare", "비교") + " (Diff)");
+                }
+                if (TerminalToggleButton != null)
+                {
+                    TerminalToggleButton.Label = GetString("Terminal", "터미널");
+                    ToolTipService.SetToolTip(TerminalToggleButton, GetString("Terminal", "터미널") + " (Ctrl+T)");
+                }
+                if (TopMostToggleButton != null)
+                {
+                    TopMostToggleButton.Label = GetString("TopMost", "항상위");
+                    ToolTipService.SetToolTip(TopMostToggleButton, GetString("TopMost", "항상 위"));
+                }
+                if (StickyNoteButton != null)
+                {
+                    StickyNoteButton.Label = GetString("StickyNote", "스티커");
+                    ToolTipService.SetToolTip(StickyNoteButton, GetString("StickyNote", "스티커 노트"));
+                }
+                if (WordWrapToggle != null)
+                {
+                    WordWrapToggle.Label = GetString("WordWrap", "Word Wrap");
+                }
+                if (SearchButton != null)
+                {
+                    SearchButton.Label = GetString("Search", "검색");
+                    ToolTipService.SetToolTip(SearchButton, GetString("Search", "검색") + " (Ctrl+F)");
+                }
+                if (MarkdownToolbarToggle != null)
+                {
+                    MarkdownToolbarToggle.Label = GetString("Markdown", "Markdown");
+                    ToolTipService.SetToolTip(MarkdownToolbarToggle, GetString("Markdown", "마크다운 툴바 토글"));
+                }
+                if (ThemeButton != null)
+                {
+                    ThemeButton.Label = GetString("Theme", "테마");
+                }
+                if (SplitButton != null)
+                {
+                    SplitButton.Label = GetString("Split", "분할");
+                    ToolTipService.SetToolTip(SplitButton, GetString("Split", "에디터 화면 분할"));
+                }
+                if (SettingsButton != null)
+                {
+                    SettingsButton.Label = GetString("Settings", "설정");
+                }
+
+                // 2. Split Menu Flyouts
+                if (SplitNoneItem != null) SplitNoneItem.Text = GetString("SplitNone", "분할 없음 (단일)");
+                if (SplitVerticalItem != null) SplitVerticalItem.Text = GetString("SplitVertical", "좌우 분할");
+                if (SplitHorizontalItem != null) SplitHorizontalItem.Text = GetString("SplitHorizontal", "상하 분할");
+
+                // 3. Left Panel Tooltips
+                if (ExplorerActivityButton != null) ToolTipService.SetToolTip(ExplorerActivityButton, GetString("OpenFile", "탐색기"));
+                if (FavoritesActivityButton != null) ToolTipService.SetToolTip(FavoritesActivityButton, GetString("FavoritesHeader", "즐겨찾기"));
+                if (SnippetsActivityButton != null) ToolTipService.SetToolTip(SnippetsActivityButton, GetString("SnippetsHeader", "스니펫"));
+                if (GitActivityButton != null) ToolTipService.SetToolTip(GitActivityButton, "Git");
+                if (SearchActivityButton != null) ToolTipService.SetToolTip(SearchActivityButton, GetString("Search", "검색"));
+                if (RecentActivityButton != null) ToolTipService.SetToolTip(RecentActivityButton, "최근 파일");
+
+                // 4. Folder Select and Status
+                if (ExplorerStatusText != null && string.IsNullOrEmpty(_currentFolderPath))
+                {
+                    ExplorerStatusText.Text = GetString("NoFolderSelected", "폴더를 선택하세요.");
+                }
+
+                // 5. Sidebar Headers
+                if (FavoritesHeaderText != null) FavoritesHeaderText.Text = GetString("FavoritesHeader", "즐겨찾기 목록 (더블클릭하여 열기)");
+                if (SnippetsHeaderText != null) SnippetsHeaderText.Text = GetString("SnippetsHeader", "코드 및 수식 템플릿 (더블클릭하여 삽입)");
+                if (AddSnippetButton != null) AddSnippetButton.Content = GetString("AddSnippet", "스니펫 추가...");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to localize UI: {ex.Message}");
+            }
+        }
+
         private async void OnSettingsClick(object sender, RoutedEventArgs e)
         {
-            // Open a beautiful modal dialog for customizations
             var settings = _settingsService.CurrentSettings;
+
+            var languageCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
+            languageCombo.Items.Add("Default (OS Language)");
+            languageCombo.Items.Add("한국어 (Korean)");
+            languageCombo.Items.Add("English");
+            languageCombo.Items.Add("日本語 (Japanese)");
+
+            languageCombo.SelectedIndex = settings.Language switch
+            {
+                "ko-KR" => 1,
+                "en-US" => 2,
+                "ja-JP" => 3,
+                _ => 0
+            };
 
             // XAML-based quick options injection for Dialog
             var themeCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, SelectedIndex = settings.Theme == "Dark" ? 0 : 1 };
@@ -1613,6 +1750,8 @@ namespace Ueditor
             }
 
             var appearanceSection = CreateSection();
+            AddLabel(appearanceSection, "애플리케이션 언어 (Language)");
+            appearanceSection.Children.Add(languageCombo);
             AddLabel(appearanceSection, "앱/에디터 테마");
             appearanceSection.Children.Add(themeCombo);
             AddLabel(appearanceSection, $"에디터 글자 크기 ({settings.FontSize:0}pt)");
@@ -1672,6 +1811,15 @@ namespace Ueditor
             var result = await dialog.ShowAsync();
             if (result == ContentDialogResult.Primary)
             {
+                string oldLanguage = settings.Language;
+                settings.Language = languageCombo.SelectedIndex switch
+                {
+                    1 => "ko-KR",
+                    2 => "en-US",
+                    3 => "ja-JP",
+                    _ => "Default"
+                };
+
                 settings.Theme = themeCombo.SelectedIndex == 0 ? "Dark" : "Light";
                 settings.FontSize = sizeSlider.Value;
                 settings.CustomBackgroundColor = customBgCheck.IsChecked == true ? ColorToHex(customBgPicker.Color) : string.Empty;
@@ -1730,6 +1878,40 @@ namespace Ueditor
                 WordWrapToggle.IsChecked = settings.WordWrap;
                 ApplyUiPersonalization(settings);
 
+                if (oldLanguage != settings.Language)
+                {
+                    var loader = new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader();
+                    string dlgTitle = "Language Change";
+                    string dlgMessage = "You must restart the application to apply the language settings. Would you like to restart now?";
+                    string dlgYes = "Restart";
+                    string dlgNo = "Later";
+                    
+                    try
+                    {
+                        dlgTitle = loader.GetString("LanguageChangedTitle") ?? dlgTitle;
+                        dlgMessage = loader.GetString("LanguageChangedMessage") ?? dlgMessage;
+                        dlgYes = loader.GetString("Restart") ?? dlgYes;
+                        dlgNo = loader.GetString("No") ?? dlgNo;
+                    }
+                    catch { }
+
+                    var restartDialog = new ContentDialog
+                    {
+                        Title = dlgTitle,
+                        Content = dlgMessage,
+                        PrimaryButtonText = dlgYes,
+                        CloseButtonText = dlgNo,
+                        XamlRoot = this.Content.XamlRoot
+                    };
+                    
+                    var restartResult = await restartDialog.ShowAsync();
+                    if (restartResult == ContentDialogResult.Primary)
+                    {
+                        Microsoft.Windows.AppLifecycle.AppInstance.Restart("");
+                        return;
+                    }
+                }
+
                 // Update settings for all active Monaco and Large File editors
                 foreach (var grp in _tabBridges.Values)
                 {
@@ -1755,7 +1937,8 @@ namespace Ueditor
                 }
 
                 // Update current preview panel render if applicable
-                if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
+                var activeTabView = GetCurrentActiveTabView();
+                if (activeTabView.SelectedItem is TabViewItem activeTabItem &&
                     activeTabItem.Tag is string tabId)
                 {
                     var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
@@ -2027,6 +2210,261 @@ namespace Ueditor
 
         #endregion
 
+        #region Split Editor Layout
+
+        private void OnTabViewGotFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TabView tabView)
+            {
+                _activeTabView = tabView;
+                var activeTab = GetActiveTab();
+                if (activeTab != null)
+                {
+                    UpdateStatusFileStats(activeTab);
+                    UpdateLivePreview(activeTab);
+                    UpdateLanguageUI(activeTab);
+                    SyncEncodingCombo(activeTab);
+                }
+            }
+        }
+
+        private TabView GetCurrentActiveTabView()
+        {
+            return _activeTabView ?? EditorTabView;
+        }
+
+        private void OnSplitNoneClick(object sender, RoutedEventArgs e) => SetSplitMode(SplitMode.None);
+        private void OnSplitVerticalClick(object sender, RoutedEventArgs e) => SetSplitMode(SplitMode.Vertical);
+        private void OnSplitHorizontalClick(object sender, RoutedEventArgs e) => SetSplitMode(SplitMode.Horizontal);
+
+        private void SetSplitMode(SplitMode mode)
+        {
+            _currentSplitMode = mode;
+
+            if (mode == SplitMode.None)
+            {
+                EditorRow1.Height = new GridLength(1, GridUnitType.Star);
+                EditorRow2.Height = new GridLength(0);
+                EditorSplitterRow.Height = new GridLength(0);
+
+                EditorColumn1.Width = new GridLength(1, GridUnitType.Star);
+                EditorColumn2.Width = new GridLength(0);
+                EditorSplitterColumn.Width = new GridLength(0);
+
+                EditorSplitter.Visibility = Visibility.Collapsed;
+                EditorTabView2.Visibility = Visibility.Collapsed;
+
+                while (EditorTabView2.TabItems.Count > 0)
+                {
+                    var item = (TabViewItem)EditorTabView2.TabItems[0];
+                    EditorTabView2.TabItems.RemoveAt(0);
+                    EditorTabView.TabItems.Add(item);
+                }
+
+                _activeTabView = EditorTabView;
+                if (EditorTabView.SelectedItem == null && EditorTabView.TabItems.Count > 0)
+                {
+                    EditorTabView.SelectedIndex = 0;
+                }
+            }
+            else if (mode == SplitMode.Vertical)
+            {
+                _isVerticalSplit = true;
+
+                EditorRow1.Height = new GridLength(1, GridUnitType.Star);
+                EditorRow2.Height = new GridLength(0);
+                EditorSplitterRow.Height = new GridLength(0);
+
+                double totalWidth = EditorSplitGrid.ActualWidth;
+                double halfWidth = (totalWidth - 4) / 2;
+                if (halfWidth < 100) halfWidth = 300;
+                EditorColumn1.Width = new GridLength(halfWidth);
+                EditorColumn2.Width = new GridLength(halfWidth);
+                EditorSplitterColumn.Width = new GridLength(4);
+
+                Grid.SetRow(EditorSplitter, 0);
+                Grid.SetRowSpan(EditorSplitter, 1);
+                Grid.SetColumn(EditorSplitter, 1);
+                Grid.SetColumnSpan(EditorSplitter, 1);
+                EditorSplitter.Width = 4;
+                EditorSplitter.Height = double.NaN;
+                EditorSplitter.HorizontalAlignment = HorizontalAlignment.Stretch;
+                EditorSplitter.VerticalAlignment = VerticalAlignment.Stretch;
+
+                Grid.SetRow(EditorTabView2, 0);
+                Grid.SetColumn(EditorTabView2, 2);
+
+                EditorSplitter.Visibility = Visibility.Visible;
+                EditorTabView2.Visibility = Visibility.Visible;
+
+                if (EditorTabView2.TabItems.Count == 0)
+                {
+                    if (EditorTabView.TabItems.Count > 1)
+                    {
+                        var activeItem = (TabViewItem)EditorTabView.SelectedItem;
+                        if (activeItem != null)
+                        {
+                            EditorTabView.TabItems.Remove(activeItem);
+                            EditorTabView2.TabItems.Add(activeItem);
+                            EditorTabView2.SelectedItem = activeItem;
+                        }
+                    }
+                    else
+                    {
+                        _activeTabView = EditorTabView2;
+                        OpenNewTab();
+                    }
+                }
+            }
+            else if (mode == SplitMode.Horizontal)
+            {
+                _isVerticalSplit = false;
+
+                double totalHeight = EditorSplitGrid.ActualHeight;
+                double halfHeight = (totalHeight - 4) / 2;
+                if (halfHeight < 100) halfHeight = 300;
+                EditorRow1.Height = new GridLength(halfHeight);
+                EditorRow2.Height = new GridLength(halfHeight);
+                EditorSplitterRow.Height = new GridLength(4);
+
+                EditorColumn1.Width = new GridLength(1, GridUnitType.Star);
+                EditorColumn2.Width = new GridLength(0);
+                EditorSplitterColumn.Width = new GridLength(0);
+
+                Grid.SetRow(EditorSplitter, 1);
+                Grid.SetRowSpan(EditorSplitter, 1);
+                Grid.SetColumn(EditorSplitter, 0);
+                Grid.SetColumnSpan(EditorSplitter, 1);
+                EditorSplitter.Width = double.NaN;
+                EditorSplitter.Height = 4;
+                EditorSplitter.HorizontalAlignment = HorizontalAlignment.Stretch;
+                EditorSplitter.VerticalAlignment = VerticalAlignment.Stretch;
+
+                Grid.SetRow(EditorTabView2, 2);
+                Grid.SetColumn(EditorTabView2, 0);
+
+                EditorSplitter.Visibility = Visibility.Visible;
+                EditorTabView2.Visibility = Visibility.Visible;
+
+                if (EditorTabView2.TabItems.Count == 0)
+                {
+                    if (EditorTabView.TabItems.Count > 1)
+                    {
+                        var activeItem = (TabViewItem)EditorTabView.SelectedItem;
+                        if (activeItem != null)
+                        {
+                            EditorTabView.TabItems.Remove(activeItem);
+                            EditorTabView2.TabItems.Add(activeItem);
+                            EditorTabView2.SelectedItem = activeItem;
+                        }
+                    }
+                    else
+                    {
+                        _activeTabView = EditorTabView2;
+                        OpenNewTab();
+                    }
+                }
+            }
+        }
+
+        private void OnEditorSplitterPointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is UIElement splitter)
+            {
+                _isDraggingEditorSplitter = true;
+                _editorSplitterStartWidth = EditorColumn1.Width.Value;
+                _editorSplitterStartHeight = EditorRow1.Height.Value;
+                var pt = e.GetCurrentPoint(EditorSplitGrid).Position;
+                _editorSplitterStartPointerX = pt.X;
+                _editorSplitterStartPointerY = pt.Y;
+                splitter.CapturePointer(e.Pointer);
+                e.Handled = true;
+            }
+        }
+
+        private void OnEditorSplitterPointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (_isDraggingEditorSplitter && sender is UIElement splitter)
+            {
+                var pt = e.GetCurrentPoint(EditorSplitGrid).Position;
+                if (_isVerticalSplit)
+                {
+                    double deltaX = pt.X - _editorSplitterStartPointerX;
+                    double newWidth = _editorSplitterStartWidth + deltaX;
+                    double totalWidth = EditorSplitGrid.ActualWidth;
+                    newWidth = Math.Clamp(newWidth, 100, totalWidth - 100);
+                    EditorColumn1.Width = new GridLength(newWidth);
+                    EditorColumn2.Width = new GridLength(totalWidth - newWidth - 4);
+                }
+                else
+                {
+                    double deltaY = pt.Y - _editorSplitterStartPointerY;
+                    double newHeight = _editorSplitterStartHeight + deltaY;
+                    double totalHeight = EditorSplitGrid.ActualHeight;
+                    newHeight = Math.Clamp(newHeight, 100, totalHeight - 100);
+                    EditorRow1.Height = new GridLength(newHeight);
+                    EditorRow2.Height = new GridLength(totalHeight - newHeight - 4);
+                }
+                e.Handled = true;
+            }
+        }
+
+        private void OnEditorSplitterPointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (_isDraggingEditorSplitter && sender is UIElement splitter)
+            {
+                _isDraggingEditorSplitter = false;
+                splitter.ReleasePointerCapture(e.Pointer);
+                e.Handled = true;
+            }
+        }
+
+        private void OnEditorTabView2AddTabClick(TabView sender, object args)
+        {
+            _activeTabView = sender;
+            OpenNewTab();
+        }
+
+        private void OnEditorTabView2TabCloseRequested(TabView sender, TabViewTabCloseRequestedEventArgs args)
+        {
+            _activeTabView = sender;
+            OnEditorTabViewTabCloseRequested(sender, args);
+        }
+
+        private async void OnEditorTabView2SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            _activeTabView = EditorTabView2;
+            if (EditorTabView2.SelectedItem is TabViewItem activeTabItem)
+            {
+                await HandleTabViewSelectionChangedAsync(activeTabItem);
+            }
+        }
+
+        private async Task HandleTabViewSelectionChangedAsync(TabViewItem activeTabItem)
+        {
+            _lastSelectionText = string.Empty;
+            SelectionStatsText.Text = "선택 영역: 없음 (전체 전송 차단 활성화)";
+
+            if (activeTabItem.Tag is string tabId)
+            {
+                var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
+                if (tab != null)
+                {
+                    UpdateStatusFileStats(tab);
+                    UpdateLivePreview(tab);
+                    UpdateLanguageUI(tab);
+                    SyncEncodingCombo(tab);
+
+                    if (_tabBridges.TryGetValue(tab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
+                    {
+                        await bridgeGroup.Bridge.RequestSelectionAsync();
+                    }
+                }
+            }
+        }
+
+        #endregion
+
         #region Explorer Directory Items
 
         private IEnumerable<ExplorerItem> CreateDirectoryItems(string parentPath)
@@ -2162,7 +2600,14 @@ namespace Ueditor
         private void CloseTabAndCleanup(OpenedTab tab, TabViewItem tabItem)
         {
             _tabs.Remove(tab);
-            EditorTabView.TabItems.Remove(tabItem);
+            if (EditorTabView.TabItems.Contains(tabItem))
+            {
+                EditorTabView.TabItems.Remove(tabItem);
+            }
+            else if (EditorTabView2.TabItems.Contains(tabItem))
+            {
+                EditorTabView2.TabItems.Remove(tabItem);
+            }
 
             if (_tabBridges.TryGetValue(tab.Id, out var bridgeGroup))
             {
@@ -2170,7 +2615,7 @@ namespace Ueditor
                 _tabBridges.Remove(tab.Id);
             }
 
-            if (_tabs.Count == 0)
+            if (EditorTabView.TabItems.Count == 0 && EditorTabView2.TabItems.Count == 0)
             {
                 OpenNewTab();
             }
@@ -2178,27 +2623,10 @@ namespace Ueditor
 
         private async void OnEditorTabViewSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Reset selection context to prevent leak/cross-talk between documents
-            _lastSelectionText = string.Empty;
-            SelectionStatsText.Text = "선택 영역: 없음 (전체 전송 차단 활성화)";
-
-            if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
-                activeTabItem.Tag is string tabId)
+            _activeTabView = EditorTabView;
+            if (EditorTabView.SelectedItem is TabViewItem activeTabItem)
             {
-                var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
-                if (tab != null)
-                {
-                    UpdateStatusFileStats(tab);
-                    UpdateLivePreview(tab);
-                    UpdateLanguageUI(tab);
-                    SyncEncodingCombo(tab);
-
-                    // Sync selection for active Monaco editor
-                    if (_tabBridges.TryGetValue(tab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
-                    {
-                        await bridgeGroup.Bridge.RequestSelectionAsync();
-                    }
-                }
+                await HandleTabViewSelectionChangedAsync(activeTabItem);
             }
         }
 
@@ -2470,7 +2898,8 @@ namespace Ueditor
                 tab.EncodingWasAutoDetected = readResult.WasAutoDetected;
                 tab.IsDirty = false;
 
-                var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id);
+                var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id)
+                           ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id);
                 if (tabItem != null)
                 {
                     tabItem.Header = tab.DisplayTitle;
@@ -2575,7 +3004,8 @@ namespace Ueditor
 
         private OpenedTab? GetActiveTab()
         {
-            if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
+            var activeTabView = GetCurrentActiveTabView();
+            if (activeTabView.SelectedItem is TabViewItem activeTabItem &&
                 activeTabItem.Tag is string tabId)
             {
                 return _tabs.FirstOrDefault(t => t.Id == tabId);
@@ -3169,7 +3599,6 @@ namespace Ueditor
                         ? Windows.UI.Color.FromArgb(255, 236, 236, 238)
                         : Windows.UI.Color.FromArgb(255, 43, 47, 54));
                 MarkdownToolbar.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(background);
-                MarkdownToolbar.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(GetReadableForeground(background));
             }
             catch (Exception ex)
             {
@@ -3974,7 +4403,8 @@ namespace Ueditor
 
         private async Task<bool> SaveTabAsync(OpenedTab tab)
         {
-            var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id);
+            var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id)
+                       ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id);
             if (tabItem == null) return false;
 
             if (tab.IsLargeFileMode)
@@ -4072,7 +4502,8 @@ namespace Ueditor
         private void OnCloseActiveTabShortcutInvoked(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
         {
             if (args != null) args.Handled = true;
-            if (EditorTabView.SelectedItem is TabViewItem tabItem && tabItem.Tag is string tabId)
+            var activeTabView = GetCurrentActiveTabView();
+            if (activeTabView.SelectedItem is TabViewItem tabItem && tabItem.Tag is string tabId)
             {
                 var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
                 if (tab != null)

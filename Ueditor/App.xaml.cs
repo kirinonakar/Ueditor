@@ -1,4 +1,4 @@
-﻿using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Data;
@@ -43,8 +43,43 @@ namespace Ueditor
         /// <param name="args">Details about the launch request and process.</param>
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
+            ApplyLanguageSettings();
             _window = new MainWindow();
             _window.Activate();
+        }
+
+        private void ApplyLanguageSettings()
+        {
+            try
+            {
+                string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                string settingsDir = System.IO.Path.Combine(userProfile, ".ueditor");
+                string settingsFilePath = System.IO.Path.Combine(settingsDir, "settings.json");
+
+                if (System.IO.File.Exists(settingsFilePath))
+                {
+                    string json = File.ReadAllText(settingsFilePath);
+                    using (System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(json))
+                    {
+                        if (doc.RootElement.TryGetProperty("Language", out System.Text.Json.JsonElement langProp))
+                        {
+                            string lang = langProp.GetString() ?? "Default";
+                            if (lang == "Default" || string.IsNullOrEmpty(lang))
+                            {
+                                Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = "";
+                            }
+                            else
+                            {
+                                Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = lang;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to apply language settings: {ex.Message}");
+            }
         }
     }
 }

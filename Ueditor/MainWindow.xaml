@@ -36,9 +36,9 @@
 
         <!-- 1. Top Command Toolbar (상단 툴바) -->
         <CommandBar Grid.Row="1" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}" DefaultLabelPosition="Right">
-            <AppBarButton Icon="OpenFile" Label="파일 열기" Click="OnOpenFileClick" AccessKey="O" ToolTipService.ToolTip="파일 열기 (Ctrl+O)"/>
-            <AppBarButton Icon="Save" Label="저장" Click="OnSaveFileClick" AccessKey="S" ToolTipService.ToolTip="저장 (Ctrl+S)"/>
-            <AppBarButton Label="비교" Click="OnCompareFilesClick" ToolTipService.ToolTip="파일 비교 (Diff)">
+            <AppBarButton x:Name="OpenFileButton" Icon="OpenFile" Label="파일 열기" Click="OnOpenFileClick" AccessKey="O" ToolTipService.ToolTip="파일 열기 (Ctrl+O)"/>
+            <AppBarButton x:Name="SaveFileButton" Icon="Save" Label="저장" Click="OnSaveFileClick" AccessKey="S" ToolTipService.ToolTip="저장 (Ctrl+S)"/>
+            <AppBarButton x:Name="CompareButton" Label="비교" Click="OnCompareFilesClick" ToolTipService.ToolTip="파일 비교 (Diff)">
                 <AppBarButton.Icon>
                     <FontIcon Glyph="&#xE8D4;"/>
                 </AppBarButton.Icon>
@@ -56,14 +56,14 @@
                 </AppBarToggleButton.Icon>
                 <AppBarToggleButton.Label>항상위</AppBarToggleButton.Label>
             </AppBarToggleButton>
-            <AppBarButton Label="스티커" Click="OnStickyNoteClick" ToolTipService.ToolTip="스티커 노트">
+            <AppBarButton x:Name="StickyNoteButton" Label="스티커" Click="OnStickyNoteClick" ToolTipService.ToolTip="스티커 노트">
                 <AppBarButton.Icon>
                     <FontIcon Glyph="&#xE70B;"/>
                 </AppBarButton.Icon>
             </AppBarButton>
             <AppBarSeparator/>
             <AppBarToggleButton x:Name="WordWrapToggle" Icon="AlignLeft" Label="Word Wrap" Click="OnWordWrapToggleClick" IsChecked="True"/>
-            <AppBarButton Icon="Find" Label="검색" Click="OnFindClick" ToolTipService.ToolTip="검색 (Ctrl+F)"/>
+            <AppBarButton x:Name="SearchButton" Icon="Find" Label="검색" Click="OnFindClick" ToolTipService.ToolTip="검색 (Ctrl+F)"/>
             <AppBarSeparator/>
             <AppBarToggleButton x:Name="MarkdownToolbarToggle" Click="OnToggleMarkdownToolbarClick" ToolTipService.ToolTip="마크다운 툴바 토글">
                 <AppBarToggleButton.Icon>
@@ -72,25 +72,36 @@
                 <AppBarToggleButton.Label>Markdown</AppBarToggleButton.Label>
             </AppBarToggleButton>
             <AppBarSeparator/>
-            <AppBarButton Label="테마" Click="OnToggleThemeClick">
+            <AppBarButton x:Name="ThemeButton" Label="테마" Click="OnToggleThemeClick">
                 <AppBarButton.Icon>
                     <FontIcon Glyph="&#xE790;"/>
                 </AppBarButton.Icon>
             </AppBarButton>
             <AppBarSeparator/>
-            <AppBarButton Icon="Setting" Label="설정" Click="OnSettingsClick"/>
+            <AppBarButton x:Name="SplitButton" Label="분할" ToolTipService.ToolTip="에디터 화면 분할">
+                <AppBarButton.Icon>
+                    <FontIcon Glyph="&#xE13C;"/>
+                </AppBarButton.Icon>
+                <AppBarButton.Flyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem x:Name="SplitNoneItem" Text="분할 없음 (단일)" Click="OnSplitNoneClick"/>
+                        <MenuFlyoutItem x:Name="SplitVerticalItem" Text="좌우 분할" Click="OnSplitVerticalClick"/>
+                        <MenuFlyoutItem x:Name="SplitHorizontalItem" Text="상하 분할" Click="OnSplitHorizontalClick"/>
+                    </MenuFlyout>
+                </AppBarButton.Flyout>
+            </AppBarButton>
+            <AppBarSeparator/>
+            <AppBarButton x:Name="SettingsButton" Icon="Setting" Label="설정" Click="OnSettingsClick"/>
         </CommandBar>
 
-        <CommandBar x:Name="MarkdownToolbar"
-                    Grid.Row="2"
-                    Height="32"
-                    Padding="0"
-                    HorizontalContentAlignment="Right"
-                    Visibility="Collapsed"
-                    OverflowButtonVisibility="Collapsed"
-                    DefaultLabelPosition="Collapsed"
-                    Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}">
-            <CommandBar.Resources>
+        <Border x:Name="MarkdownToolbar"
+                Grid.Row="2"
+                Height="32"
+                Visibility="Collapsed"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="0,0,0,1"
+                Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}">
+            <Border.Resources>
                 <Style x:Key="MarkdownToolbarButtonStyle" TargetType="Button">
                     <Setter Property="MinWidth" Value="28"/>
                     <Setter Property="Width" Value="28"/>
@@ -113,8 +124,7 @@
                     <Setter Property="VerticalAlignment" Value="Center"/>
                     <Setter Property="Margin" Value="0"/>
                 </Style>
-            </CommandBar.Resources>
-            <CommandBar.Content>
+            </Border.Resources>
                 <ScrollViewer Height="32"
                               HorizontalAlignment="Right"
                               HorizontalScrollBarVisibility="Auto"
@@ -186,8 +196,7 @@
                         </Button>
                     </StackPanel>
                 </ScrollViewer>
-            </CommandBar.Content>
-        </CommandBar>
+        </Border>
 
         <!-- 2. Main Work Area -->
         <Grid x:Name="MainWorkGrid" Grid.Row="3">
@@ -280,7 +289,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="즐겨찾기 목록 (더블클릭하여 열기)" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,10"/>
+                            <TextBlock x:Name="FavoritesHeaderText" Grid.Row="0" Text="즐겨찾기 목록 (더블클릭하여 열기)" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,10"/>
                             <ListView x:Name="FavoritesListView" Grid.Row="1" SelectionMode="Single" DoubleTapped="OnFavoriteItemDoubleTapped">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
@@ -313,7 +322,7 @@
                                 <RowDefinition Height="*"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="코드 및 수식 템플릿 (더블클릭하여 삽입)" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,10"/>
+                            <TextBlock x:Name="SnippetsHeaderText" Grid.Row="0" Text="코드 및 수식 템플릿 (더블클릭하여 삽입)" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,10"/>
                             <ListView x:Name="SnippetsListView" Grid.Row="1" SelectionMode="Single" DoubleTapped="OnSnippetItemDoubleTapped">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
@@ -331,7 +340,7 @@
                                     </DataTemplate>
                                 </ListView.ItemTemplate>
                             </ListView>
-                            <Button Grid.Row="2" Content="스니펫 추가..." HorizontalAlignment="Stretch" Click="OnAddSnippetClick" Margin="0,10,0,0" Style="{StaticResource AccentButtonStyle}"/>
+                            <Button x:Name="AddSnippetButton" Grid.Row="2" Content="스니펫 추가..." HorizontalAlignment="Stretch" Click="OnAddSnippetClick" Margin="0,10,0,0" Style="{StaticResource AccentButtonStyle}"/>
                     </Grid>
 
                     <!-- Tab 4: Git Panel -->
@@ -344,7 +353,7 @@
                             </Grid.RowDefinitions>
                             
                             <StackPanel Grid.Row="0" Margin="0,0,0,10" Spacing="5">
-                                <TextBlock Text="Git 저장소 관리" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+                                <TextBlock x:Name="GitHeaderText" Text="Git 저장소 관리" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
                                 <TextBlock x:Name="GitPanelBranchText" Text="Git: 감지 안됨" FontSize="13" FontWeight="SemiBold"/>
                                 <ComboBox x:Name="GitBranchesCombo" PlaceholderText="브랜치 목록" Height="24" FontSize="10" Padding="6,0,4,0" HorizontalAlignment="Stretch"/>
                             </StackPanel>
@@ -408,7 +417,7 @@
                             </Grid.RowDefinitions>
                             
                             <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,10">
-                                <TextBlock Text="폴더 전체 검색 및 치환" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+                                <TextBlock x:Name="SearchHeaderText" Text="폴더 전체 검색 및 치환" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
                                 <TextBox x:Name="SearchQueryInput" PlaceholderText="검색어 입력..." KeyDown="OnSearchQueryInputKeyDown"/>
                                 <TextBox x:Name="ReplaceQueryInput" PlaceholderText="치환할 단어 입력..."/>
                                 
@@ -428,8 +437,8 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <Button Content="전체 검색" HorizontalAlignment="Stretch" Click="OnSearchAllFilesClick" Style="{StaticResource AccentButtonStyle}"/>
-                                    <Button Content="모두 치환" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnReplaceAllClick"/>
+                                    <Button x:Name="SearchAllButton" Content="전체 검색" HorizontalAlignment="Stretch" Click="OnSearchAllFilesClick" Style="{StaticResource AccentButtonStyle}"/>
+                                    <Button x:Name="ReplaceAllButton" Content="모두 치환" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnReplaceAllClick"/>
                                 </Grid>
                             </StackPanel>
 
@@ -457,7 +466,7 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" Text="최근 열린 파일 (더블클릭하여 열기)" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,10"/>
+                        <TextBlock x:Name="RecentFilesHeaderText" Grid.Row="0" Text="최근 열린 파일 (더블클릭하여 열기)" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,10"/>
                         <ListView x:Name="RecentFilesListView" Grid.Row="1" SelectionMode="Single" DoubleTapped="OnRecentFileItemDoubleTapped">
                             <ListView.ItemTemplate>
                                 <DataTemplate>
@@ -494,16 +503,53 @@
                     <RowDefinition x:Name="TerminalSplitterRow" Height="0"/>
                     <RowDefinition x:Name="TerminalPanelRow" Height="0"/>
                 </Grid.RowDefinitions>
-                <TabView x:Name="EditorTabView"
-                         Grid.Row="0"
-                         VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
-                         AddTabButtonClick="OnEditorTabViewAddTabClick"
-                         TabCloseRequested="OnEditorTabViewTabCloseRequested"
-                         SelectionChanged="OnEditorTabViewSelectionChanged">
-                    <TabView.TabItems>
-                        <!-- Dynamic tabs go here -->
-                    </TabView.TabItems>
-                </TabView>
+                <Grid x:Name="EditorSplitGrid" Grid.Row="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition x:Name="EditorRow1" Height="*"/>
+                        <RowDefinition x:Name="EditorSplitterRow" Height="0"/>
+                        <RowDefinition x:Name="EditorRow2" Height="0"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="EditorColumn1" Width="*"/>
+                        <ColumnDefinition x:Name="EditorSplitterColumn" Width="0"/>
+                        <ColumnDefinition x:Name="EditorColumn2" Width="0"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TabView x:Name="EditorTabView"
+                             Grid.Row="0" Grid.Column="0"
+                             VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                             AddTabButtonClick="OnEditorTabViewAddTabClick"
+                             TabCloseRequested="OnEditorTabViewTabCloseRequested"
+                             SelectionChanged="OnEditorTabViewSelectionChanged"
+                             GotFocus="OnTabViewGotFocus">
+                        <TabView.TabItems>
+                            <!-- Dynamic tabs go here -->
+                        </TabView.TabItems>
+                    </TabView>
+
+                    <local:CustomSplitter x:Name="EditorSplitter"
+                                          Grid.Row="0" Grid.Column="1"
+                                          Width="4"
+                                          HorizontalAlignment="Stretch"
+                                          Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                                          Visibility="Collapsed"
+                                          PointerPressed="OnEditorSplitterPointerPressed"
+                                          PointerMoved="OnEditorSplitterPointerMoved"
+                                          PointerReleased="OnEditorSplitterPointerReleased"/>
+
+                    <TabView x:Name="EditorTabView2"
+                             Grid.Row="0" Grid.Column="2"
+                             VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                             Visibility="Collapsed"
+                             AddTabButtonClick="OnEditorTabView2AddTabClick"
+                             TabCloseRequested="OnEditorTabView2TabCloseRequested"
+                             SelectionChanged="OnEditorTabView2SelectionChanged"
+                             GotFocus="OnTabViewGotFocus">
+                        <TabView.TabItems>
+                            <!-- Dynamic tabs go here -->
+                        </TabView.TabItems>
+                    </TabView>
+                </Grid>
                 <local:CustomSplitter x:Name="TerminalSplitter"
                                       Grid.Row="1"
                                       Height="4"

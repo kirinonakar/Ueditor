@@ -43,5 +43,8 @@ namespace Ueditor.Core.Models
 
         // Favorites Config
         public System.Collections.Generic.List<string> FavoritePaths { get; set; } = new System.Collections.Generic.List<string>();
+
+        // Language Localization
+        public string Language { get; set; } = "Default"; // "Default", "ko-KR", "en-US", "ja-JP"
     }
 }
