@@ -4213,8 +4213,19 @@ namespace Ueditor
         {
             if (GitChangedFilesList.SelectedItem is GitFileItem item)
             {
-                string diff = await _gitService.GetFileDiffAsync(_currentRepoPath, item.Path);
-                OpenNewTab(filePath: item.Path + ".diff", content: diff);
+                string originalContent = await _gitService.GetGitFileContentAsync(_currentRepoPath, item.Path);
+                string currentContent = "";
+                if (File.Exists(item.Path))
+                {
+                    currentContent = await _fileService.ReadTextFileAsync(item.Path);
+                }
+
+                string fileName = Path.GetFileName(item.Path);
+                string customTitle = $"Git 비교: {fileName}";
+                string labelA = $"{fileName} (이전 버전)";
+                string labelB = $"{fileName} (현재 변경 사항)";
+
+                await OpenCompareTabAsync(item.Path, item.Path, originalContent, currentContent, customTitle, labelA, labelB);
             }
         }
 
@@ -5209,12 +5220,12 @@ namespace Ueditor
             }
         }
 
-        private async Task OpenCompareTabAsync(string pathA, string pathB, string? contentA = null, string? contentB = null)
+        private async Task OpenCompareTabAsync(string pathA, string pathB, string? contentA = null, string? contentB = null, string? customTitle = null, string? labelA = null, string? labelB = null)
         {
             if (contentA == null) contentA = await _fileService.ReadTextFileAsync(pathA);
             if (contentB == null) contentB = await _fileService.ReadTextFileAsync(pathB);
 
-            string title = $"비교: {Path.GetFileName(pathA)} ↔ {Path.GetFileName(pathB)}";
+            string title = customTitle ?? $"비교: {Path.GetFileName(pathA)} ↔ {Path.GetFileName(pathB)}";
 
             var tab = new OpenedTab
             {
@@ -5263,8 +5274,8 @@ namespace Ueditor
                 var msg = new
                 {
                     action = "compare",
-                    titleA = Path.GetFileName(pathA),
-                    titleB = Path.GetFileName(pathB),
+                    titleA = labelA ?? Path.GetFileName(pathA),
+                    titleB = labelB ?? Path.GetFileName(pathB),
                     textA = contentA,
                     textB = contentB,
                     theme = _settingsService.CurrentSettings.Theme,

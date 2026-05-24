@@ -192,6 +192,11 @@
         .tok-tag { color: var(--tok-keyword); }
         .tok-attr { color: var(--tok-attr); }
         .tok-md { color: var(--tok-md); font-weight: 600; }
+        .tok-diff-header { color: var(--tok-diff-header); font-weight: bold; }
+        .tok-diff-file { color: var(--tok-diff-file); font-weight: bold; }
+        .tok-diff-range { color: var(--tok-diff-range); }
+        .tok-diff-added { color: var(--tok-diff-added); background-color: var(--tok-diff-added-bg); }
+        .tok-diff-removed { color: var(--tok-diff-removed); background-color: var(--tok-diff-removed-bg); }
 
         #find-panel {
             position: absolute;
@@ -399,6 +404,15 @@
                 document.documentElement.style.setProperty('--tok-comment', '#008000');
                 document.documentElement.style.setProperty('--tok-attr', '#001080');
                 document.documentElement.style.setProperty('--tok-md', '#795e26');
+                
+                // Diff theme variables for Light mode
+                document.documentElement.style.setProperty('--tok-diff-header', '#57606a');
+                document.documentElement.style.setProperty('--tok-diff-file', '#0969da');
+                document.documentElement.style.setProperty('--tok-diff-range', '#8250df');
+                document.documentElement.style.setProperty('--tok-diff-added', '#1a7f37');
+                document.documentElement.style.setProperty('--tok-diff-added-bg', 'rgba(46, 160, 67, 0.1)');
+                document.documentElement.style.setProperty('--tok-diff-removed', '#cf222e');
+                document.documentElement.style.setProperty('--tok-diff-removed-bg', 'rgba(248, 81, 73, 0.1)');
             } else {
                 document.documentElement.style.setProperty('--tok-keyword', '#569cd6');
                 document.documentElement.style.setProperty('--tok-type', '#4ec9b0');
@@ -407,6 +421,15 @@
                 document.documentElement.style.setProperty('--tok-comment', '#6a9955');
                 document.documentElement.style.setProperty('--tok-attr', '#9cdcfe');
                 document.documentElement.style.setProperty('--tok-md', '#d7ba7d');
+                
+                // Diff theme variables for Dark mode
+                document.documentElement.style.setProperty('--tok-diff-header', '#8b949e');
+                document.documentElement.style.setProperty('--tok-diff-file', '#58a6ff');
+                document.documentElement.style.setProperty('--tok-diff-range', '#d2a8ff');
+                document.documentElement.style.setProperty('--tok-diff-added', '#3fb950');
+                document.documentElement.style.setProperty('--tok-diff-added-bg', 'rgba(46, 160, 67, 0.15)');
+                document.documentElement.style.setProperty('--tok-diff-removed', '#f85149');
+                document.documentElement.style.setProperty('--tok-diff-removed-bg', 'rgba(248, 81, 73, 0.15)');
             }
 
             document.documentElement.style.setProperty('--selection-fg', foreground);
@@ -518,10 +541,31 @@
         }
 
         function highlightDiff(text) {
-            return escapeHtml(text)
-                .replace(/^(\+.*)$/gm, '<span class="tok-string">$1</span>')
-                .replace(/^(-.*)$/gm, '<span class="tok-comment">$1</span>')
-                .replace(/^(@@.*@@.*)$/gm, '<span class="tok-md">$1</span>');
+            const lines = text.split(/\r?\n/);
+            const highlightedLines = lines.map(line => {
+                const escaped = escapeHtml(line);
+                if (escaped.startsWith('+++') || escaped.startsWith('---')) {
+                    return `<span class="tok-diff-file">${escaped}</span>`;
+                } else if (escaped.startsWith('+')) {
+                    return `<span class="tok-diff-added">${escaped}</span>`;
+                } else if (escaped.startsWith('-')) {
+                    return `<span class="tok-diff-removed">${escaped}</span>`;
+                } else if (escaped.startsWith('@@')) {
+                    return `<span class="tok-diff-range">${escaped}</span>`;
+                } else if (escaped.startsWith('diff --git') || 
+                           escaped.startsWith('index ') || 
+                           escaped.startsWith('similarity index') || 
+                           escaped.startsWith('rename from') || 
+                           escaped.startsWith('rename to') || 
+                           escaped.startsWith('new file mode') || 
+                           escaped.startsWith('deleted file mode') ||
+                           escaped.startsWith('copy from') ||
+                           escaped.startsWith('copy to')) {
+                    return `<span class="tok-diff-header">${escaped}</span>`;
+                }
+                return escaped;
+            });
+            return highlightedLines.join('\n');
         }
 
         function updateHighlight() {

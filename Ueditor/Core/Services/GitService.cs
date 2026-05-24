@@ -192,6 +192,36 @@ namespace Ueditor.Core.Services
             }
         }
 
+        public async Task<string> GetGitFileContentAsync(string repoPath, string filePath)
+        {
+            if (string.IsNullOrEmpty(repoPath) || string.IsNullOrEmpty(filePath))
+                return string.Empty;
+
+            try
+            {
+                string relativePath = Path.GetRelativePath(repoPath, filePath);
+                string quotedRelativePath = QuotePath(relativePath).Replace('\\', '/');
+
+                // Try to get staged version first (index :0), then HEAD version
+                string content = await RunGitCommandAsync(repoPath, $"show :0:\"{quotedRelativePath}\"");
+                if (content.StartsWith("fatal:"))
+                {
+                    content = await RunGitCommandAsync(repoPath, $"show HEAD:\"{quotedRelativePath}\"");
+                }
+
+                if (content.StartsWith("fatal:"))
+                {
+                    return string.Empty; // File is probably untracked/new
+                }
+
+                return content;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
         public async Task<bool> StageFileAsync(string repoPath, string filePath)
         {
             if (string.IsNullOrEmpty(repoPath) || string.IsNullOrEmpty(filePath))

@@ -14,8 +14,10 @@
             --gutter-fg: #858585;
             --added-bg: rgba(46, 160, 67, 0.15);
             --added-border: rgba(46, 160, 67, 0.4);
+            --added-text: #3fb950;
             --removed-bg: rgba(248, 81, 73, 0.15);
             --removed-border: rgba(248, 81, 73, 0.4);
+            --removed-text: #f85149;
             --font-family: Consolas, "Courier New", monospace;
             --ui-font: "Segoe UI", "Malgun Gothic", sans-serif;
         }
@@ -27,6 +29,8 @@
                 --header-bg: #f3f3f3;
                 --gutter-bg: #f3f3f3;
                 --gutter-fg: #6a737d;
+                --added-text: #22863a;
+                --removed-text: #cb2431;
             }
         }
 
@@ -136,6 +140,7 @@
             background: var(--added-bg);
         }
         .row-added .line-content {
+            color: var(--added-text);
             background: rgba(46, 160, 67, 0.08);
             border-left: 3px solid var(--added-border);
         }
@@ -144,6 +149,7 @@
             background: var(--removed-bg);
         }
         .row-removed .line-content {
+            color: var(--removed-text);
             background: rgba(248, 81, 73, 0.08);
             border-left: 3px solid var(--removed-border);
         }
@@ -339,6 +345,11 @@
                     document.documentElement.style.setProperty('--gutter-bg', theme === 'Light' ? '#f3f3f3' : '#1e1e1e');
                     document.documentElement.style.setProperty('--border', theme === 'Light' ? '#e1e4e8' : '#3e3e3e');
                     document.documentElement.style.setProperty('--ui-font', msg.uiFontFamily || '"Segoe UI", "Malgun Gothic", sans-serif');
+                    
+                    const addedText = theme === 'Light' ? '#22863a' : '#3fb950';
+                    const removedText = theme === 'Light' ? '#cb2431' : '#f85149';
+                    document.documentElement.style.setProperty('--added-text', addedText);
+                    document.documentElement.style.setProperty('--removed-text', removedText);
                     
                     renderDiff(msg);
                 }
