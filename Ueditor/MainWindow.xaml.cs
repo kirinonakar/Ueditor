@@ -205,6 +205,7 @@ namespace Ueditor
             TerminalPane.AttachOwner(this);
             TerminalPane.WorkingDirectoryProvider = GetTerminalWorkingDirectory;
             TerminalPane.SessionsEmptied += OnTerminalPaneSessionsEmptied;
+            TerminalPane.CloseRequested += OnTerminalPaneCloseRequested;
 
             // Initialize Preview Debounce Timer (50ms for near-real-time preview)
             _previewDebounceTimer = new DispatcherTimer
@@ -2070,7 +2071,9 @@ namespace Ueditor
             if (TerminalPane.Visibility == Visibility.Visible)
             {
                 if (TerminalPane.HasSessions)
-                    TerminalPane.StopAllSessions();
+                {
+                    TerminalPane.SuspendNativeWindows();
+                }
                 TerminalPane.Visibility = Visibility.Collapsed;
                 TerminalSplitter.Visibility = Visibility.Collapsed;
                 TerminalSplitterRow.Height = new GridLength(0);
@@ -2080,13 +2083,26 @@ namespace Ueditor
             }
             else
             {
-                string workingDirectory = GetTerminalWorkingDirectory();
-                if (string.IsNullOrWhiteSpace(workingDirectory) || !Directory.Exists(workingDirectory))
-                    workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                 EnsureTerminalPanelVisible();
-                TerminalPane.OpenTerminal(workingDirectory);
+                if (TerminalPane.HasSessions)
+                {
+                    TerminalPane.ResumeNativeWindows();
+                    TerminalPane.ResizeEmbeddedTerminal();
+                }
+                else
+                {
+                    string workingDirectory = GetTerminalWorkingDirectory();
+                    if (string.IsNullOrWhiteSpace(workingDirectory) || !Directory.Exists(workingDirectory))
+                        workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    TerminalPane.OpenTerminal(workingDirectory);
+                }
                 if (TerminalToggleButton != null) TerminalToggleButton.IsChecked = true;
             }
+        }
+
+        private void OnTerminalPaneCloseRequested(object? sender, EventArgs e)
+        {
+            ToggleTerminal();
         }
 
         private void OnTerminalPaneSessionsEmptied(object? sender, EventArgs e)

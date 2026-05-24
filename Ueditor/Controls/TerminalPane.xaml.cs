@@ -38,6 +38,7 @@ namespace Ueditor.Controls
         }
 
         public event EventHandler? SessionsEmptied;
+        public event EventHandler? CloseRequested;
 
         public Func<string>? WorkingDirectoryProvider { get; set; }
 
@@ -565,9 +566,14 @@ namespace Ueditor.Controls
 
         private void OnCloseTerminalClick(object sender, RoutedEventArgs e)
         {
-            if (_activeTerminalSession != null)
+            CloseRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void OnCloseSessionItemClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.DataContext is TerminalSession session)
             {
-                CloseTerminalSession(_activeTerminalSession);
+                CloseTerminalSession(session);
             }
         }
 

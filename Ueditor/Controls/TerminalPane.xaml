@@ -86,8 +86,21 @@
                       SelectionChanged="OnTerminalSessionsListSelectionChanged">
                 <ListView.ItemTemplate>
                     <DataTemplate>
-                        <Grid Padding="6,4,6,4">
-                            <TextBlock Text="{Binding DisplayTitle}" TextTrimming="CharacterEllipsis" FontSize="11"/>
+                        <Grid Padding="6,4,6,4" ColumnSpacing="4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding DisplayTitle}" TextTrimming="CharacterEllipsis" FontSize="11" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1"
+                                    Content="&#xE8BB;"
+                                    FontFamily="Segoe Fluent Icons"
+                                    FontSize="8"
+                                    Padding="4"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Click="OnCloseSessionItemClick"
+                                    VerticalAlignment="Center"/>
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>

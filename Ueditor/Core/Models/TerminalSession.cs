@@ -18,7 +18,7 @@ namespace Ueditor.Core.Models
         public int Number { get; }
         public string WorkingDirectory { get; }
         public string WindowTitle { get; }
-        public string DisplayTitle => $"pwsh {Number}";
+        public string DisplayTitle => $"p{Number}";
         public Process? Process { get; set; }
         public IntPtr WindowHandle { get; set; } = IntPtr.Zero;
         public bool IsNative { get; set; }
