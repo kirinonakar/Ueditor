@@ -49,6 +49,17 @@
                 </AppBarToggleButton.Icon>
                 <AppBarToggleButton.Label>터미널</AppBarToggleButton.Label>
             </AppBarToggleButton>
+            <AppBarToggleButton x:Name="TopMostToggleButton" Click="OnTopMostToggleClick" ToolTipService.ToolTip="항상 위">
+                <AppBarToggleButton.Icon>
+                    <FontIcon Glyph="&#xE840;"/>
+                </AppBarToggleButton.Icon>
+                <AppBarToggleButton.Label>항상위</AppBarToggleButton.Label>
+            </AppBarToggleButton>
+            <AppBarButton Label="스티커" Click="OnStickyNoteClick" ToolTipService.ToolTip="스티커 노트">
+                <AppBarButton.Icon>
+                    <FontIcon Glyph="&#xE70B;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
             <AppBarSeparator/>
             <AppBarToggleButton x:Name="WordWrapToggle" Icon="AlignLeft" Label="Word Wrap" Click="OnWordWrapToggleClick" IsChecked="True"/>
             <AppBarButton Icon="Find" Label="검색" Click="OnFindClick" ToolTipService.ToolTip="검색 (Ctrl+F)"/>
@@ -71,12 +82,26 @@
 
         <CommandBar x:Name="MarkdownToolbar"
                     Grid.Row="2"
-                    Height="42"
+                    Height="34"
                     Visibility="Collapsed"
                     OverflowButtonVisibility="Auto"
-                    DefaultLabelPosition="Right"
+                    DefaultLabelPosition="Collapsed"
                     Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}">
-            <AppBarButton Label="Hx" Click="OnMarkdownHeadingClick" ToolTipService.ToolTip="제목"/>
+            <CommandBar.Resources>
+                <Style TargetType="AppBarButton">
+                    <Setter Property="MinWidth" Value="34"/>
+                    <Setter Property="Width" Value="34"/>
+                    <Setter Property="Height" Value="32"/>
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                    <Setter Property="VerticalContentAlignment" Value="Center"/>
+                </Style>
+            </CommandBar.Resources>
+            <AppBarButton Label="Hx" Click="OnMarkdownHeadingClick" ToolTipService.ToolTip="제목">
+                <AppBarButton.Icon>
+                    <FontIcon Glyph="H" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="14"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
             <AppBarButton Click="OnMarkdownBoldClick" ToolTipService.ToolTip="굵게 (Ctrl+B)" Label="">
                 <TextBlock Text="B" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </AppBarButton>
@@ -95,14 +120,28 @@
                 </Border>
             </AppBarButton>
             <AppBarSeparator/>
-            <AppBarButton Label="•" Click="OnMarkdownUlClick" ToolTipService.ToolTip="글머리 목록"/>
-            <AppBarButton Label="✂" Click="OnMarkdownCutLineClick" ToolTipService.ToolTip="현재 줄 자르기"/>
-            <AppBarButton Label="❝" Click="OnMarkdownQuoteClick" ToolTipService.ToolTip="인용문"/>
-            <AppBarButton Label="→" Click="OnMarkdownArrowClick" ToolTipService.ToolTip="화살표"/>
+            <AppBarButton Label="•" Click="OnMarkdownUlClick" ToolTipService.ToolTip="글머리 목록">
+                <AppBarButton.Icon><FontIcon Glyph="&#xE8FD;" FontSize="15"/></AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarButton Label="✂" Click="OnMarkdownCutLineClick" ToolTipService.ToolTip="현재 줄 자르기">
+                <AppBarButton.Icon><FontIcon Glyph="&#xE8C6;" FontSize="15"/></AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarButton Label="❝" Click="OnMarkdownQuoteClick" ToolTipService.ToolTip="인용문">
+                <AppBarButton.Icon><FontIcon Glyph="&#xE90A;" FontSize="15"/></AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarButton Label="→" Click="OnMarkdownArrowClick" ToolTipService.ToolTip="화살표">
+                <AppBarButton.Icon><FontIcon Glyph="&#xE72A;" FontSize="15"/></AppBarButton.Icon>
+            </AppBarButton>
             <AppBarSeparator/>
-            <AppBarButton Label="`" Click="OnMarkdownInlineCodeClick" ToolTipService.ToolTip="인라인 코드"/>
-            <AppBarButton Label="☑" Click="OnMarkdownTaskClick" ToolTipService.ToolTip="체크리스트"/>
-            <AppBarButton Label="표" Click="OnMarkdownTableClick" ToolTipService.ToolTip="표"/>
+            <AppBarButton Label="`" Click="OnMarkdownInlineCodeClick" ToolTipService.ToolTip="인라인 코드">
+                <AppBarButton.Icon><FontIcon Glyph="&#xE943;" FontSize="15"/></AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarButton Label="☑" Click="OnMarkdownTaskClick" ToolTipService.ToolTip="체크리스트">
+                <AppBarButton.Icon><FontIcon Glyph="&#xE73A;" FontSize="15"/></AppBarButton.Icon>
+            </AppBarButton>
+            <AppBarButton Label="표" Click="OnMarkdownTableClick" ToolTipService.ToolTip="표">
+                <AppBarButton.Icon><FontIcon Glyph="&#xE80A;" FontSize="15"/></AppBarButton.Icon>
+            </AppBarButton>
             <AppBarSeparator/>
             <AppBarButton Label="A+" Click="OnMarkdownFontIncreaseClick" ToolTipService.ToolTip="글자 크게"/>
             <AppBarButton Label="A-" Click="OnMarkdownFontDecreaseClick" ToolTipService.ToolTip="글자 작게"/>
@@ -277,6 +316,7 @@
                             <StackPanel Grid.Row="0" Margin="0,0,0,10" Spacing="5">
                                 <TextBlock Text="Git 저장소 관리" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
                                 <TextBlock x:Name="GitPanelBranchText" Text="Git: 감지 안됨" FontSize="13" FontWeight="SemiBold"/>
+                                <ComboBox x:Name="GitBranchesCombo" PlaceholderText="브랜치 목록" Height="28" HorizontalAlignment="Stretch"/>
                             </StackPanel>
 
                             <ListView x:Name="GitChangedFilesList" Grid.Row="1" SelectionMode="Single" DoubleTapped="OnGitFileDoubleTapped">
@@ -285,6 +325,7 @@
                                         <Grid Padding="0,5,0,5">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
@@ -296,6 +337,7 @@
                                                 <TextBlock Text="{Binding StatusText}" FontSize="9" FontWeight="Bold" Foreground="White"/>
                                             </Border>
                                             <Button Grid.Column="2" Content="{Binding ActionGlyph}" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnGitStageToggleClick" Tag="{Binding Path}" Padding="5" VerticalAlignment="Center"/>
+                                            <Button Grid.Column="3" Content="&#xE777;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnGitRestoreFileClick" Tag="{Binding Path}" Padding="5" VerticalAlignment="Center" ToolTipService.ToolTip="파일 복원"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ListView.ItemTemplate>
@@ -306,7 +348,26 @@
                                 <Button Content="커밋 (Commit)" HorizontalAlignment="Stretch" Click="OnGitCommitClick" Style="{StaticResource AccentButtonStyle}"/>
                             </StackPanel>
 
-                            <Button Grid.Row="3" Content="Git 상태 새로고침" HorizontalAlignment="Stretch" Click="OnGitRefreshClick" Margin="0,8,0,0"/>
+                            <StackPanel Grid.Row="3" Spacing="8" Margin="0,8,0,0">
+                                <Grid ColumnSpacing="6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Content="전체 Stage" HorizontalAlignment="Stretch" Click="OnGitStageAllClick"/>
+                                    <Button Grid.Column="1" Content="전체 Restore" HorizontalAlignment="Stretch" Click="OnGitRestoreAllClick"/>
+                                </Grid>
+                                <Grid ColumnSpacing="6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Content="Push" HorizontalAlignment="Stretch" Click="OnGitPushClick"/>
+                                    <Button Grid.Column="1" Content="새로고침" HorizontalAlignment="Stretch" Click="OnGitRefreshClick"/>
+                                </Grid>
+                                <TextBlock Text="과거 기록" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+                                <ListView x:Name="GitHistoryList" Height="92" SelectionMode="None"/>
+                            </StackPanel>
                     </Grid>
 
                     <!-- Tab 5: Search & Replace Panel -->
@@ -391,7 +452,7 @@
             </Grid>
 
             <!-- B. Sidebar Splitter -->
-            <local:CustomSplitter x:Name="LeftSplitter" Grid.Column="1" Width="4" HorizontalAlignment="Stretch" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+            <local:CustomSplitter x:Name="LeftSplitter" Grid.Column="1" Width="2" HorizontalAlignment="Stretch" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
                                   PointerPressed="OnLeftSplitterPointerPressed"
                                   PointerMoved="OnLeftSplitterPointerMoved"
                                   PointerReleased="OnLeftSplitterPointerReleased"/>
@@ -456,7 +517,7 @@
             </Grid>
 
             <!-- D. Preview Splitter -->
-            <local:CustomSplitter x:Name="RightSplitter" Grid.Column="3" Width="4" HorizontalAlignment="Stretch" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+            <local:CustomSplitter x:Name="RightSplitter" Grid.Column="3" Width="2" HorizontalAlignment="Stretch" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
                                   PointerPressed="OnRightSplitterPointerPressed"
                                   PointerMoved="OnRightSplitterPointerMoved"
                                   PointerReleased="OnRightSplitterPointerReleased"/>
@@ -484,6 +545,12 @@
                                             <ComboBoxItem Content="HTML Source"/>
                                             <ComboBoxItem Content="LaTeX Block"/>
                                         </ComboBox>
+                                        <Button Click="OnOpenPreviewInBrowserClick" Height="24" Padding="8,0,8,0" ToolTipService.ToolTip="HTML 미리보기를 브라우저로 열기">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <FontIcon Glyph="&#xE774;" FontSize="12"/>
+                                                <TextBlock Text="브라우저" FontSize="11" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
                                     </StackPanel>
                                 </CommandBar.Content>
                             </CommandBar>
@@ -515,9 +582,19 @@
 
                             <!-- Row 2: Selected Context Info visualizer -->
                             <Border Grid.Row="2" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" Padding="8" CornerRadius="4">
-                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <FontIcon Glyph="&#xE94A;" FontSize="14" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="SelectionStatsText" Text="선택 영역: 없음 (전체 전송 차단 활성화)" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
+                                <StackPanel Spacing="8">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <FontIcon Glyph="&#xE94A;" FontSize="14" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="SelectionStatsText" Text="선택 영역: 없음 (전체 전송 차단 활성화)" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="LlmFileContextInput" PlaceholderText="파일 맥락 없음" IsReadOnly="True" Height="30" FontSize="11"/>
+                                        <Button Grid.Column="1" Content="파일 맥락 추가" Click="OnLlmAddFileContextClick" Padding="10,4,10,4"/>
+                                    </Grid>
                                 </StackPanel>
                             </Border>
 
@@ -546,7 +623,10 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBox x:Name="LlmCustomPromptInput" Grid.Column="0" PlaceholderText="질문이나 커스텀 지시사항 입력..." Height="32"/>
-                                    <Button Content="실행" Grid.Column="1" Click="OnLlmCustomClick" Style="{StaticResource AccentButtonStyle}"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                                        <Button Content="실행" Click="OnLlmCustomClick" Style="{StaticResource AccentButtonStyle}"/>
+                                        <Button Content="입력" Click="OnLlmInsertOutputClick" ToolTipService.ToolTip="AI 응답을 현재 커서에 입력"/>
+                                    </StackPanel>
                                 </Grid>
                             </StackPanel>
                         </Grid>
@@ -588,7 +668,13 @@
                         <TextBlock x:Name="StatusMode" Text="일반 모드" FontSize="10" FontWeight="Bold" Foreground="White"/>
                     </Border>
                     <TextBlock x:Name="StatusLanguage" Text="PLAINTEXT" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
-                    <TextBlock Text="UTF-8" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+                    <ComboBox x:Name="StatusEncodingCombo"
+                              Width="104"
+                              Height="24"
+                              FontSize="11"
+                              Padding="6,0,4,0"
+                              SelectionChanged="OnStatusEncodingSelectionChanged"
+                              ToolTipService.ToolTip="파일 인코딩 선택"/>
                 </StackPanel>
 
                 <ToggleButton x:Name="RightPanelToggle" Grid.Column="4" Width="30" Height="24" Padding="0" IsChecked="True" Click="OnTogglePreviewClick" ToolTipService.ToolTip="우측 패널" Margin="10,0,0,0">

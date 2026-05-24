@@ -12,6 +12,8 @@ namespace Ueditor.Core.Models
         public bool IsDirty { get; set; } = false;
         public bool IsLargeFileMode { get; set; } = false;
         public string Language { get; set; } = "plaintext";
+        public string EncodingName { get; set; } = "UTF-8";
+        public bool EncodingWasAutoDetected { get; set; } = true;
         public Dictionary<int, string> LargeFilePatches { get; } = new Dictionary<int, string>();
 
         public string DisplayTitle => IsDirty ? $"{Title} *" : Title;

@@ -9,6 +9,7 @@ namespace Ueditor
     public class CustomSplitter : Grid
     {
         private Brush? _originalBackground;
+        private double _normalWidth;
 
         public CustomSplitter()
         {
@@ -19,6 +20,9 @@ namespace Ueditor
         private void CustomSplitter_PointerEntered(object sender, PointerRoutedEventArgs e)
         {
             this.ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.SizeWestEast);
+            _normalWidth = this.Width;
+            this.Width = 6;
+
             if (this.Background != null && _originalBackground == null)
             {
                 _originalBackground = this.Background;
@@ -34,6 +38,11 @@ namespace Ueditor
         private void CustomSplitter_PointerExited(object sender, PointerRoutedEventArgs e)
         {
             this.ProtectedCursor = null;
+            if (_normalWidth > 0)
+            {
+                this.Width = _normalWidth;
+            }
+
             if (_originalBackground != null)
             {
                 this.Background = _originalBackground;

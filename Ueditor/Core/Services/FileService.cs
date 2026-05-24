@@ -10,19 +10,38 @@ namespace Ueditor.Core.Services
     {
         public async Task<string> ReadTextFileAsync(string filePath)
         {
+            var result = await ReadTextFileAsync(filePath, "Auto");
+            return result.Content;
+        }
+
+        public async Task<TextFileReadResult> ReadTextFileAsync(string filePath, string encodingName)
+        {
             if (!File.Exists(filePath))
                 throw new FileNotFoundException("파일을 찾을 수 없습니다.", filePath);
 
-            // Detect encoding
-            Encoding encoding = DetectEncoding(filePath);
+            byte[] bytes = await File.ReadAllBytesAsync(filePath);
+            Encoding encoding = TextEncodingService.GetTextEncoding(bytes, encodingName);
+            bool hasUtf8Bom = TextEncodingService.HasUtf8Bom(bytes);
 
-            using (var reader = new StreamReader(filePath, encoding, detectEncodingFromByteOrderMarks: true))
+            using (var stream = new MemoryStream(bytes))
+            using (var reader = new StreamReader(stream, encoding, detectEncodingFromByteOrderMarks: true))
             {
-                return await reader.ReadToEndAsync();
+                bool isAuto = string.IsNullOrWhiteSpace(encodingName) || encodingName.Equals("Auto", StringComparison.OrdinalIgnoreCase);
+                return new TextFileReadResult
+                {
+                    Content = await reader.ReadToEndAsync(),
+                    EncodingName = isAuto ? TextEncodingService.GetDisplayName(encoding, hasUtf8Bom) : encodingName,
+                    WasAutoDetected = isAuto
+                };
             }
         }
 
         public async Task SaveTextFileAsync(string filePath, string content)
+        {
+            await SaveTextFileAsync(filePath, content, "UTF-8");
+        }
+
+        public async Task SaveTextFileAsync(string filePath, string content, string encodingName)
         {
             // Fail-safe writing: Write to temporary file first, then atomically replace
             string? directory = Path.GetDirectoryName(filePath);
@@ -36,8 +55,8 @@ namespace Ueditor.Core.Services
 
             try
             {
-                // 1. Write content to temp file with UTF-8 encoding (with BOM for Windows notepad compatibility)
-                await File.WriteAllTextAsync(tempFilePath, content, Encoding.UTF8);
+                Encoding encoding = TextEncodingService.GetEncodingByName(encodingName);
+                await File.WriteAllTextAsync(tempFilePath, content, encoding);
 
                 // 2. Perform atomic replace
                 if (File.Exists(filePath))
@@ -339,25 +358,10 @@ namespace Ueditor.Core.Services
             }
         }
 
-        /// <summary>
-        /// Simple heuristic to detect file encoding
-        /// </summary>
         private Encoding DetectEncoding(string filePath)
         {
-            byte[] bom = new byte[4];
-            using (var file = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-            {
-                _ = file.Read(bom, 0, 4);
-            }
-
-            // Analyze BOM
-            if (bom[0] == 0xef && bom[1] == 0xbb && bom[2] == 0xbf) return Encoding.UTF8;
-            if (bom[0] == 0xff && bom[1] == 0xfe && bom[2] == 0 && bom[3] == 0) return Encoding.UTF32; // UTF-32 LE
-            if (bom[0] == 0xff && bom[1] == 0xfe) return Encoding.Unicode; // UTF-16 LE
-            if (bom[0] == 0xfe && bom[1] == 0xff) return Encoding.BigEndianUnicode; // UTF-16 BE
-
-            // Fallback to UTF-8 without BOM or local ANSI
-            return Encoding.UTF8;
+            byte[] bytes = File.ReadAllBytes(filePath);
+            return TextEncodingService.DetectEncoding(bytes);
         }
     }
 }

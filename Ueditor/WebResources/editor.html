@@ -454,7 +454,7 @@
         }
 
         function highlightCodeLike(text) {
-            const pattern = /(\/\/.*?$|#.*?$|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:class|interface|struct|enum|namespace|using|public|private|protected|internal|static|readonly|async|await|return|if|else|switch|case|break|continue|for|foreach|while|do|try|catch|finally|throw|new|var|let|const|function|import|export|from|extends|implements|void|null|true|false|this|base|get|set|record|sealed|override|virtual|fn|mut|impl|match|self|crate|mod|func|package|go|chan|defer|map|range|select|from|where|insert|into|update|delete|create|table|join|on|group|by|order|and|or|not|limit)\b|\b(?:string|int|long|double|float|decimal|bool|char|object|Task|List|Dictionary|IEnumerable|void|i32|i64|f32|f64|u32|u64|usize|str|Option|Result|error|int32|int64|float32|float64|boolean|any|number)\b|\b\d+(?:\.\d+)?\b)/gim;
+            const pattern = /(\/\/.*?$|#.*?$|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:class|interface|struct|enum|namespace|using|public|private|protected|internal|static|readonly|async|await|return|if|else|switch|case|break|continue|for|foreach|while|do|try|catch|finally|throw|new|var|let|const|function|import|export|from|extends|implements|void|null|nil|None|true|false|this|base|get|set|record|sealed|override|virtual|fn|mut|impl|match|self|crate|mod|func|package|go|chan|defer|map|range|select|from|where|insert|into|update|delete|create|table|join|on|group|by|order|and|or|not|limit|public|private|protected|open|data|sealed|when|object|companion|val|var|fun|protocol|extension|guard|defer|enum|struct|actor|async|await|throws|yield|lambda|def|end|then|fi|done|do|elif)\b|\b(?:string|int|long|double|float|decimal|bool|char|object|Task|List|Dictionary|IEnumerable|void|i32|i64|f32|f64|u32|u64|usize|str|Option|Result|error|int32|int64|float32|float64|boolean|any|number|String|Int|Long|Double|Float|Boolean|Array|Map|List)\b|\b\d+(?:\.\d+)?\b)/gim;
             let html = '';
             let lastIndex = 0;
             for (const matchResult of text.matchAll(pattern)) {
@@ -510,6 +510,20 @@
                 .replace(/(\*\*[^*]+\*\*|\*[^*]+\*|==[^=]+==|~~[^~]+~~)/g, '<span class="tok-md">$1</span>');
         }
 
+        function highlightYamlLike(text) {
+            return escapeHtml(text)
+                .replace(/^(\s*#.*)$/gm, '<span class="tok-comment">$1</span>')
+                .replace(/^(\s*[\w.-]+)(\s*:)/gm, '<span class="tok-attr">$1</span>$2')
+                .replace(/(:\s*)(true|false|null|yes|no|\d+(?:\.\d+)?)/gi, '$1<span class="tok-number">$2</span>');
+        }
+
+        function highlightDiff(text) {
+            return escapeHtml(text)
+                .replace(/^(\+.*)$/gm, '<span class="tok-string">$1</span>')
+                .replace(/^(-.*)$/gm, '<span class="tok-comment">$1</span>')
+                .replace(/^(@@.*@@.*)$/gm, '<span class="tok-md">$1</span>');
+        }
+
         function updateHighlight() {
             const text = editor.value || ' ';
             let html;
@@ -517,10 +531,14 @@
                 html = highlightMarkup(text);
             } else if (currentLanguage === 'json') {
                 html = highlightJson(text);
-            } else if (currentLanguage === 'css') {
+            } else if (currentLanguage === 'css' || currentLanguage === 'scss' || currentLanguage === 'less') {
                 html = highlightCss(text);
             } else if (currentLanguage === 'markdown' || currentLanguage === 'latex') {
                 html = highlightMarkdown(text);
+            } else if (currentLanguage === 'yaml' || currentLanguage === 'toml' || currentLanguage === 'ini') {
+                html = highlightYamlLike(text);
+            } else if (currentLanguage === 'diff') {
+                html = highlightDiff(text);
             } else if (currentLanguage === 'plaintext') {
                 html = highlightPlain(text);
             } else {

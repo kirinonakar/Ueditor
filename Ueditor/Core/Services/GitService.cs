@@ -52,22 +52,23 @@ namespace Ueditor.Core.Services
 
             try
             {
-                string output = await RunGitCommandAsync(repoPath, "status --porcelain");
+                string output = await RunGitCommandAsync(repoPath, "status --porcelain=v1 -z");
                 if (string.IsNullOrEmpty(output) || output.StartsWith("fatal:", StringComparison.OrdinalIgnoreCase))
                     return statuses;
 
-                string[] lines = output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (string line in lines)
+                string[] entries = output.Split('\0', StringSplitOptions.RemoveEmptyEntries);
+                for (int i = 0; i < entries.Length; i++)
                 {
-                    if (line.Length >= 4)
+                    string entry = entries[i];
+                    if (entry.Length >= 4)
                     {
-                        string status = line.Substring(0, 2);
-                        string relativePath = line.Substring(3).Trim().Replace('/', '\\');
-                        
-                        // git status --porcelain can wrap paths in quotes if they contain special characters
-                        if (relativePath.StartsWith("\"") && relativePath.EndsWith("\""))
+                        string status = entry.Substring(0, 2);
+                        string relativePath = entry.Substring(3).Trim().Replace('/', '\\');
+
+                        // In -z porcelain, rename/copy entries are followed by the original path.
+                        if ((status[0] == 'R' || status[0] == 'C') && i + 1 < entries.Length)
                         {
-                            relativePath = relativePath.Substring(1, relativePath.Length - 2);
+                            i++;
                         }
 
                         string fullPath = Path.GetFullPath(Path.Combine(repoPath, relativePath));
@@ -81,6 +82,11 @@ namespace Ueditor.Core.Services
             }
 
             return statuses;
+        }
+
+        private static string QuotePath(string path)
+        {
+            return path.Replace("\"", "\\\"");
         }
 
         private async Task<string> RunGitCommandAsync(string workingDir, string arguments)
@@ -130,16 +136,17 @@ namespace Ueditor.Core.Services
             {
                 // Make path relative to repoPath to satisfy git cli arguments
                 string relativePath = Path.GetRelativePath(repoPath, filePath);
+                string quotedRelativePath = QuotePath(relativePath);
 
                 // Run diff. First check unstaged diff, then cached (staged) diff.
-                string unstagedDiff = await RunGitCommandAsync(repoPath, $"diff -- \"{relativePath}\"");
-                string stagedDiff = await RunGitCommandAsync(repoPath, $"diff --cached -- \"{relativePath}\"");
+                string unstagedDiff = await RunGitCommandAsync(repoPath, $"diff -- \"{quotedRelativePath}\"");
+                string stagedDiff = await RunGitCommandAsync(repoPath, $"diff --cached -- \"{quotedRelativePath}\"");
 
                 // If untracked file, diff might be empty, so let's show the whole file content as addition
                 if (string.IsNullOrEmpty(unstagedDiff) && string.IsNullOrEmpty(stagedDiff))
                 {
                     // Check if file is untracked
-                    string status = await RunGitCommandAsync(repoPath, $"status --porcelain -- \"{relativePath}\"");
+                    string status = await RunGitCommandAsync(repoPath, $"status --porcelain -- \"{quotedRelativePath}\"");
                     if (status.StartsWith("?") || status.Trim().Length > 0)
                     {
                         if (File.Exists(filePath))
@@ -186,7 +193,16 @@ namespace Ueditor.Core.Services
                 return false;
 
             string relativePath = Path.GetRelativePath(repoPath, filePath);
-            string output = await RunGitCommandAsync(repoPath, $"add -- \"{relativePath}\"");
+            string output = await RunGitCommandAsync(repoPath, $"add -- \"{QuotePath(relativePath)}\"");
+            return !output.StartsWith("fatal:");
+        }
+
+        public async Task<bool> StageAllAsync(string repoPath)
+        {
+            if (string.IsNullOrEmpty(repoPath))
+                return false;
+
+            string output = await RunGitCommandAsync(repoPath, "add -A");
             return !output.StartsWith("fatal:");
         }
 
@@ -196,8 +212,58 @@ namespace Ueditor.Core.Services
                 return false;
 
             string relativePath = Path.GetRelativePath(repoPath, filePath);
-            string output = await RunGitCommandAsync(repoPath, $"reset HEAD -- \"{relativePath}\"");
+            string output = await RunGitCommandAsync(repoPath, $"restore --staged -- \"{QuotePath(relativePath)}\"");
             return !output.StartsWith("fatal:");
+        }
+
+        public async Task<bool> RestoreFileAsync(string repoPath, string filePath)
+        {
+            if (string.IsNullOrEmpty(repoPath) || string.IsNullOrEmpty(filePath))
+                return false;
+
+            string relativePath = Path.GetRelativePath(repoPath, filePath);
+            string status = await RunGitCommandAsync(repoPath, $"status --porcelain -- \"{QuotePath(relativePath)}\"");
+
+            if (status.TrimStart().StartsWith("??", StringComparison.Ordinal))
+            {
+                try
+                {
+                    if (File.Exists(filePath))
+                    {
+                        File.Delete(filePath);
+                    }
+                    else if (Directory.Exists(filePath))
+                    {
+                        Directory.Delete(filePath, recursive: true);
+                    }
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            string output = await RunGitCommandAsync(repoPath, $"restore --staged --worktree -- \"{QuotePath(relativePath)}\"");
+            return !output.StartsWith("fatal:");
+        }
+
+        public async Task<bool> RestoreAllAsync(string repoPath)
+        {
+            if (string.IsNullOrEmpty(repoPath))
+                return false;
+
+            var statuses = await GetFileStatusesAsync(repoPath);
+            foreach (var kvp in statuses)
+            {
+                bool ok = await RestoreFileAsync(repoPath, kvp.Key);
+                if (!ok)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         public async Task<bool> CommitAsync(string repoPath, string message)
@@ -209,6 +275,39 @@ namespace Ueditor.Core.Services
             string escapedMsg = message.Replace("\"", "\\\"");
             string output = await RunGitCommandAsync(repoPath, $"commit -m \"{escapedMsg}\"");
             return !output.StartsWith("fatal:");
+        }
+
+        public async Task<bool> PushAsync(string repoPath)
+        {
+            if (string.IsNullOrEmpty(repoPath))
+                return false;
+
+            string output = await RunGitCommandAsync(repoPath, "push");
+            return !output.StartsWith("fatal:");
+        }
+
+        public async Task<IReadOnlyList<string>> GetRecentHistoryAsync(string repoPath, int maxCount = 20)
+        {
+            if (string.IsNullOrEmpty(repoPath))
+                return Array.Empty<string>();
+
+            string output = await RunGitCommandAsync(repoPath, $"log --oneline --decorate -n {Math.Max(1, maxCount)}");
+            if (string.IsNullOrEmpty(output) || output.StartsWith("fatal:", StringComparison.OrdinalIgnoreCase))
+                return Array.Empty<string>();
+
+            return output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+        }
+
+        public async Task<IReadOnlyList<string>> GetBranchesAsync(string repoPath)
+        {
+            if (string.IsNullOrEmpty(repoPath))
+                return Array.Empty<string>();
+
+            string output = await RunGitCommandAsync(repoPath, "branch --all --no-color");
+            if (string.IsNullOrEmpty(output) || output.StartsWith("fatal:", StringComparison.OrdinalIgnoreCase))
+                return Array.Empty<string>();
+
+            return output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
         }
     }
 }

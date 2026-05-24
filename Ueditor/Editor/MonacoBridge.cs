@@ -69,25 +69,66 @@ namespace Ueditor.Editor
 
         public async Task SetLanguageAsync(string filePath)
         {
+            string name = System.IO.Path.GetFileName(filePath);
+            if (name.Equals("Dockerfile", StringComparison.OrdinalIgnoreCase))
+            {
+                await SendMessageAsync(new { action = "setLanguage", language = "dockerfile" });
+                return;
+            }
+            if (name.Equals("Makefile", StringComparison.OrdinalIgnoreCase))
+            {
+                await SendMessageAsync(new { action = "setLanguage", language = "makefile" });
+                return;
+            }
+
             string ext = System.IO.Path.GetExtension(filePath).ToLower();
             string lang = ext switch
             {
                 ".cs" => "csharp",
+                ".fs" => "fsharp",
+                ".vb" => "vb",
                 ".js" => "javascript",
+                ".jsx" => "javascript",
                 ".ts" => "typescript",
+                ".tsx" => "typescript",
                 ".html" => "html",
                 ".css" => "css",
+                ".scss" => "scss",
+                ".less" => "less",
                 ".json" => "json",
+                ".jsonc" => "json",
                 ".md" => "markdown",
                 ".markdown" => "markdown",
                 ".py" => "python",
                 ".cpp" => "cpp",
+                ".cxx" => "cpp",
+                ".cc" => "cpp",
+                ".c" => "cpp",
                 ".h" => "cpp",
+                ".hpp" => "cpp",
                 ".xml" => "xml",
                 ".xaml" => "xml",
                 ".sql" => "sql",
                 ".sh" => "shell",
+                ".bash" => "shell",
+                ".zsh" => "shell",
+                ".ps1" => "powershell",
                 ".tex" => "latex",
+                ".rs" => "rust",
+                ".go" => "go",
+                ".java" => "java",
+                ".kt" => "kotlin",
+                ".kts" => "kotlin",
+                ".swift" => "swift",
+                ".php" => "php",
+                ".rb" => "ruby",
+                ".dart" => "dart",
+                ".lua" => "lua",
+                ".r" => "r",
+                ".toml" => "toml",
+                ".ini" => "ini",
+                ".yml" => "yaml",
+                ".yaml" => "yaml",
                 _ => "plaintext"
             };
 

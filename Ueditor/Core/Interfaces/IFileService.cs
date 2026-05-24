@@ -6,9 +6,11 @@ namespace Ueditor.Core.Interfaces
     {
         // 일반 파일 읽기 (인코딩 자동 감지)
         Task<string> ReadTextFileAsync(string filePath);
+        Task<TextFileReadResult> ReadTextFileAsync(string filePath, string encodingName);
         
         // 안전한 파일 쓰기 (임시 파일 쓰기 후 덮어쓰기 기법 적용)
         Task SaveTextFileAsync(string filePath, string content);
+        Task SaveTextFileAsync(string filePath, string content, string encodingName);
 
         // 대용량 파일 정보 추출
         Task<LargeFileInfo> GetLargeFileInfoAsync(string filePath);
@@ -30,6 +32,13 @@ namespace Ueditor.Core.Interfaces
         public long FileSize { get; set; } // Bytes
         public bool IsLargeFile => FileSize >= 50 * 1024 * 1024; // 50MB 이상
         public bool IsUltraLargeFile => FileSize >= 200 * 1024 * 1024; // 200MB 이상
+    }
+
+    public class TextFileReadResult
+    {
+        public string Content { get; set; } = string.Empty;
+        public string EncodingName { get; set; } = "UTF-8";
+        public bool WasAutoDetected { get; set; } = true;
     }
 
     public class LargeFileSearchResult

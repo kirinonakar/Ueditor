@@ -43,6 +43,11 @@ namespace Ueditor
         private string _currentRepoPath = string.Empty;
         private Process? _terminalProcess;
         private string _terminalWorkingDirectory = string.Empty;
+        private string _llmFileContextText = string.Empty;
+        private Window? _stickyNoteWindow;
+        private TextBox? _stickyNoteTextBox;
+        private bool _isTopMost = false;
+        private bool _isSyncingEncodingCombo = false;
         
         // Dynamic tabs collection
         private readonly ObservableCollection<OpenedTab> _tabs = new ObservableCollection<OpenedTab>();
@@ -92,6 +97,11 @@ namespace Ueditor
             SnippetsListView.ItemsSource = _snippetsList;
             GitChangedFilesList.ItemsSource = _gitFilesList;
             SearchResultsList.ItemsSource = _searchResultsList;
+            foreach (string encodingName in TextEncodingService.SupportedEncodingNames)
+            {
+                StatusEncodingCombo.Items.Add(encodingName);
+            }
+            StatusEncodingCombo.SelectedItem = "UTF-8";
 
             // Initialize Preview Debounce Timer (50ms for near-real-time preview)
             _previewDebounceTimer = new DispatcherTimer
@@ -201,17 +211,20 @@ namespace Ueditor
                         {
                             try
                             {
-                                string content = await _fileService.ReadTextFileAsync(filePath);
+                                var readResult = await _fileService.ReadTextFileAsync(filePath, "Auto");
                                 this.DispatcherQueue.TryEnqueue(async () =>
                                 {
                                     var tab = _tabs.FirstOrDefault(t => t.FilePath == filePath);
                                     if (tab != null)
                                     {
-                                        tab.Content = content;
+                                        tab.Content = readResult.Content;
+                                        tab.EncodingName = readResult.EncodingName;
+                                        tab.EncodingWasAutoDetected = readResult.WasAutoDetected;
                                         if (_tabBridges.TryGetValue(tab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
                                         {
-                                            await bridgeGroup.Bridge.SetTextAsync(content);
+                                            await bridgeGroup.Bridge.SetTextAsync(readResult.Content);
                                         }
+                                        SyncEncodingCombo(tab);
                                     }
                                 });
                             }
@@ -314,10 +327,12 @@ namespace Ueditor
 
         #region Tab Operations (탭 비즈니스 로직)
 
-        private void OpenNewTab(string? filePath = null, string content = "", bool isLargeFileMode = false, bool isMonacoLimitedMode = false, bool isReadOnly = false)
+        private void OpenNewTab(string? filePath = null, string content = "", bool isLargeFileMode = false, bool isMonacoLimitedMode = false, bool isReadOnly = false, string encodingName = "UTF-8", bool encodingWasAutoDetected = true)
         {
             var tab = new OpenedTab();
             tab.IsLargeFileMode = isLargeFileMode;
+            tab.EncodingName = encodingName;
+            tab.EncodingWasAutoDetected = encodingWasAutoDetected;
 
             // Auto-enforce read-only mode for .diff files
             if (filePath != null && filePath.EndsWith(".diff", StringComparison.OrdinalIgnoreCase))
@@ -331,7 +346,10 @@ namespace Ueditor
                 tab.Title = Path.GetFileName(filePath);
                 tab.Content = content;
                 tab.Language = GetMonacoLanguageName(filePath);
-                AddRecentFile(filePath);
+                if (File.Exists(filePath))
+                {
+                    AddRecentFile(filePath);
+                }
             }
             else
             {
@@ -471,6 +489,7 @@ namespace Ueditor
             EditorTabView.SelectedItem = tabItem;
 
             UpdateStatusFileStats(tab);
+            SyncEncodingCombo(tab);
         }
 
         private async void InitializeLargeFileWebView(WebView2 wv, OpenedTab tab, TabViewItem tabItem)
@@ -620,6 +639,9 @@ namespace Ueditor
 
         private string GetMonacoLanguageName(string filePath)
         {
+            string name = Path.GetFileName(filePath);
+            if (name.Equals("Dockerfile", StringComparison.OrdinalIgnoreCase)) return "dockerfile";
+            if (name.Equals("Makefile", StringComparison.OrdinalIgnoreCase)) return "makefile";
             string ext = Path.GetExtension(filePath).ToLower();
             return ext switch
             {
@@ -630,19 +652,45 @@ namespace Ueditor
                 ".tex" => "latex",
                 ".diff" => "diff",
                 ".cs" => "csharp",
+                ".fs" => "fsharp",
+                ".vb" => "vb",
                 ".js" => "javascript",
+                ".jsx" => "javascript",
                 ".ts" => "typescript",
+                ".tsx" => "typescript",
                 ".css" => "css",
+                ".scss" => "scss",
+                ".less" => "less",
                 ".json" => "json",
+                ".jsonc" => "json",
                 ".py" => "python",
                 ".cpp" => "cpp",
+                ".cxx" => "cpp",
+                ".cc" => "cpp",
+                ".c" => "cpp",
                 ".h" => "cpp",
+                ".hpp" => "cpp",
                 ".xml" => "xml",
                 ".xaml" => "xml",
                 ".sql" => "sql",
                 ".sh" => "shell",
+                ".bash" => "shell",
+                ".zsh" => "shell",
+                ".ps1" => "powershell",
                 ".rs" => "rust",
                 ".go" => "go",
+                ".java" => "java",
+                ".kt" => "kotlin",
+                ".kts" => "kotlin",
+                ".swift" => "swift",
+                ".php" => "php",
+                ".rb" => "ruby",
+                ".dart" => "dart",
+                ".lua" => "lua",
+                ".r" => "r",
+                ".dockerfile" => "dockerfile",
+                ".toml" => "toml",
+                ".ini" => "ini",
                 ".yml" => "yaml",
                 ".yaml" => "yaml",
                 _ => "plaintext"
@@ -718,15 +766,36 @@ namespace Ueditor
             picker.FileTypeFilter.Add(".js");
             picker.FileTypeFilter.Add(".ts");
             picker.FileTypeFilter.Add(".cs");
+            picker.FileTypeFilter.Add(".fs");
+            picker.FileTypeFilter.Add(".vb");
             picker.FileTypeFilter.Add(".json");
+            picker.FileTypeFilter.Add(".jsonc");
             picker.FileTypeFilter.Add(".tex");
             picker.FileTypeFilter.Add(".py");
+            picker.FileTypeFilter.Add(".java");
+            picker.FileTypeFilter.Add(".kt");
+            picker.FileTypeFilter.Add(".swift");
+            picker.FileTypeFilter.Add(".php");
+            picker.FileTypeFilter.Add(".rb");
+            picker.FileTypeFilter.Add(".rs");
+            picker.FileTypeFilter.Add(".go");
+            picker.FileTypeFilter.Add(".dart");
+            picker.FileTypeFilter.Add(".lua");
             picker.FileTypeFilter.Add(".cpp");
+            picker.FileTypeFilter.Add(".c");
+            picker.FileTypeFilter.Add(".cc");
+            picker.FileTypeFilter.Add(".cxx");
             picker.FileTypeFilter.Add(".h");
+            picker.FileTypeFilter.Add(".hpp");
             picker.FileTypeFilter.Add(".xml");
             picker.FileTypeFilter.Add(".xaml");
             picker.FileTypeFilter.Add(".sql");
             picker.FileTypeFilter.Add(".sh");
+            picker.FileTypeFilter.Add(".ps1");
+            picker.FileTypeFilter.Add(".yaml");
+            picker.FileTypeFilter.Add(".yml");
+            picker.FileTypeFilter.Add(".toml");
+            picker.FileTypeFilter.Add(".ini");
             picker.FileTypeFilter.Add(".diff");
 
             var file = await picker.PickSingleFileAsync();
@@ -791,8 +860,8 @@ namespace Ueditor
                     else if (result == ContentDialogResult.Secondary)
                     {
                         StatusMode.Text = "일반 모드 (제한)";
-                        string content = await _fileService.ReadTextFileAsync(filePath);
-                        OpenNewTab(filePath, content, isLargeFileMode: false, isMonacoLimitedMode: true);
+                        var readResult = await _fileService.ReadTextFileAsync(filePath, "Auto");
+                        OpenNewTab(filePath, readResult.Content, isLargeFileMode: false, isMonacoLimitedMode: true, encodingName: readResult.EncodingName, encodingWasAutoDetected: readResult.WasAutoDetected);
                         return;
                     }
                     else
@@ -802,8 +871,8 @@ namespace Ueditor
                 }
 
                 StatusMode.Text = "일반 모드";
-                string contentNormal = await _fileService.ReadTextFileAsync(filePath);
-                OpenNewTab(filePath, contentNormal);
+                var normalReadResult = await _fileService.ReadTextFileAsync(filePath, "Auto");
+                OpenNewTab(filePath, normalReadResult.Content, encodingName: normalReadResult.EncodingName, encodingWasAutoDetected: normalReadResult.WasAutoDetected);
             }
             catch (Exception ex)
             {
@@ -940,6 +1009,117 @@ namespace Ueditor
                     };
                     bridgeGroup.WebView.CoreWebView2.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(updateMsg));
                 }
+            }
+        }
+
+        private void OnTopMostToggleClick(object sender, RoutedEventArgs e)
+        {
+            _isTopMost = TopMostToggleButton?.IsChecked == true;
+            ApplyTopMostToWindow(this, _isTopMost);
+        }
+
+        private void OnStickyNoteClick(object sender, RoutedEventArgs e)
+        {
+            if (_stickyNoteWindow != null)
+            {
+                _stickyNoteWindow.Activate();
+                return;
+            }
+
+            string stickyPath = GetStickyNotePath();
+            string initialText = File.Exists(stickyPath) ? File.ReadAllText(stickyPath, Encoding.UTF8) : string.Empty;
+
+            var root = new Grid
+            {
+                Padding = new Thickness(10),
+                RowSpacing = 8,
+                Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemControlBackgroundChromeMediumLowBrush"]
+            };
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            _stickyNoteTextBox = new TextBox
+            {
+                Text = initialText,
+                AcceptsReturn = true,
+                TextWrapping = TextWrapping.Wrap,
+                PlaceholderText = "빠르게 메모...",
+                MinWidth = 320,
+                MinHeight = 240,
+                FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe UI, Malgun Gothic")
+            };
+            ScrollViewer.SetVerticalScrollBarVisibility(_stickyNoteTextBox, ScrollBarVisibility.Auto);
+            Grid.SetRow(_stickyNoteTextBox, 0);
+
+            var actions = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Spacing = 8
+            };
+            var saveButton = new Button { Content = "저장" };
+            var closeButton = new Button { Content = "닫기" };
+            actions.Children.Add(saveButton);
+            actions.Children.Add(closeButton);
+            Grid.SetRow(actions, 1);
+
+            root.Children.Add(_stickyNoteTextBox);
+            root.Children.Add(actions);
+
+            _stickyNoteWindow = new Window
+            {
+                Title = "스티커 노트",
+                Content = root
+            };
+
+            saveButton.Click += (_, __) => SaveStickyNote();
+            closeButton.Click += (_, __) => _stickyNoteWindow?.Close();
+            _stickyNoteWindow.Closed += (_, __) =>
+            {
+                SaveStickyNote();
+                _stickyNoteWindow = null;
+                _stickyNoteTextBox = null;
+            };
+
+            _stickyNoteWindow.Activate();
+            ApplyTopMostToWindow(_stickyNoteWindow, true);
+        }
+
+        private string GetStickyNotePath()
+        {
+            string? settingsDir = Path.GetDirectoryName(_recentFilesFilePath);
+            if (string.IsNullOrWhiteSpace(settingsDir))
+            {
+                settingsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ueditor");
+            }
+
+            Directory.CreateDirectory(settingsDir);
+            return Path.Combine(settingsDir, "sticky_note.txt");
+        }
+
+        private void SaveStickyNote()
+        {
+            try
+            {
+                if (_stickyNoteTextBox == null) return;
+                File.WriteAllText(GetStickyNotePath(), _stickyNoteTextBox.Text ?? string.Empty, Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to save sticky note: {ex.Message}");
+            }
+        }
+
+        private void ApplyTopMostToWindow(Window window, bool topMost)
+        {
+            try
+            {
+                IntPtr hwnd = WindowNative.GetWindowHandle(window);
+                SetWindowPos(hwnd, topMost ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to apply topmost: {ex.Message}");
             }
         }
 
@@ -1636,21 +1816,18 @@ namespace Ueditor
                 return;
             }
 
-            try
+            if (TerminalPanel.Visibility == Visibility.Visible &&
+                _terminalProcess != null &&
+                !_terminalProcess.HasExited &&
+                _terminalWorkingDirectory.Equals(workingDirectory, StringComparison.OrdinalIgnoreCase))
             {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "powershell.exe",
-                    WorkingDirectory = workingDirectory,
-                    UseShellExecute = true
-                });
-            }
-            catch (Exception ex)
-            {
-                ShowErrorMessage("터미널 실행 실패", $"터미널을 열지 못했습니다: {ex.Message}");
+                OnCloseTerminalClick(this, new RoutedEventArgs());
+                if (TerminalToggleButton != null) TerminalToggleButton.IsChecked = false;
+                return;
             }
 
-            if (TerminalToggleButton != null) TerminalToggleButton.IsChecked = false;
+            OpenEmbeddedTerminal(workingDirectory);
+            if (TerminalToggleButton != null) TerminalToggleButton.IsChecked = true;
         }
 
         private string GetTerminalWorkingDirectory()
@@ -1719,6 +1896,10 @@ namespace Ueditor
         private const uint SWP_NOOWNERZORDER = 0x0200;
         private const uint SWP_NOZORDER = 0x0004;
         private const uint SWP_FRAMECHANGED = 0x0020;
+        private const uint SWP_NOSIZE = 0x0001;
+        private const uint SWP_NOMOVE = 0x0002;
+        private static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
+        private static readonly IntPtr HWND_NOTOPMOST = new IntPtr(-2);
 
         private IntPtr _terminalWindowHandle = IntPtr.Zero;
 
@@ -1976,6 +2157,10 @@ namespace Ueditor
             StopEmbeddedTerminal();
             TerminalPanel.Visibility = Visibility.Collapsed;
             TerminalPanelRow.Height = new GridLength(0);
+            if (TerminalToggleButton != null)
+            {
+                TerminalToggleButton.IsChecked = false;
+            }
         }
 
         private IEnumerable<ExplorerItem> CreateDirectoryItems(string parentPath)
@@ -2140,6 +2325,7 @@ namespace Ueditor
                     UpdateStatusFileStats(tab);
                     UpdateLivePreview(tab);
                     UpdateLanguageUI(tab);
+                    SyncEncodingCombo(tab);
 
                     // Sync selection for active Monaco editor
                     if (_tabBridges.TryGetValue(tab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
@@ -2181,6 +2367,43 @@ namespace Ueditor
             if (PreviewWebView != null && PreviewWebView.CoreWebView2 != null)
             {
                 OnRefreshPreviewClick(this, new RoutedEventArgs());
+            }
+        }
+
+        private async void OnOpenPreviewInBrowserClick(object sender, RoutedEventArgs e)
+        {
+            var tab = GetActiveTab();
+            if (tab == null)
+            {
+                ShowErrorMessage("브라우저 열기", "브라우저로 열 활성 탭이 없습니다.");
+                return;
+            }
+
+            try
+            {
+                string targetPath = tab.FilePath ?? string.Empty;
+                bool isSavedHtml = !string.IsNullOrWhiteSpace(targetPath) &&
+                    File.Exists(targetPath) &&
+                    (targetPath.EndsWith(".html", StringComparison.OrdinalIgnoreCase) ||
+                     targetPath.EndsWith(".htm", StringComparison.OrdinalIgnoreCase));
+
+                if (!isSavedHtml)
+                {
+                    string previewDir = Path.Combine(Path.GetTempPath(), "Ueditor", "Preview");
+                    Directory.CreateDirectory(previewDir);
+                    targetPath = Path.Combine(previewDir, $"preview-{tab.Id}.html");
+                    await File.WriteAllTextAsync(targetPath, tab.Content ?? string.Empty, Encoding.UTF8);
+                }
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = targetPath,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage("브라우저 열기 실패", ex.Message);
             }
         }
 
@@ -2296,6 +2519,112 @@ namespace Ueditor
             else
             {
                 StatusFileStats.Text = "크기: 0 bytes";
+            }
+        }
+
+        private void SyncEncodingCombo(OpenedTab tab)
+        {
+            try
+            {
+                _isSyncingEncodingCombo = true;
+                string encodingName = string.IsNullOrWhiteSpace(tab.EncodingName) ? "UTF-8" : tab.EncodingName;
+                StatusEncodingCombo.SelectedItem = StatusEncodingCombo.Items.Contains(encodingName) ? encodingName : "UTF-8";
+            }
+            finally
+            {
+                _isSyncingEncodingCombo = false;
+            }
+        }
+
+        private async void OnStatusEncodingSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isSyncingEncodingCombo) return;
+            if (StatusEncodingCombo.SelectedItem is not string selectedEncoding) return;
+
+            var tab = GetActiveTab();
+            if (tab == null)
+            {
+                return;
+            }
+
+            if (tab.IsLargeFileMode)
+            {
+                tab.EncodingName = selectedEncoding == "Auto" ? tab.EncodingName : selectedEncoding;
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(tab.FilePath) || !File.Exists(tab.FilePath))
+            {
+                tab.EncodingName = selectedEncoding == "Auto" ? "UTF-8" : selectedEncoding;
+                tab.EncodingWasAutoDetected = false;
+                return;
+            }
+
+            if (tab.IsDirty)
+            {
+                var dialog = new ContentDialog
+                {
+                    Title = "인코딩 변경",
+                    Content = "인코딩을 바꾸면 파일을 다시 읽습니다. 저장하지 않은 변경 사항을 먼저 저장하시겠습니까?",
+                    PrimaryButtonText = "저장 후 변경",
+                    SecondaryButtonText = "저장 안 함",
+                    CloseButtonText = "취소",
+                    XamlRoot = this.Content.XamlRoot
+                };
+
+                var result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    bool saved = await SaveTabAsync(tab);
+                    if (!saved)
+                    {
+                        SyncEncodingCombo(tab);
+                        return;
+                    }
+                }
+                else if (result != ContentDialogResult.Secondary)
+                {
+                    SyncEncodingCombo(tab);
+                    return;
+                }
+            }
+
+            await ReloadTabWithEncodingAsync(tab, selectedEncoding);
+        }
+
+        private async Task ReloadTabWithEncodingAsync(OpenedTab tab, string encodingName)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(tab.FilePath)) return;
+
+                var readResult = await _fileService.ReadTextFileAsync(tab.FilePath, encodingName);
+                tab.Content = readResult.Content;
+                tab.EncodingName = readResult.EncodingName;
+                tab.EncodingWasAutoDetected = readResult.WasAutoDetected;
+                tab.IsDirty = false;
+
+                var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id);
+                if (tabItem != null)
+                {
+                    tabItem.Header = tab.DisplayTitle;
+                }
+
+                if (_tabBridges.TryGetValue(tab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
+                {
+                    await bridgeGroup.Bridge.SetTextAsync(readResult.Content);
+                    await bridgeGroup.Bridge.SetLanguageAsync(tab.FilePath);
+                }
+
+                UpdateLivePreview(tab);
+                UpdateStatusFileStats(tab);
+                UpdateLanguageUI(tab);
+                SyncEncodingCombo(tab);
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage("인코딩 변경 실패", ex.Message);
+                SyncEncodingCombo(tab);
             }
         }
 
@@ -2419,8 +2748,9 @@ namespace Ueditor
             }
 
             string language = GetActiveSelectionLanguage();
-            await PreflightCheckAndRunAsync("선택 영역 설명 (Explain)", _lastSelectionText,
-                () => _llmService.ExplainCodeAsync(_lastSelectionText, language));
+            string context = BuildLlmContext(_lastSelectionText);
+            await PreflightCheckAndRunAsync("선택 영역 설명 (Explain)", context,
+                () => _llmService.ExplainCodeAsync(context, language));
         }
 
         private async void OnLlmSummarizeClick(object sender, RoutedEventArgs e)
@@ -2430,8 +2760,9 @@ namespace Ueditor
                 ShowErrorMessage("AI 오류", "선택된 텍스트가 없습니다. 요약할 범위를 드래그하십시오.");
                 return;
             }
-            await PreflightCheckAndRunAsync("선택 영역 요약 (Summarize)", _lastSelectionText, 
-                () => _llmService.SummarizeTextAsync(_lastSelectionText));
+            string context = BuildLlmContext(_lastSelectionText);
+            await PreflightCheckAndRunAsync("선택 영역 요약 (Summarize)", context,
+                () => _llmService.SummarizeTextAsync(context));
         }
 
         private async void OnLlmTranslateClick(object sender, RoutedEventArgs e)
@@ -2442,8 +2773,9 @@ namespace Ueditor
                 return;
             }
 
-            await PreflightCheckAndRunAsync("선택 영역 번역 (Translate)", _lastSelectionText,
-                () => _llmService.TranslateTextAsync(_lastSelectionText));
+            string context = BuildLlmContext(_lastSelectionText);
+            await PreflightCheckAndRunAsync("선택 영역 번역 (Translate)", context,
+                () => _llmService.TranslateTextAsync(context));
         }
 
         private async void OnLlmImproveClick(object sender, RoutedEventArgs e)
@@ -2453,15 +2785,16 @@ namespace Ueditor
                 ShowErrorMessage("AI 오류", "선택된 텍스트가 없습니다. 개선할 범위를 드래그하십시오.");
                 return;
             }
-            await PreflightCheckAndRunAsync("수식 및 마크다운 개선", _lastSelectionText, 
-                () => _llmService.CustomPromptAsync("제공된 텍스트의 가독성, 마크다운 형식, 또는 LaTeX 수학 공식을 표준 문법에 맞게 개선하여 한글로 정제해 주십시오.", _lastSelectionText));
+            string context = BuildLlmContext(_lastSelectionText);
+            await PreflightCheckAndRunAsync("수식 및 마크다운 개선", context,
+                () => _llmService.CustomPromptAsync("제공된 텍스트의 가독성, 마크다운 형식, 또는 LaTeX 수학 공식을 표준 문법에 맞게 개선하여 한글로 정제해 주십시오.", context));
         }
 
         private async void OnLlmCustomClick(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(_lastSelectionText))
+            if (string.IsNullOrEmpty(_lastSelectionText) && string.IsNullOrEmpty(_llmFileContextText))
             {
-                ShowErrorMessage("AI 오류", "선택된 컨텍스트가 없습니다. 지시사항의 기반이 될 텍스트 범위를 드래그하십시오.");
+                ShowErrorMessage("AI 오류", "선택 영역이나 파일 맥락이 없습니다. 텍스트를 선택하거나 파일 맥락을 추가하십시오.");
                 return;
             }
             string prompt = LlmCustomPromptInput.Text;
@@ -2470,8 +2803,69 @@ namespace Ueditor
                 ShowErrorMessage("AI 오류", "커스텀 지시사항 입력란이 비어 있습니다.");
                 return;
             }
-            await PreflightCheckAndRunAsync("커스텀 지시사항 실행", _lastSelectionText, 
-                () => _llmService.CustomPromptAsync(prompt, _lastSelectionText));
+
+            string context = BuildLlmContext(_lastSelectionText);
+            await PreflightCheckAndRunAsync("커스텀 지시사항 실행", context,
+                () => _llmService.CustomPromptAsync(prompt, context));
+        }
+
+        private void OnLlmAddFileContextClick(object sender, RoutedEventArgs e)
+        {
+            var tab = GetActiveTab();
+            if (tab == null)
+            {
+                ShowErrorMessage("AI 파일 맥락", "파일 맥락으로 추가할 활성 탭이 없습니다.");
+                return;
+            }
+
+            string title = string.IsNullOrWhiteSpace(tab.FilePath) ? tab.Title : tab.FilePath;
+            string content = tab.Content ?? string.Empty;
+            if (tab.IsLargeFileMode)
+            {
+                ShowErrorMessage("AI 파일 맥락", "대용량 모드 파일은 전체 본문을 LLM 맥락으로 넣지 않습니다. 필요한 줄을 선택해서 사용하십시오.");
+                return;
+            }
+
+            const int maxChars = 120_000;
+            if (content.Length > maxChars)
+            {
+                content = content.Substring(0, maxChars) + "\n\n[파일 맥락이 길어 앞부분만 포함됨]";
+            }
+
+            _llmFileContextText = $"[파일 맥락: {title}]\n{content}";
+            LlmFileContextInput.Text = $"{Path.GetFileName(title)} · {_llmFileContextText.Length:N0} 글자";
+        }
+
+        private async void OnLlmInsertOutputClick(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(LlmOutputText.Text) || LlmOutputText.Text.StartsWith("대기 중", StringComparison.Ordinal))
+            {
+                ShowErrorMessage("AI 응답 입력", "입력할 AI 응답이 없습니다.");
+                return;
+            }
+
+            if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
+                activeTabItem.Tag is string tabId &&
+                _tabBridges.TryGetValue(tabId, out var bridgeGroup) &&
+                bridgeGroup.Bridge != null)
+            {
+                await bridgeGroup.Bridge.InsertTextAsync(LlmOutputText.Text);
+            }
+        }
+
+        private string BuildLlmContext(string selectedText)
+        {
+            if (string.IsNullOrEmpty(_llmFileContextText))
+            {
+                return selectedText;
+            }
+
+            if (string.IsNullOrEmpty(selectedText))
+            {
+                return _llmFileContextText;
+            }
+
+            return $"{_llmFileContextText}\n\n[선택 영역]\n{selectedText}";
         }
 
         private async Task PreflightCheckAndRunAsync(string actionName, string contentText, Func<Task<string>> llmCall)
@@ -2623,8 +3017,12 @@ namespace Ueditor
                         _recentFilesList.Clear();
                         foreach (var item in items)
                         {
-                            _recentFilesList.Add(item);
+                            if (!string.IsNullOrWhiteSpace(item.Path) && File.Exists(item.Path))
+                            {
+                                _recentFilesList.Add(item);
+                            }
                         }
+                        SaveRecentFiles();
                     }
                 }
             }
@@ -2657,6 +3055,7 @@ namespace Ueditor
         private void AddRecentFile(string filePath)
         {
             if (string.IsNullOrWhiteSpace(filePath)) return;
+            if (!File.Exists(filePath)) return;
 
             this.DispatcherQueue.TryEnqueue(() =>
             {
@@ -2712,6 +3111,12 @@ namespace Ueditor
             {
                 if (File.Exists(item.Path))
                 {
+                    string? folderPath = Path.GetDirectoryName(item.Path);
+                    if (!string.IsNullOrWhiteSpace(folderPath) && Directory.Exists(folderPath))
+                    {
+                        await NavigateExplorerToFolderAsync(folderPath);
+                    }
+
                     await LoadFileIntoTabAsync(item.Path);
                 }
                 else
@@ -3084,6 +3489,8 @@ namespace Ueditor
                 GitPanelBranchText.Text = "Git: 감지 안됨";
                 StatusGitBranch.Text = "Git: 감지 안됨";
                 _gitFilesList.Clear();
+                GitBranchesCombo.Items.Clear();
+                GitHistoryList.Items.Clear();
                 return;
             }
 
@@ -3092,6 +3499,18 @@ namespace Ueditor
             StatusGitBranch.Text = branch;
 
             _gitFilesList.Clear();
+            GitBranchesCombo.Items.Clear();
+            foreach (var branchName in await _gitService.GetBranchesAsync(_currentRepoPath))
+            {
+                GitBranchesCombo.Items.Add(branchName.Trim());
+            }
+
+            GitHistoryList.Items.Clear();
+            foreach (var history in await _gitService.GetRecentHistoryAsync(_currentRepoPath))
+            {
+                GitHistoryList.Items.Add(history);
+            }
+
             var fileStatuses = await _gitService.GetFileStatusesAsync(_currentRepoPath);
             foreach (var kvp in fileStatuses)
             {
@@ -3102,6 +3521,9 @@ namespace Ueditor
                 bool isUnstaged = status.Length > 1 && status[1] != ' ';
                 string statusDesc = isStaged ? "Staged" : "Unstaged";
                 if (status == "??") statusDesc = "Untracked";
+                else if (status.Contains("D")) statusDesc = isStaged ? "Deleted staged" : "Deleted";
+                else if (status.Contains("R")) statusDesc = "Renamed";
+                else if (status.Contains("A")) statusDesc = isStaged ? "Added staged" : "Added";
                 else if (isStaged && isUnstaged) statusDesc = "Staged + Unstaged";
 
                 string actionGlyph = isStaged ? "\xE108" : "\xE109"; // Minus (Unstage) or Plus (Stage) in Segoe MDL2
@@ -3114,6 +3536,19 @@ namespace Ueditor
                     ActionGlyph = actionGlyph,
                     IsStaged = isStaged
                 });
+            }
+        }
+
+        private async void OnGitStageAllClick(object sender, RoutedEventArgs e)
+        {
+            bool success = await _gitService.StageAllAsync(_currentRepoPath);
+            if (success)
+            {
+                await RefreshGitStatusUIAsync();
+            }
+            else
+            {
+                ShowErrorMessage("Git Stage 실패", "전체 Stage 처리에 실패했습니다.");
             }
         }
 
@@ -3154,6 +3589,36 @@ namespace Ueditor
             }
         }
 
+        private async void OnGitRestoreFileClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string filePath)
+            {
+                var dialog = new ContentDialog
+                {
+                    Title = "Git 파일 복원",
+                    Content = $"{Path.GetFileName(filePath)} 변경 사항을 복원합니다. Untracked 파일은 삭제됩니다.",
+                    PrimaryButtonText = "복원",
+                    CloseButtonText = "취소",
+                    XamlRoot = this.Content.XamlRoot
+                };
+
+                if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+                {
+                    return;
+                }
+
+                bool success = await _gitService.RestoreFileAsync(_currentRepoPath, filePath);
+                if (success)
+                {
+                    await RefreshGitStatusUIAsync();
+                }
+                else
+                {
+                    ShowErrorMessage("Git Restore 실패", "파일 복원 처리에 실패했습니다.");
+                }
+            }
+        }
+
         private async void OnGitCommitClick(object sender, RoutedEventArgs e)
         {
             string msg = GitCommitMessageInput.Text;
@@ -3173,6 +3638,47 @@ namespace Ueditor
             else
             {
                 ShowErrorMessage("Git 커밋 실패", "커밋 도중 에러가 났습니다. 변경 조각(Staged)이 등록되었는지 확인하십시오.");
+            }
+        }
+
+        private async void OnGitPushClick(object sender, RoutedEventArgs e)
+        {
+            bool success = await _gitService.PushAsync(_currentRepoPath);
+            if (success)
+            {
+                await RefreshGitStatusUIAsync();
+                ShowErrorMessage("Git Push", "Push가 완료되었습니다.");
+            }
+            else
+            {
+                ShowErrorMessage("Git Push 실패", "Push 처리에 실패했습니다. 원격 저장소/인증/업스트림 설정을 확인하십시오.");
+            }
+        }
+
+        private async void OnGitRestoreAllClick(object sender, RoutedEventArgs e)
+        {
+            var dialog = new ContentDialog
+            {
+                Title = "Git 전체 복원",
+                Content = "모든 변경 사항을 복원합니다. Untracked 파일은 삭제됩니다.",
+                PrimaryButtonText = "전체 복원",
+                CloseButtonText = "취소",
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+            {
+                return;
+            }
+
+            bool success = await _gitService.RestoreAllAsync(_currentRepoPath);
+            if (success)
+            {
+                await RefreshGitStatusUIAsync();
+            }
+            else
+            {
+                ShowErrorMessage("Git Restore 실패", "전체 복원 처리에 실패했습니다.");
             }
         }
 
@@ -3627,6 +4133,10 @@ namespace Ueditor
                     tab.FilePath = file.Path;
                     tab.Title = file.Name;
                     tab.Language = GetMonacoLanguageName(file.Path);
+                    if (string.IsNullOrWhiteSpace(tab.EncodingName))
+                    {
+                        tab.EncodingName = "UTF-8";
+                    }
                 }
                 else
                 {
@@ -3636,11 +4146,12 @@ namespace Ueditor
 
             try
             {
-                await _fileService.SaveTextFileAsync(tab.FilePath, tab.Content);
+                await _fileService.SaveTextFileAsync(tab.FilePath, tab.Content, tab.EncodingName);
                 tab.IsDirty = false;
                 tabItem.Header = tab.DisplayTitle;
                 UpdateStatusFileStats(tab);
                 UpdateLanguageUI(tab);
+                SyncEncodingCombo(tab);
                 return true;
             }
             catch (Exception ex)
@@ -3717,6 +4228,7 @@ namespace Ueditor
 
             if (sample.StartsWith("{") && sample.EndsWith("}") && sample.Contains("\"")) return "json";
             if (sample.StartsWith("[") && sample.EndsWith("]") && sample.Contains("{\"")) return "json";
+            if (sample.StartsWith("diff --git") || sample.Contains("\n@@ ")) return "diff";
 
             if (sample.Contains("<!DOCTYPE html", StringComparison.OrdinalIgnoreCase) ||
                 sample.Contains("<html", StringComparison.OrdinalIgnoreCase) ||
@@ -3757,6 +4269,11 @@ namespace Ueditor
                 sample.Contains("console.log(") ||
                 sample.Contains("document.getElementById(")) return "javascript";
 
+            if (sample.Contains("interface ") && sample.Contains(": ") ||
+                sample.Contains("type ") && sample.Contains(" = ") ||
+                sample.Contains("React.") ||
+                sample.Contains("useState(")) return "typescript";
+
             if (sample.Contains("fn main()") ||
                 sample.Contains("let mut ") ||
                 sample.Contains("pub struct ") ||
@@ -3766,6 +4283,23 @@ namespace Ueditor
             if (sample.Contains("package main") ||
                 sample.Contains("import (") ||
                 sample.Contains("func main()")) return "go";
+
+            if (sample.Contains("fun main(") ||
+                sample.Contains("val ") ||
+                sample.Contains("data class ")) return "kotlin";
+
+            if (sample.Contains("import SwiftUI") ||
+                sample.Contains("let ") && sample.Contains("func ")) return "swift";
+
+            if (sample.Contains("<?php") ||
+                sample.Contains("echo $") ||
+                sample.Contains("function ") && sample.Contains("$")) return "php";
+
+            if (sample.StartsWith("#!/usr/bin/env ruby") ||
+                sample.Contains("puts ") ||
+                sample.Contains("def ") && sample.Contains("end")) return "ruby";
+
+            if (sample.Contains("FROM ") && sample.Contains("RUN ", StringComparison.OrdinalIgnoreCase)) return "dockerfile";
 
             if (sample.Contains("SELECT ", StringComparison.OrdinalIgnoreCase) &&
                 sample.Contains("FROM ", StringComparison.OrdinalIgnoreCase)) return "sql";
@@ -3779,10 +4313,17 @@ namespace Ueditor
             if (sample.Contains("---") &&
                 (sample.Contains("version:") || sample.Contains("name:") || sample.Contains("author:"))) return "yaml";
 
+            if (sample.Contains("[package]") || sample.Contains("[dependencies]")) return "toml";
+
             if (sample.StartsWith("#!/bin/bash") ||
                 sample.StartsWith("#!/bin/sh") ||
+                sample.StartsWith("#!/usr/bin/env bash") ||
                 sample.Contains("echo ") ||
                 sample.Contains("export ")) return "shell";
+
+            if (sample.Contains("param(") ||
+                sample.Contains("Write-Host") ||
+                sample.Contains("Get-ChildItem")) return "powershell";
 
             return defaultLanguage;
         }
