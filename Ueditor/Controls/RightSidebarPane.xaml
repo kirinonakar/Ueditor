@@ -61,7 +61,7 @@
                                 </ScrollViewer>
     
                                 <!-- Row 1: Selected Context Info visualizer -->
-                                <Border Grid.Row="1" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" Padding="8" CornerRadius="4">
+                                <Border Grid.Row="1" Background="{ThemeResource ToolbarBackgroundBrush}" Padding="8" CornerRadius="4">
                                     <StackPanel Spacing="8">
                                         <StackPanel Orientation="Horizontal" Spacing="10">
                                             <FontIcon Glyph="&#xE94A;" FontSize="14" VerticalAlignment="Center"/>
