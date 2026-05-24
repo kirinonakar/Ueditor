@@ -85,7 +85,7 @@
             <AppBarSeparator/>
             <AppBarButton x:Name="SplitButton" Label="분할" ToolTipService.ToolTip="에디터 화면 분할">
                 <AppBarButton.Icon>
-                    <FontIcon Glyph="&#xE13C;"/>
+                    <FontIcon Glyph="&#xE154;"/>
                 </AppBarButton.Icon>
                 <AppBarButton.Flyout>
                     <MenuFlyout>
