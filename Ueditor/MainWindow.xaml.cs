@@ -887,6 +887,12 @@ namespace Ueditor
                 await bridge.SendFindResultAsync(result, query);
             };
 
+            bridge.FindAllRequested += async (query, matchCase) =>
+            {
+                var results = session.FindAll(query, matchCase);
+                await bridge.SendFindAllResultsAsync(results, query);
+            };
+
             bridge.ContentChanged += (_) =>
             {
                 MarkTabDirty(tab, tabItem);

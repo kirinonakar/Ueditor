@@ -290,6 +290,9 @@
             wordWrap: false,
             language: 'plaintext',
             tabSize: 4,
+            searchQuery: '',
+            searchMatches: [],
+            searchIndex: -1,
             activeSearch: null,
             selection: null,
             selectionAnchor: null,
@@ -774,16 +777,15 @@
                     escapeHtml(text.slice(end));
             }
 
-            const active = state.activeSearch;
-            if (!active || !active.query || lineNumber !== active.lineNumber) {
-                return highlightLine(text, state.language);
+            if (state.searchQuery && state.searchMatches.length > 0) {
+                const active = state.activeSearch;
+                const activeMatchOnLine = active && active.lineNumber === lineNumber
+                    ? active
+                    : null;
+                return renderSearchMatches(text, state.searchQuery, activeMatchOnLine);
             }
 
-            const start = Math.max(0, active.indexOfMatch || 0);
-            const length = Math.max(0, active.matchLength || active.query.length);
-            return highlightLine(text.slice(0, start), state.language) +
-                `<mark class="search-match active-match">${escapeHtml(text.slice(start, start + length))}</mark>` +
-                highlightLine(text.slice(start + length), state.language);
+            return highlightLine(text, state.language);
         }
 
         function normalizeSelection(selection = state.selection) {
@@ -1211,26 +1213,82 @@
             }
             findInput.focus();
             findInput.select();
+            requestFindAll();
         }
 
         function closeFindPanel() {
             findPanel.hidden = true;
+            state.searchQuery = '';
+            state.searchMatches = [];
+            state.searchIndex = -1;
             state.activeSearch = null;
             queueRender(true);
             scrollContainer.focus();
         }
 
+        function requestFindAll() {
+            const query = findInput.value;
+            if (!query) {
+                state.searchQuery = '';
+                state.searchMatches = [];
+                state.searchIndex = -1;
+                state.activeSearch = null;
+                queueRender(true);
+                return;
+            }
+            state.searchQuery = query;
+            post({ type: 'findAll', query, matchCase: false });
+        }
+
         function requestFind(reverse = false) {
             const query = findInput.value;
-            if (!query) return;
-            post({
-                type: 'find',
-                query,
-                startLine: state.currentLine,
-                startColumn: state.currentColumn + (reverse ? -1 : 1),
-                reverse,
-                matchCase: false
-            });
+            if (!query || state.searchMatches.length === 0) return;
+
+            if (state.searchIndex < 0) state.searchIndex = 0;
+
+            if (reverse) {
+                state.searchIndex = (state.searchIndex - 1 + state.searchMatches.length) % state.searchMatches.length;
+            } else {
+                state.searchIndex = (state.searchIndex + 1) % state.searchMatches.length;
+            }
+
+            const match = state.searchMatches[state.searchIndex];
+            state.activeSearch = {
+                lineNumber: match.lineNumber,
+                indexOfMatch: match.indexOfMatch,
+                matchLength: match.matchLength,
+                query
+            };
+            revealLine(match.lineNumber, match.indexOfMatch, match.matchLength, query);
+        }
+
+        function renderSearchMatches(text, query, activeMatch) {
+            const lowerText = text.toLowerCase();
+            const lowerQuery = query.toLowerCase();
+            const parts = [];
+            let pos = 0;
+
+            while (pos <= text.length) {
+                const idx = lowerText.indexOf(lowerQuery, pos);
+                if (idx < 0) break;
+
+                if (idx > pos) {
+                    parts.push(highlightLine(text.slice(pos, idx), state.language));
+                }
+
+                const isActive = activeMatch && idx === activeMatch.indexOfMatch &&
+                    text.slice(idx, idx + query.length) === text.slice(activeMatch.indexOfMatch, activeMatch.indexOfMatch + activeMatch.matchLength);
+                const matchText = text.slice(idx, idx + query.length);
+                const cls = isActive ? 'search-match active-match' : 'search-match';
+                parts.push(`<mark class="${cls}">${escapeHtml(matchText)}</mark>`);
+                pos = idx + query.length;
+            }
+
+            if (pos < text.length) {
+                parts.push(highlightLine(text.slice(pos), state.language));
+            }
+
+            return parts.join('');
         }
 
         function handleCsharpMessage(msg) {
@@ -1295,6 +1353,23 @@
                     break;
                 case 'revealLine':
                     revealLine(msg.lineNumber || 1, msg.indexOfMatch || 0, msg.matchLength || 0, msg.query || '');
+                    break;
+                case 'findAllResult':
+                    state.searchQuery = msg.query || '';
+                    state.searchMatches = msg.matches || [];
+                    state.searchIndex = state.searchMatches.length > 0 ? 0 : -1;
+                    state.activeSearch = null;
+                    if (state.searchIndex >= 0) {
+                        const match = state.searchMatches[0];
+                        state.activeSearch = {
+                            lineNumber: match.lineNumber,
+                            indexOfMatch: match.indexOfMatch,
+                            matchLength: match.matchLength,
+                            query: state.searchQuery
+                        };
+                        revealLine(match.lineNumber, match.indexOfMatch, match.matchLength, state.searchQuery);
+                    }
+                    queueRender(true);
                     break;
                 case 'findResult':
                     if (msg.found) {
@@ -1572,6 +1647,11 @@
         window.addEventListener('dragover', event => event.preventDefault(), false);
         window.addEventListener('drop', event => event.preventDefault(), false);
 
+        let findDebounceTimer;
+        findInput.addEventListener('input', () => {
+            clearTimeout(findDebounceTimer);
+            findDebounceTimer = setTimeout(() => requestFindAll(), 200);
+        });
         findInput.addEventListener('keydown', event => {
             if (event.key === 'Enter') {
                 event.preventDefault();

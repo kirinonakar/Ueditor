@@ -43,6 +43,7 @@ namespace Ueditor.Editor
         void SplitLine(int lineNumber, string before, string after);
         void MergeLineWithPrevious(int lineNumber);
         TextSearchResult? Find(string query, int startLine, int startColumn, bool reverse, bool matchCase);
+        List<TextSearchResult> FindAll(string query, bool matchCase);
         Task SaveAsync(string filePath, string encodingName, CancellationToken cancellationToken = default);
     }
 
@@ -360,6 +361,35 @@ namespace Ueditor.Editor
             return null;
         }
 
+        public List<TextSearchResult> FindAll(string query, bool matchCase)
+        {
+            if (string.IsNullOrEmpty(query))
+            {
+                return new List<TextSearchResult>();
+            }
+
+            var comparison = matchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+            var results = new List<TextSearchResult>();
+
+            for (int lineNumber = 1; lineNumber <= _lines.Count; lineNumber++)
+            {
+                string line = _lines[lineNumber - 1];
+                if (line.Length == 0) continue;
+
+                int searchStart = 0;
+                while (searchStart <= line.Length)
+                {
+                    int index = line.IndexOf(query, searchStart, comparison);
+                    if (index < 0) break;
+
+                    results.Add(new TextSearchResult(lineNumber, index, query.Length, line));
+                    searchStart = index + 1;
+                }
+            }
+
+            return results;
+        }
+
         public async Task SaveAsync(string filePath, string encodingName, CancellationToken cancellationToken = default)
         {
             string? directory = Path.GetDirectoryName(filePath);
@@ -576,6 +606,11 @@ namespace Ueditor.Editor
         public TextSearchResult? Find(string query, int startLine, int startColumn, bool reverse, bool matchCase)
         {
             return Model.Find(query, startLine, startColumn, reverse, matchCase);
+        }
+
+        public List<TextSearchResult> FindAll(string query, bool matchCase)
+        {
+            return Model.FindAll(query, matchCase);
         }
 
         public Task SaveAsync(string filePath, string encodingName, CancellationToken cancellationToken = default)

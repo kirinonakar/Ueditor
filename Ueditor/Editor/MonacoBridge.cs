@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml.Controls;
@@ -26,6 +27,7 @@ namespace Ueditor.Editor
         public event Action<int>? MergeLineWithPreviousRequested;
         public event Action<int>? DeleteLineRequested;
         public event Action<string, int, int, bool, bool>? FindRequested;
+        public event Action<string, bool>? FindAllRequested;
 
         public MonacoBridge(WebView2 webView)
         {
@@ -131,6 +133,23 @@ namespace Ueditor.Editor
                 lineNumber = result.LineNumber,
                 indexOfMatch = result.IndexOfMatch,
                 matchLength = result.MatchLength
+            });
+        }
+
+        public async Task SendFindAllResultsAsync(IReadOnlyList<TextSearchResult> results, string query)
+        {
+            var matches = results.Select(r => new
+            {
+                lineNumber = r.LineNumber,
+                indexOfMatch = r.IndexOfMatch,
+                matchLength = r.MatchLength
+            }).ToArray();
+
+            await SendMessageAsync(new
+            {
+                action = "findAllResult",
+                query = query,
+                matches = matches
             });
         }
 
@@ -389,6 +408,17 @@ namespace Ueditor.Editor
                                     startColumn,
                                     reverse,
                                     matchCase);
+                            }
+                            break;
+
+                        case "findAll":
+                            if (root.TryGetProperty("query", out JsonElement findAllQueryProp))
+                            {
+                                bool findAllMatchCase = root.TryGetProperty("matchCase", out JsonElement findAllMatchCaseProp) &&
+                                    findAllMatchCaseProp.GetBoolean();
+                                FindAllRequested?.Invoke(
+                                    findAllQueryProp.GetString() ?? string.Empty,
+                                    findAllMatchCase);
                             }
                             break;
 
