@@ -17,11 +17,24 @@ namespace Ueditor.Controls
         private readonly ObservableCollection<TerminalSession> _terminalSessions = new ObservableCollection<TerminalSession>();
         private TerminalSession? _activeTerminalSession;
         private Window? _ownerWindow;
+        private IntPtr _parentHwnd = IntPtr.Zero;
+        private SubclassProc? _subclassCallback;
 
         public TerminalPane()
         {
             InitializeComponent();
             TerminalSessionsList.ItemsSource = _terminalSessions;
+            Unloaded += OnUnloaded;
+        }
+
+        private void OnUnloaded(object sender, RoutedEventArgs e)
+        {
+            if (_parentHwnd != IntPtr.Zero && _subclassCallback != null)
+            {
+                RemoveWindowSubclass(_parentHwnd, _subclassCallback, new IntPtr(1001));
+                _subclassCallback = null;
+                _parentHwnd = IntPtr.Zero;
+            }
         }
 
         public event EventHandler? SessionsEmptied;
@@ -33,6 +46,12 @@ namespace Ueditor.Controls
         public void AttachOwner(Window ownerWindow)
         {
             _ownerWindow = ownerWindow;
+            _parentHwnd = WindowNative.GetWindowHandle(_ownerWindow);
+            if (_parentHwnd != IntPtr.Zero)
+            {
+                _subclassCallback = new SubclassProc(TerminalWindowSubclass);
+                SetWindowSubclass(_parentHwnd, _subclassCallback, new IntPtr(1001), IntPtr.Zero);
+            }
         }
 
         public void OpenTerminal(string workingDirectory)
@@ -77,6 +96,71 @@ namespace Ueditor.Controls
             _terminalSessions.Clear();
             _activeTerminalSession = null;
             ShowEmptyState();
+        }
+
+        [System.Runtime.InteropServices.DllImport("comctl32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
+        private static extern bool SetWindowSubclass(IntPtr hWnd, SubclassProc callback, IntPtr id, IntPtr refData);
+
+        [System.Runtime.InteropServices.DllImport("comctl32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
+        private static extern bool RemoveWindowSubclass(IntPtr hWnd, SubclassProc callback, IntPtr id);
+
+        [System.Runtime.InteropServices.DllImport("comctl32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
+        private static extern IntPtr DefSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
+
+        private delegate IntPtr SubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, IntPtr id, IntPtr refData);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool GetCursorPos(out POINT lpPoint);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct POINT
+        {
+            public int X;
+            public int Y;
+        }
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct RECT
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+
+        private const uint WM_PARENTNOTIFY = 0x0210;
+        private const int WM_LBUTTONDOWN = 0x0201;
+        private const int WM_RBUTTONDOWN = 0x0204;
+        private const int WM_MBUTTONDOWN = 0x0207;
+        private const int WM_XBUTTONDOWN = 0x020B;
+
+        private IntPtr TerminalWindowSubclass(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, IntPtr id, IntPtr refData)
+        {
+            if (uMsg == WM_PARENTNOTIFY)
+            {
+                int eventCode = (int)(wParam.ToInt64() & 0xFFFF);
+                if (eventCode == WM_LBUTTONDOWN || eventCode == WM_RBUTTONDOWN || eventCode == WM_MBUTTONDOWN || eventCode == WM_XBUTTONDOWN)
+                {
+                    var session = _activeTerminalSession;
+                    if (session != null && session.IsNative && session.WindowHandle != IntPtr.Zero)
+                    {
+                        if (GetCursorPos(out POINT pt) && GetWindowRect(session.WindowHandle, out RECT rect))
+                        {
+                            if (pt.X >= rect.Left && pt.X <= rect.Right && pt.Y >= rect.Top && pt.Y <= rect.Bottom)
+                            {
+                                DispatcherQueue.TryEnqueue(() =>
+                                {
+                                    FocusActiveTerminal();
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            return DefSubclassProc(hWnd, uMsg, wParam, lParam);
         }
 
         [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
