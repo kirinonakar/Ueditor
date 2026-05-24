@@ -24,6 +24,7 @@ namespace Ueditor.Controls
         {
             InitializeComponent();
             TerminalSessionsList.ItemsSource = _terminalSessions;
+            KeyDown += OnTerminalPaneKeyDown;
             Unloaded += OnUnloaded;
         }
 
@@ -31,7 +32,7 @@ namespace Ueditor.Controls
         {
             if (_parentHwnd != IntPtr.Zero && _subclassCallback != null)
             {
-                RemoveWindowSubclass(_parentHwnd, _subclassCallback, new IntPtr(1001));
+                RemoveWindowSubclass(_parentHwnd, _subclassCallback, ParentWindowSubclassId);
                 _subclassCallback = null;
                 _parentHwnd = IntPtr.Zero;
             }
@@ -51,7 +52,7 @@ namespace Ueditor.Controls
             if (_parentHwnd != IntPtr.Zero)
             {
                 _subclassCallback = new SubclassProc(TerminalWindowSubclass);
-                SetWindowSubclass(_parentHwnd, _subclassCallback, new IntPtr(1001), IntPtr.Zero);
+                SetWindowSubclass(_parentHwnd, _subclassCallback, ParentWindowSubclassId, IntPtr.Zero);
             }
         }
 
@@ -137,6 +138,9 @@ namespace Ueditor.Controls
         private const int WM_RBUTTONDOWN = 0x0204;
         private const int WM_MBUTTONDOWN = 0x0207;
         private const int WM_XBUTTONDOWN = 0x020B;
+        private const int VK_OEM_3 = 0xC0;
+        private const int BACKQUOTE_SCAN_CODE = 0x29;
+        private static readonly IntPtr ParentWindowSubclassId = new IntPtr(1001);
 
         private IntPtr TerminalWindowSubclass(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, IntPtr id, IntPtr refData)
         {
@@ -162,6 +166,11 @@ namespace Ueditor.Controls
                 }
             }
             return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+        }
+
+        private void RequestClose()
+        {
+            CloseRequested?.Invoke(this, EventArgs.Empty);
         }
 
         [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
@@ -523,6 +532,11 @@ namespace Ueditor.Controls
 
         private void OnTerminalInputKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
+            if (HandleTerminalToggleShortcut(e))
+            {
+                return;
+            }
+
             if (e.Key != Windows.System.VirtualKey.Enter) return;
             e.Handled = true;
 
@@ -566,7 +580,7 @@ namespace Ueditor.Controls
 
         private void OnCloseTerminalClick(object sender, RoutedEventArgs e)
         {
-            CloseRequested?.Invoke(this, EventArgs.Empty);
+            RequestClose();
         }
 
         private void OnCloseSessionItemClick(object sender, RoutedEventArgs e)
@@ -668,6 +682,24 @@ namespace Ueditor.Controls
             TerminalInputAreaGrid.Visibility = Visibility.Visible;
             TerminalTitleText.Text = "터미널";
             TerminalOutputTextBox.Text = string.Empty;
+        }
+
+        private void OnTerminalPaneKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            HandleTerminalToggleShortcut(e);
+        }
+
+        private bool HandleTerminalToggleShortcut(Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            var ctrl = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control) & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+            if (ctrl && ((int)e.Key == VK_OEM_3 || (int)e.KeyStatus.ScanCode == BACKQUOTE_SCAN_CODE))
+            {
+                e.Handled = true;
+                RequestClose();
+                return true;
+            }
+
+            return false;
         }
     }
 }

@@ -87,6 +87,11 @@
             will-change: transform;
         }
 
+        body:not(.wrap-enabled) #viewport {
+            right: auto;
+            width: max-content;
+        }
+
         .line-row {
             display: grid;
             grid-template-columns: var(--gutter-width) max-content;
@@ -99,6 +104,10 @@
         body.wrap-enabled .line-row {
             grid-template-columns: var(--gutter-width) minmax(0, 1fr);
             width: 100%;
+        }
+
+        body:not(.wrap-enabled) .line-row {
+            width: max-content;
         }
 
         .line-row:hover {
@@ -129,6 +138,12 @@
             overflow-wrap: normal;
             tab-size: 4;
             caret-color: var(--fg);
+        }
+
+        body:not(.wrap-enabled) .line-text {
+            width: max-content;
+            min-width: calc(100vw - var(--gutter-width));
+            overflow: visible;
         }
 
         body.wrap-enabled .line-text {
@@ -163,6 +178,11 @@
             background: #fd7e14;
             color: #ffffff;
             box-shadow: 0 0 3px rgba(253, 126, 20, 0.6);
+        }
+
+        .selection-fragment {
+            background: var(--selection);
+            color: inherit;
         }
 
         #find-panel {
@@ -253,6 +273,9 @@
             language: 'plaintext',
             tabSize: 4,
             activeSearch: null,
+            selection: null,
+            selectionAnchor: null,
+            isSelecting: false,
             lastRangeKey: '',
             renderQueued: false
         };
@@ -473,11 +496,12 @@
                     ? `${text.slice(0, MAX_RENDER_CHARS)} ... [긴 줄: ${text.length.toLocaleString()}자, 렌더링 보호]`
                     : text;
                 const contentEditable = !state.readOnly && hasLine && !isLong ? 'true' : 'false';
+                const isInSelection = !!selectionBoundsForLine(line, displayText.length);
                 const textClass = `line-text${hasLine ? '' : ' loading'}${isLong ? ' long-line' : ''}`;
                 rows.push(
-                    `<div class="line-row" data-line="${line}">` +
+                    `<div class="line-row${isInSelection ? ' selected-row' : ''}" data-line="${line}">` +
                     `<div class="line-number">${line}</div>` +
-                    `<div class="${textClass}" contenteditable="${contentEditable}" spellcheck="false" data-line="${line}">${highlightLine(line, displayText)}</div>` +
+                    `<div class="${textClass}" contenteditable="${contentEditable}" spellcheck="false" data-line="${line}">${renderLineContent(line, displayText)}</div>` +
                     `</div>`
                 );
             }
@@ -507,7 +531,21 @@
             }
         }
 
-        function highlightLine(lineNumber, text) {
+        function renderLineContent(lineNumber, text) {
+            const selectionBounds = selectionBoundsForLine(lineNumber, text.length);
+            if (selectionBounds) {
+                const { start, end } = selectionBounds;
+                if (start === end) {
+                    return escapeHtml(text);
+                }
+
+                const selected = text.slice(start, end);
+                const selectedHtml = selected.length > 0 ? escapeHtml(selected) : '&nbsp;';
+                return escapeHtml(text.slice(0, start)) +
+                    `<span class="selection-fragment">${selectedHtml}</span>` +
+                    escapeHtml(text.slice(end));
+            }
+
             const active = state.activeSearch;
             if (!active || !active.query || lineNumber !== active.lineNumber) {
                 return escapeHtml(text);
@@ -518,6 +556,37 @@
             return escapeHtml(text.slice(0, start)) +
                 `<mark class="search-match active-match">${escapeHtml(text.slice(start, start + length))}</mark>` +
                 escapeHtml(text.slice(start + length));
+        }
+
+        function normalizeSelection(selection = state.selection) {
+            if (!selection) return null;
+            const a = selection.start;
+            const b = selection.end;
+            if (a.line < b.line || (a.line === b.line && a.column <= b.column)) {
+                return { start: a, end: b };
+            }
+            return { start: b, end: a };
+        }
+
+        function hasCustomSelection() {
+            const normalized = normalizeSelection();
+            return !!normalized &&
+                (normalized.start.line !== normalized.end.line ||
+                 normalized.start.column !== normalized.end.column);
+        }
+
+        function selectionBoundsForLine(lineNumber, textLength) {
+            const selection = normalizeSelection();
+            if (!selection || lineNumber < selection.start.line || lineNumber > selection.end.line) {
+                return null;
+            }
+
+            const start = lineNumber === selection.start.line ? selection.start.column : 0;
+            const end = lineNumber === selection.end.line ? selection.end.column : textLength;
+            return {
+                start: Math.max(0, Math.min(start, textLength)),
+                end: Math.max(0, Math.min(end, textLength))
+            };
         }
 
         function lineElementFromEvent(event) {
@@ -537,6 +606,42 @@
             before.selectNodeContents(element);
             before.setEnd(range.startContainer, range.startOffset);
             return before.toString().length;
+        }
+
+        function getCaretOffsetFromPoint(element, clientX, clientY) {
+            let range = null;
+            if (document.caretRangeFromPoint) {
+                range = document.caretRangeFromPoint(clientX, clientY);
+            } else if (document.caretPositionFromPoint) {
+                const position = document.caretPositionFromPoint(clientX, clientY);
+                if (position) {
+                    range = document.createRange();
+                    range.setStart(position.offsetNode, position.offset);
+                }
+            }
+
+            if (range && element.contains(range.startContainer)) {
+                const before = range.cloneRange();
+                before.selectNodeContents(element);
+                before.setEnd(range.startContainer, range.startOffset);
+                return before.toString().length;
+            }
+
+            const rect = element.getBoundingClientRect();
+            const textLength = lineTextFromElement(element).length;
+            if (clientX <= rect.left) return 0;
+            if (clientX >= rect.right) return textLength;
+            return Math.round(((clientX - rect.left) / Math.max(1, rect.width)) * textLength);
+        }
+
+        function positionFromPointer(event) {
+            const element = lineElementFromEvent(event) ||
+                document.elementFromPoint(event.clientX, event.clientY)?.closest?.('.line-text');
+            if (!element) return null;
+            const line = Number(element.dataset.line || 1);
+            const textLength = lineTextFromElement(element).length;
+            const column = Math.max(0, Math.min(getCaretOffsetFromPoint(element, event.clientX, event.clientY), textLength));
+            return { line, column, element };
         }
 
         function setCaret(element, offset) {
@@ -664,11 +769,22 @@
             }
 
             post({ type: 'cursorChanged', line: state.currentLine, column: state.currentColumn });
-            const selected = window.getSelection()?.toString() || '';
-            post({ type: 'selectionResult', text: selected });
+            post({ type: 'selectionResult', text: selectedText() });
         }
 
         function selectedText() {
+            const selection = normalizeSelection();
+            if (selection && hasCustomSelection()) {
+                const parts = [];
+                for (let line = selection.start.line; line <= selection.end.line; line++) {
+                    const text = state.cache.get(line) || '';
+                    const start = line === selection.start.line ? selection.start.column : 0;
+                    const end = line === selection.end.line ? selection.end.column : text.length;
+                    parts.push(text.slice(Math.max(0, start), Math.max(0, end)));
+                }
+                return parts.join('\n');
+            }
+
             return window.getSelection()?.toString() || '';
         }
 
@@ -732,6 +848,7 @@
             const next = text.startsWith(prefix) ? text.slice(prefix.length) : prefix + text;
             state.cache.set(lineNumber, next);
             element.textContent = next;
+            state.selection = null;
             post({ type: 'lineChanged', lineNumber, text: next });
             post({ type: 'contentChanged' });
             setCaret(element, Math.min(next.length, state.currentColumn + prefix.length - 1));
@@ -886,7 +1003,66 @@
 
         viewport.addEventListener('input', event => {
             const element = lineElementFromEvent(event);
-            if (element) commitLine(element);
+            if (element) {
+                state.selection = null;
+                commitLine(element);
+            }
+        });
+
+        viewport.addEventListener('pointerdown', event => {
+            if (event.button !== 0 || findPanel.contains(event.target)) return;
+            const position = positionFromPointer(event);
+            if (!position || position.element.getAttribute('contenteditable') !== 'true') return;
+
+            event.preventDefault();
+            viewport.setPointerCapture?.(event.pointerId);
+
+            const hadSelection = hasCustomSelection();
+            const anchor = event.shiftKey && state.selectionAnchor
+                ? state.selectionAnchor
+                : { line: position.line, column: position.column };
+            state.selectionAnchor = anchor;
+            state.selection = event.shiftKey
+                ? { start: anchor, end: { line: position.line, column: position.column } }
+                : null;
+            state.isSelecting = true;
+            state.currentLine = position.line;
+            state.currentColumn = position.column + 1;
+            setCaret(position.element, position.column);
+            if (event.shiftKey || hadSelection) {
+                queueRender(true);
+            }
+            reportCursorAndSelection(position.element);
+        });
+
+        viewport.addEventListener('pointermove', event => {
+            if (!state.isSelecting) return;
+            const position = positionFromPointer(event);
+            if (!position) return;
+
+            event.preventDefault();
+            state.selection = {
+                start: state.selectionAnchor || { line: position.line, column: position.column },
+                end: { line: position.line, column: position.column }
+            };
+            state.currentLine = position.line;
+            state.currentColumn = position.column + 1;
+            queueRender(true);
+            reportCursorAndSelection(position.element);
+        });
+
+        viewport.addEventListener('pointerup', event => {
+            if (!state.isSelecting) return;
+            state.isSelecting = false;
+            viewport.releasePointerCapture?.(event.pointerId);
+            const selection = normalizeSelection();
+            if (selection && !hasCustomSelection()) {
+                state.selection = null;
+            } else if (selection) {
+                setTimeout(() => focusLine(state.currentLine, Math.max(0, state.currentColumn - 1)), 0);
+            }
+            queueRender(true);
+            reportCursorAndSelection(document.activeElement);
         });
 
         viewport.addEventListener('keydown', event => {
@@ -916,7 +1092,7 @@
                     else openFindPanel();
                     return;
                 }
-                if (event.code === 'Backquote') {
+                if (event.code === 'Backquote' || event.key === '`' || event.key === '~' || event.key === 'Dead') {
                     event.preventDefault();
                     post({ type: 'shortcut', name: 'terminal' });
                     return;
@@ -952,6 +1128,12 @@
         viewport.addEventListener('click', event => {
             const element = lineElementFromEvent(event);
             reportCursorAndSelection(element || document.activeElement);
+        });
+
+        document.addEventListener('copy', event => {
+            if (!hasCustomSelection()) return;
+            event.clipboardData?.setData('text/plain', selectedText());
+            event.preventDefault();
         });
 
         scrollContainer.addEventListener('scroll', () => queueRender());

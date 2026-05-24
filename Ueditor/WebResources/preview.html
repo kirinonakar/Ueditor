@@ -70,6 +70,12 @@
             will-change: transform;
         }
 
+        body:not(.wrap-enabled) #preview-viewport {
+            right: auto;
+            min-width: 100%;
+            width: max-content;
+        }
+
         .preview-row {
             min-height: var(--row-height);
             padding: 4px 22px;
@@ -138,9 +144,15 @@
         }
 
         body:not(.wrap-enabled) .preview-row {
-            overflow: hidden;
-            text-overflow: ellipsis;
+            min-width: 100%;
+            width: max-content;
+            overflow: visible;
             white-space: nowrap;
+            overflow-wrap: normal;
+        }
+
+        body:not(.wrap-enabled) pre {
+            overflow: visible;
         }
 
         blockquote {
@@ -153,6 +165,19 @@
             overflow: hidden;
             font-family: "Cambria Math", "Times New Roman", serif;
             text-align: center;
+        }
+
+        .math.inline {
+            display: inline-block;
+            overflow: visible;
+            vertical-align: -0.12em;
+            text-align: left;
+        }
+
+        .math.display {
+            display: block;
+            overflow-x: auto;
+            padding: 2px 0;
         }
 
         .aozora {
@@ -225,14 +250,47 @@
         }
 
         function inlineMarkdown(text) {
-            let out = escapeHtml(text);
-            out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
+            const fragments = [];
+            const stash = html => {
+                const token = `\u0001${fragments.length}\u0001`;
+                fragments.push(html);
+                return token;
+            };
+
+            let out = String(text ?? '');
+
+            out = out.replace(/`([^`]+)`/g, (_, code) => stash(`<code>${escapeHtml(code)}</code>`));
+            out = stashInlineMath(out, stash);
+            out = stashHtmlTags(out, stash);
+            out = escapeHtml(out);
+
+            out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_, label, href) => {
+                return `<a href="${escapeHtml(href)}" target="_blank" rel="noreferrer">${label}</a>`;
+            });
             out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
             out = out.replace(/\*([^*]+)\*/g, '<em>$1</em>');
             out = out.replace(/==([^=]+)==/g, '<mark>$1</mark>');
             out = out.replace(/~~([^~]+)~~/g, '<s>$1</s>');
-            out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
-            return out;
+
+            fragments.forEach((fragment, index) => {
+                out = out.split(`\u0001${index}\u0001`).join(fragment);
+            });
+
+            return sanitizeHtml(out);
+        }
+
+        function stashInlineMath(value, stash) {
+            return value
+                .replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => stash(renderLatex(expr, true)))
+                .replace(/\\\(([\s\S]+?)\\\)/g, (_, expr) => stash(renderLatex(expr, false)))
+                .replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => stash(renderLatex(expr, true)))
+                .replace(/(^|[^\w\\])\$([^$\n]+?)\$/g, (_, prefix, expr) => `${prefix}${stash(renderLatex(expr, false))}`);
+        }
+
+        function stashHtmlTags(value, stash) {
+            return value.replace(/<\/?[A-Za-z][A-Za-z0-9:-]*(?:\s+[^<>]*?)?\s*\/?>/g, tag => {
+                return stash(sanitizeHtml(tag));
+            });
         }
 
         function cleanupLatex(text) {
@@ -242,11 +300,24 @@
                 .trim();
         }
 
+        function renderLatex(text, display) {
+            const cleaned = cleanupLatex(text);
+            if (!cleaned) return '';
+            try {
+                const html = katex.renderToString(cleaned, { displayMode: display, throwOnError: false, trust: false });
+                return display
+                    ? `<span class="math display">${html}</span>`
+                    : `<span class="math inline">${html}</span>`;
+            } catch (e) {
+                return `<code>${escapeHtml(text)}</code>`;
+            }
+        }
+
         function renderLatexLine(line) {
             const text = cleanupLatex(line);
             if (!text) return '';
             try {
-                return `<div class="math">${katex.renderToString(text, { displayMode: false, throwOnError: false })}</div>`;
+                return `<div class="math display">${katex.renderToString(text, { displayMode: true, throwOnError: false, trust: false })}</div>`;
             } catch (e) {
                 return `<code>${escapeHtml(line)}</code>`;
             }
@@ -283,7 +354,11 @@
             const ol = /^\d+\.\s+(.+)$/.exec(line);
             if (ol) return `<ol><li>${inlineMarkdown(ol[1])}</li></ol>`;
             if (/^---+$/.test(trimmed)) return '<hr>';
-            if (/^\$\$.*\$\$$/.test(trimmed)) return renderLatexLine(trimmed);
+            if (/^\$\$[\s\S]*\$\$$/.test(trimmed)) return renderLatexLine(trimmed);
+            if (/^\\\[[\s\S]*\\\]$/.test(trimmed)) return renderLatexLine(trimmed);
+            if (/^<\/?[A-Za-z][A-Za-z0-9:-]*(?:\s+[^<>]*?)?\s*\/?>/.test(trimmed)) {
+                return inlineMarkdown(line);
+            }
             return `<p>${inlineMarkdown(line)}</p>`;
         }
 
@@ -419,6 +494,7 @@
             viewport.style.transform = `translateY(${rowTop(range.start)}px)`;
 
             const rows = [];
+            let skipUntilLine = 0;
             for (let lineNumber = range.start; lineNumber <= range.end; lineNumber++) {
                 if (!state.cache.has(lineNumber)) {
                     rows.push(`<div class="preview-row loading">로딩 중...</div>`);
@@ -426,12 +502,52 @@
                 }
 
                 const line = state.cache.get(lineNumber) || '';
-                const rendered = renderLine(line);
+                let rendered;
+                if (lineNumber <= skipUntilLine) {
+                    rendered = '';
+                } else if (state.mode === 'markdown' && isDisplayMathFence(line)) {
+                    const block = collectDisplayMathBlock(lineNumber, range.end);
+                    if (block) {
+                        rendered = renderLatexLine(block.text);
+                        skipUntilLine = block.endLine;
+                    } else {
+                        rendered = '';
+                    }
+                } else {
+                    rendered = renderLine(line);
+                }
                 rows.push(`<div class="preview-row${rendered ? '' : ' empty'}">${rendered}</div>`);
             }
 
             viewport.innerHTML = rows.join('');
             measureRenderedRows();
+        }
+
+        function isDisplayMathFence(line) {
+            const trimmed = (line || '').trim();
+            return trimmed === '$$' || trimmed === '\\[';
+        }
+
+        function isDisplayMathClose(line, opener) {
+            const trimmed = (line || '').trim();
+            return opener === '$$' ? trimmed === '$$' : trimmed === '\\]';
+        }
+
+        function collectDisplayMathBlock(startLine, maxLine) {
+            const opener = (state.cache.get(startLine) || '').trim();
+            const parts = [];
+            for (let line = startLine + 1; line <= maxLine; line++) {
+                if (!state.cache.has(line)) return null;
+                const text = state.cache.get(line) || '';
+                if (isDisplayMathClose(text, opener)) {
+                    return {
+                        text: parts.join('\n'),
+                        endLine: line
+                    };
+                }
+                parts.push(text);
+            }
+            return null;
         }
 
         function measureRenderedRows() {

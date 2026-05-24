@@ -67,6 +67,7 @@ namespace Ueditor
 
         // Git auto-refresh timer
         private readonly DispatcherTimer _gitAutoRefreshTimer;
+        private readonly DispatcherTimer _terminalShortcutPollTimer;
 
         // Custom Splitter state variables
         private bool _isDraggingLeftSplitter = false;
@@ -84,6 +85,13 @@ namespace Ueditor
         private double _lastTerminalHeight = 220;
         private const double ExplorerPanelMinWidth = 150;
         private const double PreviewPanelMinWidth = 150;
+        private const int TerminalToggleVirtualKey = 0xC0;
+        private const int TerminalToggleScanCode = 0x29;
+        private const int ControlVirtualKey = 0x11;
+        private const short KeyDownMask = unchecked((short)0x8000);
+        private IntPtr _mainHwnd = IntPtr.Zero;
+        private bool _terminalShortcutWasDown = false;
+        private DateTimeOffset _lastTerminalShortcutAt = DateTimeOffset.MinValue;
 
         // Split Editor State
         private TabView? _activeTabView;
@@ -183,6 +191,7 @@ namespace Ueditor
             {
                 rootElement.DataContext = _viewModel;
             }
+            _mainHwnd = WindowNative.GetWindowHandle(this);
 
             // Bind Left Sidebar Tab items
             FileListView.ItemsSource = _viewModel.ExplorerItems;
@@ -230,11 +239,18 @@ namespace Ueditor
             };
             _gitAutoRefreshTimer.Tick += OnGitAutoRefreshTimerTick;
 
+            _terminalShortcutPollTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(50)
+            };
+            _terminalShortcutPollTimer.Tick += OnTerminalShortcutPollTimerTick;
+
             // Load local configurations and boot initial states
             // Setup custom title bar
             SetupCustomTitleBar();
 
             this.Activated += OnWindowActivated;
+            this.Activated += OnWindowActivationChanged;
             this.Closed += OnWindowClosed;
             this.AppWindow.Closing += OnAppWindowClosing;
         }
@@ -292,8 +308,63 @@ namespace Ueditor
             this.SetTitleBar(AppTitleBar);
         }
 
+        private void OnTerminalShortcutPollTimerTick(object? sender, object e)
+        {
+            bool shortcutDown = IsAppForeground() && IsAsyncKeyDown(ControlVirtualKey) && IsAsyncKeyDown(TerminalToggleVirtualKey);
+            if (shortcutDown && !_terminalShortcutWasDown)
+            {
+                ToggleTerminalFromShortcut();
+            }
+
+            _terminalShortcutWasDown = shortcutDown;
+        }
+
+        private void StartTerminalShortcutPolling()
+        {
+            _terminalShortcutWasDown = false;
+            if (!_terminalShortcutPollTimer.IsEnabled)
+            {
+                _terminalShortcutPollTimer.Start();
+            }
+        }
+
+        private void StopTerminalShortcutPolling()
+        {
+            _terminalShortcutWasDown = false;
+            if (_terminalShortcutPollTimer.IsEnabled)
+            {
+                _terminalShortcutPollTimer.Stop();
+            }
+        }
+
+        private bool IsAppForeground()
+        {
+            if (_mainHwnd == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            IntPtr foregroundHwnd = GetForegroundWindow();
+            return foregroundHwnd == _mainHwnd || IsChild(_mainHwnd, foregroundHwnd);
+        }
+
+        private static bool IsAsyncKeyDown(int virtualKey)
+        {
+            return (GetAsyncKeyState(virtualKey) & KeyDownMask) != 0;
+        }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern short GetAsyncKeyState(int vKey);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool IsChild(IntPtr hWndParent, IntPtr hWnd);
+
         private void OnWindowClosed(object sender, WindowEventArgs args)
         {
+            StopTerminalShortcutPolling();
             TerminalPane.StopAllSessions();
         }
 
@@ -389,6 +460,18 @@ namespace Ueditor
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to save sidebar visibility settings: {ex.Message}");
+            }
+        }
+
+        private void OnWindowActivationChanged(object sender, WindowActivatedEventArgs e)
+        {
+            if (e.WindowActivationState == WindowActivationState.Deactivated)
+            {
+                StopTerminalShortcutPolling();
+            }
+            else
+            {
+                StartTerminalShortcutPolling();
             }
         }
 
@@ -696,7 +779,7 @@ namespace Ueditor
                             OnOpenFileClick(this, new RoutedEventArgs());
                             break;
                         case "terminal":
-                            ToggleTerminal();
+                            ToggleTerminalFromShortcut();
                             break;
                         case "closeTab":
                             OnCloseActiveTabShortcutInvoked(null!, null!);
@@ -1997,6 +2080,18 @@ namespace Ueditor
                 }
                 if (TerminalToggleButton != null) TerminalToggleButton.IsChecked = true;
             }
+        }
+
+        private void ToggleTerminalFromShortcut()
+        {
+            var now = DateTimeOffset.UtcNow;
+            if ((now - _lastTerminalShortcutAt).TotalMilliseconds < 150)
+            {
+                return;
+            }
+
+            _lastTerminalShortcutAt = now;
+            ToggleTerminal();
         }
 
         private void OnTerminalPaneCloseRequested(object? sender, EventArgs e)
@@ -4586,12 +4681,18 @@ namespace Ueditor
                     e.Handled = true;
                     OnPrintClick(this, new RoutedEventArgs());
                 }
-                else if ((int)e.Key == 192)
+                else if (IsTerminalToggleKey(e))
                 {
                     e.Handled = true;
-                    ToggleTerminal();
+                    ToggleTerminalFromShortcut();
                 }
             }
+        }
+
+        private static bool IsTerminalToggleKey(Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            return (int)e.Key == TerminalToggleVirtualKey ||
+                   (int)e.KeyStatus.ScanCode == TerminalToggleScanCode;
         }
 
         #endregion
