@@ -27,6 +27,7 @@
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\Ueditor.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
+    <Content Include="Strings\**\Resources.resw" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="WebResources\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

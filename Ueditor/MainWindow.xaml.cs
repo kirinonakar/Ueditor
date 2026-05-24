@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Microsoft.Windows.ApplicationModel.Resources;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -40,7 +41,9 @@ namespace Ueditor
         private readonly ISettingsDialogService _settingsDialogService;
         private readonly IUiPersonalizationService _uiPersonalizationService;
         private readonly MainWindowViewModel _viewModel = new MainWindowViewModel();
-        private ResourceLoader _resourceLoader = new ResourceLoader();
+        private ResourceManager _resourceManager = new ResourceManager();
+        private ResourceContext? _resourceContext;
+        private readonly Dictionary<string, Dictionary<string, string>> _reswStringCache = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
         private string _lastSelectionText = string.Empty;
         private string _lastSearchQuery = string.Empty;
         private string _currentFolderPath = string.Empty;
@@ -1388,9 +1391,18 @@ namespace Ueditor
 
         private string GetLocalizedString(string key, string fallback)
         {
+            string reswValue = GetLocalizedStringFromResw(key);
+            if (!string.IsNullOrEmpty(reswValue))
+            {
+                return reswValue;
+            }
+
             try
             {
-                string value = _resourceLoader.GetString(key);
+                EnsureResourceContext();
+                string value = _resourceContext == null
+                    ? new ResourceLoader().GetString(key)
+                    : _resourceManager.MainResourceMap.GetSubtree("Resources").GetValue(key, _resourceContext).ValueAsString;
                 return string.IsNullOrEmpty(value) ? fallback : value;
             }
             catch (Exception ex)
@@ -1398,6 +1410,64 @@ namespace Ueditor
                 System.Diagnostics.Debug.WriteLine($"Missing localized string '{key}': {ex.Message}");
                 return fallback;
             }
+        }
+
+        private string GetLocalizedStringFromResw(string key)
+        {
+            try
+            {
+                string language = GetActiveLanguage();
+                var strings = GetReswStrings(language);
+                if (strings.TryGetValue(key, out string? value) && !string.IsNullOrEmpty(value))
+                {
+                    return value;
+                }
+
+                if (!language.Equals("en-US", StringComparison.OrdinalIgnoreCase) &&
+                    GetReswStrings("en-US").TryGetValue(key, out value) &&
+                    !string.IsNullOrEmpty(value))
+                {
+                    return value;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to read localized resw string '{key}': {ex.Message}");
+            }
+
+            return string.Empty;
+        }
+
+        private Dictionary<string, string> GetReswStrings(string language)
+        {
+            if (_reswStringCache.TryGetValue(language, out var strings))
+            {
+                return strings;
+            }
+
+            string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Strings", language, "Resources.resw");
+            if (!File.Exists(path))
+            {
+                path = Path.Combine(AppContext.BaseDirectory, "Strings", language, "Resources.resw");
+            }
+
+            strings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (File.Exists(path))
+            {
+                var doc = XDocument.Load(path);
+                foreach (var data in doc.Root?.Elements("data") ?? Enumerable.Empty<XElement>())
+                {
+                    string? name = data.Attribute("name")?.Value;
+                    string? value = data.Element("value")?.Value;
+                    if (!string.IsNullOrWhiteSpace(name) && value != null)
+                    {
+                        strings[name] = value;
+                    }
+                }
+            }
+
+            _reswStringCache[language] = strings;
+            return strings;
         }
 
         private string GetActiveLanguage()
@@ -1428,14 +1498,33 @@ namespace Ueditor
             try
             {
                 string configuredLanguage = _settingsService?.CurrentSettings?.Language ?? "Default";
+                string activeLanguage = GetActiveLanguage();
                 ApplicationLanguages.PrimaryLanguageOverride = configuredLanguage.Equals("Default", StringComparison.OrdinalIgnoreCase)
                     ? string.Empty
-                    : GetActiveLanguage();
-                _resourceLoader = new ResourceLoader();
+                    : activeLanguage;
+
+                var culture = new System.Globalization.CultureInfo(activeLanguage);
+                System.Globalization.CultureInfo.DefaultThreadCurrentCulture = culture;
+                System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = culture;
+                System.Threading.Thread.CurrentThread.CurrentCulture = culture;
+                System.Threading.Thread.CurrentThread.CurrentUICulture = culture;
+
+                _resourceManager = new ResourceManager();
+                _resourceContext = _resourceManager.CreateResourceContext();
+                _resourceContext.QualifierValues["Language"] = activeLanguage;
+                _reswStringCache.Clear();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to apply resource language: {ex.Message}");
+            }
+        }
+
+        private void EnsureResourceContext()
+        {
+            if (_resourceContext == null)
+            {
+                ApplyResourceLanguage();
             }
         }
         private void LocalizeUi()

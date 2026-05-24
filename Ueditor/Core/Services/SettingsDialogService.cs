@@ -32,9 +32,9 @@ namespace Ueditor.Core.Services
         {
             var languageCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
             languageCombo.Items.Add(getString("LanguageDefault", "Default (OS Language)"));
-            languageCombo.Items.Add("한국어 (Korean)");
-            languageCombo.Items.Add("English");
-            languageCombo.Items.Add("日本語 (Japanese)");
+            languageCombo.Items.Add(getString("LanguageKorean", "한국어"));
+            languageCombo.Items.Add(getString("LanguageEnglish", "English"));
+            languageCombo.Items.Add(getString("LanguageJapanese", "日本語"));
 
             languageCombo.SelectedIndex = settings.Language switch
             {
