@@ -860,6 +860,7 @@ namespace Ueditor
             {
                 MarkTabDirty(tab, tabItem);
                 SchedulePreview(tab);
+                UpdateLanguageUI(tab);
             };
 
             bridge.CursorChanged += (line, col) =>
@@ -4009,7 +4010,12 @@ namespace Ueditor
             string detected = tab.Language;
             if (detected == "plaintext" || string.IsNullOrEmpty(detected))
             {
-                detected = _languageDetectionService.DetectLanguageFromContent(tab.Content, "plaintext");
+                string content = tab.Content;
+                if (_editorSessions.TryGetValue(tab.Id, out var session))
+                {
+                    content = session.GetText(2000);
+                }
+                detected = _languageDetectionService.DetectLanguageFromContent(content, "plaintext");
             }
 
             if (StatusLanguage != null)

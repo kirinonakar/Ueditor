@@ -235,6 +235,20 @@
         .find-button:hover {
             background: rgba(127, 127, 127, 0.16);
         }
+
+        /* Syntax Highlighting Tokens */
+        .token-comment { color: var(--token-comment); font-style: italic; }
+        .token-keyword { color: var(--token-keyword); font-weight: bold; }
+        .token-control { color: var(--token-control); font-weight: bold; }
+        .token-string { color: var(--token-string); }
+        .token-number { color: var(--token-number); }
+        .token-type { color: var(--token-type); }
+        .token-function { color: var(--token-function); }
+        .token-variable { color: var(--token-variable); }
+        .token-operator { color: var(--token-operator); }
+        .token-punctuation { color: var(--token-punctuation); }
+        .token-tag { color: var(--token-tag); }
+        .token-attr { color: var(--token-attr); }
     </style>
 </head>
 <body>
@@ -368,6 +382,36 @@
             document.documentElement.style.setProperty('--line-height', `${state.lineHeight}px`);
             document.documentElement.style.setProperty('--wrap', state.wordWrap ? 'pre-wrap' : 'pre');
             document.body.classList.toggle('wrap-enabled', state.wordWrap);
+
+            // Update syntax highlighting token variables dynamically based on Light / Dark theme
+            if (theme === 'Light') {
+                document.documentElement.style.setProperty('--token-comment', '#008000');
+                document.documentElement.style.setProperty('--token-keyword', '#0000ff');
+                document.documentElement.style.setProperty('--token-control', '#af00db');
+                document.documentElement.style.setProperty('--token-string', '#a31515');
+                document.documentElement.style.setProperty('--token-number', '#098658');
+                document.documentElement.style.setProperty('--token-type', '#267f99');
+                document.documentElement.style.setProperty('--token-function', '#795e26');
+                document.documentElement.style.setProperty('--token-variable', '#001080');
+                document.documentElement.style.setProperty('--token-operator', '#111111');
+                document.documentElement.style.setProperty('--token-punctuation', '#3b3b3b');
+                document.documentElement.style.setProperty('--token-tag', '#800000');
+                document.documentElement.style.setProperty('--token-attr', '#ff0000');
+            } else {
+                document.documentElement.style.setProperty('--token-comment', '#6a9955');
+                document.documentElement.style.setProperty('--token-keyword', '#569cd6');
+                document.documentElement.style.setProperty('--token-control', '#c586c0');
+                document.documentElement.style.setProperty('--token-string', '#ce9178');
+                document.documentElement.style.setProperty('--token-number', '#b5cea8');
+                document.documentElement.style.setProperty('--token-type', '#4ec9b0');
+                document.documentElement.style.setProperty('--token-function', '#dcdcaa');
+                document.documentElement.style.setProperty('--token-variable', '#9cdcfe');
+                document.documentElement.style.setProperty('--token-operator', '#d4d4d4');
+                document.documentElement.style.setProperty('--token-punctuation', '#808080');
+                document.documentElement.style.setProperty('--token-tag', '#569cd6');
+                document.documentElement.style.setProperty('--token-attr', '#9cdcfe');
+            }
+
             if (!state.wordWrap) {
                 state.lineHeights.clear();
             }
@@ -535,6 +579,186 @@
             }
         }
 
+        function highlightLine(text, language) {
+            if (!language || language === 'plaintext') {
+                return escapeHtml(text);
+            }
+
+            const tokens = [];
+            function stash(html) {
+                const placeholder = `\u0002_TOKEN_${tokens.length}_\u0002`;
+                tokens.push(html);
+                return placeholder;
+            }
+
+            let workingText = text;
+
+            // Check language category
+            const isClike = ['csharp', 'javascript', 'typescript', 'cpp', 'java', 'go', 'rust', 'php', 'swift', 'dart', 'kotlin'].includes(language);
+            const isPython = language === 'python';
+            const isHtml = ['html', 'xml', 'xaml'].includes(language);
+            const isCss = ['css', 'scss', 'less'].includes(language);
+            const isJson = language === 'json';
+            const isSql = language === 'sql';
+            const isShell = ['shell', 'bash', 'powershell'].includes(language);
+            const isMarkdown = ['markdown', 'md'].includes(language);
+
+            if (isHtml) {
+                // 1. Comments
+                workingText = workingText.replace(/<!--[\s\S]*?-->/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                // 2. CDATA / DOCTYPE
+                workingText = workingText.replace(/<!DOCTYPE[^>]*>|<!\[CDATA\[.*?\]\]>/gi, m => stash(`<span class="token-punctuation">${escapeHtml(m)}</span>`));
+                // 3. Tags
+                workingText = workingText.replace(/<([^>]+)>/g, (match, tagContent) => {
+                    let tagHtml = "";
+                    let remainder = tagContent;
+                    const tagNameMatch = /^([^\s/]+)/.exec(remainder);
+                    if (tagNameMatch) {
+                        const tagName = tagNameMatch[1];
+                        tagHtml += `<span class="token-tag">${escapeHtml(tagName)}</span>`;
+                        remainder = remainder.slice(tagName.length);
+                    }
+                    remainder = remainder.replace(/([a-zA-Z0-9:-]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/g, (attrMatch, attrName, attrVal) => {
+                        let attrHtml = `<span class="token-attr">${escapeHtml(attrName)}</span>`;
+                        if (attrVal) {
+                            const eqIndex = attrVal.indexOf('=');
+                            const valPart = attrVal.slice(eqIndex + 1);
+                            attrHtml += `<span class="token-operator">=</span><span class="token-string">${escapeHtml(valPart)}</span>`;
+                        }
+                        return ' ' + attrHtml;
+                    });
+                    tagHtml += remainder;
+                    return stash(`<span class="token-punctuation">&lt;</span>${tagHtml}<span class="token-punctuation">&gt;</span>`);
+                });
+            }
+            else if (isCss) {
+                // 1. Comments
+                workingText = workingText.replace(/\/\*[\s\S]*?\*\//g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/\/\/.*/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                // 2. Strings
+                workingText = workingText.replace(/"(?:\\.|[^"\\])*"/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/'(?:\\.|[^'\\])*'/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                // 3. Selectors
+                workingText = workingText.replace(/\b([a-zA-Z0-9._#-]+)(?=\s*\{)/g, m => stash(`<span class="token-tag">${escapeHtml(m)}</span>`));
+                // 4. Variables
+                workingText = workingText.replace(/--[a-zA-Z0-9_-]+/g, m => stash(`<span class="token-variable">${escapeHtml(m)}</span>`));
+                // 5. Hex Colors
+                workingText = workingText.replace(/#[0-9a-fA-F]{3,8}/g, m => stash(`<span class="token-type">${escapeHtml(m)}</span>`));
+                // 6. Properties
+                workingText = workingText.replace(/\b(margin|padding|background|color|width|height|border|display|position|top|left|right|bottom|font-size|font-family|font-weight|line-height|overflow|align-items|justify-content|grid-template-columns|inset|pointer-events|inset|will-change|contain|align-self|box-sizing|border-radius|box-shadow|z-index|gap|transition|animation|transform|cursor|outline|white-space|overflow-wrap|tab-size|caret-color|content)\b(?=\s*:)/gi, m => stash(`<span class="token-keyword">${escapeHtml(m)}</span>`));
+                // 7. Numbers
+                workingText = workingText.replace(/\b\d+(?:px|em|rem|%|vh|vw|ms|s|deg)?\b/gi, m => stash(`<span class="token-number">${escapeHtml(m)}</span>`));
+                // 8. Punctuation
+                workingText = workingText.replace(/[{}:;]/g, m => stash(`<span class="token-punctuation">${escapeHtml(m)}</span>`));
+            }
+            else if (isJson) {
+                // 1. Keys (strings followed by :)
+                workingText = workingText.replace(/"(?:\\.|[^"\\])*"(?=\s*:)/g, m => stash(`<span class="token-keyword">${escapeHtml(m)}</span>`));
+                // 2. Values (strings)
+                workingText = workingText.replace(/"(?:\\.|[^"\\])*"/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                // 3. Numbers
+                workingText = workingText.replace(/\b-?\d+(?:\.\d+)?\b/g, m => stash(`<span class="token-number">${escapeHtml(m)}</span>`));
+                // 4. Builtins
+                workingText = workingText.replace(/\b(true|false|null)\b/g, m => stash(`<span class="token-type">${escapeHtml(m)}</span>`));
+                // 5. Punctuation
+                workingText = workingText.replace(/[{}()\[\]:,]/g, m => stash(`<span class="token-punctuation">${escapeHtml(m)}</span>`));
+            }
+            else if (isSql) {
+                // 1. Comments
+                workingText = workingText.replace(/--.*/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/\/\*[\s\S]*?\*\//g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                // 2. Strings
+                workingText = workingText.replace(/'(?:''|[^'])*'/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                // 3. Keywords
+                workingText = workingText.replace(/\b(SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TABLE|INDEX|VIEW|JOIN|INNER|LEFT|RIGHT|OUTER|ON|AND|OR|NOT|IN|LIKE|IS|NULL|ORDER|BY|GROUP|HAVING|LIMIT|OFFSET|UNION|ALL|AS|DISTINCT|COUNT|SUM|AVG|MIN|MAX|INTO|VALUES|SET|DEFAULT|PRIMARY|KEY|FOREIGN|REFERENCES|CONSTRAINT|INDEX|DATABASE|TRIGGER|PROCEDURE|FUNCTION)\b/gi, m => stash(`<span class="token-keyword">${escapeHtml(m)}</span>`));
+                // 4. Types
+                workingText = workingText.replace(/\b(INT|VARCHAR|CHAR|TEXT|DATE|TIME|TIMESTAMP|BOOLEAN|FLOAT|DOUBLE|DECIMAL|NUMERIC)\b/gi, m => stash(`<span class="token-type">${escapeHtml(m)}</span>`));
+                // 5. Numbers
+                workingText = workingText.replace(/\b\d+(?:\.\d+)?\b/g, m => stash(`<span class="token-number">${escapeHtml(m)}</span>`));
+            }
+            else if (isMarkdown) {
+                // 1. Code ticks / fenced code block indicators
+                workingText = workingText.replace(/^```.*/g, m => stash(`<span class="token-control">${escapeHtml(m)}</span>`));
+                // 2. Inline Code
+                workingText = workingText.replace(/`[^`]+`/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                // 3. Headers
+                workingText = workingText.replace(/^#{1,6}\s+.*/g, m => stash(`<span class="token-keyword">${escapeHtml(m)}</span>`));
+                // 4. Lists
+                workingText = workingText.replace(/^\s*[-*+]\s+|^\s*\d+\.\s+/g, m => stash(`<span class="token-control">${escapeHtml(m)}</span>`));
+                // 5. Blockquotes
+                workingText = workingText.replace(/^\s*>\s+/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                // 6. Bold/Italic
+                workingText = workingText.replace(/\*\*[^*]+\*\*/g, m => stash(`<span class="token-keyword">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/\*[^*]+\*/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                // 7. Links
+                workingText = workingText.replace(/!?\[[^\]]*\]\([^)]*\)/g, m => stash(`<span class="token-variable">${escapeHtml(m)}</span>`));
+            }
+            else if (isShell) {
+                // 1. Comments
+                workingText = workingText.replace(/#.*/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                // 2. Strings
+                workingText = workingText.replace(/"(?:\\.|[^"\\])*"/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/'(?:\\.|[^'\\])*'/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                // 3. Variables
+                workingText = workingText.replace(/\$[a-zA-Z_]\w*|\$\{[a-zA-Z_]\w*\}/g, m => stash(`<span class="token-variable">${escapeHtml(m)}</span>`));
+                // 4. Control Flow
+                workingText = workingText.replace(/\b(if|then|else|elif|fi|case|esac|for|while|until|do|done|in)\b/g, m => stash(`<span class="token-control">${escapeHtml(m)}</span>`));
+                // 5. Keywords
+                workingText = workingText.replace(/\b(function|return|exit|local|export|alias|echo|set|param|Write-Host|Get-ChildItem)\b/gi, m => stash(`<span class="token-keyword">${escapeHtml(m)}</span>`));
+            }
+            else if (isPython) {
+                // 1. Comments
+                workingText = workingText.replace(/#.*/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                // 2. Tripled Strings
+                workingText = workingText.replace(/"""[\s\S]*?"""|'''[\s\S]*?'''/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                // 3. Normal Strings
+                workingText = workingText.replace(/"(?:\\.|[^"\\])*"/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/'(?:\\.|[^'\\])*'/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                // 4. Numbers
+                workingText = workingText.replace(/\b\d+(?:\.\d+)?\b/g, m => stash(`<span class="token-number">${escapeHtml(m)}</span>`));
+                // 5. Control Flow
+                workingText = workingText.replace(/\b(if|elif|else|return|for|while|break|continue|try|except|finally|raise|yield|pass|assert|with|as)\b/g, m => stash(`<span class="token-control">${escapeHtml(m)}</span>`));
+                // 6. Keywords
+                workingText = workingText.replace(/\b(def|class|import|from|global|nonlocal|lambda|in|is|and|or|not|del)\b/g, m => stash(`<span class="token-keyword">${escapeHtml(m)}</span>`));
+                // 7. Builtins
+                workingText = workingText.replace(/\b(True|False|None|self|print|len|range|str|int|float|list|dict|set|tuple|object|open|enumerate|zip)\b/g, m => stash(`<span class="token-type">${escapeHtml(m)}</span>`));
+                // 8. Functions
+                workingText = workingText.replace(/\b([a-zA-Z_]\w*)(?=\s*\()/g, m => stash(`<span class="token-function">${escapeHtml(m)}</span>`));
+            }
+            else if (isClike) {
+                // 1. Multi-line comments
+                workingText = workingText.replace(/\/\*[\s\S]*?\*\//g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                // 2. Single-line comments
+                workingText = workingText.replace(/\/\/.*/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                // 3. Strings
+                workingText = workingText.replace(/"(?:\\.|[^"\\])*"/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/'(?:\\.|[^'\\])*'/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/`(?:\\.|[^`\\])*`/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                // 4. Numbers
+                workingText = workingText.replace(/\b0x[0-9a-fA-F]+\b|\b\d+(?:\.\d+)?\b/g, m => stash(`<span class="token-number">${escapeHtml(m)}</span>`));
+                // 5. Control Flow
+                workingText = workingText.replace(/\b(if|else|return|for|while|do|switch|case|default|break|continue|goto|throw|try|catch|finally|yield|await|async)\b/g, m => stash(`<span class="token-control">${escapeHtml(m)}</span>`));
+                // 6. Keywords
+                workingText = workingText.replace(/\b(class|struct|interface|enum|public|private|protected|internal|static|readonly|volatile|virtual|override|abstract|sealed|extern|unsafe|fixed|lock|typeof|sizeof|new|delete|var|let|const|function|fn|pub|use|mod|impl|trait|type|package|import|export|namespace|using|as|is|in|out|ref|params|base|this|void|int|float|double|char|string|bool|boolean|long|short|byte|sbyte|uint|ulong|ushort|decimal|object|dynamic)\b/g, m => stash(`<span class="token-keyword">${escapeHtml(m)}</span>`));
+                // 7. Types / Builtins
+                workingText = workingText.replace(/\b(true|false|null|undefined|Console|Math|System|String|Object|Array|window|document|process|global|require|self)\b/g, m => stash(`<span class="token-type">${escapeHtml(m)}</span>`));
+                // 8. Functions
+                workingText = workingText.replace(/\b([a-zA-Z_]\w*)(?=\s*\()/g, m => stash(`<span class="token-function">${escapeHtml(m)}</span>`));
+                // 9. Operators
+                workingText = workingText.replace(/&&|\|\||===|==|!==|!=|=>|\+=|-=|\*=|\/=|<=|>=|[+\-*\/=<>!%&|^~?:]/g, m => stash(`<span class="token-operator">${escapeHtml(m)}</span>`));
+                // 10. Punctuation
+                workingText = workingText.replace(/[{}()\[\].;,]/g, m => stash(`<span class="token-punctuation">${escapeHtml(m)}</span>`));
+            }
+
+            // Default escaping of the remaining text (plain parts) and restoring placeholders
+            let escapedText = escapeHtml(workingText);
+            escapedText = escapedText.replace(/\u0002_TOKEN_(\d+)_\u0002/g, (match, idx) => {
+                return tokens[Number(idx)];
+            });
+
+            return escapedText;
+        }
+
         function renderLineContent(lineNumber, text) {
             const selectionBounds = selectionBoundsForLine(lineNumber, text.length);
             if (selectionBounds) {
@@ -552,14 +776,14 @@
 
             const active = state.activeSearch;
             if (!active || !active.query || lineNumber !== active.lineNumber) {
-                return escapeHtml(text);
+                return highlightLine(text, state.language);
             }
 
             const start = Math.max(0, active.indexOfMatch || 0);
             const length = Math.max(0, active.matchLength || active.query.length);
-            return escapeHtml(text.slice(0, start)) +
+            return highlightLine(text.slice(0, start), state.language) +
                 `<mark class="search-match active-match">${escapeHtml(text.slice(start, start + length))}</mark>` +
-                escapeHtml(text.slice(start + length));
+                highlightLine(text.slice(start + length), state.language);
         }
 
         function normalizeSelection(selection = state.selection) {
@@ -962,6 +1186,7 @@
                     break;
                 case 'setLanguage':
                     state.language = msg.language || 'plaintext';
+                    queueRender(true);
                     break;
                 case 'updateOptions':
                     applyOptions(msg);
