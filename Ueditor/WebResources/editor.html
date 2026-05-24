@@ -1031,6 +1031,7 @@
             setCaret(position.element, position.column);
             if (event.shiftKey || hadSelection) {
                 queueRender(true);
+                setTimeout(() => focusLine(state.currentLine, Math.max(0, state.currentColumn - 1)), 0);
             }
             reportCursorAndSelection(position.element);
         });
@@ -1055,13 +1056,16 @@
             if (!state.isSelecting) return;
             state.isSelecting = false;
             viewport.releasePointerCapture?.(event.pointerId);
+            const hadSelection = hasCustomSelection();
             const selection = normalizeSelection();
             if (selection && !hasCustomSelection()) {
                 state.selection = null;
             } else if (selection) {
                 setTimeout(() => focusLine(state.currentLine, Math.max(0, state.currentColumn - 1)), 0);
             }
-            queueRender(true);
+            if (hadSelection || hasCustomSelection()) {
+                queueRender(true);
+            }
             reportCursorAndSelection(document.activeElement);
         });
 
