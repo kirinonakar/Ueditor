@@ -1285,9 +1285,9 @@
                     document.documentElement.style.setProperty('--font-family', msg.fontFamily || 'Consolas, "Courier New", monospace');
                     document.documentElement.style.setProperty('--wrap', msg.wordWrap ? 'pre-wrap' : 'pre');
                     applySyntaxPalette(theme, bg, fg);
-                    editor.style.overflowWrap = msg.wordWrap ? 'break-word' : 'normal';
-                    highlight.style.overflowWrap = msg.wordWrap ? 'break-word' : 'normal';
-                    searchHighlights.style.overflowWrap = msg.wordWrap ? 'break-word' : 'normal';
+                    editor.style.wordBreak = msg.wordWrap ? 'break-all' : 'normal';
+                    highlight.style.wordBreak = msg.wordWrap ? 'break-all' : 'normal';
+                    searchHighlights.style.wordBreak = msg.wordWrap ? 'break-all' : 'normal';
                     editor.readOnly = !!msg.readOnly;
                     tabSize = msg.tabSize || 4;
                     editor.style.tabSize = tabSize;

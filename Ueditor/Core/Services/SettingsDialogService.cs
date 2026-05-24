@@ -300,8 +300,32 @@ namespace Ueditor.Core.Services
             });
 
             var settingsPivot = new Pivot { Width = 500, Height = 440 };
+            var toolbarSection = CreateSection();
+            var showLabelsCheck = new CheckBox { Content = getString("SettingsToolbarShowLabels", "툴바 버튼 글자 표시"), IsChecked = settings.ToolbarShowLabels };
+            toolbarSection.Children.Add(showLabelsCheck);
+            var reorderDesc = new TextBlock
+            {
+                Text = getString("SettingsToolbarOrderHint", "드래그하여 버튼 순서 변경 (설정 버튼은 고정)"),
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = 11,
+                Margin = new Thickness(0, 0, 0, 4)
+            };
+            toolbarSection.Children.Add(reorderDesc);
+            var buttonNames = new[] { "터미널", "Markdown", "테마", "고정", "스티커", "WordWrap", "비교", "인쇄" };
+            var defaultOrder = settings.ToolbarButtonOrder?.Count > 0 ? settings.ToolbarButtonOrder : new List<string>(buttonNames);
+            var orderList = new ListView
+            {
+                Height = 200,
+                SelectionMode = ListViewSelectionMode.None,
+                AllowDrop = true,
+                CanReorderItems = true,
+                ItemsSource = new List<string>(defaultOrder)
+            };
+            toolbarSection.Children.Add(orderList);
+
             settingsPivot.Items.Add(new PivotItem { Header = getString("SettingsAppearance", "모양"), Content = new ScrollViewer { Content = appearanceSection } });
             settingsPivot.Items.Add(new PivotItem { Header = getString("SettingsEditing", "편집"), Content = new ScrollViewer { Content = editorSection } });
+            settingsPivot.Items.Add(new PivotItem { Header = getString("SettingsToolbar", "툴바"), Content = new ScrollViewer { Content = toolbarSection } });
             settingsPivot.Items.Add(new PivotItem { Header = getString("SettingsLLM", "LLM"), Content = new ScrollViewer { Content = llmSection } });
 
             var dialog = new ContentDialog
@@ -366,6 +390,9 @@ namespace Ueditor.Core.Services
             settings.DefaultMarkdownEnabled = defaultMarkdownCheck.IsChecked == true;
             settings.RightSidebarVisible = settings.DefaultMarkdownEnabled;
             settings.DefaultMarkdownToolbarEnabled = defaultMarkdownToolbarCheck.IsChecked == true;
+
+            settings.ToolbarShowLabels = showLabelsCheck.IsChecked == true;
+            settings.ToolbarButtonOrder = (orderList.ItemsSource as List<string>)?.ToList() ?? new List<string>();
 
             string newApiKey = llmApiKeyBox.Password.Trim();
             await _llmService.SaveApiKeyAsync(settings.LlmProvider, newApiKey);

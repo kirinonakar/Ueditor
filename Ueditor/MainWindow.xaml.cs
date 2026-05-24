@@ -492,6 +492,7 @@ namespace Ueditor
                 _ => 0
             };
             ApplyUiPersonalization(_settingsService.CurrentSettings);
+            ApplyToolbarSettings(_settingsService.CurrentSettings);
             LocalizeUi();
 
             // If we have a Git repo path from a loaded file, refresh Git status UI
@@ -1382,6 +1383,7 @@ namespace Ueditor
                     { "Markdown", "Markdown" },
                     { "Theme", "테마" },
                     { "Split", "분할" },
+                    { "Print", "인쇄" },
                     { "Settings", "설정" },
                     { "FolderSelect", "폴더 선택..." },
                     { "NoFolderSelected", "폴더를 선택하세요." },
@@ -1439,6 +1441,9 @@ namespace Ueditor
                     { "SettingsAutoSave", "Autosave 사용" },
                     { "SettingsLivePreview", "실시간 미리보기 기본 활성화" },
                     { "SettingsMarkdownToolbar", "기본 마크다운 툴바 활성화" },
+                    { "SettingsToolbar", "툴바" },
+                    { "SettingsToolbarShowLabels", "툴바 버튼 글자 표시" },
+                    { "SettingsToolbarOrderHint", "드래그하여 버튼 순서 변경 (설정 버튼은 고정)" },
                     { "SettingsTabSize", "Tab size" },
                     { "SettingsLargeFileThreshold", "Large File Mode 제안 기준 (MB)" },
                     { "SettingsLlmProvider", "LLM 공급자" },
@@ -1465,6 +1470,7 @@ namespace Ueditor
                     { "Markdown", "Markdown" },
                     { "Theme", "Theme" },
                     { "Split", "Split" },
+                    { "Print", "Print" },
                     { "Settings", "Settings" },
                     { "FolderSelect", "Select Folder..." },
                     { "NoFolderSelected", "Please select a folder." },
@@ -1522,6 +1528,9 @@ namespace Ueditor
                     { "SettingsAutoSave", "Use Autosave" },
                     { "SettingsLivePreview", "Enable Live Preview by Default" },
                     { "SettingsMarkdownToolbar", "Enable Markdown Toolbar by Default" },
+                    { "SettingsToolbar", "Toolbar" },
+                    { "SettingsToolbarShowLabels", "Show Toolbar Button Labels" },
+                    { "SettingsToolbarOrderHint", "Drag to reorder buttons (Settings button is fixed)" },
                     { "SettingsTabSize", "Tab Size" },
                     { "SettingsLargeFileThreshold", "Large File Mode Threshold (MB)" },
                     { "SettingsLlmProvider", "LLM Provider" },
@@ -1548,6 +1557,7 @@ namespace Ueditor
                     { "Markdown", "Markdown" },
                     { "Theme", "テーマ" },
                     { "Split", "分割" },
+                    { "Print", "印刷" },
                     { "Settings", "設定" },
                     { "FolderSelect", "フォルダ選択..." },
                     { "NoFolderSelected", "フォルダを選択してください。" },
@@ -1605,6 +1615,9 @@ namespace Ueditor
                     { "SettingsAutoSave", "自動保存を使用する" },
                     { "SettingsLivePreview", "デフォルトでライブプレビューを有効にする" },
                     { "SettingsMarkdownToolbar", "デフォルトでMarkdownツールバーを表示する" },
+                    { "SettingsToolbar", "ツールバー" },
+                    { "SettingsToolbarShowLabels", "ツールバーボタンのラベルを表示" },
+                    { "SettingsToolbarOrderHint", "ドラッグしてボタンの順序を変更（設定ボタンは固定）" },
                     { "SettingsTabSize", "タブサイズ" },
                     { "SettingsLargeFileThreshold", "大容量ファイル検出の閾値 (MB)" },
                     { "SettingsLlmProvider", "LLM プロバイダー" },
@@ -1793,6 +1806,7 @@ namespace Ueditor
             else _autoSaveTimer.Stop();
             WordWrapToggle.IsChecked = settings.WordWrap;
             ApplyUiPersonalization(settings);
+            ApplyToolbarSettings(settings);
             LocalizeUi();
 
             if (oldLanguage != settings.Language && await ConfirmRestartForLanguageChangeAsync(GetSettingsString))
@@ -3236,6 +3250,33 @@ namespace Ueditor
                 AppWindow,
                 Content as FrameworkElement,
                 MarkdownToolbar.SetToolbarBackground);
+        }
+
+        private void ApplyToolbarSettings(EditorSettings settings)
+        {
+            bool showLabels = settings.ToolbarShowLabels;
+            var buttons = new (FrameworkElement btn, string label)[]
+            {
+                (OpenFileButton, "파일 열기"),
+                (SaveFileButton, "저장"),
+                (CompareButton, "비교"),
+                (TerminalToggleButton, "터미널"),
+                (PrintButton, "인쇄"),
+                (TopMostToggleButton, "항상위"),
+                (StickyNoteButton, "스티커"),
+                (WordWrapToggle, "Word Wrap"),
+                (SearchButton, "검색"),
+                (MarkdownToolbarToggle, "Markdown"),
+                (ThemeButton, "테마"),
+                (SettingsButton, "설정")
+            };
+            foreach (var (btn, label) in buttons)
+            {
+                if (btn == null) continue;
+                string labelText = showLabels || btn.Name == "SettingsButton" ? label : "";
+                if (btn is AppBarButton abb) abb.Label = labelText;
+                else if (btn is AppBarToggleButton atb) atb.Label = labelText;
+            }
         }
         #endregion
 
