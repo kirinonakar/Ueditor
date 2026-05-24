@@ -887,6 +887,7 @@ namespace Ueditor
                     action = "initVirtualPreview",
                     lineCount = _editorSessions.TryGetValue(tab.Id, out var session) ? session.Model.LineCount : 1,
                     mode = mode,
+                    wordWrap = _settingsService.CurrentSettings.WordWrap,
                     theme = _settingsService.CurrentSettings.Theme,
                     customBackgroundColor = _settingsService.CurrentSettings.CustomBackgroundColor,
                     customForegroundColor = _settingsService.CurrentSettings.CustomForegroundColor,

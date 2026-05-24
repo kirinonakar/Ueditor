@@ -71,10 +71,11 @@
         }
 
         .preview-row {
-            height: var(--row-height);
+            min-height: var(--row-height);
             padding: 4px 22px;
-            overflow: hidden;
+            overflow: visible;
             border-bottom: 1px solid color-mix(in srgb, var(--border) 35%, transparent);
+            overflow-wrap: anywhere;
         }
 
         .preview-row.empty {
@@ -132,6 +133,16 @@
             white-space: pre;
         }
 
+        body.wrap-enabled pre {
+            white-space: pre-wrap;
+        }
+
+        body:not(.wrap-enabled) .preview-row {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         blockquote {
             padding-left: 12px;
             color: var(--muted);
@@ -173,6 +184,8 @@
             mode: 'markdown',
             cache: new Map(),
             pending: new Set(),
+            rowHeights: new Map(),
+            wordWrap: true,
             requestSeq: 1,
             renderQueued: false,
             lastRangeKey: ''
@@ -294,15 +307,47 @@
         }
 
         function setupVirtualHeight() {
-            spacer.style.height = `${Math.max(1, state.lineCount) * state.rowHeight}px`;
+            spacer.style.height = `${totalVirtualHeight()}px`;
+        }
+
+        function rowHeightFor(lineNumber) {
+            return state.rowHeights.get(lineNumber) || state.rowHeight;
+        }
+
+        function totalVirtualHeight() {
+            let total = Math.max(1, state.lineCount) * state.rowHeight;
+            for (const height of state.rowHeights.values()) {
+                total += Math.max(0, height - state.rowHeight);
+            }
+            return total;
+        }
+
+        function rowTop(lineNumber) {
+            let top = (Math.max(1, lineNumber) - 1) * state.rowHeight;
+            for (const [line, height] of state.rowHeights.entries()) {
+                if (line < lineNumber) {
+                    top += Math.max(0, height - state.rowHeight);
+                }
+            }
+            return top;
+        }
+
+        function lineAt(scrollTop) {
+            let line = Math.min(state.lineCount, Math.max(1, Math.floor(scrollTop / state.rowHeight) + 1));
+            while (line < state.lineCount && rowTop(line + 1) <= scrollTop) line++;
+            while (line > 1 && rowTop(line) > scrollTop) line--;
+            return line;
         }
 
         function initVirtualPreview(message) {
             state.mode = message.mode || 'markdown';
+            state.wordWrap = message.wordWrap !== false;
             state.lineCount = Math.max(1, Number(message.lineCount || 1));
             state.cache.clear();
             state.pending.clear();
+            state.rowHeights.clear();
             state.lastRangeKey = '';
+            document.body.classList.toggle('wrap-enabled', state.wordWrap);
             applyTheme(message);
             setupVirtualHeight();
             queueRender(true);
@@ -310,10 +355,10 @@
 
         function visibleRange() {
             const viewHeight = Math.max(scroll.clientHeight, state.rowHeight);
-            const firstVisible = Math.floor(scroll.scrollTop / state.rowHeight) + 1;
-            const visibleCount = Math.ceil(viewHeight / state.rowHeight);
+            const firstVisible = lineAt(scroll.scrollTop);
+            const lastVisible = lineAt(scroll.scrollTop + viewHeight);
             const start = Math.max(1, firstVisible - state.overscan);
-            const end = Math.min(state.lineCount, firstVisible + visibleCount + state.overscan);
+            const end = Math.min(state.lineCount, lastVisible + state.overscan);
             return { start, end, count: Math.max(0, end - start + 1) };
         }
 
@@ -368,10 +413,10 @@
 
             const range = visibleRange();
             requestMissingLines(range.start, range.end);
-            const key = `${range.start}:${range.end}:${state.lineCount}:${state.mode}`;
+            const key = `${range.start}:${range.end}:${state.lineCount}:${state.mode}:${scroll.clientWidth}:${totalVirtualHeight()}`;
             if (key === state.lastRangeKey) return;
             state.lastRangeKey = key;
-            viewport.style.transform = `translateY(${(range.start - 1) * state.rowHeight}px)`;
+            viewport.style.transform = `translateY(${rowTop(range.start)}px)`;
 
             const rows = [];
             for (let lineNumber = range.start; lineNumber <= range.end; lineNumber++) {
@@ -386,6 +431,27 @@
             }
 
             viewport.innerHTML = rows.join('');
+            measureRenderedRows();
+        }
+
+        function measureRenderedRows() {
+            let changed = false;
+            const rows = viewport.querySelectorAll('.preview-row');
+            const startLine = visibleRange().start;
+            rows.forEach((row, index) => {
+                const lineNumber = startLine + index;
+                const measured = Math.max(state.rowHeight, Math.ceil(row.scrollHeight));
+                if (rowHeightFor(lineNumber) !== measured) {
+                    state.rowHeights.set(lineNumber, measured);
+                    changed = true;
+                }
+            });
+
+            if (changed) {
+                setupVirtualHeight();
+                state.lastRangeKey = '';
+                requestAnimationFrame(() => render());
+            }
         }
 
         function receiveLines(message) {
@@ -405,11 +471,14 @@
 
         function renderFullFallback(message) {
             state.mode = message.mode || 'markdown';
+            state.wordWrap = message.wordWrap !== false;
             applyTheme(message);
             const lines = String(message.text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
             state.lineCount = Math.max(1, lines.length);
             state.cache.clear();
+            state.rowHeights.clear();
             lines.forEach((line, index) => state.cache.set(index + 1, line));
+            document.body.classList.toggle('wrap-enabled', state.wordWrap);
             setupVirtualHeight();
             queueRender(true);
         }

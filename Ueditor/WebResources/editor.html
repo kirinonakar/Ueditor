@@ -82,6 +82,7 @@
             position: absolute;
             top: 0;
             left: 0;
+            right: 0;
             min-width: 100%;
             will-change: transform;
         }
@@ -90,9 +91,14 @@
             display: grid;
             grid-template-columns: var(--gutter-width) max-content;
             min-width: 100%;
-            height: var(--line-height);
+            min-height: var(--line-height);
             line-height: var(--line-height);
-            contain: strict;
+            contain: layout style paint;
+        }
+
+        body.wrap-enabled .line-row {
+            grid-template-columns: var(--gutter-width) minmax(0, 1fr);
+            width: 100%;
         }
 
         .line-row:hover {
@@ -100,7 +106,8 @@
         }
 
         .line-number {
-            height: var(--line-height);
+            align-self: stretch;
+            min-height: var(--line-height);
             padding: 0 12px 0 8px;
             overflow: hidden;
             border-right: 1px solid rgba(127, 127, 127, 0.22);
@@ -113,14 +120,22 @@
 
         .line-text {
             min-width: calc(100vw - var(--gutter-width));
-            height: var(--line-height);
+            min-height: var(--line-height);
             padding: 0 14px;
             overflow: hidden;
             outline: none;
             color: var(--fg);
             white-space: var(--wrap);
+            overflow-wrap: normal;
             tab-size: 4;
             caret-color: var(--fg);
+        }
+
+        body.wrap-enabled .line-text {
+            min-width: 0;
+            width: 100%;
+            overflow: visible;
+            overflow-wrap: anywhere;
         }
 
         .line-text[contenteditable="true"]:focus {
@@ -229,10 +244,12 @@
             overscan: 12,
             cache: new Map(),
             pending: new Set(),
+            lineHeights: new Map(),
             requestSeq: 1,
             currentLine: 1,
             currentColumn: 1,
             readOnly: false,
+            wordWrap: false,
             language: 'plaintext',
             tabSize: 4,
             activeSearch: null,
@@ -312,6 +329,7 @@
             state.lineHeight = Math.max(18, Math.ceil(fontSize + 8));
             state.tabSize = Number(msg.tabSize || 4);
             state.readOnly = !!msg.readOnly;
+            state.wordWrap = !!msg.wordWrap;
 
             document.documentElement.style.setProperty('--bg', bg);
             document.documentElement.style.setProperty('--fg', fg);
@@ -321,7 +339,11 @@
             document.documentElement.style.setProperty('--font-size', `${fontSize}px`);
             document.documentElement.style.setProperty('--font-family', msg.fontFamily || 'Consolas, "Courier New", monospace');
             document.documentElement.style.setProperty('--line-height', `${state.lineHeight}px`);
-            document.documentElement.style.setProperty('--wrap', 'pre');
+            document.documentElement.style.setProperty('--wrap', state.wordWrap ? 'pre-wrap' : 'pre');
+            document.body.classList.toggle('wrap-enabled', state.wordWrap);
+            if (!state.wordWrap) {
+                state.lineHeights.clear();
+            }
             setupVirtualHeight();
             queueRender(true);
         }
@@ -330,21 +352,59 @@
             state.lineCount = Math.max(1, Number(lineCount || 1));
             state.cache.clear();
             state.pending.clear();
+            state.lineHeights.clear();
             state.lastRangeKey = '';
             setupVirtualHeight();
             queueRender(true);
         }
 
         function setupVirtualHeight() {
-            virtualSpacer.style.height = `${Math.max(1, state.lineCount) * state.lineHeight}px`;
+            virtualSpacer.style.height = `${totalVirtualHeight()}px`;
+        }
+
+        function lineHeightFor(lineNumber) {
+            return state.wordWrap ? (state.lineHeights.get(lineNumber) || state.lineHeight) : state.lineHeight;
+        }
+
+        function totalVirtualHeight() {
+            let total = Math.max(1, state.lineCount) * state.lineHeight;
+            if (state.wordWrap) {
+                for (const height of state.lineHeights.values()) {
+                    total += Math.max(0, height - state.lineHeight);
+                }
+            }
+            return total;
+        }
+
+        function lineTop(lineNumber) {
+            let top = (Math.max(1, lineNumber) - 1) * state.lineHeight;
+            if (state.wordWrap) {
+                for (const [line, height] of state.lineHeights.entries()) {
+                    if (line < lineNumber) {
+                        top += Math.max(0, height - state.lineHeight);
+                    }
+                }
+            }
+            return top;
+        }
+
+        function lineAt(scrollTop) {
+            let line = Math.min(state.lineCount, Math.max(1, Math.floor(scrollTop / state.lineHeight) + 1));
+            while (line < state.lineCount && lineTop(line + 1) <= scrollTop) {
+                line++;
+            }
+            while (line > 1 && lineTop(line) > scrollTop) {
+                line--;
+            }
+            return line;
         }
 
         function visibleRange() {
             const viewHeight = Math.max(scrollContainer.clientHeight, state.lineHeight);
-            const firstVisible = Math.floor(scrollContainer.scrollTop / state.lineHeight) + 1;
-            const visibleCount = Math.ceil(viewHeight / state.lineHeight);
+            const firstVisible = lineAt(scrollContainer.scrollTop);
+            const lastVisible = lineAt(scrollContainer.scrollTop + viewHeight);
             const start = Math.max(1, firstVisible - state.overscan);
-            const end = Math.min(state.lineCount, firstVisible + visibleCount + state.overscan);
+            const end = Math.min(state.lineCount, lastVisible + state.overscan);
             return { start, end, count: Math.max(0, end - start + 1) };
         }
 
@@ -397,12 +457,12 @@
 
         function render() {
             const range = visibleRange();
-            const rangeKey = `${range.start}:${range.end}:${state.lineCount}:${scrollContainer.clientWidth}`;
+            const rangeKey = `${range.start}:${range.end}:${state.lineCount}:${scrollContainer.clientWidth}:${state.wordWrap}:${totalVirtualHeight()}`;
             requestMissingLines(range.start, range.end);
             if (rangeKey === state.lastRangeKey) return;
             state.lastRangeKey = rangeKey;
 
-            const offsetY = (range.start - 1) * state.lineHeight;
+            const offsetY = lineTop(range.start);
             viewport.style.transform = `translateY(${offsetY}px)`;
             const rows = [];
             for (let line = range.start; line <= range.end; line++) {
@@ -423,6 +483,28 @@
             }
 
             viewport.innerHTML = rows.join('');
+            measureRenderedRows();
+        }
+
+        function measureRenderedRows() {
+            if (!state.wordWrap) return;
+
+            let changed = false;
+            for (const row of viewport.querySelectorAll('.line-row')) {
+                const lineNumber = Number(row.dataset.line || 0);
+                if (!lineNumber) continue;
+                const measured = Math.max(state.lineHeight, Math.ceil(row.scrollHeight / state.lineHeight) * state.lineHeight);
+                if (state.lineHeights.get(lineNumber) !== measured) {
+                    state.lineHeights.set(lineNumber, measured);
+                    changed = true;
+                }
+            }
+
+            if (changed) {
+                setupVirtualHeight();
+                state.lastRangeKey = '';
+                requestAnimationFrame(() => render());
+            }
         }
 
         function highlightLine(lineNumber, text) {
@@ -502,16 +584,21 @@
         }
 
         function shiftCachedLines(fromLine, delta) {
-            const entries = [...state.cache.entries()]
+            shiftLineMap(state.cache, fromLine, delta);
+            shiftLineMap(state.lineHeights, fromLine, delta);
+        }
+
+        function shiftLineMap(map, fromLine, delta) {
+            const entries = [...map.entries()]
                 .filter(([line]) => line >= fromLine)
                 .sort((a, b) => delta > 0 ? b[0] - a[0] : a[0] - b[0]);
             for (const [line] of entries) {
-                state.cache.delete(line);
+                map.delete(line);
             }
-            for (const [line, text] of entries) {
+            for (const [line, value] of entries) {
                 const nextLine = line + delta;
                 if (nextLine >= 1 && nextLine <= state.lineCount + Math.max(delta, 0)) {
-                    state.cache.set(nextLine, text);
+                    map.set(nextLine, value);
                 }
             }
         }
@@ -554,10 +641,10 @@
         }
 
         function focusLine(lineNumber, columnZeroBased = 0) {
-            const targetTop = (lineNumber - 1) * state.lineHeight;
-            if (targetTop < scrollContainer.scrollTop ||
-                targetTop > scrollContainer.scrollTop + scrollContainer.clientHeight - state.lineHeight) {
-                scrollContainer.scrollTop = Math.max(0, targetTop - state.lineHeight * state.overscan);
+            const wrappedTargetTop = lineTop(lineNumber);
+            if (wrappedTargetTop < scrollContainer.scrollTop ||
+                wrappedTargetTop > scrollContainer.scrollTop + scrollContainer.clientHeight - state.lineHeight) {
+                scrollContainer.scrollTop = Math.max(0, wrappedTargetTop - state.lineHeight * state.overscan);
             }
 
             queueRender(true);
@@ -791,7 +878,7 @@
             state.activeSearch = query
                 ? { lineNumber: safeLine, indexOfMatch, matchLength, query }
                 : null;
-            scrollContainer.scrollTop = Math.max(0, (safeLine - 1 - state.overscan) * state.lineHeight);
+            scrollContainer.scrollTop = Math.max(0, lineTop(safeLine) - state.lineHeight * state.overscan);
             requestLines(Math.max(1, safeLine - state.overscan), state.overscan * 2 + 1);
             queueRender(true);
             setTimeout(() => focusLine(safeLine, Math.max(0, indexOfMatch || 0)), 40);
