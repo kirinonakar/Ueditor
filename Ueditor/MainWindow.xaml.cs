@@ -1274,6 +1274,13 @@ namespace Ueditor
                 buttons[i].IsChecked = i == safeIndex;
             }
 
+            if (safeIndex == 1)
+            {
+                LeftSidebarTabView.FavoritesFileTabButton.IsChecked = true;
+                LeftSidebarTabView.FavoritesFolderTabButton.IsChecked = false;
+                RefreshFavoritesUI(true);
+            }
+
             if (safeIndex == 3)
             {
                 this.DispatcherQueue.TryEnqueue(() =>
