@@ -29,9 +29,12 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="Ueditor" FontSize="14" FontWeight="SemiBold"
-                       VerticalAlignment="Center" Margin="16,0,0,0"
-                       Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
+                <Image Source="ms-appx:///Assets/Ueditor.png" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                <TextBlock Text="Ueditor" FontSize="14" FontWeight="SemiBold"
+                           VerticalAlignment="Center"
+                           Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+            </StackPanel>
         </Grid>
 
         <!-- 1. Top Command Toolbar (상단 툴바) -->
