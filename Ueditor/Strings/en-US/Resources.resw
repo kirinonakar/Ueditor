@@ -414,7 +414,7 @@
     <value>The Settings button is always shown.</value>
   </data>
   <data name="SettingsToolbarCustomization" xml:space="preserve">
-    <value>Toolbar Icons</value>
+    <value>Toolbar</value>
   </data>
   <data name="StatusModeNormal" xml:space="preserve">
     <value>Normal Mode</value>

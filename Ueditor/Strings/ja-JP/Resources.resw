@@ -414,7 +414,7 @@
     <value>設定ボタンは常に表示されます。</value>
   </data>
   <data name="SettingsToolbarCustomization" xml:space="preserve">
-    <value>ツールバーアイコン</value>
+    <value>ツールバー</value>
   </data>
   <data name="StatusModeNormal" xml:space="preserve">
     <value>通常モード</value>

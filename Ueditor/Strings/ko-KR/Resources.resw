@@ -414,7 +414,7 @@
     <value>설정 버튼은 항상 표시됩니다.</value>
   </data>
   <data name="SettingsToolbarCustomization" xml:space="preserve">
-    <value>툴바 아이콘</value>
+    <value>툴바</value>
   </data>
   <data name="StatusModeNormal" xml:space="preserve">
     <value>일반 모드</value>

@@ -369,7 +369,7 @@ namespace Ueditor.Core.Services
 
             settingsPivot.Items.Add(new PivotItem { Header = getString("SettingsAppearance", "모양"), Content = new ScrollViewer { Content = appearanceSection } });
             settingsPivot.Items.Add(new PivotItem { Header = getString("SettingsEditing", "편집"), Content = new ScrollViewer { Content = editorSection } });
-            settingsPivot.Items.Add(new PivotItem { Header = getString("SettingsToolbarCustomization", "툴바 아이콘"), Content = new ScrollViewer { Content = toolbarSection } });
+            settingsPivot.Items.Add(new PivotItem { Header = getString("SettingsToolbarCustomization", "툴바"), Content = new ScrollViewer { Content = toolbarSection } });
             settingsPivot.Items.Add(new PivotItem { Header = getString("SettingsLLM", "LLM"), Content = new ScrollViewer { Content = llmSection } });
 
             var dialog = new ContentDialog
