@@ -303,19 +303,52 @@ namespace Ueditor.Core.Services
             var toolbarSection = CreateSection();
             var showLabelsCheck = new CheckBox { Content = getString("SettingsToolbarShowLabels", "툴바 버튼 글자 표시"), IsChecked = settings.ToolbarShowLabels };
             toolbarSection.Children.Add(showLabelsCheck);
+
+            // Button visibility section
+            var visibilityHeader = new TextBlock
+            {
+                Text = getString("SettingsToolbarButtonVisibility", "툴바 버튼 표시/숨기기"),
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                FontSize = 12,
+                Margin = new Thickness(0, 8, 0, 2)
+            };
+            toolbarSection.Children.Add(visibilityHeader);
+            string[] allButtonNames = { "파일 열기", "저장", "비교", "터미널", "인쇄", "항상위", "스티커", "WordWrap", "검색", "Markdown", "테마" };
+            var hiddenSet = new HashSet<string>(settings.ToolbarHiddenButtons ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+            var visibilityChecks = new List<CheckBox>();
+            foreach (var btnName in allButtonNames)
+            {
+                var chk = new CheckBox
+                {
+                    Content = btnName,
+                    IsChecked = !hiddenSet.Contains(btnName),
+                    Margin = new Thickness(12, 0, 0, 0)
+                };
+                visibilityChecks.Add(chk);
+                toolbarSection.Children.Add(chk);
+            }
+            var settingsNote = new TextBlock
+            {
+                Text = "설정",
+                FontSize = 11,
+                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray),
+                Margin = new Thickness(12, 0, 0, 4)
+            };
+            toolbarSection.Children.Add(settingsNote);
+
             var reorderDesc = new TextBlock
             {
-                Text = getString("SettingsToolbarOrderHint", "드래그하여 버튼 순서 변경 (설정 버튼은 고정)"),
+                Text = getString("SettingsToolbarDragHint", "드래그하여 버튼 순서 변경 (설정 버튼은 고정)"),
                 TextWrapping = TextWrapping.Wrap,
                 FontSize = 11,
-                Margin = new Thickness(0, 0, 0, 4)
+                Margin = new Thickness(0, 8, 0, 4)
             };
             toolbarSection.Children.Add(reorderDesc);
-            var buttonNames = new[] { "터미널", "Markdown", "테마", "고정", "스티커", "WordWrap", "비교", "인쇄" };
+            var buttonNames = new[] { "파일 열기", "저장", "비교", "터미널", "인쇄", "항상위", "스티커", "WordWrap", "검색", "Markdown", "테마" };
             var defaultOrder = settings.ToolbarButtonOrder?.Count > 0 ? settings.ToolbarButtonOrder : new List<string>(buttonNames);
             var orderList = new ListView
             {
-                Height = 200,
+                Height = 140,
                 SelectionMode = ListViewSelectionMode.None,
                 AllowDrop = true,
                 CanReorderItems = true,
@@ -393,6 +426,9 @@ namespace Ueditor.Core.Services
 
             settings.ToolbarShowLabels = showLabelsCheck.IsChecked == true;
             settings.ToolbarButtonOrder = (orderList.ItemsSource as List<string>)?.ToList() ?? new List<string>();
+            settings.ToolbarHiddenButtons = allButtonNames
+                .Where((name, idx) => visibilityChecks[idx].IsChecked == false)
+                .ToList();
 
             string newApiKey = llmApiKeyBox.Password.Trim();
             await _llmService.SaveApiKeyAsync(settings.LlmProvider, newApiKey);

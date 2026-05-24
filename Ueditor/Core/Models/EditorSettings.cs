@@ -49,6 +49,7 @@ namespace Ueditor.Core.Models
         // Toolbar Customization
         public List<string> ToolbarButtonOrder { get; set; } = new List<string>();
         public bool ToolbarShowLabels { get; set; } = true;
+        public List<string> ToolbarHiddenButtons { get; set; } = new List<string>();
 
         // Language
         public string Language { get; set; } = "Default";

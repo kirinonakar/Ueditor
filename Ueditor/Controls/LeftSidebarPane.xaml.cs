@@ -62,6 +62,21 @@ namespace Ueditor.Controls
         public TextBlock SnippetsHeader => SnippetsHeaderText;
         public Button AddSnippet => AddSnippetButton;
 
+        public TextBlock SearchHeaderLabel => SearchHeaderText;
+        public Button SearchAllFilesBtn => SearchAllButton;
+        public Button ReplaceAllFilesBtn => ReplaceAllButton;
+        public TextBlock RecentFilesHeaderLabel => RecentFilesHeaderText;
+        public TextBlock GitHeaderLabel => GitHeaderText;
+        public Button GitCommitBtn => GitCommitButton;
+        public Button GitStageAllBtn => GitStageAllButton;
+        public Button GitRestoreAllBtn => GitRestoreAllButton;
+        public Button GitPushBtn => GitPushButton;
+        public Button GitRefreshBtn => GitRefreshButton;
+        public TextBlock GitHistoryHeaderLabel => GitHistoryHeader;
+        public Button ExplorerUpBtn => ExplorerUpButton;
+        public Button ExplorerSelectFolderBtn => ExplorerSelectFolderButton;
+        public Button ExplorerTerminalBtn => ExplorerTerminalButton;
+
         public ListView FileList => FileListView;
         public ListView FavoritesList => FavoritesListView;
         public ListView RecentFilesList => RecentFilesListView;
@@ -82,6 +97,7 @@ namespace Ueditor.Controls
 
         public ToggleButton FavoritesFileTabButton => FavoritesFileTab;
         public ToggleButton FavoritesFolderTabButton => FavoritesFolderTab;
+        public TextBlock FavoritesPinIndicatorText => FavoritesPinIndicator;
 
         private void OnLeftActivityClick(object sender, RoutedEventArgs e) => LeftActivityClick?.Invoke(sender, e);
         private void OnExplorerUpClick(object sender, RoutedEventArgs e) => ExplorerUpClick?.Invoke(sender, e);

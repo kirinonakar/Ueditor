@@ -128,6 +128,20 @@ namespace Ueditor
         private ToggleButton SearchMatchCaseToggle => LeftSidebarTabView.SearchMatchCase;
         private ToggleButton SearchWholeWordToggle => LeftSidebarTabView.SearchWholeWord;
         private ToggleButton SearchRegexToggle => LeftSidebarTabView.SearchRegex;
+        private TextBlock SearchHeaderText => LeftSidebarTabView.SearchHeaderLabel;
+        private Button SearchAllButton => LeftSidebarTabView.SearchAllFilesBtn;
+        private Button ReplaceAllButton => LeftSidebarTabView.ReplaceAllFilesBtn;
+        private TextBlock RecentFilesHeaderText => LeftSidebarTabView.RecentFilesHeaderLabel;
+        private TextBlock GitHeaderText => LeftSidebarTabView.GitHeaderLabel;
+        private Button GitCommitButton => LeftSidebarTabView.GitCommitBtn;
+        private Button GitStageAllButton => LeftSidebarTabView.GitStageAllBtn;
+        private Button GitRestoreAllButton => LeftSidebarTabView.GitRestoreAllBtn;
+        private Button GitPushButton => LeftSidebarTabView.GitPushBtn;
+        private Button GitRefreshButton => LeftSidebarTabView.GitRefreshBtn;
+        private TextBlock GitHistoryHeader => LeftSidebarTabView.GitHistoryHeaderLabel;
+        private Button ExplorerUpButton => LeftSidebarTabView.ExplorerUpBtn;
+        private Button ExplorerSelectFolderButton => LeftSidebarTabView.ExplorerSelectFolderBtn;
+        private Button ExplorerTerminalButton => LeftSidebarTabView.ExplorerTerminalBtn;
         private TabView RightTabView => PreviewGrid.RightTabs;
         private ComboBox PreviewModeCombo => PreviewGrid.PreviewMode;
         private WebView2 PreviewWebView => PreviewGrid.PreviewWebViewControl;
@@ -656,7 +670,7 @@ namespace Ueditor
                                 OnOpenFileClick(this, new RoutedEventArgs());
                                 break;
                             case "terminal":
-                                OnOpenTerminalClick(this, new RoutedEventArgs());
+                                ToggleTerminal();
                                 break;
                             case "closeTab":
                                 OnCloseActiveTabShortcutInvoked(null!, null!);
@@ -1404,6 +1418,7 @@ namespace Ueditor
                     { "LanguageJapanese", "日本語" },
                     { "Explorer", "탐색기" },
                     { "Favorites", "즐겨찾기" },
+                    { "Git", "Git" },
                     { "Snippets", "스니펫" },
                     { "RecentFiles", "최근 파일" },
                     { "Heading", "제목" },
@@ -1452,7 +1467,41 @@ namespace Ueditor
                     { "SettingsLlmApiKey", "LLM API Key" },
                     { "SettingsLlmLoadModels", "LM Studio 모델 불러오기" },
                     { "SettingsLlmInfo", "LM Studio는 서버가 켜져 있을 때 http://localhost:1234/v1/models 에서 모델 목록을 불러옵니다." },
-                    { "SettingsLlmApiKeyInfo", "API Key는 설정 파일에 저장하지 않고 Windows 자격 증명 관리자에 저장합니다. 비워두고 저장하면 기존 Key를 유지합니다. LM Studio는 기본 로컬 서버 설정에서 API Key 없이 사용할 수 있습니다." }
+                    { "SettingsLlmApiKeyInfo", "API Key는 설정 파일에 저장하지 않고 Windows 자격 증명 관리자에 저장합니다. 비워두고 저장하면 기존 Key를 유지합니다. LM Studio는 기본 로컬 서버 설정에서 API Key 없이 사용할 수 있습니다." },
+                    { "SearchHeader", "폴더 전체 검색 및 치환" },
+                    { "SearchPlaceholder", "검색어 입력..." },
+                    { "ReplacePlaceholder", "치환할 단어 입력..." },
+                    { "SearchMatchCaseTooltip", "대소문자 구분" },
+                    { "SearchWholeWordTooltip", "단어 단위" },
+                    { "SearchRegexTooltip", "정규식 검색" },
+                    { "SearchAllFiles", "전체 검색" },
+                    { "ReplaceAllFiles", "모두 치환" },
+                    { "RecentFilesHeader", "최근 열린 파일 (더블클릭하여 열기)" },
+                    { "GitRepoHeader", "Git 저장소 관리" },
+                    { "GitBranchPlaceholder", "브랜치 목록" },
+                    { "GitCommitPlaceholder", "커밋 메시지 입력..." },
+                    { "GitCommit", "커밋 (Commit)" },
+                    { "GitStageAll", "전체 Stage" },
+                    { "GitRestoreAll", "전체 Restore" },
+                    { "GitPush", "Push" },
+                    { "GitRefresh", "새로고침" },
+                    { "GitHistory", "과거 기록" },
+                    { "GitRestoreFile", "파일 복원" },
+                    { "ExplorerUpTooltip", "상위 폴더" },
+                    { "ExplorerSelectFolder", "폴더 선택..." },
+                    { "ExplorerOpenTerminalTooltip", "현재 폴더에서 터미널 열기" },
+                    { "ExplorerAddToFavorites", "즐겨찾기에 추가" },
+                    { "ExplorerAddFolderToFavorites", "폴더를 즐겨찾기에 추가" },
+                    { "FavoritesFileTab", "파일" },
+                    { "FavoritesFolderTab", "폴더" },
+                    { "FavoritesPinTooltip", "고정" },
+                    { "TerminalTitle", "터미널" },
+                    { "NewTerminal", "새 터미널" },
+                    { "CloseTerminal", "닫기" },
+                    { "TerminalPrompt", "명령 입력 후 Enter" },
+                    { "SettingsToolbarCustomize", "버튼 표시 설정" },
+                    { "SettingsToolbarButtonVisibility", "툴바 버튼 표시/숨기기" },
+                    { "SettingsToolbarDragHint", "드래그하여 버튼 순서 변경 (설정 버튼은 고정)" }
                 }
             },
             {
@@ -1491,6 +1540,7 @@ namespace Ueditor
                     { "LanguageJapanese", "Japanese" },
                     { "Explorer", "Explorer" },
                     { "Favorites", "Favorites" },
+                    { "Git", "Git" },
                     { "Snippets", "Snippets" },
                     { "RecentFiles", "Recent Files" },
                     { "Heading", "Heading" },
@@ -1539,7 +1589,41 @@ namespace Ueditor
                     { "SettingsLlmApiKey", "LLM API Key" },
                     { "SettingsLlmLoadModels", "Load LM Studio Models" },
                     { "SettingsLlmInfo", "LM Studio loads the list of models from http://localhost:1234/v1/models when the server is running." },
-                    { "SettingsLlmApiKeyInfo", "API Keys are stored in the Windows Credential Manager, not in settings files. Leaving it empty preserves the existing Key. LM Studio does not require an API Key under default configurations." }
+                    { "SettingsLlmApiKeyInfo", "API Keys are stored in the Windows Credential Manager, not in settings files. Leaving it empty preserves the existing Key. LM Studio does not require an API Key under default configurations." },
+                    { "SearchHeader", "Search & Replace in Folder" },
+                    { "SearchPlaceholder", "Enter search term..." },
+                    { "ReplacePlaceholder", "Enter replacement..." },
+                    { "SearchMatchCaseTooltip", "Match Case" },
+                    { "SearchWholeWordTooltip", "Whole Word" },
+                    { "SearchRegexTooltip", "Regex" },
+                    { "SearchAllFiles", "Search All" },
+                    { "ReplaceAllFiles", "Replace All" },
+                    { "RecentFilesHeader", "Recent Files (Double-click to open)" },
+                    { "GitRepoHeader", "Git Repository" },
+                    { "GitBranchPlaceholder", "Branch List" },
+                    { "GitCommitPlaceholder", "Enter commit message..." },
+                    { "GitCommit", "Commit" },
+                    { "GitStageAll", "Stage All" },
+                    { "GitRestoreAll", "Restore All" },
+                    { "GitPush", "Push" },
+                    { "GitRefresh", "Refresh" },
+                    { "GitHistory", "History" },
+                    { "GitRestoreFile", "Restore File" },
+                    { "ExplorerUpTooltip", "Parent Folder" },
+                    { "ExplorerSelectFolder", "Select Folder..." },
+                    { "ExplorerOpenTerminalTooltip", "Open Terminal Here" },
+                    { "ExplorerAddToFavorites", "Add to Favorites" },
+                    { "ExplorerAddFolderToFavorites", "Add Folder to Favorites" },
+                    { "FavoritesFileTab", "Files" },
+                    { "FavoritesFolderTab", "Folders" },
+                    { "FavoritesPinTooltip", "Pin" },
+                    { "TerminalTitle", "Terminal" },
+                    { "NewTerminal", "New Terminal" },
+                    { "CloseTerminal", "Close" },
+                    { "TerminalPrompt", "Type command and press Enter" },
+                    { "SettingsToolbarCustomize", "Button Display" },
+                    { "SettingsToolbarButtonVisibility", "Show/Hide Toolbar Buttons" },
+                    { "SettingsToolbarDragHint", "Drag to reorder (Settings button is fixed)" }
                 }
             },
             {
@@ -1578,7 +1662,8 @@ namespace Ueditor
                     { "LanguageJapanese", "日本語" },
                     { "Explorer", "エクスプローラー" },
                     { "Favorites", "お気に入り" },
-                    { "Snippets", "スニペット" },
+                    { "Git", "Git" },
+                    { "Snippets", "스니펫" },
                     { "RecentFiles", "最近のファイル" },
                     { "Heading", "見出し" },
                     { "Bold", "太字 (Ctrl+B)" },
@@ -1626,10 +1711,54 @@ namespace Ueditor
                     { "SettingsLlmApiKey", "LLM API キー" },
                     { "SettingsLlmLoadModels", "LM Studioモデルを取得" },
                     { "SettingsLlmInfo", "LM Studioは、サーバーが起動しているときに http://localhost:1234/v1/models からモデルリストを取得します。" },
-                    { "SettingsLlmApiKeyInfo", "APIキーは設定ファイルではなく、Windowsの資格情報マネージャーに保存されます。空欄で保存すると、既存のキーが維持されます。LM Studioはデフォルトのローカルサーバー設定でAPIキーなしで動作します。" }
+                    { "SettingsLlmApiKeyInfo", "APIキーは設定ファイルではなく、Windowsの資格情報マネージャーに保存されます。空欄で保存すると、既存のキーが維持されます。LM Studioはデフォルトのローカルサーバー設定でAPIキーなしで動作します。" },
+                    { "SearchHeader", "フォルダ内検索と置換" },
+                    { "SearchPlaceholder", "検索語を入力..." },
+                    { "ReplacePlaceholder", "置換する文字列を入力..." },
+                    { "SearchMatchCaseTooltip", "大文字小文字を区別" },
+                    { "SearchWholeWordTooltip", "単語単位" },
+                    { "SearchRegexTooltip", "正規表現" },
+                    { "SearchAllFiles", "すべて検索" },
+                    { "ReplaceAllFiles", "すべて置換" },
+                    { "RecentFilesHeader", "最近のファイル (ダブルクリックで開く)" },
+                    { "GitRepoHeader", "Git リポジトリ" },
+                    { "GitBranchPlaceholder", "ブランチ一覧" },
+                    { "GitCommitPlaceholder", "コミットメッセージを入力..." },
+                    { "GitCommit", "コミット" },
+                    { "GitStageAll", "すべてステージ" },
+                    { "GitRestoreAll", "すべて復元" },
+                    { "GitPush", "Push" },
+                    { "GitRefresh", "更新" },
+                    { "GitHistory", "履歴" },
+                    { "GitRestoreFile", "ファイル復元" },
+                    { "ExplorerUpTooltip", "親フォルダ" },
+                    { "ExplorerSelectFolder", "フォルダ選択..." },
+                    { "ExplorerOpenTerminalTooltip", "このフォルダでターミナルを開く" },
+                    { "ExplorerAddToFavorites", "お気に入りに追加" },
+                    { "ExplorerAddFolderToFavorites", "フォルダをお気に入りに追加" },
+                    { "FavoritesFileTab", "ファイル" },
+                    { "FavoritesFolderTab", "フォルダ" },
+                    { "FavoritesPinTooltip", "固定" },
+                    { "TerminalTitle", "ターミナル" },
+                    { "NewTerminal", "新規ターミナル" },
+                    { "CloseTerminal", "閉じる" },
+                    { "TerminalPrompt", "コマンドを入力してEnter" },
+                    { "SettingsToolbarCustomize", "ボタン表示設定" },
+                    { "SettingsToolbarButtonVisibility", "ツールバーボタンの表示/非表示" },
+                    { "SettingsToolbarDragHint", "ドラッグして順序変更 (設定ボタンは固定)" }
                 }
             }
         };
+
+        private string GetLocalizedString(string key, string fallback)
+        {
+            string lang = GetActiveLanguage();
+            if (LocalizedStrings.TryGetValue(lang, out var langDict) && langDict.TryGetValue(key, out var val))
+            {
+                return val;
+            }
+            return fallback;
+        }
 
         private string GetActiveLanguage()
         {
@@ -1741,7 +1870,7 @@ namespace Ueditor
                 if (ExplorerActivityButton != null) ToolTipService.SetToolTip(ExplorerActivityButton, GetString("Explorer", "탐색기"));
                 if (FavoritesActivityButton != null) ToolTipService.SetToolTip(FavoritesActivityButton, GetString("Favorites", "즐겨찾기"));
                 if (SnippetsActivityButton != null) ToolTipService.SetToolTip(SnippetsActivityButton, GetString("Snippets", "스니펫"));
-                if (GitActivityButton != null) ToolTipService.SetToolTip(GitActivityButton, "Git");
+                if (GitActivityButton != null) ToolTipService.SetToolTip(GitActivityButton, GetString("Git", "Git"));
                 if (SearchActivityButton != null) ToolTipService.SetToolTip(SearchActivityButton, GetString("Search", "검색"));
                 if (RecentActivityButton != null) ToolTipService.SetToolTip(RecentActivityButton, GetString("RecentFiles", "최근 파일"));
 
@@ -1756,7 +1885,41 @@ namespace Ueditor
                 if (SnippetsHeaderText != null) SnippetsHeaderText.Text = GetString("SnippetsHeader", "코드 및 수식 템플릿 (더블클릭하여 삽입)");
                 if (AddSnippetButton != null) AddSnippetButton.Content = GetString("AddSnippet", "스니펫 추가...");
 
-                // 6. Markdown Toolbar Buttons
+                // 6a. Explorer folder buttons
+                if (ExplorerUpButton != null) ToolTipService.SetToolTip(ExplorerUpButton, GetString("ExplorerUpTooltip", "상위 폴더"));
+                if (ExplorerSelectFolderButton != null) ExplorerSelectFolderButton.Content = GetString("ExplorerSelectFolder", "폴더 선택...");
+                if (ExplorerTerminalButton != null) ToolTipService.SetToolTip(ExplorerTerminalButton, GetString("ExplorerOpenTerminalTooltip", "현재 폴더에서 터미널 열기"));
+
+                // 6b. Favorites tabs and pins
+                if (LeftSidebarTabView.FavoritesFileTabButton != null) LeftSidebarTabView.FavoritesFileTabButton.Content = GetString("FavoritesFileTab", "파일");
+                if (LeftSidebarTabView.FavoritesFolderTabButton != null) LeftSidebarTabView.FavoritesFolderTabButton.Content = GetString("FavoritesFolderTab", "폴더");
+                if (LeftSidebarTabView.FavoritesPinIndicatorText != null) ToolTipService.SetToolTip(LeftSidebarTabView.FavoritesPinIndicatorText, GetString("FavoritesPinTooltip", "고정"));
+
+                // 6c. Recent Files header
+                if (RecentFilesHeaderText != null) RecentFilesHeaderText.Text = GetString("RecentFilesHeader", "최근 열린 파일 (더블클릭하여 열기)");
+
+                // 6d. Search panel
+                if (SearchHeaderText != null) SearchHeaderText.Text = GetString("SearchHeader", "폴더 전체 검색 및 치환");
+                if (SearchQueryInput != null) SearchQueryInput.PlaceholderText = GetString("SearchPlaceholder", "검색어 입력...");
+                if (ReplaceQueryInput != null) ReplaceQueryInput.PlaceholderText = GetString("ReplacePlaceholder", "치환할 단어 입력...");
+                if (SearchMatchCaseToggle != null) ToolTipService.SetToolTip(SearchMatchCaseToggle, GetString("SearchMatchCaseTooltip", "대소문자 구분"));
+                if (SearchWholeWordToggle != null) ToolTipService.SetToolTip(SearchWholeWordToggle, GetString("SearchWholeWordTooltip", "단어 단위"));
+                if (SearchRegexToggle != null) ToolTipService.SetToolTip(SearchRegexToggle, GetString("SearchRegexTooltip", "정규식 검색"));
+                if (SearchAllButton != null) SearchAllButton.Content = GetString("SearchAllFiles", "전체 검색");
+                if (ReplaceAllButton != null) ReplaceAllButton.Content = GetString("ReplaceAllFiles", "모두 치환");
+
+                // 6e. Git panel
+                if (GitHeaderText != null) GitHeaderText.Text = GetString("GitRepoHeader", "Git 저장소 관리");
+                if (GitBranchesCombo != null) GitBranchesCombo.PlaceholderText = GetString("GitBranchPlaceholder", "브랜치 목록");
+                if (GitCommitMessageInput != null) GitCommitMessageInput.PlaceholderText = GetString("GitCommitPlaceholder", "커밋 메시지 입력...");
+                if (GitCommitButton != null) GitCommitButton.Content = GetString("GitCommit", "커밋 (Commit)");
+                if (GitStageAllButton != null) GitStageAllButton.Content = GetString("GitStageAll", "전체 Stage");
+                if (GitRestoreAllButton != null) GitRestoreAllButton.Content = GetString("GitRestoreAll", "전체 Restore");
+                if (GitPushButton != null) GitPushButton.Content = GetString("GitPush", "Push");
+                if (GitRefreshButton != null) GitRefreshButton.Content = GetString("GitRefresh", "새로고침");
+                if (GitHistoryHeader != null) GitHistoryHeader.Text = GetString("GitHistory", "과거 기록");
+
+                // 6f. Markdown Toolbar Buttons
                 MarkdownToolbar.LocalizeTooltips(GetString);
             }
             catch (Exception ex)
@@ -1767,9 +1930,10 @@ namespace Ueditor
 
         private async void OnSettingsClick(object sender, RoutedEventArgs e)
         {
-            // Hide terminal if visible so settings dialog is not hidden behind it
-            if (TerminalPane.Visibility == Visibility.Visible)
-                HideTerminalPanel();
+            // Suspend native terminal windows so settings dialog is not hidden behind them
+            bool terminalWasVisible = TerminalPane.Visibility == Visibility.Visible;
+            if (terminalWasVisible)
+                TerminalPane.SuspendNativeWindows();
 
             var settings = _settingsService.CurrentSettings;
             string oldLanguage = settings.Language;
@@ -1785,6 +1949,8 @@ namespace Ueditor
             }
 
             var result = await _settingsDialogService.ShowAsync(settings, this.Content.XamlRoot, GetSettingsString);
+            if (terminalWasVisible)
+                TerminalPane.ResumeNativeWindows();
             if (!result.Saved)
             {
                 return;
@@ -2466,6 +2632,11 @@ namespace Ueditor
             if (sender is FrameworkElement { DataContext: ExplorerItem item })
             {
                 FileListView.SelectedItem = item;
+            }
+            if (sender is FrameworkElement element && element.ContextFlyout is MenuFlyout flyout && flyout.Items.Count >= 2)
+            {
+                ((MenuFlyoutItem)flyout.Items[0]).Text = GetLocalizedString("ExplorerAddToFavorites", "즐겨찾기에 추가");
+                ((MenuFlyoutItem)flyout.Items[1]).Text = GetLocalizedString("ExplorerAddFolderToFavorites", "폴더를 즐겨찾기에 추가");
             }
         }
 
@@ -3255,6 +3426,7 @@ namespace Ueditor
         private void ApplyToolbarSettings(EditorSettings settings)
         {
             bool showLabels = settings.ToolbarShowLabels;
+            var hiddenSet = new HashSet<string>(settings.ToolbarHiddenButtons ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
             var buttons = new (FrameworkElement btn, string label)[]
             {
                 (OpenFileButton, "파일 열기"),
@@ -3273,7 +3445,9 @@ namespace Ueditor
             foreach (var (btn, label) in buttons)
             {
                 if (btn == null) continue;
-                string labelText = showLabels || btn.Name == "SettingsButton" ? label : "";
+                bool isSettings = btn.Name == "SettingsButton";
+                btn.Visibility = isSettings || !hiddenSet.Contains(label) ? Visibility.Visible : Visibility.Collapsed;
+                string labelText = showLabels || isSettings ? label : "";
                 if (btn is AppBarButton abb) abb.Label = labelText;
                 else if (btn is AppBarToggleButton atb) atb.Label = labelText;
             }

@@ -45,6 +45,28 @@ namespace Ueditor.Controls
             _ = StartEmbeddedTerminalAsync(workingDirectory);
         }
 
+        public void SuspendNativeWindows()
+        {
+            foreach (var session in _terminalSessions)
+            {
+                if (session.IsNative && session.WindowHandle != IntPtr.Zero)
+                {
+                    ShowWindow(session.WindowHandle, SW_HIDE);
+                }
+            }
+        }
+
+        public void ResumeNativeWindows()
+        {
+            foreach (var session in _terminalSessions)
+            {
+                if (session.IsNative && session.WindowHandle != IntPtr.Zero)
+                {
+                    ShowWindow(session.WindowHandle, SW_SHOW);
+                }
+            }
+        }
+
         public void StopAllSessions()
         {
             foreach (var session in _terminalSessions.ToList())
