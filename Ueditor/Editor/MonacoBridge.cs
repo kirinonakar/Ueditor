@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml.Controls;
@@ -18,6 +19,12 @@ namespace Ueditor.Editor
         public event Action<int, int>? CursorChanged;
         public event Action? EditorReady;
         public event Action<string>? ShortcutPressed;
+        public event Action<int, int, int>? LinesRequested;
+        public event Action<int, string>? LineChanged;
+        public event Action<int, string>? LineInsertRequested;
+        public event Action<int, string, string>? LineSplitRequested;
+        public event Action<int>? MergeLineWithPreviousRequested;
+        public event Action<string, int, int, bool, bool>? FindRequested;
 
         public MonacoBridge(WebView2 webView)
         {
@@ -67,8 +74,76 @@ namespace Ueditor.Editor
             await SendMessageAsync(msg);
         }
 
+        public async Task InitializeModelAsync(
+            int lineCount,
+            string language,
+            EditorSettings settings,
+            bool isReadOnly = false)
+        {
+            var msg = new
+            {
+                action = "initModel",
+                lineCount = Math.Max(1, lineCount),
+                language = language,
+                theme = settings.Theme,
+                wordWrap = settings.WordWrap,
+                fontSize = settings.FontSize,
+                fontFamily = settings.FontFamily,
+                tabSize = settings.TabSize,
+                customBackgroundColor = settings.CustomBackgroundColor,
+                customForegroundColor = settings.CustomForegroundColor,
+                readOnly = isReadOnly
+            };
+            await SendMessageAsync(msg);
+        }
+
+        public async Task SendLinesAsync(int requestId, int startLine, IReadOnlyList<string> lines)
+        {
+            var msg = new
+            {
+                action = "receiveLines",
+                requestId = requestId,
+                startLine = startLine,
+                lines = lines
+            };
+            await SendMessageAsync(msg);
+        }
+
+        public async Task UpdateLineCountAsync(int lineCount)
+        {
+            await SendMessageAsync(new { action = "lineCountChanged", lineCount = Math.Max(1, lineCount) });
+        }
+
+        public async Task SendFindResultAsync(TextSearchResult? result, string query)
+        {
+            if (result == null)
+            {
+                await SendMessageAsync(new { action = "findResult", found = false, query = query });
+                return;
+            }
+
+            await SendMessageAsync(new
+            {
+                action = "findResult",
+                found = true,
+                query = query,
+                lineNumber = result.LineNumber,
+                indexOfMatch = result.IndexOfMatch,
+                matchLength = result.MatchLength
+            });
+        }
+
         public async Task SetLanguageAsync(string filePath)
         {
+            if (!filePath.Contains(System.IO.Path.DirectorySeparatorChar) &&
+                !filePath.Contains(System.IO.Path.AltDirectorySeparatorChar) &&
+                !filePath.Contains('.') &&
+                !string.IsNullOrWhiteSpace(filePath))
+            {
+                await SendMessageAsync(new { action = "setLanguage", language = filePath });
+                return;
+            }
+
             string name = System.IO.Path.GetFileName(filePath);
             if (name.Equals("Dockerfile", StringComparison.OrdinalIgnoreCase))
             {
@@ -136,7 +211,7 @@ namespace Ueditor.Editor
             await SendMessageAsync(msg);
         }
 
-        public async Task UpdateOptionsAsync(EditorSettings settings, bool isLargeFile = false, bool isReadOnly = false)
+        public async Task UpdateOptionsAsync(EditorSettings settings, bool isReadOnly = false)
         {
             var msg = new
             {
@@ -150,7 +225,6 @@ namespace Ueditor.Editor
                 tabSize = settings.TabSize,
                 customBackgroundColor = settings.CustomBackgroundColor,
                 customForegroundColor = settings.CustomForegroundColor,
-                isLargeFile = isLargeFile,
                 readOnly = isReadOnly
             };
             await SendMessageAsync(msg);
@@ -237,6 +311,76 @@ namespace Ueditor.Editor
                             if (root.TryGetProperty("content", out JsonElement contentProp))
                             {
                                 ContentChanged?.Invoke(contentProp.GetString() ?? string.Empty);
+                            }
+                            break;
+
+                        case "requestLines":
+                            if (root.TryGetProperty("requestId", out JsonElement requestIdProp) &&
+                                root.TryGetProperty("startLine", out JsonElement startLineProp) &&
+                                root.TryGetProperty("count", out JsonElement countProp))
+                            {
+                                LinesRequested?.Invoke(
+                                    requestIdProp.GetInt32(),
+                                    startLineProp.GetInt32(),
+                                    countProp.GetInt32());
+                            }
+                            break;
+
+                        case "lineChanged":
+                            if (root.TryGetProperty("lineNumber", out JsonElement lineNumberProp) &&
+                                root.TryGetProperty("text", out JsonElement textProp))
+                            {
+                                LineChanged?.Invoke(lineNumberProp.GetInt32(), textProp.GetString() ?? string.Empty);
+                            }
+                            break;
+
+                        case "insertLine":
+                            if (root.TryGetProperty("lineNumber", out JsonElement insertLineProp) &&
+                                root.TryGetProperty("text", out JsonElement insertTextProp))
+                            {
+                                LineInsertRequested?.Invoke(insertLineProp.GetInt32(), insertTextProp.GetString() ?? string.Empty);
+                            }
+                            break;
+
+                        case "splitLine":
+                            if (root.TryGetProperty("lineNumber", out JsonElement splitLineProp) &&
+                                root.TryGetProperty("before", out JsonElement beforeProp) &&
+                                root.TryGetProperty("after", out JsonElement afterProp))
+                            {
+                                LineSplitRequested?.Invoke(
+                                    splitLineProp.GetInt32(),
+                                    beforeProp.GetString() ?? string.Empty,
+                                    afterProp.GetString() ?? string.Empty);
+                            }
+                            break;
+
+                        case "mergeLineWithPrevious":
+                            if (root.TryGetProperty("lineNumber", out JsonElement mergeLineProp))
+                            {
+                                MergeLineWithPreviousRequested?.Invoke(mergeLineProp.GetInt32());
+                            }
+                            break;
+
+                        case "find":
+                            if (root.TryGetProperty("query", out JsonElement queryProp))
+                            {
+                                int startLine = root.TryGetProperty("startLine", out JsonElement findLineProp)
+                                    ? findLineProp.GetInt32()
+                                    : 1;
+                                int startColumn = root.TryGetProperty("startColumn", out JsonElement findColumnProp)
+                                    ? findColumnProp.GetInt32()
+                                    : 1;
+                                bool reverse = root.TryGetProperty("reverse", out JsonElement reverseProp) &&
+                                    reverseProp.GetBoolean();
+                                bool matchCase = root.TryGetProperty("matchCase", out JsonElement matchCaseProp) &&
+                                    matchCaseProp.GetBoolean();
+
+                                FindRequested?.Invoke(
+                                    queryProp.GetString() ?? string.Empty,
+                                    startLine,
+                                    startColumn,
+                                    reverse,
+                                    matchCase);
                             }
                             break;
 

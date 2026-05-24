@@ -71,7 +71,6 @@ namespace Ueditor.Core.Services
             var defaultMarkdownCheck = new CheckBox { Content = getString("SettingsLivePreview", "실시간 미리보기 기본 활성화"), IsChecked = settings.DefaultMarkdownEnabled };
             var defaultMarkdownToolbarCheck = new CheckBox { Content = getString("SettingsMarkdownToolbar", "기본 마크다운 툴바 활성화"), IsChecked = settings.DefaultMarkdownToolbarEnabled };
             var tabSizeBox = new TextBox { PlaceholderText = "예: 4", Text = settings.TabSize.ToString(), HorizontalAlignment = HorizontalAlignment.Stretch };
-            var largeThresholdBox = new TextBox { PlaceholderText = "예: 50", Text = settings.LargeFileThresholdMB.ToString(), HorizontalAlignment = HorizontalAlignment.Stretch };
 
             string[] providerNames = { "Gemini", "OpenAI", "LM Studio" };
             int providerIndex = Array.FindIndex(providerNames, p => p.Equals(settings.LlmProvider, StringComparison.OrdinalIgnoreCase));
@@ -282,8 +281,6 @@ namespace Ueditor.Core.Services
             editorSection.Children.Add(defaultMarkdownToolbarCheck);
             AddLabel(editorSection, getString("SettingsTabSize", "Tab size"));
             editorSection.Children.Add(tabSizeBox);
-            AddLabel(editorSection, getString("SettingsLargeFileThreshold", "Large File Mode 제안 기준 (MB)"));
-            editorSection.Children.Add(largeThresholdBox);
 
             var llmSection = CreateSection();
             AddLabel(llmSection, getString("SettingsLlmProvider", "LLM 공급자"));
@@ -408,10 +405,6 @@ namespace Ueditor.Core.Services
             if (int.TryParse(tabSizeBox.Text.Trim(), out int tabSize))
             {
                 settings.TabSize = Math.Clamp(tabSize, 1, 16);
-            }
-            if (long.TryParse(largeThresholdBox.Text.Trim(), out long thresholdMb))
-            {
-                settings.LargeFileThresholdMB = Math.Clamp(thresholdMb, 1, 1024);
             }
 
             settings.LlmProvider = GetSelectedProviderName();

@@ -275,9 +275,6 @@
   <data name="SettingsTabSize" xml:space="preserve">
     <value>タブサイズ</value>
   </data>
-  <data name="SettingsLargeFileThreshold" xml:space="preserve">
-    <value>大容量ファイル検出の閾値 (MB)</value>
-  </data>
   <data name="SettingsLlmProvider" xml:space="preserve">
     <value>LLM プロバイダー</value>
   </data>
@@ -417,7 +414,7 @@
     <value>ツールバー</value>
   </data>
   <data name="StatusModeNormal" xml:space="preserve">
-    <value>通常モード</value>
+    <value>仮想化編集</value>
   </data>
   <data name="StatusRightPanelTooltip" xml:space="preserve">
     <value>右パネル</value>
@@ -425,14 +422,8 @@
   <data name="StatusColumnLabel" xml:space="preserve">
     <value>列</value>
   </data>
-  <data name="StatusModeLargeFile" xml:space="preserve">
-    <value>大容量モード</value>
-  </data>
   <data name="StatusLeftPanelTooltip" xml:space="preserve">
     <value>左パネル</value>
-  </data>
-  <data name="StatusModeLimited" xml:space="preserve">
-    <value>通常モード (制限)</value>
   </data>
   <data name="StatusLineEndingTooltip" xml:space="preserve">
     <value>クリックして改行コードを変更</value>

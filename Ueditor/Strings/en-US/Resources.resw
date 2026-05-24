@@ -275,9 +275,6 @@
   <data name="SettingsTabSize" xml:space="preserve">
     <value>Tab Size</value>
   </data>
-  <data name="SettingsLargeFileThreshold" xml:space="preserve">
-    <value>Large File Mode Threshold (MB)</value>
-  </data>
   <data name="SettingsLlmProvider" xml:space="preserve">
     <value>LLM Provider</value>
   </data>
@@ -417,7 +414,7 @@
     <value>Toolbar</value>
   </data>
   <data name="StatusModeNormal" xml:space="preserve">
-    <value>Normal Mode</value>
+    <value>Virtualized Editor</value>
   </data>
   <data name="StatusRightPanelTooltip" xml:space="preserve">
     <value>Right Panel</value>
@@ -425,14 +422,8 @@
   <data name="StatusColumnLabel" xml:space="preserve">
     <value>Col</value>
   </data>
-  <data name="StatusModeLargeFile" xml:space="preserve">
-    <value>Large File Mode</value>
-  </data>
   <data name="StatusLeftPanelTooltip" xml:space="preserve">
     <value>Left Panel</value>
-  </data>
-  <data name="StatusModeLimited" xml:space="preserve">
-    <value>Normal Mode (Limited)</value>
   </data>
   <data name="StatusLineEndingTooltip" xml:space="preserve">
     <value>Click to change line ending</value>

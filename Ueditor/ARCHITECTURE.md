@@ -6,9 +6,9 @@ Ueditor is a WinUI 3 desktop text editor shell with WebView2-based editing and p
 
 - App Shell: `MainWindow.xaml` owns the toolbar, left explorer/favorites/library/search/Git tabs, center editor tabs, right preview/AI panel, splitters, and status bar.
 - Terminal UI: `Controls/TerminalPane.xaml` owns embedded terminal session UI, native console hosting, redirected fallback I/O, and terminal session switching. `MainWindow` only controls panel placement and supplies the working directory.
-- Editor Module: `Editor/MonacoBridge.cs` is the C# bridge for the WebView editor page. The current `WebResources/editor.html` is a standalone textarea editor with line numbers, selection IPC, word wrap, tab handling, and Markdown command support. The bridge name is kept so a local Monaco bundle can be swapped in later without rewriting the shell.
-- Preview Module: `WebResources/preview.html` is a unified built-in renderer for Markdown, sanitized HTML, and lightweight LaTeX display. It receives debounced content updates from the active tab and syncs theme/font/color settings.
-- Large File Module: `FileService` builds line-offset indexes and `WebResources/large-viewer.html` renders only the viewport lines. The current mode is read-only by default, with patch-save plumbing preserved for the later limited-edit phase.
+- Editor Model Module: `Editor/VirtualTextModel.cs` owns the line-based text model, range/edit APIs, search, encoding-aware file loading, and streaming save. It keeps editor state out of `MainWindow`.
+- Editor Module: `Editor/MonacoBridge.cs` is the C# bridge for the WebView editor page. `WebResources/editor.html` is now a unified virtualized editor: it asks the model for visible line ranges, renders only the viewport plus overscan, and sends line edits back to the model. The bridge name is kept so a local Monaco bundle can be swapped in later without rewriting the shell.
+- Preview Module: `WebResources/preview.html` is a unified virtualized renderer for Markdown, sanitized HTML, LaTeX, and Aozora-style text. It receives debounced model invalidations from the active tab and requests only the visible source lines.
 - Settings Module: `SettingsService` persists JSON under `%USERPROFILE%\.ueditor\settings.json`. API keys are intentionally excluded from this file.
 - LLM Module: `LLMService` dispatches to provider implementations and stores API keys via Windows Generic Credentials.
 - Git Module: `GitService` delegates to the Git CLI for branch, status, diff, stage, unstage, and commit.
@@ -17,15 +17,15 @@ Ueditor is a WinUI 3 desktop text editor shell with WebView2-based editing and p
 ## MVP Stages
 
 1. MVP 1: app launch, open/save, standalone editor surface, tabs, file explorer, Markdown/HTML/LaTeX preview, basic search, word wrap, settings persistence.
-2. MVP 2: large file detection, read-only Large File Mode, chunk/line loading, virtual scroll, streaming search.
+2. MVP 2: unified virtual text model, line loading, virtual editor scroll, virtual preview scroll, model-backed search.
 3. MVP 3: LLM provider settings, secure API key storage, selected-text explain/summarize/improve, prompt/snippet library.
 4. MVP 4: Git changed files, diff view, stage/unstage, commit.
 5. MVP 5: limited large-file editing, stronger undo/redo, advanced regex replace, richer snippet/template management.
 
 ## Performance Rules
 
-- Files at or above the configured threshold are offered Large File Mode.
-- Files at or above 200 MB open in Large File Mode by default.
-- Preview updates are debounced.
-- Large File Mode keeps the main UI responsive by rendering only visible lines.
-- API requests only use selected text or explicit context, never an entire large file automatically.
+- Editor tabs use the same virtualized path regardless of file size.
+- The editor renders only visible lines plus overscan.
+- Long lines are capped in the renderer to protect frame time.
+- Preview updates are debounced and virtualized.
+- API requests only use selected text or an explicitly capped file context, never an unbounded full file automatically.

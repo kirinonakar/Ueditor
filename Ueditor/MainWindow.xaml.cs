@@ -54,6 +54,8 @@ namespace Ueditor
         // Dynamic tabs collection
         private readonly Dictionary<string, (WebView2 WebView, MonacoBridge Bridge)> _tabBridges = 
             new Dictionary<string, (WebView2 WebView, MonacoBridge Bridge)>();
+        private readonly Dictionary<string, EditorDocumentSession> _editorSessions =
+            new Dictionary<string, EditorDocumentSession>();
 
         // Timer for debouncing live preview renders
         private readonly DispatcherTimer _previewDebounceTimer;
@@ -432,65 +434,7 @@ namespace Ueditor
             {
                 foreach (var filePath in filesToOpen)
                 {
-                    // Read file size synchronously to decide whether to open normally or in large file mode
-                    long fileSizeBytes = 0;
-                    try
-                    {
-                        var fi = new FileInfo(filePath);
-                        fileSizeBytes = fi.Length;
-                    }
-                    catch { }
-
-                    long thresholdBytes = _settingsService.CurrentSettings.LargeFileThresholdMB * 1024 * 1024;
-                    if (fileSizeBytes >= thresholdBytes)
-                    {
-                        // For large files, fall back to the async LoadFileIntoTabAsync flow which shows the dialog
-                        _ = LoadFileIntoTabAsync(filePath);
-                    }
-                    else
-                    {
-                        // Open the tab instantly with blank content so it is visible immediately as the window opens
-                        OpenNewTab(filePath, "");
-
-                        // Read the content asynchronously in the background and populate it once loaded
-                        _ = Task.Run(async () =>
-                        {
-                            try
-                            {
-                                var readResult = await _fileService.ReadTextFileAsync(filePath, "Auto");
-                                this.DispatcherQueue.TryEnqueue(async () =>
-                                {
-                                    var tab = _viewModel.Tabs.FirstOrDefault(t => t.FilePath == filePath);
-                                    if (tab != null)
-                                    {
-                                        tab.Content = readResult.Content;
-                                        tab.EncodingName = readResult.EncodingName;
-                                        tab.EncodingWasAutoDetected = readResult.WasAutoDetected;
-                                        if (_tabBridges.TryGetValue(tab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
-                                        {
-                                            await bridgeGroup.Bridge.SetTextAsync(readResult.Content);
-                                        }
-                                        SyncEncodingCombo(tab);
-                                    }
-                                });
-                            }
-                            catch (Exception ex)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"Failed to load file '{filePath}' asynchronously: {ex.Message}");
-                            }
-                        });
-
-                        // Set Git repository root if applicable
-                        try
-                        {
-                            string? repoRoot = FindGitRepositoryRoot(Path.GetDirectoryName(filePath));
-                            if (!string.IsNullOrEmpty(repoRoot))
-                            {
-                                _currentRepoPath = repoRoot;
-                            }
-                        }
-                        catch { }
-                    }
+                    _ = LoadFileIntoTabAsync(filePath);
                 }
             }
             else
@@ -559,6 +503,7 @@ namespace Ueditor
                 PreviewWebView.CoreWebView2.Settings.IsWebMessageEnabled = true;
                 PreviewWebView.CoreWebView2.Settings.IsScriptEnabled = true;
                 PreviewWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+                PreviewWebView.WebMessageReceived += OnPreviewWebMessageReceived;
 
                 PreviewWebView.NavigationCompleted += (s, e) =>
                 {
@@ -578,14 +523,61 @@ namespace Ueditor
             }
         }
 
+        private void OnPreviewWebMessageReceived(WebView2 sender, CoreWebView2WebMessageReceivedEventArgs args)
+        {
+            try
+            {
+                string json = NormalizeWebMessageJson(args);
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                if (!root.TryGetProperty("type", out var typeProp))
+                {
+                    return;
+                }
+
+                if (!string.Equals(typeProp.GetString(), "previewRequestLines", StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                int requestId = root.TryGetProperty("requestId", out var requestIdProp) ? requestIdProp.GetInt32() : 0;
+                int startLine = root.TryGetProperty("startLine", out var startLineProp) ? startLineProp.GetInt32() : 1;
+                int count = root.TryGetProperty("count", out var countProp) ? countProp.GetInt32() : 80;
+                var activeTab = GetActiveTab();
+                IReadOnlyList<string> lines = Array.Empty<string>();
+                if (activeTab != null && _editorSessions.TryGetValue(activeTab.Id, out var session))
+                {
+                    lines = session.GetLines(startLine, count);
+                }
+
+                var reply = new
+                {
+                    action = "previewLines",
+                    requestId = requestId,
+                    startLine = startLine,
+                    lines = lines
+                };
+                PreviewWebView.CoreWebView2.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(reply));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed handling preview line request: {ex.Message}");
+            }
+        }
+
         #endregion
 
         #region Tab Operations (탭 비즈니스 로직)
 
-        private void OpenNewTab(string? filePath = null, string content = "", bool isLargeFileMode = false, bool isMonacoLimitedMode = false, bool isReadOnly = false, string encodingName = "UTF-8", bool encodingWasAutoDetected = true)
+        private void OpenNewTab(
+            string? filePath = null,
+            string content = "",
+            bool isReadOnly = false,
+            string encodingName = "UTF-8",
+            bool encodingWasAutoDetected = true,
+            ITextModel? textModel = null)
         {
             var tab = new OpenedTab();
-            tab.IsLargeFileMode = isLargeFileMode;
             tab.EncodingName = encodingName;
             tab.EncodingWasAutoDetected = encodingWasAutoDetected;
 
@@ -611,6 +603,10 @@ namespace Ueditor
                 tab.Title = "제목 없음";
                 tab.Content = "";
             }
+
+            var documentModel = textModel ?? LineArrayTextModel.FromText(content);
+            var session = new EditorDocumentSession(tab, documentModel);
+            _editorSessions[tab.Id] = session;
 
             _viewModel.Tabs.Add(tab);
 
@@ -665,104 +661,13 @@ namespace Ueditor
             }
             catch { }
 
-            if (isLargeFileMode)
-            {
-                _tabBridges[tab.Id] = (editorWebView, null!);
-                // Large File Mode WebView2 initialization and event loop
-                InitializeLargeFileWebView(editorWebView, tab, tabItem);
-            }
-            else
-            {
-                var bridge = new MonacoBridge(editorWebView);
-                _tabBridges[tab.Id] = (editorWebView, bridge);
+            var bridge = new MonacoBridge(editorWebView);
+            _tabBridges[tab.Id] = (editorWebView, bridge);
 
-                bridge.ShortcutPressed += (shortcutName) =>
-                {
-                    this.DispatcherQueue.TryEnqueue(() =>
-                    {
-                        switch (shortcutName)
-                        {
-                            case "save":
-                                OnSaveFileClick(this, new RoutedEventArgs());
-                                break;
-                            case "open":
-                                OnOpenFileClick(this, new RoutedEventArgs());
-                                break;
-                            case "terminal":
-                                ToggleTerminal();
-                                break;
-                            case "closeTab":
-                                OnCloseActiveTabShortcutInvoked(null!, null!);
-                                break;
-                            case "searchAll":
-                                EnsureLeftPanelVisible();
-                                ShowLeftSidebarPage(3);
-                                this.DispatcherQueue.TryEnqueue(() =>
-                                {
-                                    SearchQueryInput.Focus(FocusState.Programmatic);
-                                    SearchQueryInput.Focus(FocusState.Keyboard);
-                                });
-                                break;
-                        }
-                    });
-                };
+            WireEditorBridge(bridge, tab, tabItem, session, isReadOnly);
 
-                // Register Bridge Initialization & IPC Events
-                bridge.EditorReady += async () =>
-                {
-                    await bridge.SetTextAsync(tab.Content);
-                    await bridge.SetLanguageAsync(filePath ?? "file.txt");
-                    await bridge.UpdateOptionsAsync(_settingsService.CurrentSettings, isLargeFile: isMonacoLimitedMode, isReadOnly: isReadOnly);
-                };
-
-                bridge.ContentChanged += (newText) =>
-                {
-                    tab.Content = newText;
-                    if (!tab.IsDirty)
-                    {
-                        tab.IsDirty = true;
-                        tabItem.Header = tab.DisplayTitle;
-                    }
-
-                    // Trigger Live Preview Update with Debounce
-                    _activeTabForPreview = tab;
-                    _previewDebounceTimer.Stop();
-                    _previewDebounceTimer.Start();
-
-                    // Real-time language detection
-                    UpdateLanguageUI(tab);
-                };
-
-                bridge.CursorChanged += (line, col) =>
-                {
-                    if (GetActiveTab() == tab)
-                    {
-                        StatusLine.Text = line.ToString();
-                        StatusCol.Text = col.ToString();
-                        _ = bridge.RequestSelectionAsync(); // Auto sync selection on cursor move
-                    }
-                };
-
-                bridge.SelectionReceived += (selectedText) =>
-                {
-                    _lastSelectionText = selectedText;
-                    if (GetActiveTab() == tab)
-                    {
-                        if (string.IsNullOrEmpty(selectedText))
-                        {
-                            SelectionStatsText.Text = GetLocalizedString("SelectionNoneBlocked", "선택 영역: 없음 (전체 전송 차단 활성화)");
-                        }
-                        else
-                        {
-                            string fmt = GetLocalizedString("SelectionStats", "선택 영역: {0} 글자 수 (약 {1} 토큰)");
-                            SelectionStatsText.Text = string.Format(fmt, selectedText.Length.ToString("N0"), (selectedText.Length / 4).ToString("N0"));
-                        }
-                    }
-                };
-
-                // Initialize editor inside WebView2 using virtual host mappings
-                InitializeEditorWebView(editorWebView, bridge);
-            }
+            // Initialize editor inside WebView2 using virtual host mappings
+            InitializeEditorWebView(editorWebView, bridge);
 
             targetTabView.TabItems.Add(tabItem);
             targetTabView.SelectedItem = tabItem;
@@ -771,118 +676,151 @@ namespace Ueditor
             SyncEncodingCombo(tab);
         }
 
-        private async void InitializeLargeFileWebView(WebView2 wv, OpenedTab tab, TabViewItem tabItem)
+        private void WireEditorBridge(
+            MonacoBridge bridge,
+            OpenedTab tab,
+            TabViewItem tabItem,
+            EditorDocumentSession session,
+            bool isReadOnly)
         {
-            try
+            bridge.ShortcutPressed += (shortcutName) =>
             {
-                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                string cacheFolder = Path.Combine(localAppData, "Ueditor", "WebView2Cache");
-                var env = await CoreWebView2Environment.CreateWithOptionsAsync(null, cacheFolder, null);
-                
-                await wv.EnsureCoreWebView2Async(env);
-
-                string webResourcesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "WebResources");
-                wv.CoreWebView2.SetVirtualHostNameToFolderMapping(
-                    "ueditor.local", 
-                    webResourcesPath, 
-                    CoreWebView2HostResourceAccessKind.Allow
-                );
-
-                wv.CoreWebView2.Settings.IsWebMessageEnabled = true;
-                wv.CoreWebView2.Settings.IsScriptEnabled = true;
-                wv.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
-
-                wv.WebMessageReceived += async (sender, args) =>
+                this.DispatcherQueue.TryEnqueue(() =>
                 {
-                    try
+                    switch (shortcutName)
                     {
-                        string json = NormalizeWebMessageJson(args);
-                        using (var doc = System.Text.Json.JsonDocument.Parse(json))
-                        {
-                            var root = doc.RootElement;
-                            if (!root.TryGetProperty("type", out var typeProp)) return;
-
-                            string type = typeProp.GetString() ?? string.Empty;
-
-                            if (type == "requestLines")
+                        case "save":
+                            OnSaveFileClick(this, new RoutedEventArgs());
+                            break;
+                        case "open":
+                            OnOpenFileClick(this, new RoutedEventArgs());
+                            break;
+                        case "terminal":
+                            ToggleTerminal();
+                            break;
+                        case "closeTab":
+                            OnCloseActiveTabShortcutInvoked(null!, null!);
+                            break;
+                        case "searchAll":
+                            EnsureLeftPanelVisible();
+                            ShowLeftSidebarPage(3);
+                            this.DispatcherQueue.TryEnqueue(() =>
                             {
-                                int start = root.GetProperty("startLine").GetInt32();
-                                int count = root.GetProperty("count").GetInt32();
-                                string path = root.GetProperty("filePath").GetString() ?? string.Empty;
-
-                                // Seek and fetch actual line array from file stream in C#
-                                var lines = await _fileService.GetLargeFileLinesAsync(path, start, count);
-                                
-                                // Dynamic overlay of memory edits on top of stream chunks
-                                for (int i = 0; i < lines.Count; i++)
-                                {
-                                    int currentLineNum = start + i;
-                                    if (tab.LargeFilePatches.TryGetValue(currentLineNum, out string? patchText))
-                                    {
-                                        lines[i] = patchText;
-                                    }
-                                }
-                                
-                                var reply = new { action = "receiveLines", startLine = start, lines = lines };
-                                string replyJson = System.Text.Json.JsonSerializer.Serialize(reply);
-                                wv.CoreWebView2.PostWebMessageAsJson(replyJson);
-                            }
-                            else if (type == "updateLine")
-                            {
-                                int lineNum = root.GetProperty("lineNumber").GetInt32();
-                                string text = root.GetProperty("text").GetString() ?? string.Empty;
-                                
-                                this.DispatcherQueue.TryEnqueue(() =>
-                                {
-                                    tab.LargeFilePatches[lineNum] = text;
-                                    if (!tab.IsDirty)
-                                    {
-                                        tab.IsDirty = true;
-                                        tabItem.Header = tab.DisplayTitle;
-                                    }
-                                });
-                            }
-                        }
+                                SearchQueryInput.Focus(FocusState.Programmatic);
+                                SearchQueryInput.Focus(FocusState.Keyboard);
+                            });
+                            break;
                     }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Error in large file web message: {ex.Message}");
-                    }
-                };
+                });
+            };
 
-                // Trigger document load
-                wv.Source = new Uri("http://ueditor.local/large-viewer.html");
-
-                wv.NavigationCompleted += async (s, e) =>
-                {
-                    if (e.IsSuccess && !string.IsNullOrEmpty(tab.FilePath))
-                    {
-                        // 1. Process line break offsets indexing in background thread
-                        await _fileService.InitializeLargeFileAsync(tab.FilePath);
-                        int count = await _fileService.GetLargeFileLineCountAsync(tab.FilePath);
-
-                        // 2. Dispatch init signal with total line height
-                        var initMsg = new
-                        {
-                            action = "init",
-                            filePath = tab.FilePath,
-                            lineCount = count,
-                            theme = _settingsService.CurrentSettings.Theme,
-                            fontSize = _settingsService.CurrentSettings.FontSize,
-                            fontFamily = _settingsService.CurrentSettings.FontFamily,
-                            customBackgroundColor = _settingsService.CurrentSettings.CustomBackgroundColor,
-                            customForegroundColor = _settingsService.CurrentSettings.CustomForegroundColor,
-                            readOnly = false
-                        };
-                        string initJson = System.Text.Json.JsonSerializer.Serialize(initMsg);
-                        wv.CoreWebView2.PostWebMessageAsJson(initJson);
-                    }
-                };
-            }
-            catch (Exception ex)
+            bridge.EditorReady += async () =>
             {
-                System.Diagnostics.Debug.WriteLine($"Failed initialization of large file webview: {ex.Message}");
+                await bridge.InitializeModelAsync(
+                    session.Model.LineCount,
+                    tab.Language,
+                    _settingsService.CurrentSettings,
+                    isReadOnly);
+            };
+
+            bridge.LinesRequested += async (requestId, startLine, count) =>
+            {
+                try
+                {
+                    var lines = session.GetLines(startLine, count);
+                    await bridge.SendLinesAsync(requestId, startLine, lines);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Failed to send editor lines: {ex.Message}");
+                }
+            };
+
+            bridge.LineChanged += (lineNumber, text) =>
+            {
+                session.ReplaceLine(lineNumber, text);
+                MarkTabDirty(tab, tabItem);
+                SchedulePreview(tab);
+            };
+
+            bridge.LineInsertRequested += async (lineNumber, text) =>
+            {
+                int lineCount = session.InsertLine(lineNumber, text);
+                MarkTabDirty(tab, tabItem);
+                await bridge.UpdateLineCountAsync(lineCount);
+                SchedulePreview(tab);
+            };
+
+            bridge.LineSplitRequested += async (lineNumber, before, after) =>
+            {
+                int lineCount = session.SplitLine(lineNumber, before, after);
+                MarkTabDirty(tab, tabItem);
+                await bridge.UpdateLineCountAsync(lineCount);
+                SchedulePreview(tab);
+            };
+
+            bridge.MergeLineWithPreviousRequested += async (lineNumber) =>
+            {
+                int lineCount = session.MergeLineWithPrevious(lineNumber);
+                MarkTabDirty(tab, tabItem);
+                await bridge.UpdateLineCountAsync(lineCount);
+                SchedulePreview(tab);
+            };
+
+            bridge.FindRequested += async (query, startLine, startColumn, reverse, matchCase) =>
+            {
+                var result = session.Find(query, startLine, startColumn, reverse, matchCase);
+                await bridge.SendFindResultAsync(result, query);
+            };
+
+            bridge.ContentChanged += (_) =>
+            {
+                MarkTabDirty(tab, tabItem);
+                SchedulePreview(tab);
+            };
+
+            bridge.CursorChanged += (line, col) =>
+            {
+                if (GetActiveTab() == tab)
+                {
+                    StatusLine.Text = line.ToString();
+                    StatusCol.Text = col.ToString();
+                    _ = bridge.RequestSelectionAsync();
+                }
+            };
+
+            bridge.SelectionReceived += (selectedText) =>
+            {
+                _lastSelectionText = selectedText;
+                if (GetActiveTab() == tab)
+                {
+                    if (string.IsNullOrEmpty(selectedText))
+                    {
+                        SelectionStatsText.Text = GetLocalizedString("SelectionNoneBlocked", "선택 영역: 없음 (전체 전송 차단 활성화)");
+                    }
+                    else
+                    {
+                        string fmt = GetLocalizedString("SelectionStats", "선택 영역: {0} 글자 수 (약 {1} 토큰)");
+                        SelectionStatsText.Text = string.Format(fmt, selectedText.Length.ToString("N0"), (selectedText.Length / 4).ToString("N0"));
+                    }
+                }
+            };
+        }
+
+        private void MarkTabDirty(OpenedTab tab, TabViewItem tabItem)
+        {
+            if (!tab.IsDirty)
+            {
+                tab.IsDirty = true;
+                tabItem.Header = tab.DisplayTitle;
             }
+        }
+
+        private void SchedulePreview(OpenedTab tab)
+        {
+            _activeTabForPreview = tab;
+            _previewDebounceTimer.Stop();
+            _previewDebounceTimer.Start();
         }
 
         private async void InitializeEditorWebView(WebView2 wv, MonacoBridge bridge)
@@ -946,8 +884,8 @@ namespace Ueditor
 
                 var renderMsg = new
                 {
-                    action = "render",
-                    text = tab.Content,
+                    action = "initVirtualPreview",
+                    lineCount = _editorSessions.TryGetValue(tab.Id, out var session) ? session.Model.LineCount : 1,
                     mode = mode,
                     theme = _settingsService.CurrentSettings.Theme,
                     customBackgroundColor = _settingsService.CurrentSettings.CustomBackgroundColor,
@@ -1029,66 +967,17 @@ namespace Ueditor
                 if (!string.IsNullOrEmpty(repoRoot))
                 {
                     _currentRepoPath = repoRoot;
-                    await RefreshGitStatusUIAsync();
+                        await RefreshGitStatusUIAsync();
                 }
 
-                var largeInfo = await _fileService.GetLargeFileInfoAsync(filePath);
-                var settings = _settingsService.CurrentSettings;
-                long thresholdBytes = settings.LargeFileThresholdMB * 1024 * 1024;
-                long fileSizeBytes = largeInfo.FileSize;
-
-                if (fileSizeBytes >= 200 * 1024 * 1024)
-                {
-                    // 200MB 이상 초대용량 파일의 경우 강제로 Large File Mode 로드
-                    var dialog = new ContentDialog
-                    {
-                        Title = "초대용량 파일 감지",
-                        Content = $"선택한 파일의 크기가 {fileSizeBytes / (1024 * 1024.0):F2}MB 입니다.\n시스템 리소스 보호와 에디터 안정성을 위해 Large File Mode(가상 스크롤 뷰어)로 안전하게 열립니다.",
-                        CloseButtonText = "확인",
-                        XamlRoot = this.Content.XamlRoot
-                    };
-                    await dialog.ShowAsync();
-
-                    StatusMode.Text = GetLocalizedString("StatusModeLargeFile", "대용량 모드");
-                    OpenNewTab(filePath, "", isLargeFileMode: true);
-                    return;
-                }
-                else if (fileSizeBytes >= thresholdBytes)
-                {
-                    // 설정 임계값 이상인 경우 경고 창을 띄워 선택 유도
-                    var dialog = new ContentDialog
-                    {
-                        Title = "대용량 파일 경고",
-                        Content = $"선택한 파일의 크기가 {fileSizeBytes / (1024 * 1024.0):F2}MB 입니다.\nMonaco Editor 대신 Large File Mode(가상 스크롤 뷰어)로 여시겠습니까?",
-                        PrimaryButtonText = "대용량 모드로 열기",
-                        SecondaryButtonText = "일반 Monaco(제한 모드)로 강제 열기",
-                        CloseButtonText = "취소",
-                        XamlRoot = this.Content.XamlRoot
-                    };
-
-                    var result = await dialog.ShowAsync();
-                    if (result == ContentDialogResult.Primary)
-                    {
-                        StatusMode.Text = GetLocalizedString("StatusModeLargeFile", "대용량 모드");
-                        OpenNewTab(filePath, "", isLargeFileMode: true);
-                        return;
-                    }
-                    else if (result == ContentDialogResult.Secondary)
-                    {
-                        StatusMode.Text = GetLocalizedString("StatusModeLimited", "일반 모드 (제한)");
-                        var readResult = await _fileService.ReadTextFileAsync(filePath, "Auto");
-                        OpenNewTab(filePath, readResult.Content, isLargeFileMode: false, isMonacoLimitedMode: true, encodingName: readResult.EncodingName, encodingWasAutoDetected: readResult.WasAutoDetected);
-                        return;
-                    }
-                    else
-                    {
-                        return; // Canceled
-                    }
-                }
-
-                StatusMode.Text = GetLocalizedString("StatusModeNormal", "일반 모드");
-                var normalReadResult = await _fileService.ReadTextFileAsync(filePath, "Auto");
-                OpenNewTab(filePath, normalReadResult.Content, encodingName: normalReadResult.EncodingName, encodingWasAutoDetected: normalReadResult.WasAutoDetected);
+                StatusMode.Text = GetLocalizedString("StatusModeNormal", "가상화 편집");
+                var readResult = await LineArrayTextModel.LoadFromFileAsync(filePath, "Auto");
+                OpenNewTab(
+                    filePath,
+                    "",
+                    encodingName: readResult.EncodingName,
+                    encodingWasAutoDetected: readResult.EncodingWasAutoDetected,
+                    textModel: readResult.Model);
             }
             catch (Exception ex)
             {
@@ -1675,7 +1564,7 @@ namespace Ueditor
 
                 if (StatusLineLabel != null) StatusLineLabel.Text = GetString("StatusLineLabel", "줄");
                 if (StatusColumnLabel != null) StatusColumnLabel.Text = GetString("StatusColumnLabel", "열");
-                if (StatusMode != null && IsNormalModeText(StatusMode.Text)) StatusMode.Text = GetString("StatusModeNormal", "일반 모드");
+                if (StatusMode != null && IsNormalModeText(StatusMode.Text)) StatusMode.Text = GetString("StatusModeNormal", "가상화 편집");
                 if (StatusGitBranch != null && IsGitNotDetectedText(StatusGitBranch.Text)) StatusGitBranch.Text = GetString("GitNotDetected", "Git: 감지 안됨");
                 if (GitPanelBranchText != null && IsGitNotDetectedText(GitPanelBranchText.Text)) GitPanelBranchText.Text = GetString("GitNotDetected", "Git: 감지 안됨");
                 ToolTipService.SetToolTip(LeftPanelToggle, GetString("StatusLeftPanelTooltip", "좌측 패널"));
@@ -1749,7 +1638,10 @@ namespace Ueditor
         {
             return text.Equals("일반 모드", StringComparison.OrdinalIgnoreCase) ||
                    text.Equals("Normal Mode", StringComparison.OrdinalIgnoreCase) ||
-                   text.Equals("通常モード", StringComparison.OrdinalIgnoreCase);
+                   text.Equals("通常モード", StringComparison.OrdinalIgnoreCase) ||
+                   text.Equals("가상화 편집", StringComparison.OrdinalIgnoreCase) ||
+                   text.Equals("Virtualized Editor", StringComparison.OrdinalIgnoreCase) ||
+                   text.Equals("仮想化編集", StringComparison.OrdinalIgnoreCase);
         }
 
         private async void OnSettingsClick(object sender, RoutedEventArgs e)
@@ -2646,6 +2538,7 @@ namespace Ueditor
                 bridgeGroup.WebView.Close(); // Dispose webview resource
                 _tabBridges.Remove(tab.Id);
             }
+            _editorSessions.Remove(tab.Id);
 
             if (EditorTabView.TabItems.Count == 0 && EditorTabView2.TabItems.Count == 0)
             {
@@ -2719,7 +2612,10 @@ namespace Ueditor
                     string previewDir = Path.Combine(Path.GetTempPath(), "Ueditor", "Preview");
                     Directory.CreateDirectory(previewDir);
                     targetPath = Path.Combine(previewDir, $"preview-{tab.Id}.html");
-                    await File.WriteAllTextAsync(targetPath, tab.Content ?? string.Empty, Encoding.UTF8);
+                    string previewText = _editorSessions.TryGetValue(tab.Id, out var session)
+                        ? session.GetText()
+                        : tab.Content ?? string.Empty;
+                    await File.WriteAllTextAsync(targetPath, previewText, Encoding.UTF8);
                 }
 
                 Process.Start(new ProcessStartInfo
@@ -2829,12 +2725,6 @@ namespace Ueditor
                 return;
             }
 
-            if (tab.IsLargeFileMode)
-            {
-                tab.EncodingName = selectedEncoding == "Auto" ? tab.EncodingName : selectedEncoding;
-                return;
-            }
-
             if (string.IsNullOrWhiteSpace(tab.FilePath) || !File.Exists(tab.FilePath))
             {
                 tab.EncodingName = selectedEncoding == "Auto" ? "UTF-8" : selectedEncoding;
@@ -2880,11 +2770,12 @@ namespace Ueditor
             {
                 if (string.IsNullOrWhiteSpace(tab.FilePath)) return;
 
-                var readResult = await _fileService.ReadTextFileAsync(tab.FilePath, encodingName);
-                tab.Content = readResult.Content;
+                var readResult = await LineArrayTextModel.LoadFromFileAsync(tab.FilePath, encodingName);
                 tab.EncodingName = readResult.EncodingName;
-                tab.EncodingWasAutoDetected = readResult.WasAutoDetected;
+                tab.EncodingWasAutoDetected = readResult.EncodingWasAutoDetected;
                 tab.IsDirty = false;
+                var session = new EditorDocumentSession(tab, readResult.Model);
+                _editorSessions[tab.Id] = session;
 
                 var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id)
                            ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id);
@@ -2895,7 +2786,11 @@ namespace Ueditor
 
                 if (_tabBridges.TryGetValue(tab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
                 {
-                    await bridgeGroup.Bridge.SetTextAsync(readResult.Content);
+                    await bridgeGroup.Bridge.InitializeModelAsync(
+                        session.Model.LineCount,
+                        tab.Language,
+                        _settingsService.CurrentSettings,
+                        isReadOnly: false);
                     await bridgeGroup.Bridge.SetLanguageAsync(tab.FilePath);
                 }
 
@@ -3066,14 +2961,10 @@ namespace Ueditor
             }
 
             string title = string.IsNullOrWhiteSpace(tab.FilePath) ? tab.Title : tab.FilePath;
-            string content = tab.Content ?? string.Empty;
-            if (tab.IsLargeFileMode)
-            {
-                ShowErrorMessage("AI 파일 맥락", "대용량 모드 파일은 전체 본문을 LLM 맥락으로 넣지 않습니다. 필요한 줄을 선택해서 사용하십시오.");
-                return;
-            }
-
             const int maxChars = 120_000;
+            string content = _editorSessions.TryGetValue(tab.Id, out var session)
+                ? session.GetText(maxChars)
+                : tab.Content ?? string.Empty;
             if (content.Length > maxChars)
             {
                 content = content.Substring(0, maxChars) + "\n\n[파일 맥락이 길어 앞부분만 포함됨]";
@@ -3297,7 +3188,7 @@ namespace Ueditor
                 }
                 else
                 {
-                    ShowErrorMessage("스니펫 삽입 오류", "현재 텍스트 에디터 창이 활성화되어 있지 않거나 대용량 모드(읽기 전용)입니다.");
+                    ShowErrorMessage("스니펫 삽입 오류", "현재 텍스트 에디터 창이 활성화되어 있지 않습니다.");
                 }
             }
         }
@@ -3887,53 +3778,6 @@ namespace Ueditor
                        ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id);
             if (tabItem == null) return false;
 
-            if (tab.IsLargeFileMode)
-            {
-                if (string.IsNullOrEmpty(tab.FilePath)) return false;
-
-                try
-                {
-                    await _fileService.SaveLargeFileWithPatchesAsync(tab.FilePath, tab.LargeFilePatches);
-                    tab.LargeFilePatches.Clear();
-                    tab.IsDirty = false;
-                    tabItem.Header = tab.DisplayTitle;
-
-                    WebView2? wv = null;
-                    if (tabItem.Content is Grid grid)
-                    {
-                        wv = grid.Children.FirstOrDefault(c => c is WebView2) as WebView2;
-                    }
-
-                    if (wv != null && wv.CoreWebView2 != null)
-                    {
-                        int count = await _fileService.GetLargeFileLineCountAsync(tab.FilePath);
-                        var initMsg = new
-                        {
-                            action = "init",
-                            filePath = tab.FilePath,
-                            lineCount = count,
-                            theme = _settingsService.CurrentSettings.Theme,
-                            fontSize = _settingsService.CurrentSettings.FontSize,
-                            fontFamily = _settingsService.CurrentSettings.FontFamily,
-                            customBackgroundColor = _settingsService.CurrentSettings.CustomBackgroundColor,
-                            customForegroundColor = _settingsService.CurrentSettings.CustomForegroundColor,
-                            readOnly = true
-                        };
-                        string initJson = System.Text.Json.JsonSerializer.Serialize(initMsg);
-                        wv.CoreWebView2.PostWebMessageAsJson(initJson);
-                    }
-
-                    UpdateStatusFileStats(tab);
-                    await RefreshGitStatusUIAsync();
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    ShowErrorMessage("대용량 파일 저장 실패", ex.Message);
-                    return false;
-                }
-            }
-
             if (string.IsNullOrEmpty(tab.FilePath))
             {
                 var picker = new FileSavePicker();
@@ -3964,12 +3808,22 @@ namespace Ueditor
 
             try
             {
-                await _fileService.SaveTextFileAsync(tab.FilePath, tab.Content, tab.EncodingName);
+                if (_editorSessions.TryGetValue(tab.Id, out var session))
+                {
+                    await session.SaveAsync(tab.FilePath, tab.EncodingName);
+                    tab.Content = session.GetText(120_000);
+                }
+                else
+                {
+                    await _fileService.SaveTextFileAsync(tab.FilePath, tab.Content, tab.EncodingName);
+                }
+
                 tab.IsDirty = false;
                 tabItem.Header = tab.DisplayTitle;
                 UpdateStatusFileStats(tab);
                 UpdateLanguageUI(tab);
                 SyncEncodingCombo(tab);
+                await RefreshGitStatusUIAsync();
                 return true;
             }
             catch (Exception ex)

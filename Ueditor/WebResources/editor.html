@@ -3,84 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ueditor Standalone Editor</title>
+    <title>Ueditor Virtual Editor</title>
     <style>
         :root {
             --bg: #1e1e1e;
             --fg: #d4d4d4;
             --gutter-bg: #252526;
             --gutter-fg: #858585;
+            --row-hover: rgba(127, 127, 127, 0.12);
             --selection: rgba(0, 120, 212, 0.38);
-            --tok-keyword: #569cd6;
-            --tok-type: #4ec9b0;
-            --tok-string: #ce9178;
-            --tok-number: #b5cea8;
-            --tok-comment: #6a9955;
-            --tok-attr: #9cdcfe;
-            --tok-md: #d7ba7d;
             --font-family: Consolas, "Courier New", monospace;
             --font-size: 14px;
-            --line-height: 1.45;
-            --wrap: pre-wrap;
+            --line-height: 22px;
+            --gutter-width: 72px;
+            --wrap: pre;
         }
 
         * {
             box-sizing: border-box;
         }
 
-        html, body {
+        html,
+        body {
             width: 100%;
             height: 100%;
             margin: 0;
-            padding: 0;
             overflow: hidden;
-            background: var(--bg);
-            color: var(--fg);
-        }
-
-        /* Custom scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
-        }
-        ::-webkit-scrollbar-track {
-            background: var(--bg);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: color-mix(in srgb, var(--fg) 22%, transparent);
-            border: 2px solid var(--bg);
-            border-radius: 5px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: color-mix(in srgb, var(--fg) 35%, transparent);
-        }
-
-        #host {
-            display: grid;
-            grid-template-columns: 64px 1fr;
-            width: 100%;
-            height: 100%;
             background: var(--bg);
             color: var(--fg);
             font-family: var(--font-family);
             font-size: var(--font-size);
         }
 
-        #gutter {
-            overflow: hidden;
-            padding: 12px 8px 12px 0;
-            background: var(--gutter-bg);
-            color: var(--gutter-fg);
-            border-right: 1px solid rgba(127, 127, 127, 0.2);
-            text-align: right;
-            line-height: var(--line-height);
-            user-select: none;
-            white-space: pre;
+        ::selection {
+            background: var(--selection);
         }
 
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
 
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
 
-        #editor-shell {
+        ::-webkit-scrollbar-thumb {
+            background: color-mix(in srgb, var(--fg) 22%, transparent);
+            border: 2px solid var(--bg);
+            border-radius: 5px;
+        }
+
+        #editor-host {
             position: relative;
             width: 100%;
             height: 100%;
@@ -88,125 +62,99 @@
             background: var(--bg);
         }
 
-        #search-highlights,
-        #highlight,
-        #editor {
+        #scroll-container {
             position: absolute;
             inset: 0;
-            width: 100%;
-            height: 100%;
-            border: 0;
-            margin: 0;
-            padding: 12px 14px;
             overflow: auto;
+            background: var(--bg);
             font-family: var(--font-family);
             font-size: var(--font-size);
             line-height: var(--line-height);
-            white-space: var(--wrap);
-            scrollbar-gutter: stable;
-            tab-size: 4;
-            letter-spacing: normal;
-            word-spacing: normal;
         }
 
-        /* Hide scrollbars on overlays while maintaining identical layout metrics */
-        #highlight::-webkit-scrollbar,
-        #search-highlights::-webkit-scrollbar {
-            display: none !important;
-            width: 0 !important;
-            height: 0 !important;
-        }
-
-        #search-highlights {
+        #virtual-spacer {
+            width: 1px;
+            height: var(--line-height);
             pointer-events: none;
-            color: transparent;
-            -webkit-text-fill-color: transparent;
-            background: transparent !important;
-            background-color: transparent !important;
-            z-index: 2;
         }
 
-        #search-highlights-content,
-        #highlight-content {
-            display: block;
-            min-height: 100%;
-            font-family: inherit !important;
-            font-size: inherit !important;
-            line-height: inherit !important;
-            white-space: inherit !important;
-            font-weight: inherit !important;
-            background: transparent !important;
-            background-color: transparent !important;
+        #viewport {
+            position: absolute;
+            top: 0;
+            left: 0;
+            min-width: 100%;
+            will-change: transform;
         }
 
-        #highlight {
-            pointer-events: none;
+        .line-row {
+            display: grid;
+            grid-template-columns: var(--gutter-width) max-content;
+            min-width: 100%;
+            height: var(--line-height);
+            line-height: var(--line-height);
+            contain: strict;
+        }
+
+        .line-row:hover {
+            background: var(--row-hover);
+        }
+
+        .line-number {
+            height: var(--line-height);
+            padding: 0 12px 0 8px;
+            overflow: hidden;
+            border-right: 1px solid rgba(127, 127, 127, 0.22);
+            background: var(--gutter-bg);
+            color: var(--gutter-fg);
+            font-size: 12px;
+            text-align: right;
+            user-select: none;
+        }
+
+        .line-text {
+            min-width: calc(100vw - var(--gutter-width));
+            height: var(--line-height);
+            padding: 0 14px;
+            overflow: hidden;
+            outline: none;
             color: var(--fg);
-            background: transparent !important;
-            background-color: transparent !important;
-            z-index: 1;
-        }
-
-        #editor {
-            outline: 0;
-            resize: none;
-            background: transparent;
-            color: transparent;
-            -webkit-text-fill-color: transparent;
+            white-space: var(--wrap);
+            tab-size: 4;
             caret-color: var(--fg);
-            z-index: 3;
         }
 
-        .search-match {
-            background-color: #ffd43b !important;
-            color: #212529 !important;
-            -webkit-text-fill-color: #212529 !important;
+        .line-text[contenteditable="true"]:focus {
+            background: color-mix(in srgb, var(--fg) 8%, transparent);
+        }
+
+        .line-text.loading {
+            color: var(--gutter-fg);
+            font-style: italic;
+        }
+
+        .line-text.long-line {
+            color: color-mix(in srgb, var(--fg) 72%, transparent);
+            cursor: not-allowed;
+        }
+
+        mark.search-match {
+            background: #ffd43b;
+            color: #212529;
             border-radius: 2px;
-            padding: 0;
-            margin: 0;
+            padding: 0 1px;
         }
 
-        .search-match.active-match {
-            background-color: #fd7e14 !important;
-            color: #ffffff !important;
-            -webkit-text-fill-color: #ffffff !important;
+        mark.active-match {
+            background: #fd7e14;
+            color: #ffffff;
             box-shadow: 0 0 3px rgba(253, 126, 20, 0.6);
-            border-radius: 2px;
-            padding: 0;
-            margin: 0;
         }
-
-        #editor::selection {
-            background: var(--selection);
-            color: transparent;
-            -webkit-text-fill-color: transparent;
-        }
-
-        #editor::-moz-selection {
-            background: var(--selection);
-            color: transparent;
-        }
-
-        .tok-keyword { color: var(--tok-keyword); }
-        .tok-type { color: var(--tok-type); }
-        .tok-string { color: var(--tok-string); }
-        .tok-number { color: var(--tok-number); }
-        .tok-comment { color: var(--tok-comment); font-style: italic; }
-        .tok-operator { color: var(--fg); }
-        .tok-tag { color: var(--tok-keyword); }
-        .tok-attr { color: var(--tok-attr); }
-        .tok-md { color: var(--tok-md); font-weight: 600; }
-        .tok-diff-header { color: var(--tok-diff-header); font-weight: bold; }
-        .tok-diff-file { color: var(--tok-diff-file); font-weight: bold; }
-        .tok-diff-range { color: var(--tok-diff-range); }
-        .tok-diff-added { color: var(--tok-diff-added); background-color: var(--tok-diff-added-bg); }
-        .tok-diff-removed { color: var(--tok-diff-removed); background-color: var(--tok-diff-removed-bg); }
 
         #find-panel {
             position: absolute;
             top: 10px;
             right: 18px;
-            z-index: 20;
+            z-index: 10;
             display: flex;
             align-items: center;
             gap: 6px;
@@ -235,12 +183,6 @@
             color: var(--fg);
         }
 
-        #find-count {
-            min-width: 48px;
-            color: var(--gutter-fg);
-            text-align: center;
-        }
-
         .find-button {
             min-width: 28px;
             height: 28px;
@@ -255,92 +197,70 @@
             background: rgba(127, 127, 127, 0.16);
         }
     </style>
-    <script>
-        (function(){
-            var p = new URLSearchParams(location.search);
-            function q(n){ return p.get(n); }
-
-            function parseHex(v){
-                if(!v||typeof v!=='string')return null;
-                var m=v.trim().match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
-                if(!m)return null;
-                var h=m[1];if(h.length===3)h=h.split('').map(function(c){return c+c}).join('');
-                return{r:parseInt(h[0]+h[1],16),g:parseInt(h[2]+h[3],16),b:parseInt(h[4]+h[5],16)};
-            }
-            function toHex(c){return'#'+[c.r,c.g,c.b].map(function(v){return v.toString(16).padStart(2,'0')}).join('');}
-            function relLum(c){var n=function(v){var ch=v/255;return ch<=0.03928?ch/12.92:Math.pow((ch+0.055)/1.055,2.4)};return 0.2126*n(c.r)+0.7152*n(c.g)+0.0722*n(c.b);}
-            function conRatio(a,b){var l1=relLum(a),l2=relLum(b);return(Math.max(l1,l2)+0.05)/(Math.min(l1,l2)+0.05);}
-            function rdFg(bg){return conRatio(bg,{r:255,g:255,b:255})>=conRatio(bg,{r:17,g:17,b:17})?'#ffffff':'#111111';}
-            function resFg(bgV,fgV,fbV){
-                var bg=parseHex(bgV),fg=parseHex(fgV),fb=parseHex(fbV)||{r:212,g:212,b:212};
-                if(!bg)return fgV||fbV;
-                if(fg&&conRatio(bg,fg)>=4.5)return toHex(fg);
-                if(conRatio(bg,fb)>=4.5)return toHex(fb);
-                return rdFg(bg);
-            }
-
-            var theme=q('theme')||'Dark',customBg=q('customBg')||'',customFg=q('customFg')||'';
-            var bg=customBg||(theme==='Light'?'#ffffff':'#1e1e1e');
-            var prefFg=customFg||(theme==='Light'?'#111111':'#d4d4d4');
-            var fg=resFg(bg,prefFg,theme==='Light'?'#111111':'#d4d4d4');
-            var s=document.documentElement.style;
-            s.setProperty('--bg',bg);s.setProperty('--fg',fg);
-            s.setProperty('--gutter-bg',theme==='Light'?'#f3f3f3':'#252526');
-            s.setProperty('--gutter-fg',theme==='Light'?'#6b6b6b':'#858585');
-            s.setProperty('--selection',theme==='Light'?'rgba(0, 95, 184, 0.28)':'rgba(0, 120, 212, 0.38)');
-            var fs=q('fontSize');if(fs)s.setProperty('--font-size',fs+'px');
-            var ff=q('fontFamily');if(ff)s.setProperty('--font-family',decodeURIComponent(ff));
-            var ww=q('wordWrap');if(ww)s.setProperty('--wrap',ww);
-        })();
-    </script>
 </head>
 <body>
-    <div id="host">
-        <div id="gutter">1</div>
-        <div id="editor-shell">
-            <pre id="search-highlights" aria-hidden="true"><code id="search-highlights-content"></code></pre>
-            <pre id="highlight" aria-hidden="true"><code id="highlight-content"></code></pre>
-            <textarea id="editor" spellcheck="false"></textarea>
-            <div id="find-panel" hidden>
-                <input id="find-input" type="text" placeholder="검색" autocomplete="off" spellcheck="false">
-                <span id="find-count">0/0</span>
-                <button id="find-prev" class="find-button" type="button" title="이전">↑</button>
-                <button id="find-next" class="find-button" type="button" title="다음">↓</button>
-                <button id="find-close" class="find-button" type="button" title="닫기">×</button>
-            </div>
+    <div id="editor-host">
+        <div id="scroll-container">
+            <div id="virtual-spacer"></div>
+            <div id="viewport"></div>
+        </div>
+        <div id="find-panel" hidden>
+            <input id="find-input" type="text" placeholder="검색" autocomplete="off" spellcheck="false">
+            <button id="find-prev" class="find-button" type="button" title="이전">↑</button>
+            <button id="find-next" class="find-button" type="button" title="다음">↓</button>
+            <button id="find-close" class="find-button" type="button" title="닫기">×</button>
         </div>
     </div>
 
     <script>
-        const editor = document.getElementById('editor');
-        const highlight = document.getElementById('highlight');
-        const highlightContent = document.getElementById('highlight-content');
-        const searchHighlights = document.getElementById('search-highlights');
-        const searchHighlightsContent = document.getElementById('search-highlights-content');
-        const gutter = document.getElementById('gutter');
+        const scrollContainer = document.getElementById('scroll-container');
+        const virtualSpacer = document.getElementById('virtual-spacer');
+        const viewport = document.getElementById('viewport');
         const findPanel = document.getElementById('find-panel');
         const findInput = document.getElementById('find-input');
-        const findCount = document.getElementById('find-count');
         const findPrev = document.getElementById('find-prev');
         const findNextButton = document.getElementById('find-next');
         const findClose = document.getElementById('find-close');
-        let isProgrammaticChange = false;
-        let tabSize = 4;
-        let currentLanguage = 'plaintext';
-        let findMatches = [];
-        let activeFindIndex = -1;
+
+        const MAX_RENDER_CHARS = 20000;
+        const state = {
+            lineCount: 1,
+            lineHeight: 22,
+            overscan: 12,
+            cache: new Map(),
+            pending: new Set(),
+            requestSeq: 1,
+            currentLine: 1,
+            currentColumn: 1,
+            readOnly: false,
+            language: 'plaintext',
+            tabSize: 4,
+            activeSearch: null,
+            lastRangeKey: '',
+            renderQueued: false
+        };
+
+        function post(msg) {
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage(msg);
+            }
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
 
         function parseHexColor(value) {
             if (!value || typeof value !== 'string') return null;
-            const raw = value.trim();
-            const match = raw.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+            const match = value.trim().match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
             if (!match) return null;
-
             let hex = match[1];
-            if (hex.length === 3) {
-                hex = hex.split('').map(ch => ch + ch).join('');
-            }
-
+            if (hex.length === 3) hex = hex.split('').map(ch => ch + ch).join('');
             return {
                 r: parseInt(hex.slice(0, 2), 16),
                 g: parseInt(hex.slice(2, 4), 16),
@@ -358,386 +278,411 @@
                 const channel = value / 255;
                 return channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
             };
-
             return 0.2126 * normalize(color.r) + 0.7152 * normalize(color.g) + 0.0722 * normalize(color.b);
         }
 
         function contrastRatio(a, b) {
             const l1 = relativeLuminance(a);
             const l2 = relativeLuminance(b);
-            const lighter = Math.max(l1, l2);
-            const darker = Math.min(l1, l2);
-            return (lighter + 0.05) / (darker + 0.05);
+            return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
         }
 
         function readableForegroundFor(background) {
             const white = { r: 255, g: 255, b: 255 };
             const black = { r: 17, g: 17, b: 17 };
-            return contrastRatio(background, white) >= contrastRatio(background, black) ? white : black;
+            return contrastRatio(background, white) >= contrastRatio(background, black) ? '#ffffff' : '#111111';
         }
 
         function resolveReadableColor(backgroundValue, foregroundValue, fallbackForeground) {
             const background = parseHexColor(backgroundValue);
             const foreground = parseHexColor(foregroundValue);
             const fallback = parseHexColor(fallbackForeground) || { r: 212, g: 212, b: 212 };
-
-            if (!background) {
-                return foregroundValue || fallbackForeground;
-            }
-
-            if (foreground && contrastRatio(background, foreground) >= 4.5) {
-                return colorToHex(foreground);
-            }
-
-            if (contrastRatio(background, fallback) >= 4.5) {
-                return colorToHex(fallback);
-            }
-
-            return colorToHex(readableForegroundFor(background));
+            if (!background) return foregroundValue || fallbackForeground;
+            if (foreground && contrastRatio(background, foreground) >= 4.5) return colorToHex(foreground);
+            if (contrastRatio(background, fallback) >= 4.5) return colorToHex(fallback);
+            return readableForegroundFor(background);
         }
 
-        function applySyntaxPalette(theme, background, foreground) {
-            const parsedBackground = parseHexColor(background);
-            const useLightPalette = parsedBackground ? relativeLuminance(parsedBackground) > 0.55 : theme === 'Light';
+        function applyOptions(msg) {
+            const theme = msg.theme || 'Dark';
+            const bg = msg.customBackgroundColor || (theme === 'Light' ? '#ffffff' : '#1e1e1e');
+            const preferredFg = msg.customForegroundColor || (theme === 'Light' ? '#111111' : '#d4d4d4');
+            const fg = resolveReadableColor(bg, preferredFg, theme === 'Light' ? '#111111' : '#d4d4d4');
+            const fontSize = Number(msg.fontSize || 14);
+            state.lineHeight = Math.max(18, Math.ceil(fontSize + 8));
+            state.tabSize = Number(msg.tabSize || 4);
+            state.readOnly = !!msg.readOnly;
 
-            if (useLightPalette) {
-                document.documentElement.style.setProperty('--tok-keyword', '#0000ff');
-                document.documentElement.style.setProperty('--tok-type', '#267f99');
-                document.documentElement.style.setProperty('--tok-string', '#a31515');
-                document.documentElement.style.setProperty('--tok-number', '#098658');
-                document.documentElement.style.setProperty('--tok-comment', '#008000');
-                document.documentElement.style.setProperty('--tok-attr', '#001080');
-                document.documentElement.style.setProperty('--tok-md', '#795e26');
-                
-                // Diff theme variables for Light mode
-                document.documentElement.style.setProperty('--tok-diff-header', '#57606a');
-                document.documentElement.style.setProperty('--tok-diff-file', '#0969da');
-                document.documentElement.style.setProperty('--tok-diff-range', '#8250df');
-                document.documentElement.style.setProperty('--tok-diff-added', '#1a7f37');
-                document.documentElement.style.setProperty('--tok-diff-added-bg', 'rgba(46, 160, 67, 0.1)');
-                document.documentElement.style.setProperty('--tok-diff-removed', '#cf222e');
-                document.documentElement.style.setProperty('--tok-diff-removed-bg', 'rgba(248, 81, 73, 0.1)');
-            } else {
-                document.documentElement.style.setProperty('--tok-keyword', '#569cd6');
-                document.documentElement.style.setProperty('--tok-type', '#4ec9b0');
-                document.documentElement.style.setProperty('--tok-string', '#ce9178');
-                document.documentElement.style.setProperty('--tok-number', '#b5cea8');
-                document.documentElement.style.setProperty('--tok-comment', '#6a9955');
-                document.documentElement.style.setProperty('--tok-attr', '#9cdcfe');
-                document.documentElement.style.setProperty('--tok-md', '#d7ba7d');
-                
-                // Diff theme variables for Dark mode
-                document.documentElement.style.setProperty('--tok-diff-header', '#8b949e');
-                document.documentElement.style.setProperty('--tok-diff-file', '#58a6ff');
-                document.documentElement.style.setProperty('--tok-diff-range', '#d2a8ff');
-                document.documentElement.style.setProperty('--tok-diff-added', '#3fb950');
-                document.documentElement.style.setProperty('--tok-diff-added-bg', 'rgba(46, 160, 67, 0.15)');
-                document.documentElement.style.setProperty('--tok-diff-removed', '#f85149');
-                document.documentElement.style.setProperty('--tok-diff-removed-bg', 'rgba(248, 81, 73, 0.15)');
-            }
-
+            document.documentElement.style.setProperty('--bg', bg);
+            document.documentElement.style.setProperty('--fg', fg);
+            document.documentElement.style.setProperty('--gutter-bg', theme === 'Light' ? '#f3f3f3' : '#252526');
+            document.documentElement.style.setProperty('--gutter-fg', theme === 'Light' ? '#6b6b6b' : '#858585');
+            document.documentElement.style.setProperty('--selection', theme === 'Light' ? 'rgba(0, 95, 184, 0.28)' : 'rgba(0, 120, 212, 0.38)');
+            document.documentElement.style.setProperty('--font-size', `${fontSize}px`);
+            document.documentElement.style.setProperty('--font-family', msg.fontFamily || 'Consolas, "Courier New", monospace');
+            document.documentElement.style.setProperty('--line-height', `${state.lineHeight}px`);
+            document.documentElement.style.setProperty('--wrap', 'pre');
+            setupVirtualHeight();
+            queueRender(true);
         }
 
-        function post(msg) {
-            if (window.chrome && window.chrome.webview) {
-                window.chrome.webview.postMessage(msg);
-            }
+        function setupModel(lineCount) {
+            state.lineCount = Math.max(1, Number(lineCount || 1));
+            state.cache.clear();
+            state.pending.clear();
+            state.lastRangeKey = '';
+            setupVirtualHeight();
+            queueRender(true);
         }
 
-        function escapeRegExp(value) {
-            return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        function setupVirtualHeight() {
+            virtualSpacer.style.height = `${Math.max(1, state.lineCount) * state.lineHeight}px`;
         }
 
-        function lineCount() {
-            return Math.max(1, editor.value.split(/\r\n|\r|\n/).length);
+        function visibleRange() {
+            const viewHeight = Math.max(scrollContainer.clientHeight, state.lineHeight);
+            const firstVisible = Math.floor(scrollContainer.scrollTop / state.lineHeight) + 1;
+            const visibleCount = Math.ceil(viewHeight / state.lineHeight);
+            const start = Math.max(1, firstVisible - state.overscan);
+            const end = Math.min(state.lineCount, firstVisible + visibleCount + state.overscan);
+            return { start, end, count: Math.max(0, end - start + 1) };
         }
 
-        function updateGutter() {
-            const count = lineCount();
-            let text = "";
-            for (let i = 1; i <= count; i++) {
-                text += i + (i === count ? "" : "\n");
-            }
-            gutter.textContent = text;
-            gutter.scrollTop = editor.scrollTop;
-        }
-
-        function escapeHtml(value) {
-            return (value || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-
-        function tokenSpan(className, value) {
-            return `<span class="${className}">${escapeHtml(value)}</span>`;
-        }
-
-        function highlightPlain(text) {
-            return escapeHtml(text);
-        }
-
-        function highlightCodeLike(text) {
-            const pattern = /(\/\/.*?$|#.*?$|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:class|interface|struct|enum|namespace|using|public|private|protected|internal|static|readonly|async|await|return|if|else|switch|case|break|continue|for|foreach|while|do|try|catch|finally|throw|new|var|let|const|function|import|export|from|extends|implements|void|null|nil|None|true|false|this|base|get|set|record|sealed|override|virtual|fn|mut|impl|match|self|crate|mod|func|package|go|chan|defer|map|range|select|from|where|insert|into|update|delete|create|table|join|on|group|by|order|and|or|not|limit|public|private|protected|open|data|sealed|when|object|companion|val|var|fun|protocol|extension|guard|defer|enum|struct|actor|async|await|throws|yield|lambda|def|end|then|fi|done|do|elif)\b|\b(?:string|int|long|double|float|decimal|bool|char|object|Task|List|Dictionary|IEnumerable|void|i32|i64|f32|f64|u32|u64|usize|str|Option|Result|error|int32|int64|float32|float64|boolean|any|number|String|Int|Long|Double|Float|Boolean|Array|Map|List)\b|\b\d+(?:\.\d+)?\b)/gim;
-            let html = '';
-            let lastIndex = 0;
-            for (const matchResult of text.matchAll(pattern)) {
-                const match = matchResult[0];
-                html += escapeHtml(text.slice(lastIndex, matchResult.index));
-                if (match.startsWith('//') || match.startsWith('/*') || match.startsWith('#')) html += tokenSpan('tok-comment', match);
-                else if (/^["'`]/.test(match)) html += tokenSpan('tok-string', match);
-                else if (/^\d/.test(match)) html += tokenSpan('tok-number', match);
-                else if (/^(string|int|long|double|float|decimal|bool|char|object|Task|List|Dictionary|IEnumerable|void|i32|i64|f32|f64|u32|u64|usize|str|Option|Result|error|int32|int64|float32|float64|boolean|any|number)$/.test(match)) html += tokenSpan('tok-type', match);
-                else html += tokenSpan('tok-keyword', match);
-                lastIndex = matchResult.index + match.length;
-            }
-            html += escapeHtml(text.slice(lastIndex));
-            return html;
-        }
-
-        function highlightCss(text) {
-            const pattern = /(\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[\w-]+(?=\s*:)|:\s*[^;}]+|[{};])/gim;
-            let html = '';
-            let lastIndex = 0;
-            for (const matchResult of text.matchAll(pattern)) {
-                const match = matchResult[0];
-                html += escapeHtml(text.slice(lastIndex, matchResult.index));
-                if (match.startsWith('/*')) html += tokenSpan('tok-comment', match);
-                else if (/^["']/.test(match)) html += tokenSpan('tok-string', match);
-                else if (match === '{' || match === '}' || match === ';' || match === ':') html += tokenSpan('tok-operator', match);
-                else if (match.startsWith(':')) html += tokenSpan('tok-string', match);
-                else html += tokenSpan('tok-type', match);
-                lastIndex = matchResult.index + match.length;
-            }
-            html += escapeHtml(text.slice(lastIndex));
-            return html;
-        }
-
-        function highlightJson(text) {
-            return escapeHtml(text)
-                .replace(/(&quot;[^&]*?&quot;)(\s*:)?/g, (_, key, colon) => colon ? `${tokenSpan('tok-attr', key.replace(/&quot;/g, '"'))}${colon}` : tokenSpan('tok-string', key.replace(/&quot;/g, '"')))
-                .replace(/\b(true|false|null)\b/g, '<span class="tok-keyword">$1</span>')
-                .replace(/\b(-?\d+(?:\.\d+)?)\b/g, '<span class="tok-number">$1</span>');
-        }
-
-        function highlightMarkup(text) {
-            return escapeHtml(text).replace(/(&lt;\/?)([\w:-]+)([^&]*?)(&gt;)/g, (_, open, tag, attrs, close) => {
-                const highlightedAttrs = attrs.replace(/([\w:-]+)(=)(&quot;.*?&quot;|'.*?')/g, '<span class="tok-attr">$1</span>$2<span class="tok-string">$3</span>');
-                return `${open}<span class="tok-tag">${tag}</span>${highlightedAttrs}${close}`;
+        function requestLines(start, count) {
+            if (count <= 0) return;
+            const key = `${start}:${count}`;
+            if (state.pending.has(key)) return;
+            state.pending.add(key);
+            post({
+                type: 'requestLines',
+                requestId: state.requestSeq++,
+                startLine: start,
+                count
             });
         }
 
-        function highlightMarkdown(text) {
-            return escapeHtml(text)
-                .replace(/^((?:#{1,6}|>|[-*]|\d+\.)\s.*)$/gm, '<span class="tok-md">$1</span>')
-                .replace(/(`[^`]+`)/g, '<span class="tok-string">$1</span>')
-                .replace(/(\*\*[^*]+\*\*|\*[^*]+\*|==[^=]+==|~~[^~]+~~)/g, '<span class="tok-md">$1</span>');
-        }
-
-        function highlightYamlLike(text) {
-            return escapeHtml(text)
-                .replace(/^(\s*#.*)$/gm, '<span class="tok-comment">$1</span>')
-                .replace(/^(\s*[\w.-]+)(\s*:)/gm, '<span class="tok-attr">$1</span>$2')
-                .replace(/(:\s*)(true|false|null|yes|no|\d+(?:\.\d+)?)/gi, '$1<span class="tok-number">$2</span>');
-        }
-
-        function highlightDiff(text) {
-            const lines = text.split(/\r?\n/);
-            const highlightedLines = lines.map(line => {
-                const escaped = escapeHtml(line);
-                if (escaped.startsWith('+++') || escaped.startsWith('---')) {
-                    return `<span class="tok-diff-file">${escaped}</span>`;
-                } else if (escaped.startsWith('+')) {
-                    return `<span class="tok-diff-added">${escaped}</span>`;
-                } else if (escaped.startsWith('-')) {
-                    return `<span class="tok-diff-removed">${escaped}</span>`;
-                } else if (escaped.startsWith('@@')) {
-                    return `<span class="tok-diff-range">${escaped}</span>`;
-                } else if (escaped.startsWith('diff --git') || 
-                           escaped.startsWith('index ') || 
-                           escaped.startsWith('similarity index') || 
-                           escaped.startsWith('rename from') || 
-                           escaped.startsWith('rename to') || 
-                           escaped.startsWith('new file mode') || 
-                           escaped.startsWith('deleted file mode') ||
-                           escaped.startsWith('copy from') ||
-                           escaped.startsWith('copy to')) {
-                    return `<span class="tok-diff-header">${escaped}</span>`;
-                }
-                return escaped;
-            });
-            return highlightedLines.join('\n');
-        }
-
-        function updateHighlight() {
-            const text = editor.value || ' ';
-            let html;
-            if (currentLanguage === 'html' || currentLanguage === 'xml') {
-                html = highlightMarkup(text);
-            } else if (currentLanguage === 'json') {
-                html = highlightJson(text);
-            } else if (currentLanguage === 'css' || currentLanguage === 'scss' || currentLanguage === 'less') {
-                html = highlightCss(text);
-            } else if (currentLanguage === 'markdown' || currentLanguage === 'latex') {
-                html = highlightMarkdown(text);
-            } else if (currentLanguage === 'yaml' || currentLanguage === 'toml' || currentLanguage === 'ini') {
-                html = highlightYamlLike(text);
-            } else if (currentLanguage === 'diff') {
-                html = highlightDiff(text);
-            } else if (currentLanguage === 'plaintext') {
-                html = highlightPlain(text);
-            } else {
-                html = highlightCodeLike(text);
-            }
-
-            highlightContent.innerHTML = html + (text.endsWith('\n') ? ' ' : '');
-            syncHighlightScroll();
-        }
-
-        function syncHighlightScroll() {
-            gutter.scrollTop = editor.scrollTop;
-            highlight.scrollTop = editor.scrollTop;
-            highlight.scrollLeft = editor.scrollLeft;
-            searchHighlights.scrollTop = editor.scrollTop;
-            searchHighlights.scrollLeft = editor.scrollLeft;
-        }
-
-        function syncOverlayMetrics() {
-            // Native overlay is sized by CSS 100% relative container positioning
-        }
-
-        let globalSearchQuery = "";
-        let globalActiveMatchOffset = -1;
-
-        function updateSearchHighlights() {
-            const text = editor.value || '';
-            const query = globalSearchQuery;
-            
-            if (!query) {
-                searchHighlightsContent.innerHTML = escapeHtml(text);
-                return;
-            }
-
-            const needle = query.toLowerCase();
-            const haystack = text.toLowerCase();
-            let html = "";
-            let lastIndex = 0;
-            let index = haystack.indexOf(needle);
-
-            while (index >= 0) {
-                html += escapeHtml(text.slice(lastIndex, index));
-                
-                const isActive = (index === globalActiveMatchOffset);
-                const className = isActive ? "search-match active-match" : "search-match";
-                
-                html += `<mark class="${className}">${escapeHtml(text.slice(index, index + query.length))}</mark>`;
-                
-                lastIndex = index + query.length;
-                index = haystack.indexOf(needle, lastIndex);
-            }
-            
-            html += escapeHtml(text.slice(lastIndex));
-            searchHighlightsContent.innerHTML = html + (text.endsWith('\n') ? ' ' : '');
-        }
-
-        function revealOffset(offset, length = 0, shouldFocus = true) {
-            const safeOffset = Math.max(0, Math.min(offset, editor.value.length));
-            const safeEnd = Math.max(safeOffset, Math.min(safeOffset + length, editor.value.length));
-            editor.selectionStart = safeOffset;
-            editor.selectionEnd = safeEnd;
-
-            const before = editor.value.slice(0, safeOffset);
-            const lines = before.split(/\r\n|\r|\n/);
-            const lineIndex = lines.length - 1;
-            const style = getComputedStyle(editor);
-            const fontSize = parseFloat(style.fontSize) || 14;
-            const lineHeight = parseFloat(style.lineHeight) || fontSize * 1.45;
-            editor.scrollTop = Math.max(0, lineIndex * lineHeight - editor.clientHeight / 3);
-            
-            const charIndex = lines[lineIndex].length;
-            const avgCharWidth = fontSize * 0.6;
-            editor.scrollLeft = Math.max(0, charIndex * avgCharWidth - editor.clientWidth / 3);
-
-            syncHighlightScroll();
-            if (shouldFocus) {
-                editor.focus();
-            }
-            reportCursorAndSelection();
-        }
-
-        function updateFindCount() {
-            findCount.textContent = findMatches.length > 0 && activeFindIndex >= 0
-                ? `${activeFindIndex + 1}/${findMatches.length}`
-                : `0/${findMatches.length}`;
-        }
-
-        function refreshFindMatches() {
-            const query = findInput.value;
-            findMatches = [];
-            activeFindIndex = -1;
-            globalSearchQuery = query;
-            globalActiveMatchOffset = -1;
-
-            if (!query) {
-                updateSearchHighlights();
-                updateFindCount();
-                return;
-            }
-
-            const source = editor.value;
-            const haystack = source.toLocaleLowerCase();
-            const needle = query.toLocaleLowerCase();
-            let index = haystack.indexOf(needle);
-
-            while (index >= 0) {
-                findMatches.push({ start: index, length: query.length });
-                index = haystack.indexOf(needle, index + Math.max(1, query.length));
-            }
-
-            updateSearchHighlights();
-            updateFindCount();
-        }
-
-        function selectFindMatch(index, shouldFocus = false) {
-            if (findMatches.length === 0) {
-                updateFindCount();
-                return;
-            }
-
-            activeFindIndex = (index + findMatches.length) % findMatches.length;
-            const match = findMatches[activeFindIndex];
-            globalActiveMatchOffset = match.start;
-            revealOffset(match.start, match.length, shouldFocus);
-            updateSearchHighlights();
-            updateFindCount();
-        }
-
-        function findNextMatch(direction = 1) {
-            const previousQuery = findInput.value;
-            refreshFindMatches();
-
-            if (!previousQuery || findMatches.length === 0) {
-                return;
-            }
-
-            const cursor = direction >= 0 ? editor.selectionEnd : editor.selectionStart;
-            let nextIndex;
-            if (direction >= 0) {
-                nextIndex = findMatches.findIndex(match => match.start >= cursor);
-                if (nextIndex < 0) nextIndex = 0;
-            } else {
-                nextIndex = findMatches.length - 1;
-                for (let i = findMatches.length - 1; i >= 0; i--) {
-                    if (findMatches[i].start < cursor) {
-                        nextIndex = i;
-                        break;
+        function requestMissingLines(start, end) {
+            let missingStart = 0;
+            let missingCount = 0;
+            for (let line = start; line <= end; line++) {
+                if (!state.cache.has(line)) {
+                    if (missingStart === 0) {
+                        missingStart = line;
+                        missingCount = 1;
+                    } else {
+                        missingCount++;
                     }
+                } else if (missingStart !== 0) {
+                    requestLines(missingStart, missingCount);
+                    missingStart = 0;
+                    missingCount = 0;
                 }
             }
+            if (missingStart !== 0) {
+                requestLines(missingStart, missingCount);
+            }
+        }
 
-            selectFindMatch(nextIndex, false);
+        function queueRender(force = false) {
+            if (force) {
+                state.lastRangeKey = '';
+            }
+            if (state.renderQueued) return;
+            state.renderQueued = true;
+            requestAnimationFrame(() => {
+                state.renderQueued = false;
+                render();
+            });
+        }
+
+        function render() {
+            const range = visibleRange();
+            const rangeKey = `${range.start}:${range.end}:${state.lineCount}:${scrollContainer.clientWidth}`;
+            requestMissingLines(range.start, range.end);
+            if (rangeKey === state.lastRangeKey) return;
+            state.lastRangeKey = rangeKey;
+
+            const offsetY = (range.start - 1) * state.lineHeight;
+            viewport.style.transform = `translateY(${offsetY}px)`;
+            const rows = [];
+            for (let line = range.start; line <= range.end; line++) {
+                const hasLine = state.cache.has(line);
+                const text = hasLine ? state.cache.get(line) : '로딩 중...';
+                const isLong = hasLine && text.length > MAX_RENDER_CHARS;
+                const displayText = isLong
+                    ? `${text.slice(0, MAX_RENDER_CHARS)} ... [긴 줄: ${text.length.toLocaleString()}자, 렌더링 보호]`
+                    : text;
+                const contentEditable = !state.readOnly && hasLine && !isLong ? 'true' : 'false';
+                const textClass = `line-text${hasLine ? '' : ' loading'}${isLong ? ' long-line' : ''}`;
+                rows.push(
+                    `<div class="line-row" data-line="${line}">` +
+                    `<div class="line-number">${line}</div>` +
+                    `<div class="${textClass}" contenteditable="${contentEditable}" spellcheck="false" data-line="${line}">${highlightLine(line, displayText)}</div>` +
+                    `</div>`
+                );
+            }
+
+            viewport.innerHTML = rows.join('');
+        }
+
+        function highlightLine(lineNumber, text) {
+            const active = state.activeSearch;
+            if (!active || !active.query || lineNumber !== active.lineNumber) {
+                return escapeHtml(text);
+            }
+
+            const start = Math.max(0, active.indexOfMatch || 0);
+            const length = Math.max(0, active.matchLength || active.query.length);
+            return escapeHtml(text.slice(0, start)) +
+                `<mark class="search-match active-match">${escapeHtml(text.slice(start, start + length))}</mark>` +
+                escapeHtml(text.slice(start + length));
+        }
+
+        function lineElementFromEvent(event) {
+            return event.target.closest('.line-text');
+        }
+
+        function lineTextFromElement(element) {
+            return (element.textContent || '').replace(/\u00a0/g, ' ');
+        }
+
+        function getCaretOffset(element) {
+            const selection = window.getSelection();
+            if (!selection || selection.rangeCount === 0) return 0;
+            const range = selection.getRangeAt(0);
+            if (!element.contains(range.startContainer)) return 0;
+            const before = range.cloneRange();
+            before.selectNodeContents(element);
+            before.setEnd(range.startContainer, range.startOffset);
+            return before.toString().length;
+        }
+
+        function setCaret(element, offset) {
+            element.focus();
+            const selection = window.getSelection();
+            const range = document.createRange();
+            let remaining = Math.max(0, offset);
+
+            function walk(node) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    if (remaining <= node.textContent.length) {
+                        range.setStart(node, remaining);
+                        range.collapse(true);
+                        return true;
+                    }
+                    remaining -= node.textContent.length;
+                    return false;
+                }
+
+                for (const child of node.childNodes) {
+                    if (walk(child)) return true;
+                }
+                return false;
+            }
+
+            if (!walk(element)) {
+                range.selectNodeContents(element);
+                range.collapse(false);
+            }
+
+            selection.removeAllRanges();
+            selection.addRange(range);
+            reportCursorAndSelection(element);
+        }
+
+        function commitLine(element) {
+            const lineNumber = Number(element.dataset.line || 1);
+            const text = lineTextFromElement(element);
+            state.cache.set(lineNumber, text);
+            state.currentLine = lineNumber;
+            state.currentColumn = getCaretOffset(element) + 1;
+            post({ type: 'lineChanged', lineNumber, text });
+            post({ type: 'contentChanged' });
+            reportCursorAndSelection(element);
+        }
+
+        function shiftCachedLines(fromLine, delta) {
+            const entries = [...state.cache.entries()]
+                .filter(([line]) => line >= fromLine)
+                .sort((a, b) => delta > 0 ? b[0] - a[0] : a[0] - b[0]);
+            for (const [line] of entries) {
+                state.cache.delete(line);
+            }
+            for (const [line, text] of entries) {
+                const nextLine = line + delta;
+                if (nextLine >= 1 && nextLine <= state.lineCount + Math.max(delta, 0)) {
+                    state.cache.set(nextLine, text);
+                }
+            }
+        }
+
+        function splitCurrentLine(element) {
+            const lineNumber = Number(element.dataset.line || 1);
+            const text = lineTextFromElement(element);
+            const caret = getCaretOffset(element);
+            const before = text.slice(0, caret);
+            const after = text.slice(caret);
+            state.cache.set(lineNumber, before);
+            shiftCachedLines(lineNumber + 1, 1);
+            state.cache.set(lineNumber + 1, after);
+            state.lineCount++;
+            setupVirtualHeight();
+            post({ type: 'splitLine', lineNumber, before, after });
+            post({ type: 'contentChanged' });
+            queueRender(true);
+            setTimeout(() => focusLine(lineNumber + 1, 0), 0);
+        }
+
+        function mergeWithPrevious(element) {
+            const lineNumber = Number(element.dataset.line || 1);
+            if (lineNumber <= 1) return;
+            const current = lineTextFromElement(element);
+            const previous = state.cache.get(lineNumber - 1);
+            if (previous === undefined) {
+                requestLines(lineNumber - 1, 2);
+                return;
+            }
+
+            state.cache.set(lineNumber - 1, previous + current);
+            shiftCachedLines(lineNumber, -1);
+            state.lineCount = Math.max(1, state.lineCount - 1);
+            setupVirtualHeight();
+            post({ type: 'mergeLineWithPrevious', lineNumber });
+            post({ type: 'contentChanged' });
+            queueRender(true);
+            setTimeout(() => focusLine(lineNumber - 1, previous.length), 0);
+        }
+
+        function focusLine(lineNumber, columnZeroBased = 0) {
+            const targetTop = (lineNumber - 1) * state.lineHeight;
+            if (targetTop < scrollContainer.scrollTop ||
+                targetTop > scrollContainer.scrollTop + scrollContainer.clientHeight - state.lineHeight) {
+                scrollContainer.scrollTop = Math.max(0, targetTop - state.lineHeight * state.overscan);
+            }
+
+            queueRender(true);
+            setTimeout(() => {
+                const element = viewport.querySelector(`.line-text[data-line="${lineNumber}"]`);
+                if (element && element.getAttribute('contenteditable') === 'true') {
+                    setCaret(element, columnZeroBased);
+                }
+            }, 20);
+        }
+
+        function reportCursorAndSelection(element = document.activeElement) {
+            const editable = element && element.closest ? element.closest('.line-text') : null;
+            if (editable) {
+                state.currentLine = Number(editable.dataset.line || state.currentLine);
+                state.currentColumn = getCaretOffset(editable) + 1;
+            }
+
+            post({ type: 'cursorChanged', line: state.currentLine, column: state.currentColumn });
+            const selected = window.getSelection()?.toString() || '';
+            post({ type: 'selectionResult', text: selected });
+        }
+
+        function selectedText() {
+            return window.getSelection()?.toString() || '';
+        }
+
+        function insertTextAtCaret(text) {
+            const element = document.activeElement?.closest?.('.line-text');
+            if (!element || element.getAttribute('contenteditable') !== 'true') return;
+            const normalized = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            if (normalized.includes('\n')) {
+                const lineNumber = Number(element.dataset.line || 1);
+                const current = lineTextFromElement(element);
+                const caret = getCaretOffset(element);
+                const before = current.slice(0, caret);
+                const after = current.slice(caret);
+                const parts = normalized.split('\n');
+                const insertedCount = parts.length - 1;
+                const firstLine = before + parts[0];
+                const lastLineNumber = lineNumber + insertedCount;
+
+                state.cache.set(lineNumber, firstLine);
+                shiftCachedLines(lineNumber + 1, insertedCount);
+                post({ type: 'lineChanged', lineNumber, text: firstLine });
+
+                for (let i = 1; i < parts.length; i++) {
+                    const nextText = i === parts.length - 1 ? parts[i] + after : parts[i];
+                    const nextLineNumber = lineNumber + i;
+                    state.cache.set(nextLineNumber, nextText);
+                    post({ type: 'insertLine', lineNumber: nextLineNumber, text: nextText });
+                }
+
+                state.lineCount += insertedCount;
+                setupVirtualHeight();
+                post({ type: 'contentChanged' });
+                queueRender(true);
+                setTimeout(() => focusLine(lastLineNumber, parts[parts.length - 1]?.length || 0), 0);
+                return;
+            }
+
+            document.execCommand('insertText', false, normalized);
+            commitLine(element);
+        }
+
+        function wrapSelection(opening, closing = opening) {
+            const selection = window.getSelection();
+            const element = document.activeElement?.closest?.('.line-text');
+            if (!element || element.getAttribute('contenteditable') !== 'true') return;
+            if (!selection || selection.rangeCount === 0 || !element.contains(selection.anchorNode)) {
+                insertTextAtCaret(opening + closing);
+                return;
+            }
+
+            const selected = selection.toString();
+            document.execCommand('insertText', false, opening + selected + closing);
+            commitLine(element);
+        }
+
+        function toggleLinePrefix(prefix) {
+            const element = document.activeElement?.closest?.('.line-text');
+            if (!element || element.getAttribute('contenteditable') !== 'true') return;
+            const lineNumber = Number(element.dataset.line || 1);
+            const text = lineTextFromElement(element);
+            const next = text.startsWith(prefix) ? text.slice(prefix.length) : prefix + text;
+            state.cache.set(lineNumber, next);
+            element.textContent = next;
+            post({ type: 'lineChanged', lineNumber, text: next });
+            post({ type: 'contentChanged' });
+            setCaret(element, Math.min(next.length, state.currentColumn + prefix.length - 1));
+        }
+
+        function applyMarkdownCommand(command, color) {
+            switch (command) {
+                case 'bold': wrapSelection('**'); break;
+                case 'italic': wrapSelection('*'); break;
+                case 'underline': wrapSelection('<u>', '</u>'); break;
+                case 'highlight': wrapSelection('=='); break;
+                case 'inlineCode': wrapSelection('`'); break;
+                case 'math': wrapSelection('$$', '$$'); break;
+                case 'quote': toggleLinePrefix('> '); break;
+                case 'ul': toggleLinePrefix('- '); break;
+                case 'task': toggleLinePrefix('- [ ] '); break;
+                case 'link': wrapSelection('[', '](https://)'); break;
+                case 'textColor': wrapSelection(`<span style="color:${color || '#E53935'}">`, '</span>'); break;
+                case 'heading': toggleLinePrefix('# '); break;
+                case 'arrow': insertTextAtCaret(' -> '); break;
+                case 'fontIncrease': wrapSelection('<big>', '</big>'); break;
+                case 'fontDecrease': wrapSelection('<small>', '</small>'); break;
+                case 'cutLine':
+                    {
+                        const element = document.activeElement?.closest?.('.line-text');
+                        if (element) {
+                            const lineNumber = Number(element.dataset.line || 1);
+                            state.cache.set(lineNumber, '');
+                            element.textContent = '';
+                            post({ type: 'lineChanged', lineNumber, text: '' });
+                            post({ type: 'contentChanged' });
+                        }
+                    }
+                    break;
+                case 'table':
+                    insertTextAtCaret('| Header | Value |\n| --- | --- |\n|  |  |');
+                    break;
+            }
         }
 
         function openFindPanel() {
@@ -746,564 +691,72 @@
             if (selected && !/[\r\n]/.test(selected)) {
                 findInput.value = selected;
             }
-            refreshFindMatches();
             findInput.focus();
             findInput.select();
-            if (findMatches.length > 0) {
-                selectFindMatch(0, false);
-            }
         }
 
         function closeFindPanel() {
             findPanel.hidden = true;
-            globalSearchQuery = "";
-            globalActiveMatchOffset = -1;
-            updateSearchHighlights();
-            editor.focus();
+            state.activeSearch = null;
+            queueRender(true);
+            scrollContainer.focus();
         }
 
-        function reportCursorAndSelection() {
-            const pos = editor.selectionStart || 0;
-            const before = editor.value.slice(0, pos);
-            const lines = before.split(/\r\n|\r|\n/);
-            post({ type: 'cursorChanged', line: lines.length, column: lines[lines.length - 1].length + 1 });
-            post({ type: 'selectionResult', text: editor.value.substring(editor.selectionStart, editor.selectionEnd) });
-        }
-
-        function notifyContentChanged() {
-            if (isProgrammaticChange) return;
-            updateGutter();
-            updateHighlight();
-            post({ type: 'contentChanged', content: editor.value });
-        }
-
-        function selectedText() {
-            return editor.value.substring(editor.selectionStart, editor.selectionEnd);
-        }
-
-        function selectionRange() {
-            return {
-                start: Math.min(editor.selectionStart, editor.selectionEnd),
-                end: Math.max(editor.selectionStart, editor.selectionEnd)
-            };
-        }
-
-        function setTextAndSelection(text, selectionStart, selectionEnd = selectionStart) {
-            editor.value = text;
-            editor.selectionStart = Math.max(0, Math.min(selectionStart, text.length));
-            editor.selectionEnd = Math.max(0, Math.min(selectionEnd, text.length));
-            editor.focus();
-            notifyContentChanged();
-            reportCursorAndSelection();
-        }
-
-        function replaceTextRange(start, end, replacement, selectionStart, selectionEnd = selectionStart) {
-            const text = editor.value;
-            const nextText = text.slice(0, start) + replacement + text.slice(end);
-            setTextAndSelection(nextText, selectionStart, selectionEnd);
-        }
-
-        function replaceSelection(text, selectStartOffset = null, selectEndOffset = null) {
-            const start = editor.selectionStart;
-            const end = editor.selectionEnd;
-            editor.setRangeText(text, start, end, 'end');
-
-            if (selectStartOffset !== null && selectEndOffset !== null) {
-                editor.selectionStart = start + selectStartOffset;
-                editor.selectionEnd = start + selectEndOffset;
-            }
-
-            editor.focus();
-            notifyContentChanged();
-            reportCursorAndSelection();
-        }
-
-        function hasAt(text, index, marker) {
-            return index >= 0 && index + marker.length <= text.length && text.slice(index, index + marker.length) === marker;
-        }
-
-        function isStandaloneDelimiter(text, index, delimiter) {
-            if (!hasAt(text, index, delimiter)) return false;
-            if (delimiter.length === 1) {
-                const marker = delimiter[0];
-                if (index > 0 && text[index - 1] === marker) return false;
-                if (index + 1 < text.length && text[index + 1] === marker) return false;
-            }
-            return true;
-        }
-
-        function areStandaloneWrapperDelimiters(text, openingIndex, closingIndex, opening, closing) {
-            if (opening !== closing) return true;
-            return isStandaloneDelimiter(text, openingIndex, opening) && isStandaloneDelimiter(text, closingIndex, closing);
-        }
-
-        function wrapSelection(opening, closing = opening) {
-            const text = editor.value;
-            const { start, end } = selectionRange();
-            const content = text.slice(start, end);
-            const replacement = opening + content + closing;
-            const selectionStart = start + opening.length;
-            const selectionEnd = end + opening.length;
-            replaceTextRange(start, end, replacement, selectionStart, selectionEnd);
-        }
-
-        function toggleWrappedSelection(opening, closing = opening) {
-            const text = editor.value;
-            const { start, end } = selectionRange();
-            const openingLength = opening.length;
-            const closingLength = closing.length;
-            const selected = text.slice(start, end);
-
-            if (
-                end - start >= openingLength + closingLength &&
-                hasAt(text, start, opening) &&
-                hasAt(text, end - closingLength, closing) &&
-                areStandaloneWrapperDelimiters(text, start, end - closingLength, opening, closing)
-            ) {
-                const inner = selected.slice(openingLength, selected.length - closingLength);
-                replaceTextRange(start, end, inner, start, start + inner.length);
-                return;
-            }
-
-            const surroundingStart = start - openingLength;
-            const hasSurrounding =
-                hasAt(text, surroundingStart, opening) &&
-                hasAt(text, end, closing) &&
-                (start === end || areStandaloneWrapperDelimiters(text, surroundingStart, end, opening, closing));
-
-            if (hasSurrounding) {
-                const nextText = text.slice(0, surroundingStart) + selected + text.slice(end + closingLength);
-                setTextAndSelection(nextText, start - openingLength, end - openingLength);
-                return;
-            }
-
-            wrapSelection(opening, closing);
-        }
-
-        function selectedLineRange() {
-            const text = editor.value;
-            const { start, end } = selectionRange();
-            const lineStart = start === 0 ? 0 : text.lastIndexOf('\n', start - 1) + 1;
-            const anchor = end > start && text[end - 1] === '\n' ? end - 1 : end;
-            const nextBreak = text.indexOf('\n', Math.max(0, anchor));
-            const lineEnd = nextBreak < 0 ? text.length : nextBreak;
-            return { lineStart, lineEnd, start, end };
-        }
-
-        function findHeadingPrefix(line) {
-            if (!line.startsWith('#')) return null;
-            const markerEnd = line.search(/[^#]/);
-            const level = markerEnd < 0 ? line.length : markerEnd;
-            if (level < 1 || level > 6) return null;
-            if (markerEnd < 0) return { level, length: level };
-            return line[markerEnd] === ' ' ? { level, length: level + 1 } : null;
-        }
-
-        function cycleHeadingLine(line) {
-            const prefix = findHeadingPrefix(line);
-            if (!prefix) return `# ${line}`;
-            if (prefix.level < 6) return `#${line}`;
-            return line.slice(prefix.length);
-        }
-
-        function cycleHeadingPrefix() {
-            const text = editor.value;
-            const { lineStart, lineEnd, start, end } = selectedLineRange();
-            const block = text.slice(lineStart, lineEnd);
-            const nextBlock = block.split('\n').map(cycleHeadingLine).join('\n');
-            const nextText = text.slice(0, lineStart) + nextBlock + text.slice(lineEnd);
-
-            if (start !== end) {
-                setTextAndSelection(nextText, lineStart, lineStart + nextBlock.length);
-                return;
-            }
-
-            const prefix = findHeadingPrefix(block);
-            const cursorDelta = !prefix ? 2 : prefix.level < 6 ? 1 : -Math.min(prefix.length, start - lineStart);
-            setTextAndSelection(nextText, start + cursorDelta);
-        }
-
-        function toggleLinePrefix(prefix) {
-            const text = editor.value;
-            const { lineStart, lineEnd, start, end } = selectedLineRange();
-            const block = text.slice(lineStart, lineEnd);
-            const lines = block.split('\n');
-            const shouldRemove = lines.length > 0 && lines.every(line => line.startsWith(prefix));
-            const nextBlock = lines.map(line => shouldRemove ? line.slice(prefix.length) : prefix + line).join('\n');
-            const nextText = text.slice(0, lineStart) + nextBlock + text.slice(lineEnd);
-
-            if (start !== end) {
-                setTextAndSelection(nextText, lineStart, lineStart + nextBlock.length);
-                return;
-            }
-
-            const delta = shouldRemove ? -Math.min(prefix.length, start - lineStart) : prefix.length;
-            setTextAndSelection(nextText, start + delta);
-        }
-
-        function toggleOrderedList() {
-            const text = editor.value;
-            const { lineStart, lineEnd, start, end } = selectedLineRange();
-            const block = text.slice(lineStart, lineEnd);
-            const lines = block.split('\n');
-            const markerPattern = /^\d+\.\s/;
-            const shouldRemove = lines.length > 0 && lines.every(line => markerPattern.test(line));
-            const nextBlock = lines.map((line, index) => shouldRemove ? line.replace(markerPattern, '') : `${index + 1}. ${line}`).join('\n');
-            const nextText = text.slice(0, lineStart) + nextBlock + text.slice(lineEnd);
-
-            if (start !== end) {
-                setTextAndSelection(nextText, lineStart, lineStart + nextBlock.length);
-                return;
-            }
-
-            const existingMarker = lines[0].match(markerPattern)?.[0] || '';
-            const delta = shouldRemove ? -Math.min(existingMarker.length, start - lineStart) : '1. '.length;
-            setTextAndSelection(nextText, start + delta);
-        }
-
-        const inlineCodeDelimiter = '`';
-        const codeBlockOpening = '```\n';
-        const codeBlockClosing = '\n```';
-
-        function findWrappedAroundSelection(opening, closing = opening) {
-            const text = editor.value;
-            const { start, end } = selectionRange();
-
-            if (end - start >= opening.length + closing.length && hasAt(text, start, opening) && hasAt(text, end - closing.length, closing)) {
-                return { openingStart: start, contentStart: start + opening.length, contentEnd: end - closing.length, closingEnd: end };
-            }
-
-            const surroundingStart = start - opening.length;
-            if (hasAt(text, surroundingStart, opening) && hasAt(text, end, closing)) {
-                return { openingStart: surroundingStart, contentStart: start, contentEnd: end, closingEnd: end + closing.length };
-            }
-
-            return null;
-        }
-
-        function removeWrappedRange(range) {
-            const text = editor.value;
-            const content = text.slice(range.contentStart, range.contentEnd);
-            const selectionStartOffset = Math.max(0, Math.min(editor.selectionStart - range.contentStart, content.length));
-            const selectionEndOffset = Math.max(0, Math.min(editor.selectionEnd - range.contentStart, content.length));
-            replaceTextRange(range.openingStart, range.closingEnd, content, range.openingStart + selectionStartOffset, range.openingStart + selectionEndOffset);
-        }
-
-        function replaceWrappedRange(range, opening, closing) {
-            const text = editor.value;
-            const content = text.slice(range.contentStart, range.contentEnd);
-            const replacement = opening + content + closing;
-            const selectionStartOffset = Math.max(0, Math.min(editor.selectionStart - range.contentStart, content.length));
-            const selectionEndOffset = Math.max(0, Math.min(editor.selectionEnd - range.contentStart, content.length));
-            replaceTextRange(range.openingStart, range.closingEnd, replacement, range.openingStart + opening.length + selectionStartOffset, range.openingStart + opening.length + selectionEndOffset);
-        }
-
-        function findContainingWrappedRange(opening, closing = opening) {
-            const text = editor.value;
-            const { start, end } = selectionRange();
-            const openingStart = text.lastIndexOf(opening, start);
-            if (openingStart < 0) return null;
-            const contentStart = openingStart + opening.length;
-            const closingStart = text.indexOf(closing, Math.max(contentStart, end));
-            if (closingStart < 0) return null;
-            const closingEnd = closingStart + closing.length;
-            if (start >= contentStart && end <= closingStart) {
-                return { openingStart, contentStart, contentEnd: closingStart, closingEnd };
-            }
-            return null;
-        }
-
-        function cycleCodeFormatting() {
-            const codeBlock = findWrappedAroundSelection(codeBlockOpening, codeBlockClosing) || findContainingWrappedRange(codeBlockOpening, codeBlockClosing);
-            if (codeBlock) {
-                removeWrappedRange(codeBlock);
-                return;
-            }
-
-            const inline = findWrappedAroundSelection(inlineCodeDelimiter) || findContainingWrappedRange(inlineCodeDelimiter);
-            if (inline) {
-                replaceWrappedRange(inline, codeBlockOpening, codeBlockClosing);
-                return;
-            }
-
-            toggleWrappedSelection(inlineCodeDelimiter);
-        }
-
-        function buildMarkdownTable(size) {
-            const header = '|' + Array(size).fill('  |').join('');
-            const separator = '| ' + Array(size).fill('---').join(' | ') + ' |';
-            const rows = Array(size - 1).fill(header);
-            return [header, separator, ...rows].join('\n');
-        }
-
-        function firstMarkdownTableCellCursor(tableStart) {
-            return tableStart + 2;
-        }
-
-        function findGeneratedMarkdownTable() {
-            const text = editor.value;
-            const { start, end } = selectionRange();
-            for (const size of [3, 2]) {
-                const table = buildMarkdownTable(size);
-                let tableStart = text.indexOf(table);
-                while (tableStart >= 0) {
-                    const tableEnd = tableStart + table.length;
-                    if (start >= tableStart && start <= tableEnd && end >= tableStart && end <= tableEnd) {
-                        return { start: tableStart, end: tableEnd, size };
-                    }
-                    tableStart = text.indexOf(table, tableStart + table.length);
-                }
-            }
-            return null;
-        }
-
-        function removeMarkdownTable(range) {
-            const text = editor.value;
-            let removeStart = range.start;
-            let removeEnd = range.end;
-            if (removeStart > 0 && text[removeStart - 1] === '\n' && removeEnd < text.length && text[removeEnd] === '\n') {
-                removeEnd += 1;
-            } else if (removeStart > 0 && text[removeStart - 1] === '\n' && removeEnd === text.length) {
-                removeStart -= 1;
-            } else if (removeStart === 0 && removeEnd < text.length && text[removeEnd] === '\n') {
-                removeEnd += 1;
-            }
-            replaceTextRange(removeStart, removeEnd, '', removeStart);
-        }
-
-        function cycleMarkdownTable() {
-            const existing = findGeneratedMarkdownTable();
-            if (existing) {
-                if (existing.size === 2) {
-                    const table = buildMarkdownTable(3);
-                    replaceTextRange(existing.start, existing.end, table, firstMarkdownTableCellCursor(existing.start));
-                } else {
-                    removeMarkdownTable(existing);
-                }
-                return;
-            }
-
-            const text = editor.value;
-            const { start, end } = selectionRange();
-            const needsLeadingBreak = start > 0 && text[start - 1] !== '\n';
-            const needsTrailingBreak = end < text.length && text[end] !== '\n';
-            const table = buildMarkdownTable(2);
-            const replacement = `${needsLeadingBreak ? '\n' : ''}${table}${needsTrailingBreak ? '\n' : ''}`;
-            const tableStart = start + (needsLeadingBreak ? 1 : 0);
-            replaceTextRange(start, end, replacement, firstMarkdownTableCellCursor(tableStart));
-        }
-
-        function findMarkdownLinkRange() {
-            const text = editor.value;
-            const { start, end } = selectionRange();
-            const lineStart = start === 0 ? 0 : text.lastIndexOf('\n', start - 1) + 1;
-            const lineEnd = text.indexOf('\n', end) < 0 ? text.length : text.indexOf('\n', end);
-            let open = text.lastIndexOf('[', Math.min(start, text.length - 1));
-
-            while (open >= lineStart) {
-                const textEnd = text.indexOf('](', open + 1);
-                const urlEnd = textEnd >= 0 ? text.indexOf(')', textEnd + 2) : -1;
-                if (textEnd >= 0 && urlEnd >= 0 && urlEnd <= lineEnd && start >= open && end <= urlEnd + 1) {
-                    return { fullStart: open, textStart: open + 1, textEnd, urlStart: textEnd + 2, urlEnd, fullEnd: urlEnd + 1 };
-                }
-                open = text.lastIndexOf('[', open - 1);
-            }
-            return null;
-        }
-
-        function toggleMarkdownLink() {
-            const link = findMarkdownLinkRange();
-            const text = editor.value;
-            if (link) {
-                const linkText = text.slice(link.textStart, link.textEnd);
-                replaceTextRange(link.fullStart, link.fullEnd, linkText, link.fullStart, link.fullStart + linkText.length);
-                return;
-            }
-
-            const { start, end } = selectionRange();
-            const selected = text.slice(start, end);
-            const linkText = selected || '링크';
-            const replacement = `[${linkText}](url)`;
-            const urlStart = start + linkText.length + 3;
-            replaceTextRange(start, end, replacement, selected ? urlStart : start + 1, selected ? urlStart + 3 : start + 1 + linkText.length);
-        }
-
-        function cycleOrInsertArrow() {
-            const arrows = ['→', '←', '↑', '↓'];
-            const text = editor.value;
-            const { start, end } = selectionRange();
-            const nextArrow = arrow => arrows[(arrows.indexOf(arrow) + 1) % arrows.length] || '→';
-
-            if (start < end) {
-                const selected = text.slice(start, end);
-                if (arrows.includes(selected)) {
-                    const next = nextArrow(selected);
-                    replaceTextRange(start, end, next, start, start + next.length);
-                    return;
-                }
-            }
-
-            if (start > 0 && arrows.includes(text.slice(start - 1, start))) {
-                const next = nextArrow(text.slice(start - 1, start));
-                replaceTextRange(start - 1, start, next, start);
-                return;
-            }
-
-            replaceTextRange(start, end, '→', start + 1);
-        }
-
-        function applyMarkdownTextColor(colorHex) {
-            const colorOpeningPattern = /<span\s+style\s*=\s*["']\s*color\s*:\s*#[0-9a-fA-F]{6}\s*;?\s*["']\s*>/gi;
-            const text = editor.value;
-            const { start, end } = selectionRange();
-            let match;
-            let range = null;
-            while ((match = colorOpeningPattern.exec(text)) !== null) {
-                const contentStart = match.index + match[0].length;
-                const closingStart = text.indexOf('</span>', contentStart);
-                if (closingStart < 0) continue;
-                const closingEnd = closingStart + '</span>'.length;
-                if (start >= contentStart && end <= closingStart) {
-                    range = { openingStart: match.index, contentStart, contentEnd: closingStart, closingEnd };
-                }
-            }
-
-            if (range) {
-                removeWrappedRange(range);
-                return;
-            }
-
-            toggleWrappedSelection(`<span style="color: ${colorHex}">`, '</span>');
-        }
-
-        function cutCurrentLine() {
-            const text = editor.value;
-            if (!text) return;
-            const cursor = editor.selectionStart;
-            const lineStart = cursor === 0 ? 0 : text.lastIndexOf('\n', cursor - 1) + 1;
-            const nextBreak = text.indexOf('\n', cursor);
-            const lineEnd = nextBreak < 0 ? text.length : nextBreak;
-            const clipboardText = text.slice(lineStart, lineEnd);
-            let removeStart = lineStart;
-            let removeEnd = lineEnd;
-            let nextCursor = lineStart;
-
-            if (lineEnd < text.length) {
-                removeEnd = lineEnd + 1;
-            } else if (lineStart > 0) {
-                removeStart = lineStart - 1;
-                nextCursor = removeStart;
-            }
-
-            if (navigator.clipboard && clipboardText) {
-                navigator.clipboard.writeText(clipboardText).catch(() => {});
-            }
-            replaceTextRange(removeStart, removeEnd, '', nextCursor);
-        }
-
-        function applyMarkdownCommand(command, color) {
-            const { start, end } = selectionRange();
-            switch (command) {
-                case 'bold':
-                    toggleWrappedSelection('**');
-                    break;
-                case 'italic':
-                    toggleWrappedSelection('*');
-                    break;
-                case 'underline':
-                    toggleWrappedSelection('<u>', '</u>');
-                    break;
-                case 'highlight':
-                    toggleWrappedSelection('==');
-                    break;
-                case 'inlineCode':
-                    cycleCodeFormatting();
-                    break;
-                case 'codeBlock':
-                    toggleWrappedSelection(codeBlockOpening, codeBlockClosing);
-                    break;
-                case 'heading':
-                    cycleHeadingPrefix();
-                    break;
-                case 'link':
-                    toggleMarkdownLink();
-                    break;
-                case 'quote':
-                    toggleLinePrefix('> ');
-                    break;
-                case 'ul':
-                    toggleLinePrefix('- ');
-                    break;
-                case 'ol':
-                    toggleOrderedList();
-                    break;
-                case 'task':
-                    toggleLinePrefix('- [ ] ');
-                    break;
-                case 'table':
-                    cycleMarkdownTable();
-                    break;
-                case 'math':
-                    toggleWrappedSelection('$$\n', '\n$$');
-                    break;
-                case 'arrow':
-                    cycleOrInsertArrow();
-                    break;
-                case 'fontIncrease':
-                    toggleWrappedSelection('<big>', '</big>');
-                    break;
-                case 'fontDecrease':
-                    toggleWrappedSelection('<small>', '</small>');
-                    break;
-                case 'textColor':
-                    applyMarkdownTextColor(color || '#E53935');
-                    break;
-                case 'cutLine':
-                    cutCurrentLine();
-                    break;
-            }
+        function requestFind(reverse = false) {
+            const query = findInput.value;
+            if (!query) return;
+            post({
+                type: 'find',
+                query,
+                startLine: state.currentLine,
+                startColumn: state.currentColumn + (reverse ? -1 : 1),
+                reverse,
+                matchCase: false
+            });
         }
 
         function handleCsharpMessage(msg) {
             switch (msg.action) {
+                case 'initModel':
+                    state.language = msg.language || 'plaintext';
+                    applyOptions(msg);
+                    setupModel(msg.lineCount || 1);
+                    break;
                 case 'setText':
-                    isProgrammaticChange = true;
-                    editor.value = msg.text || "";
-                    isProgrammaticChange = false;
-                    updateGutter();
-                    updateHighlight();
-                    updateSearchHighlights();
-                    reportCursorAndSelection();
+                    {
+                        const text = msg.text || '';
+                        const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+                        setupModel(Math.max(1, lines.length));
+                        lines.forEach((line, index) => state.cache.set(index + 1, line));
+                        queueRender(true);
+                    }
+                    break;
+                case 'receiveLines':
+                    {
+                        const start = Number(msg.startLine || 1);
+                        const lines = msg.lines || [];
+                        for (let i = 0; i < lines.length; i++) {
+                            state.cache.set(start + i, lines[i] ?? '');
+                        }
+                        for (const key of [...state.pending]) {
+                            const [pendingStart, pendingCount] = key.split(':').map(Number);
+                            if (start <= pendingStart && start + lines.length >= pendingStart + pendingCount) {
+                                state.pending.delete(key);
+                            }
+                        }
+                        queueRender(true);
+                    }
+                    break;
+                case 'lineCountChanged':
+                    state.lineCount = Math.max(1, Number(msg.lineCount || 1));
+                    setupVirtualHeight();
+                    queueRender(true);
                     break;
                 case 'setLanguage':
-                    currentLanguage = msg.language || 'plaintext';
-                    updateHighlight();
-                    updateSearchHighlights();
+                    state.language = msg.language || 'plaintext';
                     break;
                 case 'updateOptions':
-                    const theme = msg.theme || 'Dark';
-                    const bg = msg.customBackgroundColor || (theme === 'Light' ? '#ffffff' : '#1e1e1e');
-                    const preferredFg = msg.customForegroundColor || (theme === 'Light' ? '#111111' : '#d4d4d4');
-                    const fg = resolveReadableColor(bg, preferredFg, theme === 'Light' ? '#111111' : '#d4d4d4');
-                    document.documentElement.style.setProperty('--bg', bg);
-                    document.documentElement.style.setProperty('--fg', fg);
-                    document.documentElement.style.setProperty('--gutter-bg', theme === 'Light' ? '#f3f3f3' : '#252526');
-                    document.documentElement.style.setProperty('--gutter-fg', theme === 'Light' ? '#6b6b6b' : '#858585');
-                    document.documentElement.style.setProperty('--selection', theme === 'Light' ? 'rgba(0, 95, 184, 0.28)' : 'rgba(0, 120, 212, 0.38)');
-                    document.documentElement.style.setProperty('--font-size', `${msg.fontSize || 14}px`);
-                    document.documentElement.style.setProperty('--font-family', msg.fontFamily || 'Consolas, "Courier New", monospace');
-                    document.documentElement.style.setProperty('--wrap', msg.wordWrap ? 'pre-wrap' : 'pre');
-                    applySyntaxPalette(theme, bg, fg);
-                    editor.style.overflowWrap = msg.wordWrap ? 'break-word' : 'normal';
-                    highlight.style.overflowWrap = msg.wordWrap ? 'break-word' : 'normal';
-                    searchHighlights.style.overflowWrap = msg.wordWrap ? 'break-word' : 'normal';
-                    editor.readOnly = !!msg.readOnly;
-                    tabSize = msg.tabSize || 4;
-                    editor.style.tabSize = tabSize;
-                    highlight.style.tabSize = tabSize;
-                    searchHighlights.style.tabSize = tabSize;
-                    updateHighlight();
-                    updateSearchHighlights();
+                    applyOptions(msg);
                     break;
                 case 'triggerFind':
                     openFindPanel();
@@ -1312,120 +765,125 @@
                     post({ type: 'selectionResult', text: selectedText() });
                     break;
                 case 'insertText':
-                    replaceSelection(msg.text || "");
+                    insertTextAtCaret(msg.text || '');
                     break;
                 case 'markdownCommand':
                     applyMarkdownCommand(msg.command, msg.color);
                     break;
                 case 'revealLine':
-                    const lines = editor.value.split(/\r\n|\r|\n/);
-                    let offset = 0;
-                    for (let i = 0; i < Math.min((msg.lineNumber || 1) - 1, lines.length); i++) {
-                        offset += lines[i].length + 1;
+                    revealLine(msg.lineNumber || 1, msg.indexOfMatch || 0, msg.matchLength || 0, msg.query || '');
+                    break;
+                case 'findResult':
+                    if (msg.found) {
+                        revealLine(msg.lineNumber, msg.indexOfMatch || 0, msg.matchLength || 0, msg.query || findInput.value);
                     }
-                    offset += msg.indexOfMatch || 0;
-                    
-                    if (msg.query) {
-                        globalSearchQuery = msg.query;
-                        globalActiveMatchOffset = offset;
-                        updateSearchHighlights();
-                    }
-                    
-                    revealOffset(offset, msg.matchLength || 0);
                     break;
                 case 'focus':
-                    editor.focus();
+                    focusLine(state.currentLine, Math.max(0, state.currentColumn - 1));
                     break;
             }
         }
 
-        editor.addEventListener('input', notifyContentChanged);
-        editor.addEventListener('scroll', syncHighlightScroll);
-        editor.addEventListener('keyup', reportCursorAndSelection);
-        editor.addEventListener('click', reportCursorAndSelection);
-        editor.addEventListener('select', reportCursorAndSelection);
-        window.addEventListener('resize', () => {
-            syncOverlayMetrics();
-            updateHighlight();
-            updateSearchHighlights();
-        });
-        if (window.ResizeObserver) {
-            new ResizeObserver(() => {
-                syncOverlayMetrics();
-                updateHighlight();
-                updateSearchHighlights();
-            }).observe(editor);
+        function revealLine(lineNumber, indexOfMatch = 0, matchLength = 0, query = '') {
+            const safeLine = Math.min(Math.max(1, Number(lineNumber || 1)), state.lineCount);
+            state.currentLine = safeLine;
+            state.currentColumn = Math.max(1, Number(indexOfMatch || 0) + 1);
+            state.activeSearch = query
+                ? { lineNumber: safeLine, indexOfMatch, matchLength, query }
+                : null;
+            scrollContainer.scrollTop = Math.max(0, (safeLine - 1 - state.overscan) * state.lineHeight);
+            requestLines(Math.max(1, safeLine - state.overscan), state.overscan * 2 + 1);
+            queueRender(true);
+            setTimeout(() => focusLine(safeLine, Math.max(0, indexOfMatch || 0)), 40);
         }
-        editor.addEventListener('keydown', event => {
-            const key = event.key.toLowerCase();
+
+        viewport.addEventListener('input', event => {
+            const element = lineElementFromEvent(event);
+            if (element) commitLine(element);
+        });
+
+        viewport.addEventListener('keydown', event => {
+            const element = lineElementFromEvent(event);
             const ctrl = event.ctrlKey || event.metaKey;
+            const key = event.key.toLowerCase();
 
             if (ctrl) {
                 if (key === 's') {
                     event.preventDefault();
                     post({ type: 'shortcut', name: 'save' });
                     return;
-                } else if (key === 'o') {
+                }
+                if (key === 'o') {
                     event.preventDefault();
                     post({ type: 'shortcut', name: 'open' });
                     return;
-                } else if (event.code === 'Backquote') {
-                    event.preventDefault();
-                    post({ type: 'shortcut', name: 'terminal' });
-                    return;
-                } else if (key === 'w') {
+                }
+                if (key === 'w') {
                     event.preventDefault();
                     post({ type: 'shortcut', name: 'closeTab' });
                     return;
-                } else if (key === 'f') {
+                }
+                if (key === 'f') {
                     event.preventDefault();
-                    if (event.shiftKey) {
-                        post({ type: 'shortcut', name: 'searchAll' });
-                    } else {
-                        openFindPanel();
-                    }
+                    if (event.shiftKey) post({ type: 'shortcut', name: 'searchAll' });
+                    else openFindPanel();
+                    return;
+                }
+                if (event.code === 'Backquote') {
+                    event.preventDefault();
+                    post({ type: 'shortcut', name: 'terminal' });
                     return;
                 }
             }
 
-            if (event.key === 'Escape' && !findPanel.hidden) {
-                event.preventDefault();
-                closeFindPanel();
-                return;
-            }
+            if (!element || element.getAttribute('contenteditable') !== 'true') return;
 
             if (event.key === 'Tab') {
                 event.preventDefault();
-                replaceSelection(' '.repeat(tabSize));
+                insertTextAtCaret(' '.repeat(state.tabSize));
+                return;
+            }
+
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                splitCurrentLine(element);
+                return;
+            }
+
+            if (event.key === 'Backspace' && getCaretOffset(element) === 0) {
+                event.preventDefault();
+                mergeWithPrevious(element);
+                return;
             }
         });
 
-        findInput.addEventListener('input', () => {
-            refreshFindMatches();
-            if (findMatches.length > 0) {
-                selectFindMatch(0, false);
-            } else {
-                updateSearchHighlights();
-            }
+        viewport.addEventListener('keyup', event => {
+            const element = lineElementFromEvent(event);
+            reportCursorAndSelection(element || document.activeElement);
         });
+
+        viewport.addEventListener('click', event => {
+            const element = lineElementFromEvent(event);
+            reportCursorAndSelection(element || document.activeElement);
+        });
+
+        scrollContainer.addEventListener('scroll', () => queueRender());
+        window.addEventListener('resize', () => queueRender(true));
+        window.addEventListener('dragover', event => event.preventDefault(), false);
+        window.addEventListener('drop', event => event.preventDefault(), false);
 
         findInput.addEventListener('keydown', event => {
             if (event.key === 'Enter') {
                 event.preventDefault();
-                findNextMatch(event.shiftKey ? -1 : 1);
+                requestFind(event.shiftKey);
             } else if (event.key === 'Escape') {
                 event.preventDefault();
                 closeFindPanel();
             }
         });
-
-        findPrev.addEventListener('click', () => findNextMatch(-1));
-        findNextButton.addEventListener('click', () => findNextMatch(1));
+        findPrev.addEventListener('click', () => requestFind(true));
+        findNextButton.addEventListener('click', () => requestFind(false));
         findClose.addEventListener('click', closeFindPanel);
-
-        // Prevent duplicate window launching on drag-and-drop
-        window.addEventListener('dragover', e => e.preventDefault(), false);
-        window.addEventListener('drop', e => e.preventDefault(), false);
 
         if (window.chrome && window.chrome.webview) {
             window.chrome.webview.addEventListener('message', event => {
@@ -1434,8 +892,8 @@
             });
         }
 
-        updateGutter();
-        post({ type: 'ready', standalone: true });
+        setupModel(1);
+        post({ type: 'ready', virtualized: true });
     </script>
 </body>
 </html>

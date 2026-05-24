@@ -3,66 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ueditor Unified Preview</title>
+    <title>Ueditor Virtual Preview</title>
     <link rel="stylesheet" href="katex/katex.min.css">
     <script src="katex/katex.min.js"></script>
     <style>
         :root {
-            --bg: transparent; /* Start transparent to prevent dark flashes on load */
+            --bg: transparent;
             --fg: #d4d4d4;
             --muted: #9aa0a6;
             --link: #4da3ff;
             --code-bg: #2d2d2d;
             --border: #3e3e3e;
             --font: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
-        }
-
-        @media (prefers-color-scheme: light) {
-            :root {
-                --fg: #1a1a1a;
-                --muted: #667085;
-                --link: #0969da;
-                --code-bg: #f3f5f7;
-                --border: #d8dee4;
-            }
+            --row-height: 34px;
         }
 
         * {
             box-sizing: border-box;
         }
 
-        html, body {
-            margin: 0;
+        html,
+        body {
             width: 100%;
             height: 100%;
+            margin: 0;
             overflow: hidden;
             background: var(--bg);
             color: var(--fg);
             font-family: var(--font);
             font-size: 15px;
-            line-height: 1.62;
+            line-height: 1.55;
         }
 
-        #preview-container {
-            height: 100%;
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: color-mix(in srgb, var(--fg) 22%, transparent);
+            border: 2px solid var(--bg);
+            border-radius: 5px;
+        }
+
+        #preview-scroll {
+            position: absolute;
+            inset: 0;
             overflow: auto;
-            padding: 20px 22px 36px;
+            padding: 0;
         }
 
-        h1, h2, h3, h4, h5, h6 {
+        #virtual-spacer {
+            width: 1px;
+            height: var(--row-height);
+        }
+
+        #preview-viewport {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            will-change: transform;
+        }
+
+        .preview-row {
+            height: var(--row-height);
+            padding: 4px 22px;
+            overflow: hidden;
+            border-bottom: 1px solid color-mix(in srgb, var(--border) 35%, transparent);
+        }
+
+        .preview-row.empty {
+            border-bottom-color: transparent;
+        }
+
+        .preview-row.loading {
+            color: var(--muted);
+            font-style: italic;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+        p,
+        blockquote,
+        ul,
+        ol,
+        pre {
+            margin: 0;
+        }
+
+        h1,
+        h2,
+        h3 {
             line-height: 1.25;
-            margin: 22px 0 12px;
-            padding-bottom: 6px;
             border-bottom: 1px solid var(--border);
         }
 
-        h1:first-child, h2:first-child, h3:first-child, h4:first-child, h5:first-child, h6:first-child {
-            margin-top: 0;
-        }
-
-        p, ul, ol, blockquote, pre, table {
-            margin: 0 0 14px;
-        }
+        h1 { font-size: 1.35em; }
+        h2 { font-size: 1.2em; }
+        h3 { font-size: 1.08em; }
 
         a {
             color: var(--link);
@@ -77,171 +124,68 @@
         }
 
         pre {
-            padding: 14px;
-            overflow: auto;
+            padding: 3px 8px;
+            overflow: hidden;
             border: 1px solid var(--border);
-            border-radius: 6px;
+            border-radius: 4px;
             background: var(--code-bg);
-        }
-
-        pre code {
-            padding: 0;
-            background: transparent;
+            white-space: pre;
         }
 
         blockquote {
-            padding: 4px 0 4px 14px;
+            padding-left: 12px;
             color: var(--muted);
             border-left: 3px solid var(--border);
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 6px 9px;
-            border: 1px solid var(--border);
-        }
-
-        th {
-            background: color-mix(in srgb, var(--code-bg), transparent 12%);
-            text-align: left;
-        }
-
-        .math-block {
-            display: block;
-            overflow-x: auto;
-            padding: 12px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            background: var(--code-bg);
+        .math {
+            overflow: hidden;
             font-family: "Cambria Math", "Times New Roman", serif;
             text-align: center;
-            white-space: pre-wrap;
         }
 
-        .latex-render {
-            font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif;
-            font-size: 1.08em;
-        }
-
-        .latex-render.display {
-            display: block;
-            overflow-x: auto;
-            padding: 14px;
-            text-align: center;
-        }
-
-        .frac {
-            display: inline-flex;
-            flex-direction: column;
-            vertical-align: middle;
-            text-align: center;
-            line-height: 1.1;
-            margin: 0 0.15em;
-        }
-
-        .frac > .num {
-            padding: 0 0.25em 0.12em;
-            border-bottom: 1px solid currentColor;
-        }
-
-        .frac > .den {
-            padding: 0.12em 0.25em 0;
-        }
-
-        .sqrt {
-            display: inline-flex;
-            align-items: stretch;
-            margin: 0 0.1em;
-        }
-
-        .sqrt-symbol {
-            font-size: 1.2em;
-            line-height: 1;
-        }
-
-        .sqrt-body {
-            border-top: 1px solid currentColor;
-            padding: 0 0.18em;
-        }
-
-        .matrix {
-            display: inline-table;
-            border-collapse: collapse;
-            margin: 0 0.3em;
-            vertical-align: middle;
-        }
-
-        .matrix td {
-            border: 0;
-            padding: 0.15em 0.55em;
-            text-align: center;
-        }
-
-        .matrix-wrap::before { content: "("; font-size: 2.2em; vertical-align: middle; }
-        .matrix-wrap::after { content: ")"; font-size: 2.2em; vertical-align: middle; }
-
-        .tok-keyword { color: #569cd6; }
-        .tok-type { color: #4ec9b0; }
-        .tok-string { color: #ce9178; }
-        .tok-number { color: #b5cea8; }
-        .tok-comment { color: #6a9955; font-style: italic; }
-        .tok-tag { color: #569cd6; }
-        .tok-attr { color: #9cdcfe; }
-
-        .empty {
-            color: var(--muted);
-        }
-
-        /* Custom scrollbar styling for seamless dark/light theme match */
-        ::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
-        }
-        ::-webkit-scrollbar-track {
-            background: var(--bg);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: color-mix(in srgb, var(--fg) 22%, transparent);
-            border: 2px solid var(--bg);
-            border-radius: 5px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: color-mix(in srgb, var(--fg) 35%, transparent);
-        }
-
-        /* Aozora Bunko Reader Mode Typography & Layout */
-        .aozora-mode {
+        .aozora {
             font-family: "Yu Mincho", "MS Mincho", "Hiragino Mincho ProN", "BIZ UDPMincho", serif;
-            max-width: 720px;
-            margin: 0 auto;
-            line-height: 1.85;
-            font-size: 16px;
-            letter-spacing: 0.06em;
-            padding: 30px 24px 50px;
+            letter-spacing: 0.04em;
         }
-        .aozora-mode p {
-            margin: 0 0 1.25em 0;
-            text-indent: 1em;
-            text-align: justify;
-        }
-        .aozora-bouten {
-            text-emphasis: sesame;
-            -webkit-text-emphasis: sesame;
+
+        .empty-message {
+            padding: 20px 22px;
+            color: var(--muted);
         }
     </style>
 </head>
 <body>
-    <div id="preview-container"><p class="empty">미리보기를 기다리는 중...</p></div>
+    <div id="preview-scroll">
+        <div id="virtual-spacer"></div>
+        <div id="preview-viewport"></div>
+    </div>
 
     <script>
-        const container = document.getElementById('preview-container');
+        const scroll = document.getElementById('preview-scroll');
+        const spacer = document.getElementById('virtual-spacer');
+        const viewport = document.getElementById('preview-viewport');
+
+        const state = {
+            lineCount: 1,
+            rowHeight: 34,
+            overscan: 20,
+            mode: 'markdown',
+            cache: new Map(),
+            pending: new Set(),
+            requestSeq: 1,
+            renderQueued: false,
+            lastRangeKey: ''
+        };
+
+        function post(msg) {
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage(msg);
+            }
+        }
 
         function escapeHtml(value) {
-            return (value || '')
+            return String(value ?? '')
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
@@ -252,11 +196,9 @@
         function sanitizeHtml(html) {
             const template = document.createElement('template');
             template.innerHTML = html || '';
-
             template.content.querySelectorAll('script, iframe, object, embed, base, link, meta').forEach(node => {
                 node.replaceWith(document.createComment('blocked by Ueditor preview'));
             });
-
             template.content.querySelectorAll('*').forEach(node => {
                 [...node.attributes].forEach(attr => {
                     const name = attr.name.toLowerCase();
@@ -266,36 +208,11 @@
                     }
                 });
             });
-
             return template.innerHTML;
         }
 
-        const mathBlocks = [];
-        function stashMath(text) {
-            // Stash $$ ... $$
-            let stashed = (text || '').replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => {
-                const placeholder = `___LATEXBLOCK_${mathBlocks.length}___`;
-                mathBlocks.push({ expr, display: true });
-                return placeholder;
-            });
-            // Stash $ ... $
-            stashed = stashed.replace(/\$([^$\n]+?)\$/g, (_, expr) => {
-                const placeholder = `___LATEXINLINE_${mathBlocks.length}___`;
-                mathBlocks.push({ expr, display: false });
-                return placeholder;
-            });
-            return stashed;
-        }
-
-        function unstashMath(html) {
-            return html.replace(/___(LATEXBLOCK|LATEXINLINE)_(\d+)___/g, (_, type, index) => {
-                const item = mathBlocks[index];
-                return renderLatexInline(item.expr, item.display);
-            });
-        }
-
         function inlineMarkdown(text) {
-            let out = text;
+            let out = escapeHtml(text);
             out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
             out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
             out = out.replace(/\*([^*]+)\*/g, '<em>$1</em>');
@@ -305,194 +222,6 @@
             return out;
         }
 
-        function tokenSpan(className, value) {
-            return `<span class="${className}">${escapeHtml(value)}</span>`;
-        }
-
-        function highlightCode(text, language) {
-            const lang = (language || '').toLowerCase();
-            if (lang === 'html' || lang === 'xml') {
-                return escapeHtml(text).replace(/(&lt;\/?)([\w:-]+)([^&]*?)(&gt;)/g, (_, open, tag, attrs, close) => {
-                    const highlightedAttrs = attrs.replace(/([\w:-]+)(=)(&quot;.*?&quot;|'.*?')/g, '<span class="tok-attr">$1</span>$2<span class="tok-string">$3</span>');
-                    return `${open}<span class="tok-tag">${tag}</span>${highlightedAttrs}${close}`;
-                });
-            }
-
-            if (lang === 'json') {
-                return escapeHtml(text)
-                    .replace(/(&quot;[^&]*?&quot;)(\s*:)?/g, (_, key, colon) => colon ? `<span class="tok-attr">${key}</span>${colon}` : `<span class="tok-string">${key}</span>`)
-                    .replace(/\b(true|false|null)\b/g, '<span class="tok-keyword">$1</span>')
-                    .replace(/\b(-?\d+(?:\.\d+)?)\b/g, '<span class="tok-number">$1</span>');
-            }
-
-            const pattern = /(\/\/.*?$|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:class|interface|struct|enum|namespace|using|public|private|protected|internal|static|readonly|async|await|return|if|else|switch|case|break|continue|for|foreach|while|do|try|catch|finally|throw|new|var|let|const|function|import|export|from|extends|implements|void|null|true|false|this|base|get|set|record|sealed|override|virtual)\b|\b(?:string|int|long|double|float|decimal|bool|char|object|Task|List|Dictionary|IEnumerable|void)\b|\b\d+(?:\.\d+)?\b)/gim;
-            let html = '';
-            let lastIndex = 0;
-            for (const matchResult of text.matchAll(pattern)) {
-                const match = matchResult[0];
-                html += escapeHtml(text.slice(lastIndex, matchResult.index));
-                if (match.startsWith('//') || match.startsWith('/*')) html += tokenSpan('tok-comment', match);
-                else if (/^["'`]/.test(match)) html += tokenSpan('tok-string', match);
-                else if (/^\d/.test(match)) html += tokenSpan('tok-number', match);
-                else if (/^(string|int|long|double|float|decimal|bool|char|object|Task|List|Dictionary|IEnumerable|void)$/.test(match)) html += tokenSpan('tok-type', match);
-                else html += tokenSpan('tok-keyword', match);
-                lastIndex = matchResult.index + match.length;
-            }
-            html += escapeHtml(text.slice(lastIndex));
-            return html;
-        }
-
-        function renderCodeBlock(code, language) {
-            return `<pre><code>${highlightCode(code, language)}</code></pre>`;
-        }
-
-        function renderTable(lines) {
-            const rows = lines.map(line => line.trim().replace(/^\||\|$/g, '').split('|').map(cell => inlineMarkdown(cell.trim())));
-            const body = rows.map((row, index) => {
-                if (index === 1 && row.every(cell => /^:?-{3,}:?$/.test(cell))) return '';
-                const tag = index === 0 ? 'th' : 'td';
-                return `<tr>${row.map(cell => `<${tag}>${cell}</${tag}>`).join('')}</tr>`;
-            }).join('');
-            return `<table>${body}</table>`;
-        }
-
-        function renderMarkdown(text) {
-            if (!text || !text.trim()) {
-                container.innerHTML = '<p class="empty">문서 내용이 없습니다.</p>';
-                return;
-            }
-
-            mathBlocks.length = 0; // Clear previous stashes
-            const stashedText = stashMath(text);
-
-            const lines = stashedText.replace(/\r\n/g, '\n').split('\n');
-            const html = [];
-            let paragraph = [];
-            let list = [];
-            let ordered = false;
-            let quote = [];
-            let code = [];
-            let codeLanguage = '';
-            let table = [];
-            let inCode = false;
-
-            function flushParagraph() {
-                if (paragraph.length) {
-                    html.push(`<p>${inlineMarkdown(paragraph.join('<br>'))}</p>`);
-                    paragraph = [];
-                }
-            }
-            function flushList() {
-                if (list.length) {
-                    html.push(`<${ordered ? 'ol' : 'ul'}>${list.map(item => `<li>${inlineMarkdown(item)}</li>`).join('')}</${ordered ? 'ol' : 'ul'}>`);
-                    list = [];
-                }
-            }
-            function flushQuote() {
-                if (quote.length) {
-                    html.push(`<blockquote>${quote.map(inlineMarkdown).join('<br>')}</blockquote>`);
-                    quote = [];
-                }
-            }
-            function flushTable() {
-                if (table.length) {
-                    html.push(renderTable(table));
-                    table = [];
-                }
-            }
-
-            for (const raw of lines) {
-                const line = raw;
-                if (line.trim().startsWith('```')) {
-                    if (inCode) {
-                        html.push(renderCodeBlock(code.join('\n'), codeLanguage));
-                        code = [];
-                        codeLanguage = '';
-                        inCode = false;
-                    } else {
-                        flushParagraph(); flushList(); flushQuote(); flushTable();
-                        codeLanguage = line.trim().slice(3).trim();
-                        inCode = true;
-                    }
-                    continue;
-                }
-                if (inCode) {
-                    code.push(line);
-                    continue;
-                }
-                if (!line.trim()) {
-                    flushParagraph(); flushList(); flushQuote(); flushTable();
-                    continue;
-                }
-                if (/^\|.+\|$/.test(line.trim())) {
-                    flushParagraph(); flushList(); flushQuote();
-                    table.push(line);
-                    continue;
-                }
-                flushTable();
-                const heading = /^(#{1,6})\s+(.+)$/.exec(line);
-                if (heading) {
-                    flushParagraph(); flushList(); flushQuote();
-                    html.push(`<h${heading[1].length}>${inlineMarkdown(heading[2])}</h${heading[1].length}>`);
-                    continue;
-                }
-                const ul = /^[-*]\s+(.+)$/.exec(line);
-                if (ul) {
-                    flushParagraph(); flushQuote();
-                    ordered = false;
-                    let content = ul[1];
-                    if (content.startsWith('[ ] ')) {
-                        content = `<input type="checkbox" disabled style="margin-right: 6px; vertical-align: middle;" />` + content.slice(4);
-                    } else if (content.startsWith('[x] ') || content.startsWith('[X] ')) {
-                        content = `<input type="checkbox" checked disabled style="margin-right: 6px; vertical-align: middle;" />` + content.slice(4);
-                    }
-                    list.push(content);
-                    continue;
-                }
-                const ol = /^\d+\.\s+(.+)$/.exec(line);
-                if (ol) {
-                    flushParagraph(); flushQuote();
-                    ordered = true;
-                    list.push(ol[1]);
-                    continue;
-                }
-                const bq = /^>\s?(.+)$/.exec(line);
-                if (bq) {
-                    flushParagraph(); flushList();
-                    quote.push(bq[1]);
-                    continue;
-                }
-                flushList(); flushQuote();
-                paragraph.push(line.trim());
-            }
-
-            flushParagraph(); flushList(); flushQuote(); flushTable();
-            const sanitized = sanitizeHtml(html.join('\n'));
-            container.innerHTML = unstashMath(sanitized);
-        }
-
-        function renderLatex(text) {
-            if (!text || !text.trim()) {
-                container.innerHTML = '<p class="empty">LaTeX 내용이 없습니다.</p>';
-                return;
-            }
-            try {
-                const cleaned = cleanupLatex(text);
-                container.innerHTML = katex.renderToString(cleaned, { displayMode: true, throwOnError: false });
-            } catch (e) {
-                container.innerHTML = `<p style="color: red;">LaTeX Render Error: ${escapeHtml(e.message)}</p>`;
-            }
-        }
-
-        function renderLatexInline(text, display) {
-            try {
-                const cleaned = cleanupLatex(text);
-                return katex.renderToString(cleaned, { displayMode: display, throwOnError: false });
-            } catch (e) {
-                return `<span style="color: red;">[Math Error: ${escapeHtml(e.message)}]</span>`;
-            }
-        }
-
         function cleanupLatex(text) {
             return (text || '')
                 .replace(/\\begin\{document\}|\\end\{document\}/g, '')
@@ -500,90 +229,56 @@
                 .trim();
         }
 
-        function extractGroup(value, openIndex) {
-            if (value[openIndex] !== '{') return null;
-            let depth = 0;
-            for (let i = openIndex; i < value.length; i++) {
-                if (value[i] === '{') depth++;
-                if (value[i] === '}') depth--;
-                if (depth === 0) {
-                    return { content: value.slice(openIndex + 1, i), end: i + 1 };
-                }
+        function renderLatexLine(line) {
+            const text = cleanupLatex(line);
+            if (!text) return '';
+            try {
+                return `<div class="math">${katex.renderToString(text, { displayMode: false, throwOnError: false })}</div>`;
+            } catch (e) {
+                return `<code>${escapeHtml(line)}</code>`;
             }
-            return null;
         }
 
-        function replaceCommandWithGroups(value, command, groupCount, renderer) {
-            let result = '';
-            let index = 0;
-            while (index < value.length) {
-                const found = value.indexOf(command, index);
-                if (found < 0) {
-                    result += value.slice(index);
-                    break;
-                }
+        function renderAozoraLine(line) {
+            let html = escapeHtml(line);
+            html = html.replace(/《《([\s\S]+?)》》/g, '<span style="text-emphasis: sesame; -webkit-text-emphasis: sesame;">$1</span>');
+            html = html.replace(/[｜|]([^《\n\r]+?)《([^》\n\r]+?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
+            html = html.replace(/([\u4e00-\u9faf\u3400-\u4dbf\uF900-\uFAFF]+?)《([^》\n\r]+?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
+            html = html.replace(/［＃太字］([\s\S]*?)［＃太字終わり］/g, '<strong>$1</strong>');
+            html = html.replace(/［＃斜体］([\s\S]*?)［＃斜体終わり］/g, '<em>$1</em>');
+            html = html.replace(/［＃[\s\S]*?］/g, '');
+            return `<p class="aozora">${html}</p>`;
+        }
 
-                result += value.slice(index, found);
-                let cursor = found + command.length;
-                const groups = [];
-                let ok = true;
-                for (let i = 0; i < groupCount; i++) {
-                    while (value[cursor] === ' ') cursor++;
-                    const group = extractGroup(value, cursor);
-                    if (!group) {
-                        ok = false;
-                        break;
-                    }
-                    groups.push(group.content);
-                    cursor = group.end;
-                }
-
-                if (ok) {
-                    result += renderer(groups);
-                    index = cursor;
-                } else {
-                    result += command;
-                    index = found + command.length;
-                }
+        function renderMarkdownLine(line) {
+            const trimmed = line.trim();
+            if (!trimmed) return '';
+            if (/^```/.test(trimmed)) return '<pre><code>```</code></pre>';
+            const heading = /^(#{1,6})\s+(.+)$/.exec(line);
+            if (heading) {
+                const level = Math.min(6, heading[1].length);
+                return `<h${level}>${inlineMarkdown(heading[2])}</h${level}>`;
             }
-            return result;
+            if (/^>\s?/.test(line)) return `<blockquote>${inlineMarkdown(line.replace(/^>\s?/, ''))}</blockquote>`;
+            const task = /^[-*]\s+\[( |x|X)\]\s+(.+)$/.exec(line);
+            if (task) {
+                const checked = task[1].toLowerCase() === 'x' ? ' checked' : '';
+                return `<p><input type="checkbox" disabled${checked}> ${inlineMarkdown(task[2])}</p>`;
+            }
+            const ul = /^[-*]\s+(.+)$/.exec(line);
+            if (ul) return `<ul><li>${inlineMarkdown(ul[1])}</li></ul>`;
+            const ol = /^\d+\.\s+(.+)$/.exec(line);
+            if (ol) return `<ol><li>${inlineMarkdown(ol[1])}</li></ol>`;
+            if (/^---+$/.test(trimmed)) return '<hr>';
+            if (/^\$\$.*\$\$$/.test(trimmed)) return renderLatexLine(trimmed);
+            return `<p>${inlineMarkdown(line)}</p>`;
         }
 
-        function renderLatexExpression(input) {
-            let value = input;
-            const fragments = [];
-            const stash = html => {
-                const token = `\u0000${fragments.length}\u0000`;
-                fragments.push(html);
-                return token;
-            };
-
-            value = renderMatrix(value, stash);
-            value = replaceCommandWithGroups(value, '\\frac', 2, groups => stash(`<span class="frac"><span class="num">${renderLatexExpression(groups[0])}</span><span class="den">${renderLatexExpression(groups[1])}</span></span>`));
-            value = replaceCommandWithGroups(value, '\\sqrt', 1, groups => stash(`<span class="sqrt"><span class="sqrt-symbol">√</span><span class="sqrt-body">${renderLatexExpression(groups[0])}</span></span>`));
-
-            value = escapeHtml(value)
-                .replace(/\\alpha/g, 'α').replace(/\\beta/g, 'β').replace(/\\gamma/g, 'γ').replace(/\\delta/g, 'δ')
-                .replace(/\\epsilon/g, 'ε').replace(/\\theta/g, 'θ').replace(/\\lambda/g, 'λ').replace(/\\mu/g, 'μ')
-                .replace(/\\pi/g, 'π').replace(/\\sigma/g, 'σ').replace(/\\phi/g, 'φ').replace(/\\omega/g, 'ω')
-                .replace(/\\Gamma/g, 'Γ').replace(/\\Delta/g, 'Δ').replace(/\\Theta/g, 'Θ').replace(/\\Lambda/g, 'Λ')
-                .replace(/\\Pi/g, 'Π').replace(/\\Sigma/g, 'Σ').replace(/\\Omega/g, 'Ω')
-                .replace(/\\sum/g, '∑').replace(/\\int/g, '∫').replace(/\\infty/g, '∞')
-                .replace(/\\times/g, '×').replace(/\\cdot/g, '·').replace(/\\leq/g, '≤').replace(/\\geq/g, '≥').replace(/\\neq/g, '≠')
-                .replace(/\\rightarrow/g, '→').replace(/\\left|\\right/g, '')
-                .replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>').replace(/_\{([^}]+)\}/g, '<sub>$1</sub>')
-                .replace(/\^([A-Za-z0-9+\-=]+)/g, '<sup>$1</sup>').replace(/_([A-Za-z0-9+\-=]+)/g, '<sub>$1</sub>');
-            fragments.forEach((fragment, index) => {
-                value = value.split(`\u0000${index}\u0000`).join(fragment);
-            });
-            return value;
-        }
-
-        function renderMatrix(value, stash) {
-            return value.replace(/\\begin\{(?:p|b)?matrix\}([\s\S]*?)\\end\{(?:p|b)?matrix\}/g, (_, body) => {
-                const rows = body.trim().split(/\\\\/).map(row => row.split('&').map(cell => `<td>${renderLatexExpression(cell.trim())}</td>`).join(''));
-                return stash(`<span class="matrix-wrap"><table class="matrix">${rows.map(row => `<tr>${row}</tr>`).join('')}</table></span>`);
-            });
+        function renderLine(line) {
+            if (state.mode === 'html') return sanitizeHtml(line || '');
+            if (state.mode === 'latex') return renderLatexLine(line || '');
+            if (state.mode === 'aozora') return renderAozoraLine(line || '');
+            return renderMarkdownLine(line || '');
         }
 
         function applyTheme(message) {
@@ -598,68 +293,138 @@
             document.documentElement.style.setProperty('--font', message.uiFontFamily || '"Segoe UI", "Malgun Gothic", Arial, sans-serif');
         }
 
-        function renderAozora(text) {
-            if (!text || !text.trim()) {
-                container.innerHTML = '<p class="empty">青空文庫の内容가 없습니다.</p>';
-                container.className = '';
-                return;
-            }
-            container.className = 'aozora-mode';
-
-            // 1. Sesame Bouten: 《《傍点》》 -> <span class="aozora-bouten">傍点</span>
-            let html = text.replace(/《《([\s\S]+?)》》/g, '<span class="aozora-bouten">$1</span>');
-
-            // 2. Explicit ruby separator: ｜漢字《かんじ》 or |漢字《かんじ》 -> <ruby>漢字<rt>かんじ</rt></ruby>
-            html = html.replace(/[｜|]([^《\n\r]+?)《([^》\n\r]+?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
-
-            // 3. Implicit ruby (standard Kanji preceding 《...》): CJK Unified Ideographs range
-            html = html.replace(/([\u4e00-\u9faf\u3400-\u4dbf\uF900-\uFAFF]+?)《([^》\n\r]+?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
-
-            // 4. Bold annotations: ［＃太字］...［＃太字終わり］ -> <strong>...</strong>
-            html = html.replace(/［＃太字］([\s\S]*?)［＃太字終わり］/g, '<strong>$1</strong>');
-
-            // 5. Italic annotations: ［＃斜体］...［＃斜体終わり］ -> <em>...</em>
-            html = html.replace(/［＃斜体］([\s\S]*?)［＃斜体終わり］/g, '<em>$1</em>');
-
-            // 6. Strip other common Aozora annotations like ［＃...］
-            html = html.replace(/［＃[\s\S]*?］/g, '');
-
-            // 7. Split into paragraphs and respect novel indentation rules
-            const lines = html.replace(/\r\n/g, '\n').split('\n');
-            const paragraphs = lines.map(line => {
-                const trimmed = line.trim();
-                if (!trimmed) {
-                    return '<br>';
-                }
-                const hasIndent = /^[「『（【(]/.test(trimmed) ? '' : 'style="text-indent: 1em;"';
-                return `<p ${hasIndent}>${line}</p>`;
-            });
-
-            container.innerHTML = sanitizeHtml(paragraphs.join('\n'));
+        function setupVirtualHeight() {
+            spacer.style.height = `${Math.max(1, state.lineCount) * state.rowHeight}px`;
         }
 
-        // Prevent duplicate window launching on drag-and-drop
-        window.addEventListener('dragover', e => e.preventDefault(), false);
-        window.addEventListener('drop', e => e.preventDefault(), false);
+        function initVirtualPreview(message) {
+            state.mode = message.mode || 'markdown';
+            state.lineCount = Math.max(1, Number(message.lineCount || 1));
+            state.cache.clear();
+            state.pending.clear();
+            state.lastRangeKey = '';
+            applyTheme(message);
+            setupVirtualHeight();
+            queueRender(true);
+        }
+
+        function visibleRange() {
+            const viewHeight = Math.max(scroll.clientHeight, state.rowHeight);
+            const firstVisible = Math.floor(scroll.scrollTop / state.rowHeight) + 1;
+            const visibleCount = Math.ceil(viewHeight / state.rowHeight);
+            const start = Math.max(1, firstVisible - state.overscan);
+            const end = Math.min(state.lineCount, firstVisible + visibleCount + state.overscan);
+            return { start, end, count: Math.max(0, end - start + 1) };
+        }
+
+        function requestLines(start, count) {
+            if (count <= 0) return;
+            const key = `${start}:${count}`;
+            if (state.pending.has(key)) return;
+            state.pending.add(key);
+            post({
+                type: 'previewRequestLines',
+                requestId: state.requestSeq++,
+                startLine: start,
+                count
+            });
+        }
+
+        function requestMissingLines(start, end) {
+            let missingStart = 0;
+            let missingCount = 0;
+            for (let line = start; line <= end; line++) {
+                if (!state.cache.has(line)) {
+                    if (missingStart === 0) {
+                        missingStart = line;
+                        missingCount = 1;
+                    } else {
+                        missingCount++;
+                    }
+                } else if (missingStart !== 0) {
+                    requestLines(missingStart, missingCount);
+                    missingStart = 0;
+                    missingCount = 0;
+                }
+            }
+            if (missingStart !== 0) requestLines(missingStart, missingCount);
+        }
+
+        function queueRender(force = false) {
+            if (force) state.lastRangeKey = '';
+            if (state.renderQueued) return;
+            state.renderQueued = true;
+            requestAnimationFrame(() => {
+                state.renderQueued = false;
+                render();
+            });
+        }
+
+        function render() {
+            if (state.lineCount <= 1 && !state.cache.has(1)) {
+                viewport.innerHTML = '<div class="empty-message">미리보기를 기다리는 중...</div>';
+                return;
+            }
+
+            const range = visibleRange();
+            requestMissingLines(range.start, range.end);
+            const key = `${range.start}:${range.end}:${state.lineCount}:${state.mode}`;
+            if (key === state.lastRangeKey) return;
+            state.lastRangeKey = key;
+            viewport.style.transform = `translateY(${(range.start - 1) * state.rowHeight}px)`;
+
+            const rows = [];
+            for (let lineNumber = range.start; lineNumber <= range.end; lineNumber++) {
+                if (!state.cache.has(lineNumber)) {
+                    rows.push(`<div class="preview-row loading">로딩 중...</div>`);
+                    continue;
+                }
+
+                const line = state.cache.get(lineNumber) || '';
+                const rendered = renderLine(line);
+                rows.push(`<div class="preview-row${rendered ? '' : ' empty'}">${rendered}</div>`);
+            }
+
+            viewport.innerHTML = rows.join('');
+        }
+
+        function receiveLines(message) {
+            const start = Number(message.startLine || 1);
+            const lines = message.lines || [];
+            for (let i = 0; i < lines.length; i++) {
+                state.cache.set(start + i, lines[i] ?? '');
+            }
+            for (const key of [...state.pending]) {
+                const [pendingStart, pendingCount] = key.split(':').map(Number);
+                if (start <= pendingStart && start + lines.length >= pendingStart + pendingCount) {
+                    state.pending.delete(key);
+                }
+            }
+            queueRender(true);
+        }
+
+        function renderFullFallback(message) {
+            state.mode = message.mode || 'markdown';
+            applyTheme(message);
+            const lines = String(message.text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+            state.lineCount = Math.max(1, lines.length);
+            state.cache.clear();
+            lines.forEach((line, index) => state.cache.set(index + 1, line));
+            setupVirtualHeight();
+            queueRender(true);
+        }
+
+        scroll.addEventListener('scroll', () => queueRender());
+        window.addEventListener('resize', () => queueRender(true));
+        window.addEventListener('dragover', event => event.preventDefault(), false);
+        window.addEventListener('drop', event => event.preventDefault(), false);
 
         if (window.chrome && window.chrome.webview) {
             window.chrome.webview.addEventListener('message', event => {
                 const message = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-                if (message.action !== 'render') return;
-
-                applyTheme(message);
-                if (message.mode === 'html') {
-                    container.innerHTML = sanitizeHtml(message.text || '');
-                    container.className = '';
-                } else if (message.mode === 'latex') {
-                    renderLatex(message.text || '');
-                    container.className = '';
-                } else if (message.mode === 'aozora') {
-                    renderAozora(message.text || '');
-                } else {
-                    renderMarkdown(message.text || '');
-                    container.className = '';
-                }
+                if (message.action === 'initVirtualPreview') initVirtualPreview(message);
+                else if (message.action === 'previewLines') receiveLines(message);
+                else if (message.action === 'render') renderFullFallback(message);
             });
         }
     </script>

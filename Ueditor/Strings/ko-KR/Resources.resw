@@ -275,9 +275,6 @@
   <data name="SettingsTabSize" xml:space="preserve">
     <value>Tab size</value>
   </data>
-  <data name="SettingsLargeFileThreshold" xml:space="preserve">
-    <value>Large File Mode 제안 기준 (MB)</value>
-  </data>
   <data name="SettingsLlmProvider" xml:space="preserve">
     <value>LLM 공급자</value>
   </data>
@@ -417,7 +414,7 @@
     <value>툴바</value>
   </data>
   <data name="StatusModeNormal" xml:space="preserve">
-    <value>일반 모드</value>
+    <value>가상화 편집</value>
   </data>
   <data name="StatusRightPanelTooltip" xml:space="preserve">
     <value>우측 패널</value>
@@ -425,14 +422,8 @@
   <data name="StatusColumnLabel" xml:space="preserve">
     <value>열</value>
   </data>
-  <data name="StatusModeLargeFile" xml:space="preserve">
-    <value>대용량 모드</value>
-  </data>
   <data name="StatusLeftPanelTooltip" xml:space="preserve">
     <value>좌측 패널</value>
-  </data>
-  <data name="StatusModeLimited" xml:space="preserve">
-    <value>일반 모드 (제한)</value>
   </data>
   <data name="StatusLineEndingTooltip" xml:space="preserve">
     <value>클릭하여 줄 끝 방식 변경</value>
