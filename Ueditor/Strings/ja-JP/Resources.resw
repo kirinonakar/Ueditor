@@ -416,9 +416,7 @@
   <data name="SettingsToolbarCustomization" xml:space="preserve">
     <value>ツールバー</value>
   </data>
-  <data name="StatusModeNormal" xml:space="preserve">
-    <value>仮想化編集</value>
-  </data>
+
   <data name="StatusRightPanelTooltip" xml:space="preserve">
     <value>右パネル</value>
   </data>

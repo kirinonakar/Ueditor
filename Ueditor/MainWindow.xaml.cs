@@ -113,7 +113,6 @@ namespace Ueditor
         private TextBlock StatusColumnLabel => StatusBarPane.ColumnLabelText;
         private TextBlock StatusFileStats => StatusBarPane.FileStatsText;
         private TextBlock StatusGitBranch => StatusBarPane.GitBranchText;
-        private TextBlock StatusMode => StatusBarPane.ModeText;
         private TextBlock StatusLanguage => StatusBarPane.LanguageText;
         private ComboBox StatusEncodingCombo => StatusBarPane.EncodingCombo;
         private Grid ExplorerSidebarPage => LeftSidebarTabView.ExplorerPage;
@@ -1092,7 +1091,6 @@ namespace Ueditor
                         await RefreshGitStatusUIAsync();
                 }
 
-                StatusMode.Text = GetLocalizedString("StatusModeNormal", "가상화 편집");
                 var readResult = await LineArrayTextModel.LoadFromFileAsync(filePath, "Auto");
                 OpenNewTab(
                     filePath,
@@ -1711,7 +1709,6 @@ namespace Ueditor
 
                 if (StatusLineLabel != null) StatusLineLabel.Text = GetString("StatusLineLabel", "줄");
                 if (StatusColumnLabel != null) StatusColumnLabel.Text = GetString("StatusColumnLabel", "열");
-                if (StatusMode != null && IsNormalModeText(StatusMode.Text)) StatusMode.Text = GetString("StatusModeNormal", "가상화 편집");
                 if (StatusGitBranch != null && IsGitNotDetectedText(StatusGitBranch.Text)) StatusGitBranch.Text = GetString("GitNotDetected", "Git: 감지 안됨");
                 if (GitPanelBranchText != null && IsGitNotDetectedText(GitPanelBranchText.Text)) GitPanelBranchText.Text = GetString("GitNotDetected", "Git: 감지 안됨");
                 ToolTipService.SetToolTip(LeftPanelToggle, GetString("StatusLeftPanelTooltip", "좌측 패널"));
@@ -1779,16 +1776,6 @@ namespace Ueditor
             return text.Equals("Git: 감지 안됨", StringComparison.OrdinalIgnoreCase) ||
                    text.Equals("Git: Not Detected", StringComparison.OrdinalIgnoreCase) ||
                    text.Equals("Git: 検出されていません", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static bool IsNormalModeText(string text)
-        {
-            return text.Equals("일반 모드", StringComparison.OrdinalIgnoreCase) ||
-                   text.Equals("Normal Mode", StringComparison.OrdinalIgnoreCase) ||
-                   text.Equals("通常モード", StringComparison.OrdinalIgnoreCase) ||
-                   text.Equals("가상화 편집", StringComparison.OrdinalIgnoreCase) ||
-                   text.Equals("Virtualized Editor", StringComparison.OrdinalIgnoreCase) ||
-                   text.Equals("仮想化編集", StringComparison.OrdinalIgnoreCase);
         }
 
         private async void OnSettingsClick(object sender, RoutedEventArgs e)

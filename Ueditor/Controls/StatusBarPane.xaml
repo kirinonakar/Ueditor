@@ -49,9 +49,6 @@
 
             <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="15" VerticalAlignment="Center">
                 <TextBlock x:Name="StatusGitBranch" Text="Git: 감지 안됨" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
-                <Border Background="{ThemeResource SystemControlBackgroundAccentBrush}" CornerRadius="3" Padding="5,1,5,1">
-                    <TextBlock x:Name="StatusMode" Text="일반 모드" FontSize="10" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
-                </Border>
                 <TextBlock x:Name="StatusLanguage" Text="PLAINTEXT" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
                 <ComboBox x:Name="StatusEncodingCombo"
                           Width="100"

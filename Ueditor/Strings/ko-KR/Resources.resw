@@ -416,9 +416,6 @@
   <data name="SettingsToolbarCustomization" xml:space="preserve">
     <value>툴바</value>
   </data>
-  <data name="StatusModeNormal" xml:space="preserve">
-    <value>가상화 편집</value>
-  </data>
   <data name="StatusRightPanelTooltip" xml:space="preserve">
     <value>우측 패널</value>
   </data>

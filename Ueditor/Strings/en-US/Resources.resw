@@ -416,9 +416,6 @@
   <data name="SettingsToolbarCustomization" xml:space="preserve">
     <value>Toolbar</value>
   </data>
-  <data name="StatusModeNormal" xml:space="preserve">
-    <value>Virtualized Editor</value>
-  </data>
   <data name="StatusRightPanelTooltip" xml:space="preserve">
     <value>Right Panel</value>
   </data>

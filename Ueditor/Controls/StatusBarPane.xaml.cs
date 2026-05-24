@@ -25,7 +25,6 @@ namespace Ueditor.Controls
         public TextBlock ColumnLabelText => StatusColumnLabel;
         public TextBlock FileStatsText => StatusFileStats;
         public TextBlock GitBranchText => StatusGitBranch;
-        public TextBlock ModeText => StatusMode;
         public TextBlock LanguageText => StatusLanguage;
         public ComboBox EncodingCombo => StatusEncodingCombo;
         public TextBlock LineEndingText => StatusLineEnding;
