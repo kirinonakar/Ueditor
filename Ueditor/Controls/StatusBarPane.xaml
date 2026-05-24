@@ -7,10 +7,39 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Border Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}"
+    <Border Background="{ThemeResource StatusBarBackgroundBrush}"
             Height="26"
-            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+            BorderBrush="{ThemeResource SidebarBorderBrush}"
             BorderThickness="0,1,0,0">
+        <Border.Resources>
+            <!-- Implicit text styling inside the status bar -->
+            <Style TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{ThemeResource StatusBarForegroundBrush}"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+            <!-- Implicit icon styling inside the status bar -->
+            <Style TargetType="FontIcon">
+                <Setter Property="Foreground" Value="{ThemeResource StatusBarForegroundBrush}"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+            <!-- Implicit transparent button styling inside the status bar -->
+            <Style TargetType="Button">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderBrush" Value="Transparent"/>
+                <Setter Property="Foreground" Value="{ThemeResource StatusBarForegroundBrush}"/>
+                <Setter Property="Padding" Value="4,0"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+            <!-- Implicit transparent toggle button styling inside the status bar -->
+            <Style TargetType="ToggleButton">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderBrush" Value="Transparent"/>
+                <Setter Property="Foreground" Value="{ThemeResource StatusBarForegroundBrush}"/>
+                <Setter Property="Padding" Value="0"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+        </Border.Resources>
+
         <Grid Margin="6,0,6,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
@@ -34,22 +63,22 @@
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="15" VerticalAlignment="Center" Margin="8,0,0,0">
                 <Button x:Name="LineNumberButton" Padding="0" Background="Transparent" BorderBrush="Transparent" Click="HandleLineNumberClick" ToolTipService.ToolTip="클릭하여 줄 이동">
                     <StackPanel Orientation="Horizontal" Spacing="3">
-                        <TextBlock x:Name="StatusLineLabel" Text="줄" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="StatusLine" Text="1" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}" VerticalAlignment="Center"/>
-                        <TextBlock Text=":" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="StatusColumnLabel" Text="열" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="StatusCol" Text="1" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="StatusLineLabel" Text="줄" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="StatusLine" Text="1" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Text=":" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="StatusColumnLabel" Text="열" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="StatusCol" Text="1" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <TextBlock x:Name="StatusFileStats" Text="크기: 0 bytes" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="StatusFileStats" Text="크기: 0 bytes" FontSize="11" VerticalAlignment="Center"/>
                 <Button x:Name="LineEndingButton" Padding="4,0" Background="Transparent" BorderBrush="Transparent" Click="HandleLineEndingClick" ToolTipService.ToolTip="클릭하여 줄 끝 방식 변경">
-                    <TextBlock x:Name="StatusLineEnding" Text="LF" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="StatusLineEnding" Text="LF" FontSize="11" VerticalAlignment="Center"/>
                 </Button>
             </StackPanel>
 
             <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="15" VerticalAlignment="Center">
-                <TextBlock x:Name="StatusGitBranch" Text="Git: 감지 안됨" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
-                <TextBlock x:Name="StatusLanguage" Text="PLAINTEXT" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="StatusGitBranch" Text="Git: 감지 안됨" FontSize="11" VerticalAlignment="Center"/>
+                <TextBlock x:Name="StatusLanguage" Text="PLAINTEXT" FontSize="11" VerticalAlignment="Center"/>
                 <ComboBox x:Name="StatusEncodingCombo"
                           Width="100"
                           Height="20"

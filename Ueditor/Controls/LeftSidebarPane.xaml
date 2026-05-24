@@ -7,35 +7,113 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-                <!-- A. Left Panel (File Explorer & Favorites & Recent Files & Search & Git & Snippets) -->
-                <Grid x:Name="SidebarRoot" Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="36"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-    
-                    <Border Grid.Column="0" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
-                        <StackPanel Padding="0,4,0,4" Spacing="1">
-                            <ToggleButton x:Name="ExplorerActivityButton" Tag="0" IsChecked="True" Click="OnLeftActivityClick" Width="36" Height="32" Padding="0" ToolTipService.ToolTip="탐색기">
-                                <FontIcon Glyph="&#xE8B7;" FontSize="14"/>
-                            </ToggleButton>
-                            <ToggleButton x:Name="FavoritesActivityButton" Tag="1" Click="OnLeftActivityClick" Width="36" Height="32" Padding="0" ToolTipService.ToolTip="즐겨찾기">
-                                <FontIcon Glyph="&#xE734;" FontSize="14"/>
-                            </ToggleButton>
-                            <ToggleButton x:Name="RecentActivityButton" Tag="2" Click="OnLeftActivityClick" Width="36" Height="32" Padding="0" ToolTipService.ToolTip="최근 파일">
-                                <FontIcon Glyph="&#xE81C;" FontSize="14"/>
-                            </ToggleButton>
-                            <ToggleButton x:Name="SearchActivityButton" Tag="3" Click="OnLeftActivityClick" Width="36" Height="32" Padding="0" ToolTipService.ToolTip="검색">
-                                <FontIcon Glyph="&#xE721;" FontSize="14"/>
-                            </ToggleButton>
-                            <ToggleButton x:Name="GitActivityButton" Tag="4" Click="OnLeftActivityClick" Width="36" Height="32" Padding="0" ToolTipService.ToolTip="Git">
-                                <FontIcon Glyph="&#xE139;" FontSize="14"/>
-                            </ToggleButton>
-                            <ToggleButton x:Name="SnippetsActivityButton" Tag="5" Click="OnLeftActivityClick" Width="36" Height="32" Padding="0" ToolTipService.ToolTip="스니펫">
-                                <FontIcon Glyph="&#xE943;" FontSize="14"/>
-                            </ToggleButton>
-                        </StackPanel>
-                    </Border>
+    <UserControl.Resources>
+        <Style x:Key="FlatActivityButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="Width" Value="48"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Grid x:Name="RootGrid" Background="{TemplateBinding Background}">
+                            <!-- Left active indicator bar -->
+                            <Rectangle x:Name="ActiveIndicator" 
+                                       Width="3" 
+                                       HorizontalAlignment="Left" 
+                                       Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" 
+                                       Visibility="Collapsed"
+                                       VerticalAlignment="Stretch"
+                                       Margin="0,8,0,8"/>
+                            
+                            <ContentPresenter x:Name="ContentPresenter"
+                                              Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              Padding="{TemplateBinding Padding}"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              AutomationProperties.AccessibilityView="Raw"/>
+                            
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal"/>
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="RootGrid.Background" Value="{ThemeResource SystemControlBackgroundBaseLowBrush}"/>
+                                            <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="RootGrid.Background" Value="{ThemeResource SystemControlBackgroundBaseMediumBrush}"/>
+                                            <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled"/>
+                                    <VisualState x:Name="Checked">
+                                        <VisualState.Setters>
+                                            <Setter Target="RootGrid.Background" Value="{ThemeResource SidebarBackgroundBrush}"/>
+                                            <Setter Target="ActiveIndicator.Visibility" Value="Visible"/>
+                                            <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="CheckedPointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="RootGrid.Background" Value="{ThemeResource SidebarBackgroundBrush}"/>
+                                            <Setter Target="ActiveIndicator.Visibility" Value="Visible"/>
+                                            <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="CheckedPressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="RootGrid.Background" Value="{ThemeResource SystemControlBackgroundBaseMediumBrush}"/>
+                                            <Setter Target="ActiveIndicator.Visibility" Value="Visible"/>
+                                            <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- A. Left Panel (File Explorer & Favorites & Recent Files & Search & Git & Snippets) -->
+    <Grid x:Name="SidebarRoot" Background="{ThemeResource SidebarBackgroundBrush}" BorderBrush="{ThemeResource SidebarBorderBrush}" BorderThickness="0,0,1,0">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="48"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Background="{ThemeResource ActivityBarBackgroundBrush}" BorderBrush="{ThemeResource SidebarBorderBrush}" BorderThickness="0,0,1,0">
+            <StackPanel Padding="0,4,0,4" Spacing="0">
+                <ToggleButton x:Name="ExplorerActivityButton" Tag="0" IsChecked="True" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick" ToolTipService.ToolTip="탐색기">
+                    <FontIcon Glyph="&#xE8B7;" FontSize="13"/>
+                </ToggleButton>
+                <ToggleButton x:Name="FavoritesActivityButton" Tag="1" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick" ToolTipService.ToolTip="즐겨찾기">
+                    <FontIcon Glyph="&#xE734;" FontSize="13"/>
+                </ToggleButton>
+                <ToggleButton x:Name="RecentActivityButton" Tag="2" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick" ToolTipService.ToolTip="최근 파일">
+                    <FontIcon Glyph="&#xE81C;" FontSize="13"/>
+                </ToggleButton>
+                <ToggleButton x:Name="SearchActivityButton" Tag="3" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick" ToolTipService.ToolTip="검색">
+                    <FontIcon Glyph="&#xE721;" FontSize="13"/>
+                </ToggleButton>
+                <ToggleButton x:Name="GitActivityButton" Tag="4" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick" ToolTipService.ToolTip="Git">
+                    <FontIcon Glyph="&#xE139;" FontSize="13"/>
+                </ToggleButton>
+                <ToggleButton x:Name="SnippetsActivityButton" Tag="5" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick" ToolTipService.ToolTip="스니펫">
+                    <FontIcon Glyph="&#xE943;" FontSize="13"/>
+                </ToggleButton>
+            </StackPanel>
+        </Border>
     
                     <Grid Grid.Column="1">
                         

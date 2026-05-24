@@ -40,16 +40,16 @@ namespace Ueditor.Core.Services
 
                 Windows.UI.Color background = TryParseHexColor(settings.CustomBackgroundColor, out var customBg)
                     ? customBg
-                    : (light ? Windows.UI.Color.FromArgb(255, 243, 243, 243) : Windows.UI.Color.FromArgb(255, 32, 32, 32));
+                    : (light ? Windows.UI.Color.FromArgb(255, 243, 244, 246) : Windows.UI.Color.FromArgb(255, 30, 30, 30));
                 Windows.UI.Color foreground = TryParseHexColor(settings.CustomForegroundColor, out var customFg)
                     ? customFg
-                    : (light ? Windows.UI.Color.FromArgb(255, 32, 32, 32) : Windows.UI.Color.FromArgb(255, 242, 242, 242));
+                    : (light ? Windows.UI.Color.FromArgb(255, 31, 41, 55) : Windows.UI.Color.FromArgb(255, 212, 212, 212));
                 Windows.UI.Color inactiveBackground = light
-                    ? Windows.UI.Color.FromArgb(255, 232, 232, 232)
-                    : Windows.UI.Color.FromArgb(255, 38, 38, 38);
+                    ? Windows.UI.Color.FromArgb(255, 229, 231, 235)
+                    : Windows.UI.Color.FromArgb(255, 45, 49, 57);
                 Windows.UI.Color hoverBackground = light
-                    ? Windows.UI.Color.FromArgb(255, 224, 224, 224)
-                    : Windows.UI.Color.FromArgb(255, 56, 56, 56);
+                    ? Windows.UI.Color.FromArgb(255, 229, 231, 235)
+                    : Windows.UI.Color.FromArgb(255, 45, 49, 57);
 
                 titleBar.BackgroundColor = background;
                 titleBar.ForegroundColor = foreground;
@@ -79,7 +79,7 @@ namespace Ueditor.Core.Services
                 Windows.UI.Color background = TryParseHexColor(settings.MarkdownToolbarBackgroundColor, out var customToolbarBg)
                     ? customToolbarBg
                     : (settings.Theme == "Light"
-                        ? Windows.UI.Color.FromArgb(255, 236, 236, 238)
+                        ? Windows.UI.Color.FromArgb(255, 243, 244, 246)
                         : Windows.UI.Color.FromArgb(255, 43, 47, 54));
                 applyMarkdownToolbarBackground(background);
             }

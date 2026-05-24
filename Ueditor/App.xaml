@@ -6,6 +6,30 @@
     xmlns:local="using:Ueditor">
     <Application.Resources>
         <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#F3F4F6"/>
+                    <SolidColorBrush x:Key="TitleBarForegroundBrush" Color="#1F2937"/>
+                    <SolidColorBrush x:Key="ToolbarBackgroundBrush" Color="#F3F4F6"/>
+                    <SolidColorBrush x:Key="ToolbarBorderBrush" Color="#E5E7EB"/>
+                    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#F9FAFB"/>
+                    <SolidColorBrush x:Key="ActivityBarBackgroundBrush" Color="#F3F4F6"/>
+                    <SolidColorBrush x:Key="SidebarBorderBrush" Color="#E5E7EB"/>
+                    <SolidColorBrush x:Key="StatusBarBackgroundBrush" Color="#F3F4F6"/>
+                    <SolidColorBrush x:Key="StatusBarForegroundBrush" Color="#1F2937"/>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#1E1E1E"/>
+                    <SolidColorBrush x:Key="TitleBarForegroundBrush" Color="#D4D4D4"/>
+                    <SolidColorBrush x:Key="ToolbarBackgroundBrush" Color="#252526"/>
+                    <SolidColorBrush x:Key="ToolbarBorderBrush" Color="#3E3E3E"/>
+                    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#252526"/>
+                    <SolidColorBrush x:Key="ActivityBarBackgroundBrush" Color="#1E1E1E"/>
+                    <SolidColorBrush x:Key="SidebarBorderBrush" Color="#3E3E3E"/>
+                    <SolidColorBrush x:Key="StatusBarBackgroundBrush" Color="#007ACC"/>
+                    <SolidColorBrush x:Key="StatusBarForegroundBrush" Color="#FFFFFF"/>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
                 <!-- Other merged dictionaries here -->

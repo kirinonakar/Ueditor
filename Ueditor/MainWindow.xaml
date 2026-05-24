@@ -24,7 +24,7 @@
         </Grid.RowDefinitions>
 
         <!-- 0. Custom Title Bar -->
-        <Grid x:Name="AppTitleBar" Grid.Row="0" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}">
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Background="{ThemeResource TitleBarBackgroundBrush}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -33,7 +33,7 @@
                 <Image Source="ms-appx:///Assets/Ueditor.png" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
                 <TextBlock Text="Ueditor" FontSize="14" FontWeight="SemiBold"
                            VerticalAlignment="Center"
-                           Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+                           Foreground="{ThemeResource TitleBarForegroundBrush}"/>
             </StackPanel>
         </Grid>
 
@@ -57,7 +57,7 @@
             <controls:LeftSidebarPane x:Name="LeftSidebarTabView" Grid.Column="0" />
 
             <!-- B. Sidebar Splitter -->
-            <local:CustomSplitter x:Name="LeftSplitter" Grid.Column="1" Width="2" HorizontalAlignment="Stretch" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+            <local:CustomSplitter x:Name="LeftSplitter" Grid.Column="1" Width="2" HorizontalAlignment="Stretch" Background="{ThemeResource SidebarBorderBrush}"
                                   PointerPressed="OnLeftSplitterPointerPressed"
                                   PointerMoved="OnLeftSplitterPointerMoved"
                                   PointerReleased="OnLeftSplitterPointerReleased"/>
@@ -66,7 +66,7 @@
             <controls:EditorWorkspacePane x:Name="EditorWorkspace" Grid.Column="2"/>
 
             <!-- D. Preview Splitter -->
-            <local:CustomSplitter x:Name="RightSplitter" Grid.Column="3" Width="2" HorizontalAlignment="Stretch" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+            <local:CustomSplitter x:Name="RightSplitter" Grid.Column="3" Width="2" HorizontalAlignment="Stretch" Background="{ThemeResource SidebarBorderBrush}"
                                   PointerPressed="OnRightSplitterPointerPressed"
                                   PointerMoved="OnRightSplitterPointerMoved"
                                   PointerReleased="OnRightSplitterPointerReleased"/>
@@ -88,4 +88,3 @@
               Visibility="Collapsed"/>
     </Grid>
 </Window>
-
