@@ -39,6 +39,10 @@
             background: var(--selection);
         }
 
+        body.selecting ::selection {
+            background: transparent !important;
+        }
+
         ::-webkit-scrollbar {
             width: 10px;
             height: 10px;
@@ -1026,6 +1030,7 @@
                 ? { start: anchor, end: { line: position.line, column: position.column } }
                 : null;
             state.isSelecting = true;
+            document.body.classList.add('selecting');
             state.currentLine = position.line;
             state.currentColumn = position.column + 1;
             setCaret(position.element, position.column);
@@ -1073,6 +1078,7 @@
         viewport.addEventListener('pointerup', event => {
             if (!state.isSelecting) return;
             state.isSelecting = false;
+            document.body.classList.remove('selecting');
             viewport.releasePointerCapture?.(event.pointerId);
             const hadSelection = hasCustomSelection();
             const selection = normalizeSelection();
@@ -1085,6 +1091,14 @@
                 queueRender(true);
             }
             reportCursorAndSelection(document.activeElement);
+        });
+
+        viewport.addEventListener('pointercancel', event => {
+            if (!state.isSelecting) return;
+            state.isSelecting = false;
+            document.body.classList.remove('selecting');
+            viewport.releasePointerCapture?.(event.pointerId);
+            queueRender(true);
         });
 
         viewport.addEventListener('keydown', event => {
