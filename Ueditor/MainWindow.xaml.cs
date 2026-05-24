@@ -24,6 +24,7 @@ using Ueditor.Controls;
 using Ueditor.Editor;
 using Ueditor.ViewModels;
 
+
 namespace Ueditor
 {
     public sealed partial class MainWindow : Window
@@ -3925,6 +3926,95 @@ namespace Ueditor
         // Premium Helpers added for Ueditor Enhancements
         // ----------------------------------------------------
 
+        [System.Runtime.InteropServices.DllImport("comdlg32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
+        private static extern bool GetSaveFileNameW(ref OPENFILENAME ofn);
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private struct OPENFILENAME
+        {
+            public int lStructSize;
+            public IntPtr hwndOwner;
+            public IntPtr hInstance;
+            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPWStr)]
+            public string? lpstrFilter;
+            public IntPtr lpstrCustomFilter;
+            public int nMaxCustFilter;
+            public int nFilterIndex;
+            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPWStr)]
+            public string? lpstrFile;
+            public int nMaxFile;
+            public IntPtr lpstrFileTitle;
+            public int nMaxFileTitle;
+            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPWStr)]
+            public string? lpstrInitialDir;
+            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPWStr)]
+            public string? lpstrTitle;
+            public int Flags;
+            public short nFileOffset;
+            public short nFileExtension;
+            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPWStr)]
+            public string? lpstrDefExt;
+            public IntPtr lCustData;
+            public IntPtr lpfnHook;
+            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPWStr)]
+            public string? lpTemplateName;
+            public IntPtr pvReserved;
+            public int dwReserved;
+            public int flagsEx;
+        }
+
+        private const int OFN_HIDEREADONLY = 0x00000004;
+        private const int OFN_OVERWRITEPROMPT = 0x00000002;
+        private const int OFN_PATHMUSTEXIST = 0x00000800;
+        private const int OFN_NOCHANGEDIR = 0x00000008;
+
+        private string? GetSaveInitialDirectory()
+        {
+            if (!string.IsNullOrEmpty(_currentFolderPath) && Directory.Exists(_currentFolderPath))
+                return _currentFolderPath;
+            return null;
+        }
+
+        private bool ShowFileSaveDialog(OpenedTab tab, string? initialDir)
+        {
+            string filter = "텍스트 파일 (*.txt)\0*.txt\0마크다운 파일 (*.md;*.markdown)\0*.md;*.markdown\0HTML 파일 (*.html)\0*.html\0LaTeX 파일 (*.tex)\0*.tex\0\0";
+
+            string suggestedName = tab.FilePath != null
+                ? Path.GetFileNameWithoutExtension(tab.FilePath)
+                : tab.Title;
+
+            var fileNameBuffer = new string('\0', 1024);
+            if (!string.IsNullOrEmpty(suggestedName))
+                fileNameBuffer = suggestedName + fileNameBuffer.Substring(suggestedName.Length);
+
+            var ofn = new OPENFILENAME();
+            ofn.lStructSize = System.Runtime.InteropServices.Marshal.SizeOf(typeof(OPENFILENAME));
+            ofn.hwndOwner = WindowNative.GetWindowHandle(this);
+            ofn.lpstrFilter = filter;
+            ofn.lpstrFile = fileNameBuffer;
+            ofn.nMaxFile = 1024;
+            ofn.lpstrInitialDir = initialDir;
+            ofn.Flags = OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+            ofn.nFilterIndex = 1;
+
+            if (GetSaveFileNameW(ref ofn))
+            {
+                string selectedPath = ofn.lpstrFile ?? string.Empty;
+                int nullPos = selectedPath.IndexOf('\0');
+                if (nullPos >= 0) selectedPath = selectedPath.Substring(0, nullPos);
+
+                if (string.IsNullOrEmpty(selectedPath)) return false;
+
+                tab.FilePath = selectedPath;
+                tab.Title = Path.GetFileName(selectedPath);
+                tab.Language = _languageDetectionService.GetMonacoLanguageName(selectedPath);
+                if (string.IsNullOrWhiteSpace(tab.EncodingName))
+                    tab.EncodingName = "UTF-8";
+                return true;
+            }
+            return false;
+        }
+
         private async Task<bool> SaveTabAsync(OpenedTab tab)
         {
             var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id)
@@ -3933,42 +4023,20 @@ namespace Ueditor
 
             if (string.IsNullOrEmpty(tab.FilePath))
             {
-                var picker = new FileSavePicker();
-                InitializePickerWindow(picker);
-                picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
-                picker.FileTypeChoices.Add("텍스트 파일", new List<string>() { ".txt" });
-                picker.FileTypeChoices.Add("마크다운 파일", new List<string>() { ".md", ".markdown" });
-                picker.FileTypeChoices.Add("HTML 파일", new List<string>() { ".html" });
-                picker.FileTypeChoices.Add("LaTeX 파일", new List<string>() { ".tex" });
-                picker.SuggestedFileName = tab.Title;
-
-                var file = await picker.PickSaveFileAsync();
-                if (file != null)
-                {
-                    tab.FilePath = file.Path;
-                    tab.Title = file.Name;
-                    tab.Language = _languageDetectionService.GetMonacoLanguageName(file.Path);
-                    if (string.IsNullOrWhiteSpace(tab.EncodingName))
-                    {
-                        tab.EncodingName = "UTF-8";
-                    }
-                }
-                else
-                {
-                    return false; // Canceled
-                }
+                if (!ShowFileSaveDialog(tab, GetSaveInitialDirectory()))
+                    return false;
             }
 
             try
             {
                 if (_editorSessions.TryGetValue(tab.Id, out var session))
                 {
-                    await session.SaveAsync(tab.FilePath, tab.EncodingName);
+                    await session.SaveAsync(tab.FilePath!, tab.EncodingName);
                     tab.Content = session.GetText(120_000);
                 }
                 else
                 {
-                    await _fileService.SaveTextFileAsync(tab.FilePath, tab.Content, tab.EncodingName);
+                    await _fileService.SaveTextFileAsync(tab.FilePath!, tab.Content, tab.EncodingName);
                 }
 
                 tab.IsDirty = false;
@@ -3992,37 +4060,24 @@ namespace Ueditor
                        ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id);
             if (tabItem == null) return false;
 
-            var picker = new FileSavePicker();
-            InitializePickerWindow(picker);
-            picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
-            picker.FileTypeChoices.Add("텍스트 파일", new List<string>() { ".txt" });
-            picker.FileTypeChoices.Add("마크다운 파일", new List<string>() { ".md", ".markdown" });
-            picker.FileTypeChoices.Add("HTML 파일", new List<string>() { ".html" });
-            picker.FileTypeChoices.Add("LaTeX 파일", new List<string>() { ".tex" });
-            picker.SuggestedFileName = System.IO.Path.GetFileNameWithoutExtension(tab.FilePath) ?? tab.Title;
+            string? initialDir = GetSaveInitialDirectory();
+            if (initialDir == null && !string.IsNullOrEmpty(tab.FilePath))
+                initialDir = Path.GetDirectoryName(tab.FilePath);
 
-            var file = await picker.PickSaveFileAsync();
-            if (file == null) return false;
+            if (!ShowFileSaveDialog(tab, initialDir))
+                return false;
 
             var oldFilePath = tab.FilePath;
-            tab.FilePath = file.Path;
-            tab.Title = file.Name;
-            tab.Language = _languageDetectionService.GetMonacoLanguageName(file.Path);
-            if (string.IsNullOrWhiteSpace(tab.EncodingName))
-            {
-                tab.EncodingName = "UTF-8";
-            }
-
             try
             {
                 if (_editorSessions.TryGetValue(tab.Id, out var session))
                 {
-                    await session.SaveAsync(tab.FilePath, tab.EncodingName);
+                    await session.SaveAsync(tab.FilePath!, tab.EncodingName);
                     tab.Content = session.GetText(120_000);
                 }
                 else
                 {
-                    await _fileService.SaveTextFileAsync(tab.FilePath, tab.Content, tab.EncodingName);
+                    await _fileService.SaveTextFileAsync(tab.FilePath!, tab.Content, tab.EncodingName);
                 }
 
                 tab.IsDirty = false;
