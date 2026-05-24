@@ -1054,6 +1054,79 @@
             commitLine(element);
         }
 
+        function replaceSelectionWith(selection, text) {
+            const { start, end } = selection;
+            const prefix = (state.cache.get(start.line) || '').slice(0, start.column);
+            const suffix = (state.cache.get(end.line) || '').slice(end.column);
+            const linesToRemove = end.line - start.line;
+            const parts = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+            const newLines = [];
+
+            if (parts.length === 1) {
+                newLines.push(prefix + parts[0] + suffix);
+            } else {
+                newLines.push(prefix + parts[0]);
+                for (let i = 1; i < parts.length - 1; i++) {
+                    newLines.push(parts[i]);
+                }
+                newLines.push(parts[parts.length - 1] + suffix);
+            }
+
+            const netLines = newLines.length - 1 - linesToRemove;
+            const shiftAmount = newLines.length - (linesToRemove + 1);
+
+            state.cache.set(start.line, newLines[0]);
+            for (let i = start.line + 1; i <= end.line; i++) {
+                state.cache.delete(i);
+            }
+            if (shiftAmount !== 0) {
+                shiftCachedLines(end.line + 1, shiftAmount);
+            }
+            for (let i = 1; i < newLines.length; i++) {
+                state.cache.set(start.line + i, newLines[i]);
+            }
+
+            state.lineCount = Math.max(1, state.lineCount + netLines);
+            setupVirtualHeight();
+            post({ type: 'lineChanged', lineNumber: start.line, text: newLines[0] });
+            for (let i = end.line; i > start.line; i--) {
+                post({ type: 'deleteLine', lineNumber: i });
+            }
+            for (let i = 1; i < newLines.length; i++) {
+                post({ type: 'insertLine', lineNumber: start.line + i, text: newLines[i] });
+            }
+            post({ type: 'contentChanged' });
+            state.selection = null;
+            queueRender(true);
+            setTimeout(() => focusLine(start.line + newLines.length - 1, newLines[newLines.length - 1].length), 0);
+        }
+
+        function deleteCurrentLine(element) {
+            const lineNumber = Number(element.dataset.line || 1);
+            if (state.lineCount <= 1) return;
+
+            const nextText = state.cache.get(lineNumber + 1);
+            if (nextText !== undefined) {
+                state.cache.set(lineNumber, nextText);
+                shiftCachedLines(lineNumber + 1, -1);
+                state.lineCount = Math.max(1, state.lineCount - 1);
+                setupVirtualHeight();
+                post({ type: 'lineChanged', lineNumber, text: nextText });
+                post({ type: 'mergeLineWithPrevious', lineNumber: lineNumber + 1 });
+                post({ type: 'contentChanged' });
+                queueRender(true);
+                setTimeout(() => focusLine(lineNumber, 0), 0);
+            } else if (lineNumber > 1) {
+                shiftCachedLines(lineNumber, -1);
+                state.lineCount = Math.max(1, state.lineCount - 1);
+                setupVirtualHeight();
+                post({ type: 'mergeLineWithPrevious', lineNumber });
+                post({ type: 'contentChanged' });
+                queueRender(true);
+                setTimeout(() => focusLine(lineNumber - 1, 0), 0);
+            }
+        }
+
         function wrapSelection(opening, closing = opening) {
             const selection = window.getSelection();
             const element = document.activeElement?.closest?.('.line-text');
@@ -1362,6 +1435,30 @@
 
             if (!element || element.getAttribute('contenteditable') !== 'true') return;
 
+            if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                const lineNumber = Number(element.dataset.line || 1);
+                if (lineNumber > 1) {
+                    const col = getCaretOffset(element);
+                    const prevText = state.cache.get(lineNumber - 1) || '';
+                    const targetCol = Math.min(col, prevText.length);
+                    focusLine(lineNumber - 1, targetCol);
+                }
+                return;
+            }
+
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                const lineNumber = Number(element.dataset.line || 1);
+                if (lineNumber < state.lineCount) {
+                    const col = getCaretOffset(element);
+                    const nextText = state.cache.get(lineNumber + 1) || '';
+                    const targetCol = Math.min(col, nextText.length);
+                    focusLine(lineNumber + 1, targetCol);
+                }
+                return;
+            }
+
             if (event.key === 'Tab') {
                 event.preventDefault();
                 insertTextAtCaret(' '.repeat(state.tabSize));
@@ -1376,7 +1473,29 @@
 
             if (event.key === 'Backspace' && getCaretOffset(element) === 0) {
                 event.preventDefault();
-                mergeWithPrevious(element);
+                const lineNumber = Number(element.dataset.line || 1);
+                if (lineNumber > 1) {
+                    const prevText = state.cache.get(lineNumber - 1) || '';
+                    focusLine(lineNumber - 1, prevText.length);
+                }
+                return;
+            }
+
+            if (event.key === 'Delete') {
+                if (hasCustomSelection()) {
+                    event.preventDefault();
+                    const sel = normalizeSelection();
+                    if (sel) {
+                        replaceSelectionWith(sel, '');
+                    }
+                    return;
+                }
+                const text = lineTextFromElement(element);
+                if (text === '') {
+                    event.preventDefault();
+                    deleteCurrentLine(element);
+                    return;
+                }
                 return;
             }
         });
@@ -1392,9 +1511,28 @@
         });
 
         document.addEventListener('copy', event => {
-            if (!hasCustomSelection()) return;
-            event.clipboardData?.setData('text/plain', selectedText());
+            const text = selectedText();
+            if (text) {
+                event.clipboardData?.setData('text/plain', text);
+                event.preventDefault();
+            }
+        });
+
+        document.addEventListener('paste', event => {
             event.preventDefault();
+            const clipboardText = (event.clipboardData?.getData('text/plain') || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            const element = document.activeElement?.closest?.('.line-text');
+            if (!element || element.getAttribute('contenteditable') !== 'true') return;
+
+            if (hasCustomSelection()) {
+                const sel = normalizeSelection();
+                if (sel) {
+                    replaceSelectionWith(sel, clipboardText);
+                    return;
+                }
+            }
+
+            insertTextAtCaret(clipboardText);
         });
 
         scrollContainer.addEventListener('scroll', () => queueRender());

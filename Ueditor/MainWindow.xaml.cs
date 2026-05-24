@@ -850,6 +850,14 @@ namespace Ueditor
                 SchedulePreview(tab);
             };
 
+            bridge.DeleteLineRequested += async (lineNumber) =>
+            {
+                int lineCount = session.DeleteLine(lineNumber);
+                MarkTabDirty(tab, tabItem);
+                await bridge.UpdateLineCountAsync(lineCount);
+                SchedulePreview(tab);
+            };
+
             bridge.FindRequested += async (query, startLine, startColumn, reverse, matchCase) =>
             {
                 var result = session.Find(query, startLine, startColumn, reverse, matchCase);

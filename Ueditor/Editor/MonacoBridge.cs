@@ -24,6 +24,7 @@ namespace Ueditor.Editor
         public event Action<int, string>? LineInsertRequested;
         public event Action<int, string, string>? LineSplitRequested;
         public event Action<int>? MergeLineWithPreviousRequested;
+        public event Action<int>? DeleteLineRequested;
         public event Action<string, int, int, bool, bool>? FindRequested;
 
         public MonacoBridge(WebView2 webView)
@@ -358,6 +359,13 @@ namespace Ueditor.Editor
                             if (root.TryGetProperty("lineNumber", out JsonElement mergeLineProp))
                             {
                                 MergeLineWithPreviousRequested?.Invoke(mergeLineProp.GetInt32());
+                            }
+                            break;
+
+                        case "deleteLine":
+                            if (root.TryGetProperty("lineNumber", out JsonElement deleteLineProp))
+                            {
+                                DeleteLineRequested?.Invoke(deleteLineProp.GetInt32());
                             }
                             break;
 

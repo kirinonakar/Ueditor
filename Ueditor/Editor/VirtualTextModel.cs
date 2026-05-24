@@ -535,6 +535,13 @@ namespace Ueditor.Editor
             return Model.LineCount;
         }
 
+        public int DeleteLine(int lineNumber)
+        {
+            Model.DeleteLine(lineNumber);
+            RefreshTabContentPreview();
+            return Model.LineCount;
+        }
+
         public TextSearchResult? Find(string query, int startLine, int startColumn, bool reverse, bool matchCase)
         {
             return Model.Find(query, startLine, startColumn, reverse, matchCase);
