@@ -40,7 +40,7 @@
             <AppBarButton x:Name="SaveFileButton" Icon="Save" Label="저장" Click="OnSaveFileClick" AccessKey="S" ToolTipService.ToolTip="저장 (Ctrl+S)"/>
             <AppBarButton x:Name="CompareButton" Label="비교" Click="OnCompareFilesClick" ToolTipService.ToolTip="파일 비교 (Diff)">
                 <AppBarButton.Icon>
-                    <FontIcon Glyph="&#xE8D4;"/>
+                    <FontIcon Glyph="&#xE13C;"/>
                 </AppBarButton.Icon>
             </AppBarButton>
             <AppBarSeparator/>
