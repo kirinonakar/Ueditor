@@ -28,7 +28,7 @@
                           IsChecked="True"
                           Click="HandleLeftPanelToggleClick"
                           ToolTipService.ToolTip="좌측 패널">
-                <FontIcon Glyph="&#xE8A7;" FontSize="11"/>
+                <FontIcon Glyph="&#xE145;" FontSize="11"/>
             </ToggleButton>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="15" VerticalAlignment="Center" Margin="8,0,0,0">
@@ -72,7 +72,7 @@
                           Click="HandleRightPanelToggleClick"
                           ToolTipService.ToolTip="우측 패널"
                           Margin="8,0,0,0">
-                <FontIcon Glyph="&#xE8A7;" FontSize="11" RenderTransformOrigin="0.5,0.5">
+                <FontIcon Glyph="&#xE145;" FontSize="11" RenderTransformOrigin="0.5,0.5">
                     <FontIcon.RenderTransform>
                         <ScaleTransform ScaleX="-1"/>
                     </FontIcon.RenderTransform>
