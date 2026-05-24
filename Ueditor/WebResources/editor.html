@@ -755,9 +755,11 @@
 
             // Default escaping of the remaining text (plain parts) and restoring placeholders
             let escapedText = escapeHtml(workingText);
-            escapedText = escapedText.replace(/\u0002_TOKEN_(\d+)_\u0002/g, (match, idx) => {
-                return tokens[Number(idx)];
-            });
+            while (escapedText.includes('\u0002_TOKEN_')) {
+                escapedText = escapedText.replace(/\u0002_TOKEN_(\d+)_\u0002/g, (match, idx) => {
+                    return tokens[Number(idx)];
+                });
+            }
 
             return escapedText;
         }
