@@ -3190,15 +3190,7 @@ namespace Ueditor
             var orderedIds = NormalizeToolbarOrder(settings.ToolbarButtonOrder);
 
             TopCommandBar.PrimaryCommands.Clear();
-            foreach (string id in orderedIds)
-            {
-                if (buttonsById.TryGetValue(id, out var entry) && !hiddenSet.Contains(id))
-                {
-                    TopCommandBar.PrimaryCommands.Add((ICommandBarElement)entry.Button);
-                }
-            }
-
-            TopCommandBar.PrimaryCommands.Add(SettingsButton);
+            AddToolbarCommandsInOriginalGroups(orderedIds, buttonsById, hiddenSet);
 
             foreach (var (id, entry) in buttonsById)
             {
@@ -3208,6 +3200,40 @@ namespace Ueditor
                 string labelText = showLabels ? label : string.Empty;
                 if (entry.Button is AppBarButton abb) abb.Label = labelText;
                 else if (entry.Button is AppBarToggleButton atb) atb.Label = labelText;
+            }
+        }
+
+        private void AddToolbarCommandsInOriginalGroups(
+            IReadOnlyList<string> orderedIds,
+            IReadOnlyDictionary<string, (FrameworkElement Button, string ResourceKey)> buttonsById,
+            ISet<string> hiddenSet)
+        {
+            var groupLookup = ToolbarButtonCatalog.DefaultGroups
+                .SelectMany((group, groupIndex) => group.Select(id => (id, groupIndex)))
+                .ToDictionary(item => item.id, item => item.groupIndex, StringComparer.OrdinalIgnoreCase);
+            int? lastGroupIndex = null;
+
+            foreach (string id in orderedIds.Concat(new[] { "settings" }))
+            {
+                if (!buttonsById.TryGetValue(id, out var entry))
+                {
+                    continue;
+                }
+
+                bool isSettings = id.Equals("settings", StringComparison.OrdinalIgnoreCase);
+                if (!isSettings && hiddenSet.Contains(id))
+                {
+                    continue;
+                }
+
+                int groupIndex = groupLookup.TryGetValue(id, out int index) ? index : 0;
+                if (lastGroupIndex.HasValue && groupIndex != lastGroupIndex.Value)
+                {
+                    TopCommandBar.PrimaryCommands.Add(new AppBarSeparator());
+                }
+
+                TopCommandBar.PrimaryCommands.Add((ICommandBarElement)entry.Button);
+                lastGroupIndex = groupIndex;
             }
         }
 

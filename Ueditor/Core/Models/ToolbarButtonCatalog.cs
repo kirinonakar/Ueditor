@@ -30,6 +30,17 @@ namespace Ueditor.Core.Models
             .Select(option => option.Id)
             .ToList();
 
+        public static IReadOnlyList<IReadOnlyList<string>> DefaultGroups { get; } = new[]
+        {
+            new[] { "openFile", "saveFile", "compare" },
+            new[] { "terminal", "print", "topMost", "stickyNote" },
+            new[] { "wordWrap", "search" },
+            new[] { "markdown" },
+            new[] { "theme" },
+            new[] { "split" },
+            new[] { "settings" }
+        };
+
         public static string NormalizeId(string value)
         {
             return value switch
