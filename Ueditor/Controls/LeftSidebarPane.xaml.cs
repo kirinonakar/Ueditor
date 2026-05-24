@@ -22,6 +22,8 @@ namespace Ueditor.Controls
         public event RoutedEventHandler? AddFolderToFavoritesClick;
         public event DoubleTappedEventHandler? FavoriteItemDoubleTapped;
         public event RoutedEventHandler? RemoveFavoriteClick;
+        public event RoutedEventHandler? FavoritePinClick;
+        public event RoutedEventHandler? FavoritesTabClick;
         public event DoubleTappedEventHandler? SnippetItemDoubleTapped;
         public event RoutedEventHandler? DeleteSnippetClick;
         public event RoutedEventHandler? AddSnippetClick;
@@ -33,6 +35,7 @@ namespace Ueditor.Controls
         public event RoutedEventHandler? GitRestoreAllClick;
         public event RoutedEventHandler? GitPushClick;
         public event RoutedEventHandler? GitRefreshClick;
+        public event DoubleTappedEventHandler? GitHistoryItemDoubleTapped;
         public event KeyEventHandler? SearchQueryInputKeyDown;
         public event RoutedEventHandler? SearchAllFilesClick;
         public event RoutedEventHandler? ReplaceAllClick;
@@ -77,6 +80,9 @@ namespace Ueditor.Controls
         public ToggleButton SearchWholeWord => SearchWholeWordToggle;
         public ToggleButton SearchRegex => SearchRegexToggle;
 
+        public ToggleButton FavoritesFileTabButton => FavoritesFileTab;
+        public ToggleButton FavoritesFolderTabButton => FavoritesFolderTab;
+
         private void OnLeftActivityClick(object sender, RoutedEventArgs e) => LeftActivityClick?.Invoke(sender, e);
         private void OnExplorerUpClick(object sender, RoutedEventArgs e) => ExplorerUpClick?.Invoke(sender, e);
         private void OnSelectFolderClick(object sender, RoutedEventArgs e) => SelectFolderClick?.Invoke(sender, e);
@@ -87,6 +93,8 @@ namespace Ueditor.Controls
         private void OnAddFolderToFavoritesClick(object sender, RoutedEventArgs e) => AddFolderToFavoritesClick?.Invoke(sender, e);
         private void OnFavoriteItemDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => FavoriteItemDoubleTapped?.Invoke(sender, e);
         private void OnRemoveFavoriteClick(object sender, RoutedEventArgs e) => RemoveFavoriteClick?.Invoke(sender, e);
+        private void OnFavoritePinClick(object sender, RoutedEventArgs e) => FavoritePinClick?.Invoke(sender, e);
+        private void OnFavoritesTabClick(object sender, RoutedEventArgs e) => FavoritesTabClick?.Invoke(sender, e);
         private void OnSnippetItemDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => SnippetItemDoubleTapped?.Invoke(sender, e);
         private void OnDeleteSnippetClick(object sender, RoutedEventArgs e) => DeleteSnippetClick?.Invoke(sender, e);
         private void OnAddSnippetClick(object sender, RoutedEventArgs e) => AddSnippetClick?.Invoke(sender, e);
@@ -98,6 +106,7 @@ namespace Ueditor.Controls
         private void OnGitRestoreAllClick(object sender, RoutedEventArgs e) => GitRestoreAllClick?.Invoke(sender, e);
         private void OnGitPushClick(object sender, RoutedEventArgs e) => GitPushClick?.Invoke(sender, e);
         private void OnGitRefreshClick(object sender, RoutedEventArgs e) => GitRefreshClick?.Invoke(sender, e);
+        private void OnGitHistoryItemDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => GitHistoryItemDoubleTapped?.Invoke(sender, e);
         private void OnSearchQueryInputKeyDown(object sender, KeyRoutedEventArgs e) => SearchQueryInputKeyDown?.Invoke(sender, e);
         private void OnSearchAllFilesClick(object sender, RoutedEventArgs e) => SearchAllFilesClick?.Invoke(sender, e);
         private void OnReplaceAllClick(object sender, RoutedEventArgs e) => ReplaceAllClick?.Invoke(sender, e);

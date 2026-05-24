@@ -14,6 +14,8 @@ namespace Ueditor.Controls
         public event RoutedEventHandler? LeftPanelToggleClick;
         public event RoutedEventHandler? RightPanelToggleClick;
         public event SelectionChangedEventHandler? EncodingSelectionChanged;
+        public event RoutedEventHandler? LineNumberClick;
+        public event RoutedEventHandler? LineEndingClick;
 
         public ToggleButton LeftPanelToggleButton => LeftPanelToggle;
         public ToggleButton RightPanelToggleButton => RightPanelToggle;
@@ -24,6 +26,9 @@ namespace Ueditor.Controls
         public TextBlock ModeText => StatusMode;
         public TextBlock LanguageText => StatusLanguage;
         public ComboBox EncodingCombo => StatusEncodingCombo;
+        public TextBlock LineEndingText => StatusLineEnding;
+        public Button LineNumberButtonControl => LineNumberButton;
+        public Button LineEndingButtonControl => LineEndingButton;
 
         private void HandleLeftPanelToggleClick(object sender, RoutedEventArgs e)
         {
@@ -38,6 +43,16 @@ namespace Ueditor.Controls
         private void HandleEncodingSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             EncodingSelectionChanged?.Invoke(sender, e);
+        }
+
+        private void HandleLineNumberClick(object sender, RoutedEventArgs e)
+        {
+            LineNumberClick?.Invoke(sender, e);
+        }
+
+        private void HandleLineEndingClick(object sender, RoutedEventArgs e)
+        {
+            LineEndingClick?.Invoke(sender, e);
         }
     }
 }

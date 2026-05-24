@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Ueditor.Core.Models
 {
     public class RecentFileItem
@@ -13,6 +15,7 @@ namespace Ueditor.Core.Models
         public string Name { get; set; } = string.Empty;
         public string Path { get; set; } = string.Empty;
         public bool IsFolder { get; set; } = false;
+        public bool IsPinned { get; set; } = false;
         public string IconGlyph => IsFolder ? "\uE8B7" : "\uE734";
         public Windows.UI.Color IconColor => IsFolder
             ? Windows.UI.Color.FromArgb(255, 255, 195, 0)

@@ -8,7 +8,7 @@
     mc:Ignorable="d">
 
     <Border Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}"
-            Height="30"
+            Height="26"
             BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
             BorderThickness="0,1,0,0">
         <Grid Margin="6,0,6,0">
@@ -22,51 +22,57 @@
 
             <ToggleButton x:Name="LeftPanelToggle"
                           Grid.Column="0"
-                          Width="30"
-                          Height="24"
+                          Width="26"
+                          Height="22"
                           Padding="0"
                           IsChecked="True"
                           Click="HandleLeftPanelToggleClick"
                           ToolTipService.ToolTip="좌측 패널">
-                <FontIcon Glyph="&#xE8A7;" FontSize="13"/>
+                <FontIcon Glyph="&#xE8A7;" FontSize="11"/>
             </ToggleButton>
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center" Margin="10,0,0,0">
-                <StackPanel Orientation="Horizontal" Spacing="5">
-                    <TextBlock Text="줄" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
-                    <TextBlock x:Name="StatusLine" Text="1" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
-                    <TextBlock Text="," FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
-                    <TextBlock Text="열" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
-                    <TextBlock x:Name="StatusCol" Text="1" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
-                </StackPanel>
-                <TextBlock x:Name="StatusFileStats" Text="크기: 0 bytes" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="15" VerticalAlignment="Center" Margin="8,0,0,0">
+                <Button x:Name="LineNumberButton" Padding="0" Background="Transparent" BorderBrush="Transparent" Click="HandleLineNumberClick" ToolTipService.ToolTip="클릭하여 줄 이동">
+                    <StackPanel Orientation="Horizontal" Spacing="3">
+                        <TextBlock Text="줄" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="StatusLine" Text="1" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text=":" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="열" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="StatusCol" Text="1" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <TextBlock x:Name="StatusFileStats" Text="크기: 0 bytes" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
+                <Button x:Name="LineEndingButton" Padding="4,0" Background="Transparent" BorderBrush="Transparent" Click="HandleLineEndingClick" ToolTipService.ToolTip="클릭하여 줄 끝 방식 변경">
+                    <TextBlock x:Name="StatusLineEnding" Text="LF" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
+                </Button>
             </StackPanel>
 
-            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center">
-                <TextBlock x:Name="StatusGitBranch" Text="Git: 감지 안됨" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
-                <Border Background="{ThemeResource SystemControlBackgroundAccentBrush}" CornerRadius="3" Padding="6,1,6,1">
-                    <TextBlock x:Name="StatusMode" Text="일반 모드" FontSize="10" FontWeight="Bold" Foreground="White"/>
+            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="15" VerticalAlignment="Center">
+                <TextBlock x:Name="StatusGitBranch" Text="Git: 감지 안됨" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
+                <Border Background="{ThemeResource SystemControlBackgroundAccentBrush}" CornerRadius="3" Padding="5,1,5,1">
+                    <TextBlock x:Name="StatusMode" Text="일반 모드" FontSize="10" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                 </Border>
-                <TextBlock x:Name="StatusLanguage" Text="PLAINTEXT" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+                <TextBlock x:Name="StatusLanguage" Text="PLAINTEXT" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
                 <ComboBox x:Name="StatusEncodingCombo"
-                          Width="104"
-                          Height="24"
-                          FontSize="11"
-                          Padding="6,0,4,0"
+                          Width="100"
+                          Height="20"
+                          FontSize="10"
+                          Padding="4,0,4,0"
                           SelectionChanged="HandleEncodingSelectionChanged"
-                          ToolTipService.ToolTip="파일 인코딩 선택"/>
+                          ToolTipService.ToolTip="파일 인코딩 선택"
+                          VerticalAlignment="Center"/>
             </StackPanel>
 
             <ToggleButton x:Name="RightPanelToggle"
                           Grid.Column="4"
-                          Width="30"
-                          Height="24"
+                          Width="26"
+                          Height="22"
                           Padding="0"
                           IsChecked="True"
                           Click="HandleRightPanelToggleClick"
                           ToolTipService.ToolTip="우측 패널"
-                          Margin="10,0,0,0">
-                <FontIcon Glyph="&#xE8A7;" FontSize="13" RenderTransformOrigin="0.5,0.5">
+                          Margin="8,0,0,0">
+                <FontIcon Glyph="&#xE8A7;" FontSize="11" RenderTransformOrigin="0.5,0.5">
                     <FontIcon.RenderTransform>
                         <ScaleTransform ScaleX="-1"/>
                     </FontIcon.RenderTransform>

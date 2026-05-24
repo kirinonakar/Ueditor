@@ -89,7 +89,7 @@ namespace Ueditor.Core.Services
             return path.Replace("\"", "\\\"");
         }
 
-        private async Task<string> RunGitCommandAsync(string workingDir, string arguments)
+        public async Task<string> RunGitCommandAsync(string workingDir, string arguments)
         {
             var startInfo = new ProcessStartInfo
             {

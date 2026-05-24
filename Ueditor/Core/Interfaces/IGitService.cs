@@ -18,5 +18,6 @@ namespace Ueditor.Core.Interfaces
         Task<bool> PushAsync(string repoPath);
         Task<IReadOnlyList<string>> GetRecentHistoryAsync(string repoPath, int maxCount = 20);
         Task<IReadOnlyList<string>> GetBranchesAsync(string repoPath);
+        Task<string> RunGitCommandAsync(string workingDir, string arguments);
     }
 }

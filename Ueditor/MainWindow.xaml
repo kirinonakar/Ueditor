@@ -44,12 +44,17 @@
                 </AppBarButton.Icon>
             </AppBarButton>
             <AppBarSeparator/>
-            <AppBarToggleButton x:Name="TerminalToggleButton" Click="OnOpenTerminalClick" ToolTipService.ToolTip="터미널 (Ctrl+T)">
+            <AppBarToggleButton x:Name="TerminalToggleButton" Click="OnOpenTerminalClick" ToolTipService.ToolTip="터미널 (Ctrl+`)">
                 <AppBarToggleButton.Icon>
                     <FontIcon Glyph="&#xE756;"/>
                 </AppBarToggleButton.Icon>
                 <AppBarToggleButton.Label>터미널</AppBarToggleButton.Label>
             </AppBarToggleButton>
+            <AppBarButton x:Name="PrintButton" Label="인쇄" Click="OnPrintClick" ToolTipService.ToolTip="인쇄 (Ctrl+P)">
+                <AppBarButton.Icon>
+                    <FontIcon Glyph="&#xE749;"/>
+                </AppBarButton.Icon>
+            </AppBarButton>
             <AppBarToggleButton x:Name="TopMostToggleButton" Click="OnTopMostToggleClick" ToolTipService.ToolTip="항상 위">
                 <AppBarToggleButton.Icon>
                     <FontIcon Glyph="&#xE840;"/>

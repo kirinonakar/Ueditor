@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.Web.WebView2.Core;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Graphics;
@@ -51,6 +52,13 @@ namespace Ueditor
         // Timer for debouncing live preview renders
         private readonly DispatcherTimer _previewDebounceTimer;
         private OpenedTab? _activeTabForPreview = null;
+
+        // Autosave timer
+        private readonly DispatcherTimer _autoSaveTimer;
+        private bool _autoSaveEnabled = false;
+
+        // Git auto-refresh timer
+        private readonly DispatcherTimer _gitAutoRefreshTimer;
 
         // Custom Splitter state variables
         private bool _isDraggingLeftSplitter = false;
@@ -167,6 +175,8 @@ namespace Ueditor
             StatusBarPane.LeftPanelToggleClick += OnToggleLeftPanelClick;
             StatusBarPane.RightPanelToggleClick += OnTogglePreviewClick;
             StatusBarPane.EncodingSelectionChanged += OnStatusEncodingSelectionChanged;
+            StatusBarPane.LineNumberClick += OnStatusLineNumberClick;
+            StatusBarPane.LineEndingClick += OnStatusLineEndingClick;
             MarkdownToolbar.CommandRequested += OnMarkdownToolbarCommandRequested;
             WireLeftSidebarEvents();
             WireRightSidebarEvents();
@@ -180,6 +190,20 @@ namespace Ueditor
                 Interval = TimeSpan.FromMilliseconds(50)
             };
             _previewDebounceTimer.Tick += OnPreviewDebounceTimerTick;
+
+            // Initialize Autosave Timer (5 second interval)
+            _autoSaveTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(5)
+            };
+            _autoSaveTimer.Tick += OnAutoSaveTimerTick;
+
+            // Initialize Git Auto-Refresh Timer (30 second interval)
+            _gitAutoRefreshTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(30)
+            };
+            _gitAutoRefreshTimer.Tick += OnGitAutoRefreshTimerTick;
 
             // Load local configurations and boot initial states
             // Setup custom title bar
@@ -202,6 +226,9 @@ namespace Ueditor
             LeftSidebarTabView.AddFolderToFavoritesClick += OnAddFolderToFavoritesClick;
             LeftSidebarTabView.FavoriteItemDoubleTapped += OnFavoriteItemDoubleTapped;
             LeftSidebarTabView.RemoveFavoriteClick += OnRemoveFavoriteClick;
+            LeftSidebarTabView.FavoritePinClick += OnFavoritePinClick;
+            LeftSidebarTabView.FavoritesTabClick += OnFavoritesTabClick;
+            LeftSidebarTabView.GitHistoryItemDoubleTapped += OnGitHistoryItemDoubleTapped;
             LeftSidebarTabView.SnippetItemDoubleTapped += OnSnippetItemDoubleTapped;
             LeftSidebarTabView.DeleteSnippetClick += OnDeleteSnippetClick;
             LeftSidebarTabView.AddSnippetClick += OnAddSnippetClick;
@@ -471,6 +498,7 @@ namespace Ueditor
             if (!string.IsNullOrEmpty(_currentRepoPath))
             {
                 _ = RefreshGitStatusUIAsync();
+                _gitAutoRefreshTimer.Start();
             }
 
             await InitializePreviewWebViewAsync();
@@ -569,6 +597,29 @@ namespace Ueditor
                 Content = grid,
                 Tag = tab.Id
             };
+            var targetTabView = GetCurrentActiveTabView();
+
+            // Tab right-click context menu
+            var tabContextMenu = new MenuFlyout();
+            var bookmarkItem = new MenuFlyoutItem { Text = "북마크 추가" };
+            bookmarkItem.Click += (s, args) => OnTabAddBookmark(tab);
+            tabContextMenu.Items.Add(bookmarkItem);
+
+            var openFolderItem = new MenuFlyoutItem { Text = "해당 폴더로 이동" };
+            openFolderItem.Click += (s, args) => OnTabOpenFolder(tab);
+            tabContextMenu.Items.Add(openFolderItem);
+
+            tabContextMenu.Items.Add(new MenuFlyoutSeparator());
+
+            var closeRightItem = new MenuFlyoutItem { Text = "오른쪽 탭 닫기" };
+            closeRightItem.Click += (s, args) => OnCloseRightTabs(tab, tabItem, targetTabView);
+            tabContextMenu.Items.Add(closeRightItem);
+
+            var closeLeftItem = new MenuFlyoutItem { Text = "왼쪽 탭 닫기" };
+            closeLeftItem.Click += (s, args) => OnCloseLeftTabs(tab, tabItem, targetTabView);
+            tabContextMenu.Items.Add(closeLeftItem);
+
+            tabItem.ContextFlyout = tabContextMenu;
 
             // Apply UI font directly to TabViewItem to guarantee visual style consistency
             try
@@ -611,7 +662,7 @@ namespace Ueditor
                                 break;
                             case "searchAll":
                                 EnsureLeftPanelVisible();
-                                ShowLeftSidebarPage(4);
+                                ShowLeftSidebarPage(3);
                                 this.DispatcherQueue.TryEnqueue(() =>
                                 {
                                     SearchQueryInput.Focus(FocusState.Programmatic);
@@ -678,7 +729,6 @@ namespace Ueditor
                 InitializeEditorWebView(editorWebView, bridge);
             }
 
-            var targetTabView = GetCurrentActiveTabView();
             targetTabView.TabItems.Add(tabItem);
             targetTabView.SelectedItem = tabItem;
 
@@ -1176,7 +1226,7 @@ namespace Ueditor
             }
 
             EnsureLeftPanelVisible();
-            ShowLeftSidebarPage(4);
+            ShowLeftSidebarPage(3);
             SearchQueryInput.Focus(FocusState.Programmatic);
             SearchQueryInput.Focus(FocusState.Keyboard);
         }
@@ -1624,7 +1674,7 @@ namespace Ueditor
                 if (TerminalToggleButton != null)
                 {
                     TerminalToggleButton.Label = GetString("Terminal", "터미널");
-                    ToolTipService.SetToolTip(TerminalToggleButton, GetString("Terminal", "터미널") + " (Ctrl+T)");
+                    ToolTipService.SetToolTip(TerminalToggleButton, GetString("Terminal", "터미널") + " (Ctrl+`)");
                 }
                 if (TopMostToggleButton != null)
                 {
@@ -1663,6 +1713,11 @@ namespace Ueditor
                 {
                     SettingsButton.Label = GetString("Settings", "설정");
                 }
+                if (PrintButton != null)
+                {
+                    PrintButton.Label = GetString("Print", "인쇄");
+                    ToolTipService.SetToolTip(PrintButton, GetString("Print", "인쇄") + " (Ctrl+P)");
+                }
 
                 // 2. Split Menu Flyouts
                 if (SplitNoneItem != null) SplitNoneItem.Text = GetString("SplitNone", "분할 없음 (단일)");
@@ -1699,6 +1754,10 @@ namespace Ueditor
 
         private async void OnSettingsClick(object sender, RoutedEventArgs e)
         {
+            // Hide terminal if visible so settings dialog is not hidden behind it
+            if (TerminalPane.Visibility == Visibility.Visible)
+                HideTerminalPanel();
+
             var settings = _settingsService.CurrentSettings;
             string oldLanguage = settings.Language;
 
@@ -1727,6 +1786,11 @@ namespace Ueditor
             ApplyPreviewVisibility(settings.DefaultMarkdownEnabled);
             MarkdownToolbarToggle.IsChecked = settings.DefaultMarkdownToolbarEnabled;
             MarkdownToolbar.Visibility = settings.DefaultMarkdownToolbarEnabled ? Visibility.Visible : Visibility.Collapsed;
+
+            // Enable auto-save if setting is on and git is available
+            _autoSaveEnabled = settings.AutoSave && !string.IsNullOrEmpty(_currentRepoPath);
+            if (_autoSaveEnabled) _autoSaveTimer.Start();
+            else _autoSaveTimer.Stop();
             WordWrapToggle.IsChecked = settings.WordWrap;
             ApplyUiPersonalization(settings);
             LocalizeUi();
@@ -1967,17 +2031,7 @@ namespace Ueditor
 
         private void OnOpenTerminalClick(object sender, RoutedEventArgs e)
         {
-            string workingDirectory = GetTerminalWorkingDirectory();
-            if (string.IsNullOrWhiteSpace(workingDirectory) || !Directory.Exists(workingDirectory))
-            {
-                ShowErrorMessage("터미널 오류", "터미널을 열 폴더를 찾을 수 없습니다. 먼저 폴더를 선택해 주세요.");
-                if (TerminalToggleButton != null) TerminalToggleButton.IsChecked = false;
-                return;
-            }
-
-            EnsureTerminalPanelVisible();
-            TerminalPane.OpenTerminal(workingDirectory);
-            if (TerminalToggleButton != null) TerminalToggleButton.IsChecked = true;
+            ToggleTerminal();
         }
 
         private string GetTerminalWorkingDirectory()
@@ -2019,6 +2073,25 @@ namespace Ueditor
             TerminalSplitter.Visibility = Visibility.Visible;
             TerminalSplitterRow.Height = new GridLength(4);
             TerminalPanelRow.Height = new GridLength(Math.Clamp(_lastTerminalHeight, 120, Math.Max(160, MainWorkGrid.ActualHeight - 180)));
+        }
+
+        private void ToggleTerminal()
+        {
+            if (TerminalPane.Visibility == Visibility.Visible)
+            {
+                if (TerminalPane.HasSessions)
+                    TerminalPane.StopAllSessions();
+                HideTerminalPanel();
+            }
+            else
+            {
+                string workingDirectory = GetTerminalWorkingDirectory();
+                if (string.IsNullOrWhiteSpace(workingDirectory) || !Directory.Exists(workingDirectory))
+                    workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                EnsureTerminalPanelVisible();
+                TerminalPane.OpenTerminal(workingDirectory);
+                if (TerminalToggleButton != null) TerminalToggleButton.IsChecked = true;
+            }
         }
 
         private void OnTerminalPaneSessionsEmptied(object? sender, EventArgs e)
@@ -2997,22 +3070,7 @@ namespace Ueditor
 
         private void RefreshFavoritesUI()
         {
-            _viewModel.Favorites.Clear();
-            var settings = _settingsService.CurrentSettings;
-            foreach (var path in settings.FavoritePaths)
-            {
-                bool isFolder = Directory.Exists(path);
-                bool isFile = !isFolder && File.Exists(path);
-                if (isFolder || isFile)
-                {
-                    _viewModel.Favorites.Add(new FavoriteItem
-                    {
-                        Name = isFolder ? Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) : Path.GetFileName(path),
-                        Path = path,
-                        IsFolder = isFolder
-                    });
-                }
-            }
+            RefreshFavoritesUI(null);
         }
 
         private async void OnRemoveFavoriteClick(object sender, RoutedEventArgs e)
@@ -3193,6 +3251,7 @@ namespace Ueditor
             string branch = await _gitService.GetCurrentBranchAsync(_currentRepoPath);
             GitPanelBranchText.Text = branch;
             StatusGitBranch.Text = branch;
+            _gitAutoRefreshTimer.Start();
 
             _viewModel.GitFiles.Clear();
             GitBranchesCombo.Items.Clear();
@@ -4068,6 +4127,207 @@ namespace Ueditor
             EditorTabView.SelectedItem = tabItem;
         }
 
+        private void OnTabAddBookmark(OpenedTab tab)
+        {
+            if (string.IsNullOrEmpty(tab.FilePath)) return;
+            var settings = _settingsService.CurrentSettings;
+            if (!settings.FavoritePaths.Contains(tab.FilePath, StringComparer.OrdinalIgnoreCase))
+            {
+                settings.FavoritePaths.Add(tab.FilePath);
+                _ = _settingsService.SaveSettingsAsync(settings);
+                RefreshFavoritesUI();
+            }
+        }
+
+        private async void OnTabOpenFolder(OpenedTab tab)
+        {
+            if (string.IsNullOrEmpty(tab.FilePath)) return;
+            string? folderPath = Path.GetDirectoryName(tab.FilePath);
+            if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
+            {
+                await NavigateExplorerToFolderAsync(folderPath);
+            }
+        }
+
+        private void OnCloseRightTabs(OpenedTab tab, TabViewItem tabItem, TabView tabView)
+        {
+            var items = tabView.TabItems.Cast<TabViewItem>().ToList();
+            int currentIndex = items.IndexOf(tabItem);
+            if (currentIndex < 0) return;
+            for (int i = items.Count - 1; i > currentIndex; i--)
+            {
+                if (items[i].Tag is string tabId)
+                {
+                    var t = _viewModel.Tabs.FirstOrDefault(x => x.Id == tabId);
+                    if (t != null)
+                    {
+                        if (t.IsDirty) WarnUnsavedAndClose(t, items[i]);
+                        else CloseTabAndCleanup(t, items[i]);
+                    }
+                }
+            }
+        }
+
+        private void OnCloseLeftTabs(OpenedTab tab, TabViewItem tabItem, TabView tabView)
+        {
+            var items = tabView.TabItems.Cast<TabViewItem>().ToList();
+            int currentIndex = items.IndexOf(tabItem);
+            if (currentIndex < 0) return;
+            for (int i = currentIndex - 1; i >= 0; i--)
+            {
+                if (items[i].Tag is string tabId)
+                {
+                    var t = _viewModel.Tabs.FirstOrDefault(x => x.Id == tabId);
+                    if (t != null)
+                    {
+                        if (t.IsDirty) WarnUnsavedAndClose(t, items[i]);
+                        else CloseTabAndCleanup(t, items[i]);
+                    }
+                }
+            }
+        }
+
+        private async void OnAutoSaveTimerTick(object? sender, object e)
+        {
+            if (!_autoSaveEnabled) return;
+            if (string.IsNullOrEmpty(_currentRepoPath)) return;
+            var dirtyTabs = _viewModel.Tabs.Where(t => t.IsDirty && !string.IsNullOrEmpty(t.FilePath)).ToList();
+            foreach (var tab in dirtyTabs)
+                await SaveTabAsync(tab);
+        }
+
+        private async void OnGitAutoRefreshTimerTick(object? sender, object e)
+        {
+            if (!string.IsNullOrEmpty(_currentRepoPath))
+                await RefreshGitStatusUIAsync();
+        }
+
+        private async void OnPrintClick(object sender, RoutedEventArgs e)
+        {
+            var activeTab = GetActiveTab();
+            if (activeTab == null) { ShowErrorMessage("인쇄", "인쇄할 활성 탭이 없습니다."); return; }
+            try
+            {
+                string htmlContent = $"<html><body><pre style='font-family:Consolas;font-size:12pt;'>{System.Net.WebUtility.HtmlEncode(activeTab.Content)}</pre></body></html>";
+                string tempFile = Path.Combine(Path.GetTempPath(), "Ueditor", "print.html");
+                Directory.CreateDirectory(Path.GetDirectoryName(tempFile) ?? string.Empty);
+                await File.WriteAllTextAsync(tempFile, htmlContent);
+                Process.Start(new ProcessStartInfo { FileName = tempFile, UseShellExecute = true });
+            }
+            catch (Exception ex) { ShowErrorMessage("인쇄 실패", ex.Message); }
+        }
+
+        private async void OnStatusLineNumberClick(object sender, RoutedEventArgs e)
+        {
+            var activeTab = GetActiveTab();
+            if (activeTab == null) return;
+            var lineBox = new TextBox { PlaceholderText = "이동할 줄 번호 입력...", Width = 200 };
+            int currentLine = int.TryParse(StatusLine.Text, out int line) ? line : 1;
+            lineBox.Text = currentLine.ToString();
+            var dialog = new ContentDialog
+            {
+                Title = "줄 이동 (Go to Line)",
+                Content = lineBox,
+                PrimaryButtonText = "이동",
+                CloseButtonText = "취소",
+                XamlRoot = this.Content.XamlRoot
+            };
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary && int.TryParse(lineBox.Text, out int targetLine) && targetLine > 0)
+            {
+                if (_tabBridges.TryGetValue(activeTab.Id, out var bridgeGroup))
+                {
+                    if (bridgeGroup.Bridge != null)
+                        await bridgeGroup.Bridge.RevealLineAsync(targetLine, 0, 0, "");
+                    else if (bridgeGroup.WebView?.CoreWebView2 != null)
+                    {
+                        var msg = new { action = "revealLine", lineNumber = targetLine, indexOfMatch = 0, matchLength = 0, query = "" };
+                        bridgeGroup.WebView.CoreWebView2.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(msg));
+                    }
+                }
+            }
+        }
+
+        private void OnStatusLineEndingClick(object sender, RoutedEventArgs e)
+        {
+            var flyout = new MenuFlyout();
+            var lfItem = new MenuFlyoutItem { Text = "LF" };
+            var crlfItem = new MenuFlyoutItem { Text = "CRLF" };
+            lfItem.Click += (s, args) => { _currentLineEnding = "LF"; StatusBarPane.LineEndingText.Text = "LF"; };
+            crlfItem.Click += (s, args) => { _currentLineEnding = "CRLF"; StatusBarPane.LineEndingText.Text = "CRLF"; };
+            flyout.Items.Add(lfItem);
+            flyout.Items.Add(crlfItem);
+            if (sender is Button btn)
+                flyout.ShowAt(btn, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Top });
+        }
+
+        private async void OnGitHistoryItemDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+        {
+            if (GitHistoryList.SelectedItem is string historyItem && !string.IsNullOrEmpty(_currentRepoPath))
+            {
+                string hash = historyItem.Split(' ')[0];
+                string output = await _gitService.RunGitCommandAsync(_currentRepoPath, $"show --stat --format=fuller {hash}");
+                var dialog = new ContentDialog
+                {
+                    Title = $"커밋: {hash}",
+                    Content = new ScrollViewer
+                    {
+                        Content = new TextBlock { Text = output, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"), FontSize = 12, TextWrapping = TextWrapping.Wrap },
+                        MaxHeight = 500,
+                        VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+                    },
+                    CloseButtonText = "닫기",
+                    XamlRoot = this.Content.XamlRoot
+                };
+                await dialog.ShowAsync();
+            }
+        }
+
+#pragma warning disable CS0414
+        private static string? _currentLineEnding = "LF";
+#pragma warning restore CS0414
+
+        private async void OnFavoritePinClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is ToggleButton btn && btn.Tag is string path)
+            {
+                var settings = _settingsService.CurrentSettings;
+                bool isPinned = btn.IsChecked == true;
+                if (isPinned) { if (!settings.PinnedFavoritePaths.Contains(path)) settings.PinnedFavoritePaths.Add(path); }
+                else { settings.PinnedFavoritePaths.Remove(path); }
+                await _settingsService.SaveSettingsAsync(settings);
+                RefreshFavoritesUI();
+            }
+        }
+
+        private void OnFavoritesTabClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is ToggleButton btn)
+            {
+                bool showFiles = btn == LeftSidebarTabView.FavoritesFileTabButton;
+                LeftSidebarTabView.FavoritesFileTabButton.IsChecked = showFiles;
+                LeftSidebarTabView.FavoritesFolderTabButton.IsChecked = !showFiles;
+                RefreshFavoritesUI(showFiles);
+            }
+        }
+
+        private void RefreshFavoritesUI(bool? filterFiles = null)
+        {
+            _viewModel.Favorites.Clear();
+            var settings = _settingsService.CurrentSettings;
+            var items = new List<FavoriteItem>();
+            foreach (var path in settings.FavoritePaths)
+            {
+                bool isFolder = Directory.Exists(path);
+                bool isFile = !isFolder && File.Exists(path);
+                if (isFolder || isFile)
+                    items.Add(new FavoriteItem { Name = isFolder ? Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) : Path.GetFileName(path), Path = path, IsFolder = isFolder, IsPinned = settings.PinnedFavoritePaths.Contains(path) });
+            }
+            var sorted = items.OrderByDescending(i => i.IsPinned).ThenBy(i => i.Name).ToList();
+            if (filterFiles.HasValue) sorted = sorted.Where(i => i.IsFolder == !filterFiles.Value).ToList();
+            foreach (var item in sorted) _viewModel.Favorites.Add(item);
+        }
+
         private void OnRootKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
             var ctrl = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control) & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
@@ -4078,7 +4338,7 @@ namespace Ueditor
                 {
                     e.Handled = true;
                     EnsureLeftPanelVisible();
-                    ShowLeftSidebarPage(4);
+                    ShowLeftSidebarPage(3);
                     this.DispatcherQueue.TryEnqueue(() =>
                     {
                         SearchQueryInput.Focus(FocusState.Programmatic);
@@ -4100,15 +4360,20 @@ namespace Ueditor
                     e.Handled = true;
                     OnOpenFileClick(this, new RoutedEventArgs());
                 }
-                else if (e.Key == Windows.System.VirtualKey.T)
-                {
-                    e.Handled = true;
-                    OnOpenTerminalClick(this, new RoutedEventArgs());
-                }
                 else if (e.Key == Windows.System.VirtualKey.F)
                 {
                     e.Handled = true;
                     OnFindClick(this, new RoutedEventArgs());
+                }
+                else if (e.Key == Windows.System.VirtualKey.P)
+                {
+                    e.Handled = true;
+                    OnPrintClick(this, new RoutedEventArgs());
+                }
+                else if ((int)e.Key == 192)
+                {
+                    e.Handled = true;
+                    ToggleTerminal();
                 }
             }
         }

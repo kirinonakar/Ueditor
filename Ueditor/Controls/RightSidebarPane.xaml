@@ -28,6 +28,7 @@
                                                 <ComboBoxItem Content="Markdown"/>
                                                 <ComboBoxItem Content="HTML Source"/>
                                                 <ComboBoxItem Content="LaTeX Block"/>
+                                                <ComboBoxItem Content="Aozora"/>
                                             </ComboBox>
                                             <Button Click="OnOpenPreviewInBrowserClick" Height="24" Padding="8,0,8,0" ToolTipService.ToolTip="HTML 미리보기를 브라우저로 열기">
                                                 <StackPanel Orientation="Horizontal" Spacing="4">

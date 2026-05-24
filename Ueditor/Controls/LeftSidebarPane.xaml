@@ -7,32 +7,32 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-                <!-- A. Left Panel (File Explorer & Favorites & Snippets) -->
+                <!-- A. Left Panel (File Explorer & Favorites & Recent Files & Search & Git & Snippets) -->
                 <Grid x:Name="SidebarRoot" Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="48"/>
+                        <ColumnDefinition Width="36"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
     
                     <Border Grid.Column="0" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
-                        <StackPanel Padding="0,6,0,6" Spacing="2">
-                            <ToggleButton x:Name="ExplorerActivityButton" Tag="0" IsChecked="True" Click="OnLeftActivityClick" Width="48" Height="44" Padding="0" ToolTipService.ToolTip="탐색기">
-                                <FontIcon Glyph="&#xE8B7;" FontSize="20"/>
+                        <StackPanel Padding="0,4,0,4" Spacing="1">
+                            <ToggleButton x:Name="ExplorerActivityButton" Tag="0" IsChecked="True" Click="OnLeftActivityClick" Width="36" Height="32" Padding="0" ToolTipService.ToolTip="탐색기">
+                                <FontIcon Glyph="&#xE8B7;" FontSize="14"/>
                             </ToggleButton>
-                            <ToggleButton x:Name="FavoritesActivityButton" Tag="1" Click="OnLeftActivityClick" Width="48" Height="44" Padding="0" ToolTipService.ToolTip="즐겨찾기">
-                                <FontIcon Glyph="&#xE734;" FontSize="20"/>
+                            <ToggleButton x:Name="FavoritesActivityButton" Tag="1" Click="OnLeftActivityClick" Width="36" Height="32" Padding="0" ToolTipService.ToolTip="즐겨찾기">
+                                <FontIcon Glyph="&#xE734;" FontSize="14"/>
                             </ToggleButton>
-                            <ToggleButton x:Name="SnippetsActivityButton" Tag="2" Click="OnLeftActivityClick" Width="48" Height="44" Padding="0" ToolTipService.ToolTip="스니펫">
-                                <FontIcon Glyph="&#xE943;" FontSize="20"/>
+                            <ToggleButton x:Name="RecentActivityButton" Tag="2" Click="OnLeftActivityClick" Width="36" Height="32" Padding="0" ToolTipService.ToolTip="최근 파일">
+                                <FontIcon Glyph="&#xE81C;" FontSize="14"/>
                             </ToggleButton>
-                            <ToggleButton x:Name="GitActivityButton" Tag="3" Click="OnLeftActivityClick" Width="48" Height="44" Padding="0" ToolTipService.ToolTip="Git">
-                                <FontIcon Glyph="&#xE8F7;" FontSize="20"/>
+                            <ToggleButton x:Name="SearchActivityButton" Tag="3" Click="OnLeftActivityClick" Width="36" Height="32" Padding="0" ToolTipService.ToolTip="검색">
+                                <FontIcon Glyph="&#xE721;" FontSize="14"/>
                             </ToggleButton>
-                            <ToggleButton x:Name="SearchActivityButton" Tag="4" Click="OnLeftActivityClick" Width="48" Height="44" Padding="0" ToolTipService.ToolTip="검색">
-                                <FontIcon Glyph="&#xE721;" FontSize="20"/>
+                            <ToggleButton x:Name="GitActivityButton" Tag="4" Click="OnLeftActivityClick" Width="36" Height="32" Padding="0" ToolTipService.ToolTip="Git">
+                                <FontIcon Glyph="&#xE8F7;" FontSize="14"/>
                             </ToggleButton>
-                            <ToggleButton x:Name="RecentActivityButton" Tag="5" Click="OnLeftActivityClick" Width="48" Height="44" Padding="0" ToolTipService.ToolTip="최근 파일">
-                                <FontIcon Glyph="&#xE81C;" FontSize="20"/>
+                            <ToggleButton x:Name="SnippetsActivityButton" Tag="5" Click="OnLeftActivityClick" Width="36" Height="32" Padding="0" ToolTipService.ToolTip="스니펫">
+                                <FontIcon Glyph="&#xE943;" FontSize="14"/>
                             </ToggleButton>
                         </StackPanel>
                     </Border>
@@ -52,10 +52,10 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <Button Content="↑" Click="OnExplorerUpClick" ToolTipService.ToolTip="상위 폴더" Padding="10,4,10,4"/>
-                                        <Button Grid.Column="1" Content="폴더 선택..." HorizontalAlignment="Stretch" Click="OnSelectFolderClick" Style="{StaticResource AccentButtonStyle}"/>
-                                        <Button Grid.Column="2" Click="OnOpenTerminalClick" ToolTipService.ToolTip="현재 폴더에서 터미널 열기" Padding="10,4,10,4">
-                                            <FontIcon Glyph="&#xE756;" FontSize="14"/>
+                                        <Button Content="↑" Click="OnExplorerUpClick" ToolTipService.ToolTip="상위 폴더" Padding="8,2,8,2" FontSize="11"/>
+                                        <Button Grid.Column="1" Content="폴더 선택..." HorizontalAlignment="Stretch" Click="OnSelectFolderClick" Style="{StaticResource AccentButtonStyle}" FontSize="11"/>
+                                        <Button Grid.Column="2" Click="OnOpenTerminalClick" ToolTipService.ToolTip="현재 폴더에서 터미널 열기" Padding="8,2,8,2">
+                                            <FontIcon Glyph="&#xE756;" FontSize="12"/>
                                         </Button>
                                     </Grid>
                                     <TextBlock x:Name="ExplorerStatusText" Text="폴더를 선택하세요." FontSize="11" TextWrapping="Wrap" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
@@ -63,7 +63,7 @@
                                 <ListView x:Name="FileListView" Grid.Row="1" Margin="5" SelectionMode="Single" DoubleTapped="OnFileListViewDoubleTapped">
                                     <ListView.ItemTemplate>
                                         <DataTemplate>
-                                            <Grid Padding="4,5,4,5" RightTapped="OnFileListViewItemRightTapped">
+                                            <Grid Padding="4,3,4,3" RightTapped="OnFileListViewItemRightTapped">
                                                 <Grid.ContextFlyout>
                                                     <MenuFlyout>
                                                         <MenuFlyoutItem Text="즐겨찾기에 추가" Click="OnAddFileToFavoritesClick" Tag="{Binding}"/>
@@ -74,8 +74,8 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
-                                                <FontIcon Grid.Column="0" Glyph="{Binding IconGlyph}" FontSize="16" Foreground="{ThemeResource SystemControlForegroundAccentBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                <FontIcon Grid.Column="0" Glyph="{Binding IconGlyph}" FontSize="13" Foreground="{ThemeResource SystemControlForegroundAccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                             </Grid>
                                         </DataTemplate>
                                     </ListView.ItemTemplate>
@@ -88,127 +88,74 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
-                                <TextBlock x:Name="FavoritesHeaderText" Grid.Row="0" Text="즐겨찾기 목록 (더블클릭하여 열기)" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,10"/>
+                                <Grid Grid.Row="0" Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ToggleButton x:Name="FavoritesFileTab" Grid.Column="0" Content="파일" FontSize="11" Height="24" Padding="8,0" IsChecked="True" Click="OnFavoritesTabClick"/>
+                                    <ToggleButton x:Name="FavoritesFolderTab" Grid.Column="1" Content="폴더" FontSize="11" Height="24" Padding="8,0" Margin="4,0,0,0" Click="OnFavoritesTabClick"/>
+                                    <TextBlock Grid.Column="2" x:Name="FavoritesHeaderText" Text="즐겨찾기 목록" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                    <TextBlock x:Name="FavoritesPinIndicator" Grid.Column="3" Text="📌" FontSize="11" VerticalAlignment="Center" Margin="4,0,0,0" ToolTipService.ToolTip="고정된 항목은 맨 위에 표시됩니다"/>
+                                </Grid>
                                 <ListView x:Name="FavoritesListView" Grid.Row="1" SelectionMode="Single" DoubleTapped="OnFavoriteItemDoubleTapped">
                                     <ListView.ItemTemplate>
                                         <DataTemplate>
-                                            <Grid Padding="0,5,0,5" ToolTipService.ToolTip="{Binding Path}">
+                                            <Grid Padding="0,4,0,4" ToolTipService.ToolTip="{Binding Path}">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
-                                                <FontIcon Grid.Column="0" Glyph="{Binding IconGlyph}" FontSize="16" Margin="0,0,10,0" VerticalAlignment="Center">
+                                                <FontIcon Grid.Column="0" Glyph="{Binding IconGlyph}" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center">
                                                     <FontIcon.Foreground>
                                                         <SolidColorBrush Color="{Binding IconColor}"/>
                                                     </FontIcon.Foreground>
                                                 </FontIcon>
                                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{Binding Path}" FontSize="10" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" TextTrimming="CharacterEllipsis"/>
-                                                </StackPanel>
-                                                <Button Grid.Column="2" Content="&#xE74D;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnRemoveFavoriteClick" Tag="{Binding Path}" Padding="5" VerticalAlignment="Center"/>
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ListView.ItemTemplate>
-                                </ListView>
-                        </Grid>
-    
-                        <!-- Tab 3: Snippets Hub -->
-                        <Grid x:Name="SnippetsSidebarPage" Padding="10" Visibility="Collapsed">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                <TextBlock x:Name="SnippetsHeaderText" Grid.Row="0" Text="코드 및 수식 템플릿 (더블클릭하여 삽입)" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,10"/>
-                                <ListView x:Name="SnippetsListView" Grid.Row="1" SelectionMode="Single" DoubleTapped="OnSnippetItemDoubleTapped">
-                                    <ListView.ItemTemplate>
-                                        <DataTemplate>
-                                            <Grid Padding="0,5,0,5">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{Binding Description}" FontSize="10" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" TextTrimming="CharacterEllipsis"/>
-                                                </StackPanel>
-                                                <Button Grid.Column="1" Content="&#xE74D;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnDeleteSnippetClick" Tag="{Binding Title}" Padding="5" VerticalAlignment="Center"/>
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ListView.ItemTemplate>
-                                </ListView>
-                                <Button x:Name="AddSnippetButton" Grid.Row="2" Content="스니펫 추가..." HorizontalAlignment="Stretch" Click="OnAddSnippetClick" Margin="0,10,0,0" Style="{StaticResource AccentButtonStyle}"/>
-                        </Grid>
-    
-                        <!-- Tab 4: Git Panel -->
-                        <Grid x:Name="GitSidebarPage" Padding="10" Visibility="Collapsed">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/> <!-- Branch Info -->
-                                    <RowDefinition Height="*"/>    <!-- Changed Files -->
-                                    <RowDefinition Height="Auto"/> <!-- Commit controls -->
-                                    <RowDefinition Height="Auto"/> <!-- Bottom Actions -->
-                                </Grid.RowDefinitions>
-                                
-                                <StackPanel Grid.Row="0" Margin="0,0,0,10" Spacing="5">
-                                    <TextBlock x:Name="GitHeaderText" Text="Git 저장소 관리" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
-                                    <TextBlock x:Name="GitPanelBranchText" Text="Git: 감지 안됨" FontSize="13" FontWeight="SemiBold"/>
-                                    <ComboBox x:Name="GitBranchesCombo" PlaceholderText="브랜치 목록" Height="24" FontSize="10" Padding="6,0,4,0" HorizontalAlignment="Stretch"/>
-                                </StackPanel>
-    
-                                <ListView x:Name="GitChangedFilesList" Grid.Row="1" SelectionMode="Single" DoubleTapped="OnGitFileDoubleTapped">
-                                    <ListView.ItemTemplate>
-                                        <DataTemplate>
-                                            <Grid Padding="0,5,0,5">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Text="{Binding Path}" FontSize="9" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" TextTrimming="CharacterEllipsis"/>
                                                 </StackPanel>
-                                                <Border Grid.Column="1" Background="{ThemeResource SystemControlBackgroundAccentBrush}" CornerRadius="3" Padding="4,1,4,1" Margin="5,0,5,0" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding StatusText}" FontSize="9" FontWeight="Bold" Foreground="White"/>
-                                                </Border>
-                                                <Button Grid.Column="2" Content="{Binding ActionGlyph}" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnGitStageToggleClick" Tag="{Binding Path}" Padding="5" VerticalAlignment="Center"/>
-                                                <Button Grid.Column="3" Content="&#xE777;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnGitRestoreFileClick" Tag="{Binding Path}" Padding="5" VerticalAlignment="Center" ToolTipService.ToolTip="파일 복원"/>
+                                                <ToggleButton Grid.Column="2" x:Name="FavoritePinToggle" Content="📌" FontSize="10" Background="Transparent" BorderBrush="Transparent" Padding="3" VerticalAlignment="Center" IsChecked="{Binding IsPinned}" Click="OnFavoritePinClick" Tag="{Binding Path}" ToolTipService.ToolTip="고정"/>
+                                                <Button Grid.Column="3" Content="&#xE74D;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnRemoveFavoriteClick" Tag="{Binding Path}" Padding="3" VerticalAlignment="Center" FontSize="10"/>
                                             </Grid>
                                         </DataTemplate>
                                     </ListView.ItemTemplate>
                                 </ListView>
-    
-                                <StackPanel Grid.Row="2" Spacing="8" Margin="0,10,0,0">
-                                    <TextBox x:Name="GitCommitMessageInput" PlaceholderText="커밋 메시지 입력..." Height="60" AcceptsReturn="True" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
-                                    <Button Content="커밋 (Commit)" HorizontalAlignment="Stretch" Click="OnGitCommitClick" Style="{StaticResource AccentButtonStyle}"/>
-                                </StackPanel>
-    
-                                <StackPanel Grid.Row="3" Spacing="8" Margin="0,8,0,0">
-                                    <Grid ColumnSpacing="6">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Button Content="전체 Stage" HorizontalAlignment="Stretch" Click="OnGitStageAllClick"/>
-                                        <Button Grid.Column="1" Content="전체 Restore" HorizontalAlignment="Stretch" Click="OnGitRestoreAllClick"/>
-                                    </Grid>
-                                    <Grid ColumnSpacing="6">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Button Content="Push" HorizontalAlignment="Stretch" Click="OnGitPushClick"/>
-                                        <Button Grid.Column="1" Content="새로고침" HorizontalAlignment="Stretch" Click="OnGitRefreshClick"/>
-                                    </Grid>
-                                    <TextBlock Text="과거 기록" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
-                                    <ListView x:Name="GitHistoryList" Height="92" SelectionMode="None"/>
-                                </StackPanel>
                         </Grid>
     
-                        <!-- Tab 5: Search & Replace Panel -->
+                        <!-- Tab 3: Recent Files -->
+                        <Grid x:Name="RecentSidebarPage" Padding="10" Visibility="Collapsed">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Name="RecentFilesHeaderText" Grid.Row="0" Text="최근 열린 파일 (더블클릭하여 열기)" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,10"/>
+                            <ListView x:Name="RecentFilesListView" Grid.Row="1" SelectionMode="Single" DoubleTapped="OnRecentFileItemDoubleTapped">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Padding="0,4,0,4" ToolTipService.ToolTip="{Binding Path}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <FontIcon Grid.Column="0" Glyph="{Binding IconGlyph}" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center" Foreground="{ThemeResource SystemControlForegroundAccentBrush}"/>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding Path}" FontSize="9" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                            <Button Grid.Column="2" Content="&#xE74D;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnRemoveRecentFileClick" Tag="{Binding Path}" Padding="3" VerticalAlignment="Center" FontSize="10"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </Grid>
+    
+                        <!-- Tab 4: Search & Replace Panel -->
                         <Grid x:Name="SearchSidebarPage" Padding="10" Visibility="Collapsed">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/> <!-- Form Inputs -->
@@ -259,32 +206,110 @@
                                 </ListView>
                         </Grid>
     
-                        <!-- Tab 6: Recent Files -->
-                        <Grid x:Name="RecentSidebarPage" Padding="10" Visibility="Collapsed">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <TextBlock x:Name="RecentFilesHeaderText" Grid.Row="0" Text="최근 열린 파일 (더블클릭하여 열기)" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,10"/>
-                            <ListView x:Name="RecentFilesListView" Grid.Row="1" SelectionMode="Single" DoubleTapped="OnRecentFileItemDoubleTapped">
-                                <ListView.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Padding="0,5,0,5" ToolTipService.ToolTip="{Binding Path}">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <FontIcon Grid.Column="0" Glyph="{Binding IconGlyph}" FontSize="16" Margin="0,0,10,0" VerticalAlignment="Center" Foreground="{ThemeResource SystemControlForegroundAccentBrush}"/>
-                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding Path}" FontSize="10" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" TextTrimming="CharacterEllipsis"/>
-                                            </StackPanel>
-                                            <Button Grid.Column="2" Content="&#xE74D;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnRemoveRecentFileClick" Tag="{Binding Path}" Padding="5" VerticalAlignment="Center"/>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
+                        <!-- Tab 5: Git Panel -->
+                        <Grid x:Name="GitSidebarPage" Padding="10" Visibility="Collapsed">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/> <!-- Branch Info -->
+                                    <RowDefinition Height="*"/>    <!-- Changed Files -->
+                                    <RowDefinition Height="Auto"/> <!-- Commit controls -->
+                                    <RowDefinition Height="Auto"/> <!-- History -->
+                                    <RowDefinition Height="Auto"/> <!-- Bottom Actions -->
+                                </Grid.RowDefinitions>
+                                
+                                <StackPanel Grid.Row="0" Margin="0,0,0,10" Spacing="5">
+                                    <TextBlock x:Name="GitHeaderText" Text="Git 저장소 관리" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+                                    <TextBlock x:Name="GitPanelBranchText" Text="Git: 감지 안됨" FontSize="13" FontWeight="SemiBold"/>
+                                    <ComboBox x:Name="GitBranchesCombo" PlaceholderText="브랜치 목록" Height="24" FontSize="10" Padding="6,0,4,0" HorizontalAlignment="Stretch"/>
+                                </StackPanel>
+    
+                                <ListView x:Name="GitChangedFilesList" Grid.Row="1" SelectionMode="Single" DoubleTapped="OnGitFileDoubleTapped">
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Padding="0,4,0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Path}" FontSize="9" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                                <Border Grid.Column="1" Background="{ThemeResource SystemControlBackgroundAccentBrush}" CornerRadius="3" Padding="4,1,4,1" Margin="5,0,5,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding StatusText}" FontSize="9" FontWeight="Bold" Foreground="White"/>
+                                                </Border>
+                                                <Button Grid.Column="2" Content="{Binding ActionGlyph}" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnGitStageToggleClick" Tag="{Binding Path}" Padding="3" VerticalAlignment="Center" FontSize="10"/>
+                                                <Button Grid.Column="3" Content="&#xE777;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnGitRestoreFileClick" Tag="{Binding Path}" Padding="3" VerticalAlignment="Center" ToolTipService.ToolTip="파일 복원" FontSize="10"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+    
+                                <StackPanel Grid.Row="2" Spacing="8" Margin="0,10,0,0">
+                                    <TextBox x:Name="GitCommitMessageInput" PlaceholderText="커밋 메시지 입력..." Height="60" AcceptsReturn="True" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                                    <Button Content="커밋 (Commit)" HorizontalAlignment="Stretch" Click="OnGitCommitClick" Style="{StaticResource AccentButtonStyle}"/>
+                                </StackPanel>
+    
+                                <StackPanel Grid.Row="3" Spacing="8" Margin="0,8,0,0">
+                                    <Grid ColumnSpacing="6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Content="전체 Stage" HorizontalAlignment="Stretch" Click="OnGitStageAllClick"/>
+                                        <Button Grid.Column="1" Content="전체 Restore" HorizontalAlignment="Stretch" Click="OnGitRestoreAllClick"/>
+                                    </Grid>
+                                    <Grid ColumnSpacing="6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Content="Push" HorizontalAlignment="Stretch" Click="OnGitPushClick"/>
+                                        <Button Grid.Column="1" Content="새로고침" HorizontalAlignment="Stretch" Click="OnGitRefreshClick"/>
+                                    </Grid>
+                                </StackPanel>
+    
+                                <StackPanel Grid.Row="4" Spacing="4" Margin="0,8,0,0">
+                                    <TextBlock x:Name="GitHistoryHeader" Text="과거 기록" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
+                                    <ListView x:Name="GitHistoryList" Height="120" SelectionMode="Single" DoubleTapped="OnGitHistoryItemDoubleTapped">
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Padding="0,2,0,2">
+                                                    <TextBlock Text="{Binding}" FontSize="10" FontFamily="Consolas" TextTrimming="CharacterEllipsis"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+                                </StackPanel>
+                        </Grid>
+    
+                        <!-- Tab 6: Snippets Hub -->
+                        <Grid x:Name="SnippetsSidebarPage" Padding="10" Visibility="Collapsed">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock x:Name="SnippetsHeaderText" Grid.Row="0" Text="코드 및 수식 템플릿 (더블클릭하여 삽입)" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,10"/>
+                                <ListView x:Name="SnippetsListView" Grid.Row="1" SelectionMode="Single" DoubleTapped="OnSnippetItemDoubleTapped">
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Padding="0,4,0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Description}" FontSize="9" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                                <Button Grid.Column="1" Content="&#xE74D;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnDeleteSnippetClick" Tag="{Binding Title}" Padding="3" VerticalAlignment="Center" FontSize="10"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+                                <Button x:Name="AddSnippetButton" Grid.Row="2" Content="스니펫 추가..." HorizontalAlignment="Stretch" Click="OnAddSnippetClick" Margin="0,10,0,0" Style="{StaticResource AccentButtonStyle}"/>
                         </Grid>
                     </Grid>
                 </Grid>
