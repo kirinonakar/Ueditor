@@ -82,81 +82,106 @@
 
         <CommandBar x:Name="MarkdownToolbar"
                     Grid.Row="2"
-                    Height="34"
+                    Height="32"
+                    Padding="0"
                     Visibility="Collapsed"
-                    OverflowButtonVisibility="Auto"
+                    OverflowButtonVisibility="Collapsed"
                     DefaultLabelPosition="Collapsed"
                     Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}">
             <CommandBar.Resources>
-                <Style TargetType="AppBarButton">
-                    <Setter Property="MinWidth" Value="34"/>
-                    <Setter Property="Width" Value="34"/>
-                    <Setter Property="Height" Value="32"/>
+                <Style x:Key="MarkdownToolbarButtonStyle" TargetType="Button">
+                    <Setter Property="MinWidth" Value="28"/>
+                    <Setter Property="Width" Value="28"/>
+                    <Setter Property="MinHeight" Value="26"/>
+                    <Setter Property="Height" Value="26"/>
                     <Setter Property="Padding" Value="0"/>
+                    <Setter Property="Margin" Value="1,0,1,0"/>
+                    <Setter Property="BorderThickness" Value="0"/>
                     <Setter Property="HorizontalContentAlignment" Value="Center"/>
                     <Setter Property="VerticalContentAlignment" Value="Center"/>
+                    <Setter Property="VerticalAlignment" Value="Center"/>
+                    <Setter Property="Background" Value="Transparent"/>
+                </Style>
+                <Style x:Key="MarkdownToolbarGlyphStyle" TargetType="TextBlock">
+                    <Setter Property="FontSize" Value="12"/>
+                    <Setter Property="LineHeight" Value="14"/>
+                    <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
+                    <Setter Property="TextAlignment" Value="Center"/>
+                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                    <Setter Property="VerticalAlignment" Value="Center"/>
+                    <Setter Property="Margin" Value="0"/>
                 </Style>
             </CommandBar.Resources>
-            <AppBarButton Label="Hx" Click="OnMarkdownHeadingClick" ToolTipService.ToolTip="제목">
-                <AppBarButton.Icon>
-                    <FontIcon Glyph="H" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="14"/>
-                </AppBarButton.Icon>
-            </AppBarButton>
-            <AppBarButton Click="OnMarkdownBoldClick" ToolTipService.ToolTip="굵게 (Ctrl+B)" Label="">
-                <TextBlock Text="B" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </AppBarButton>
-            <AppBarButton Click="OnMarkdownItalicClick" ToolTipService.ToolTip="기울임 (Ctrl+I)" Label="">
-                <TextBlock Text="I" FontSize="16" FontStyle="Italic" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </AppBarButton>
-            <AppBarButton Click="OnMarkdownUnderlineClick" ToolTipService.ToolTip="밑줄 (Ctrl+U)" Label="">
-                <Grid Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <TextBlock Text="U" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    <Border Height="1.5" Background="{ThemeResource SystemControlForegroundBaseHighBrush}" VerticalAlignment="Bottom" Margin="1,0,1,0"/>
-                </Grid>
-            </AppBarButton>
-            <AppBarButton Click="OnMarkdownHighlightClick" ToolTipService.ToolTip="형광펜" Label="">
-                <Border Background="#FFEB3B" CornerRadius="2" Padding="2,0,2,0" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <TextBlock Text="HL" FontSize="12" FontWeight="Bold" Foreground="Black"/>
-                </Border>
-            </AppBarButton>
-            <AppBarSeparator/>
-            <AppBarButton Label="•" Click="OnMarkdownUlClick" ToolTipService.ToolTip="글머리 목록">
-                <AppBarButton.Icon><FontIcon Glyph="&#xE8FD;" FontSize="15"/></AppBarButton.Icon>
-            </AppBarButton>
-            <AppBarButton Label="✂" Click="OnMarkdownCutLineClick" ToolTipService.ToolTip="현재 줄 자르기">
-                <AppBarButton.Icon><FontIcon Glyph="&#xE8C6;" FontSize="15"/></AppBarButton.Icon>
-            </AppBarButton>
-            <AppBarButton Label="❝" Click="OnMarkdownQuoteClick" ToolTipService.ToolTip="인용문">
-                <AppBarButton.Icon><FontIcon Glyph="&#xE90A;" FontSize="15"/></AppBarButton.Icon>
-            </AppBarButton>
-            <AppBarButton Label="→" Click="OnMarkdownArrowClick" ToolTipService.ToolTip="화살표">
-                <AppBarButton.Icon><FontIcon Glyph="&#xE72A;" FontSize="15"/></AppBarButton.Icon>
-            </AppBarButton>
-            <AppBarSeparator/>
-            <AppBarButton Label="`" Click="OnMarkdownInlineCodeClick" ToolTipService.ToolTip="인라인 코드">
-                <AppBarButton.Icon><FontIcon Glyph="&#xE943;" FontSize="15"/></AppBarButton.Icon>
-            </AppBarButton>
-            <AppBarButton Label="☑" Click="OnMarkdownTaskClick" ToolTipService.ToolTip="체크리스트">
-                <AppBarButton.Icon><FontIcon Glyph="&#xE73A;" FontSize="15"/></AppBarButton.Icon>
-            </AppBarButton>
-            <AppBarButton Label="표" Click="OnMarkdownTableClick" ToolTipService.ToolTip="표">
-                <AppBarButton.Icon><FontIcon Glyph="&#xE80A;" FontSize="15"/></AppBarButton.Icon>
-            </AppBarButton>
-            <AppBarSeparator/>
-            <AppBarButton Label="A+" Click="OnMarkdownFontIncreaseClick" ToolTipService.ToolTip="글자 크게"/>
-            <AppBarButton Label="A-" Click="OnMarkdownFontDecreaseClick" ToolTipService.ToolTip="글자 작게"/>
-            <AppBarButton x:Name="TextColorButton" Label="색" Click="OnMarkdownTextColorClick" ToolTipService.ToolTip="글자색 (우클릭: 색상 선택)" RightTapped="OnTextColorButtonRightTapped">
-                <AppBarButton.ContextFlyout>
-                    <Flyout x:Name="ColorPickerFlyout" Placement="Bottom">
-                        <StackPanel Spacing="8" Padding="4">
-                            <TextBlock Text="글자색 선택" FontWeight="SemiBold" FontSize="13"/>
-                            <ColorPicker x:Name="TextColorPicker" IsAlphaEnabled="False" HorizontalAlignment="Stretch"/>
-                            <Button Content="적용" Click="OnApplyTextColorClick" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Stretch"/>
-                        </StackPanel>
-                    </Flyout>
-                </AppBarButton.ContextFlyout>
-            </AppBarButton>
-            <AppBarButton Label="링크" Click="OnMarkdownLinkClick" ToolTipService.ToolTip="링크"/>
+            <CommandBar.Content>
+                <ScrollViewer Height="32"
+                              HorizontalScrollBarVisibility="Auto"
+                              HorizontalScrollMode="Auto"
+                              VerticalScrollBarVisibility="Disabled"
+                              VerticalScrollMode="Disabled">
+                    <StackPanel Orientation="Horizontal" Height="32" VerticalAlignment="Center" Padding="6,0,6,0">
+                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownHeadingClick" ToolTipService.ToolTip="제목">
+                            <TextBlock Text="H" FontWeight="SemiBold" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                        </Button>
+                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownBoldClick" ToolTipService.ToolTip="굵게 (Ctrl+B)">
+                            <TextBlock Text="B" FontWeight="Bold" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                        </Button>
+                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownItalicClick" ToolTipService.ToolTip="기울임 (Ctrl+I)">
+                            <TextBlock Text="I" FontStyle="Italic" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                        </Button>
+                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownUnderlineClick" ToolTipService.ToolTip="밑줄 (Ctrl+U)">
+                            <TextBlock Text="U" TextDecorations="Underline" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                        </Button>
+                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownHighlightClick" ToolTipService.ToolTip="형광펜">
+                            <TextBlock Text="HL" FontSize="9" LineHeight="12" FontWeight="Bold" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                        </Button>
+                        <Border Width="1" Height="18" Margin="5,0" Background="{ThemeResource DividerStrokeColorDefaultBrush}" VerticalAlignment="Center"/>
+                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownUlClick" ToolTipService.ToolTip="글머리 목록">
+                            <TextBlock Text="&#xE8FD;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                        </Button>
+                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownCutLineClick" ToolTipService.ToolTip="현재 줄 자르기">
+                            <TextBlock Text="&#xE8C6;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                        </Button>
+                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownQuoteClick" ToolTipService.ToolTip="인용문">
+                            <TextBlock Text="&#xE90A;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                        </Button>
+                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownArrowClick" ToolTipService.ToolTip="화살표">
+                            <TextBlock Text="&#xE72A;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                        </Button>
+                        <Border Width="1" Height="18" Margin="5,0" Background="{ThemeResource DividerStrokeColorDefaultBrush}" VerticalAlignment="Center"/>
+                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownInlineCodeClick" ToolTipService.ToolTip="인라인 코드">
+                            <TextBlock Text="&#xE943;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                        </Button>
+                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownTaskClick" ToolTipService.ToolTip="체크리스트">
+                            <TextBlock Text="&#xE73A;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                        </Button>
+                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownTableClick" ToolTipService.ToolTip="표">
+                            <TextBlock Text="&#xE80A;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                        </Button>
+                        <Border Width="1" Height="18" Margin="5,0" Background="{ThemeResource DividerStrokeColorDefaultBrush}" VerticalAlignment="Center"/>
+                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownFontIncreaseClick" ToolTipService.ToolTip="글자 크게">
+                            <TextBlock Text="A+" FontSize="10" LineHeight="12" FontWeight="SemiBold" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                        </Button>
+                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownFontDecreaseClick" ToolTipService.ToolTip="글자 작게">
+                            <TextBlock Text="A-" FontSize="10" LineHeight="12" FontWeight="SemiBold" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                        </Button>
+                        <Button x:Name="TextColorButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownTextColorClick" ToolTipService.ToolTip="글자색 (우클릭: 색상 선택)" RightTapped="OnTextColorButtonRightTapped">
+                            <TextBlock Text="&#xE8D3;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                            <Button.ContextFlyout>
+                                <Flyout x:Name="ColorPickerFlyout" Placement="Bottom">
+                                    <StackPanel Spacing="8" Padding="4">
+                                        <TextBlock Text="글자색 선택" FontWeight="SemiBold" FontSize="13"/>
+                                        <ColorPicker x:Name="TextColorPicker" IsAlphaEnabled="False" HorizontalAlignment="Stretch"/>
+                                        <Button Content="적용" Click="OnApplyTextColorClick" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Stretch"/>
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.ContextFlyout>
+                        </Button>
+                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownLinkClick" ToolTipService.ToolTip="링크">
+                            <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                        </Button>
+                    </StackPanel>
+                </ScrollViewer>
+            </CommandBar.Content>
         </CommandBar>
 
         <!-- 2. Main Work Area -->
@@ -316,7 +341,7 @@
                             <StackPanel Grid.Row="0" Margin="0,0,0,10" Spacing="5">
                                 <TextBlock Text="Git 저장소 관리" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
                                 <TextBlock x:Name="GitPanelBranchText" Text="Git: 감지 안됨" FontSize="13" FontWeight="SemiBold"/>
-                                <ComboBox x:Name="GitBranchesCombo" PlaceholderText="브랜치 목록" Height="28" HorizontalAlignment="Stretch"/>
+                                <ComboBox x:Name="GitBranchesCombo" PlaceholderText="브랜치 목록" Height="24" FontSize="10" Padding="6,0,4,0" HorizontalAlignment="Stretch"/>
                             </StackPanel>
 
                             <ListView x:Name="GitChangedFilesList" Grid.Row="1" SelectionMode="Single" DoubleTapped="OnGitFileDoubleTapped">

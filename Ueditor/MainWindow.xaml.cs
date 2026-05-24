@@ -951,13 +951,17 @@ namespace Ueditor
 
                     if (File.Exists(item.Path))
                     {
+                        string? folderPath = Path.GetDirectoryName(item.Path);
+                        if (!string.IsNullOrWhiteSpace(folderPath) && Directory.Exists(folderPath))
+                        {
+                            await NavigateExplorerToFolderAsync(folderPath);
+                        }
+
                         await LoadFileIntoTabAsync(item.Path);
                     }
                     else if (Directory.Exists(item.Path))
                     {
-                        _currentRepoPath = FindGitRepositoryRoot(item.Path) ?? string.Empty;
-                        LoadDirectoryRoot(item.Path);
-                        await RefreshGitStatusUIAsync();
+                        await NavigateExplorerToFolderAsync(item.Path);
                     }
                 }
             }
@@ -1898,6 +1902,8 @@ namespace Ueditor
         private const uint SWP_FRAMECHANGED = 0x0020;
         private const uint SWP_NOSIZE = 0x0001;
         private const uint SWP_NOMOVE = 0x0002;
+        private const int SW_HIDE = 0;
+        private const int SW_SHOW = 5;
         private static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
         private static readonly IntPtr HWND_NOTOPMOST = new IntPtr(-2);
 
@@ -1913,7 +1919,6 @@ namespace Ueditor
             {
                 if (_terminalWindowHandle != IntPtr.Zero)
                 {
-                    const int SW_SHOW = 5;
                     ShowWindow(_terminalWindowHandle, SW_SHOW);
                     ResizeEmbeddedTerminal();
                 }
@@ -1945,7 +1950,7 @@ namespace Ueditor
                     Arguments = $"-NoExit -Command \"$Host.UI.RawUI.WindowTitle = 'Ueditor_Console_{Process.GetCurrentProcess().Id}'\"",
                     WorkingDirectory = workingDirectory,
                     UseShellExecute = true,
-                    WindowStyle = ProcessWindowStyle.Minimized
+                    WindowStyle = ProcessWindowStyle.Hidden
                 };
 
                 _terminalProcess = Process.Start(startInfo);
@@ -1980,6 +1985,7 @@ namespace Ueditor
                 }
 
                 _terminalWindowHandle = childHwnd;
+                ShowWindow(_terminalWindowHandle, SW_HIDE);
 
                 // Reparent console window into WinUI 3 Window HWND
                 IntPtr parentHwnd = WindowNative.GetWindowHandle(this);
@@ -1994,11 +2000,12 @@ namespace Ueditor
                 SetWindowPos(_terminalWindowHandle, IntPtr.Zero, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOOWNERZORDER);
 
                 // Synchronize size alignment
+                await WaitForTerminalHostLayoutAsync();
                 ResizeEmbeddedTerminal();
 
                 // Show window inside border
-                const int SW_SHOW = 5;
                 ShowWindow(_terminalWindowHandle, SW_SHOW);
+                ResizeEmbeddedTerminal();
             }
             catch (Exception ex)
             {
@@ -2010,6 +2017,19 @@ namespace Ueditor
                 TerminalInputAreaGrid.Visibility = Visibility.Visible;
 
                 StartRedirectedTerminal(workingDirectory);
+            }
+        }
+
+        private async Task WaitForTerminalHostLayoutAsync()
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                if (TerminalHostBorder.ActualWidth > 8 && TerminalHostBorder.ActualHeight > 8)
+                {
+                    return;
+                }
+
+                await Task.Delay(30);
             }
         }
 
@@ -2092,14 +2112,16 @@ namespace Ueditor
                 var transform = TerminalHostBorder.TransformToVisual(this.Content);
                 var bounds = transform.TransformBounds(new Windows.Foundation.Rect(0, 0, TerminalHostBorder.ActualWidth, TerminalHostBorder.ActualHeight));
 
-                int x = (int)bounds.X;
-                int y = (int)bounds.Y;
-                int width = (int)bounds.Width;
-                int height = (int)bounds.Height;
+                double scale = this.Content.XamlRoot?.RasterizationScale ?? 1.0;
+                int x = (int)Math.Round(bounds.X * scale);
+                int y = (int)Math.Round(bounds.Y * scale);
+                int width = (int)Math.Round(bounds.Width * scale);
+                int height = (int)Math.Round(bounds.Height * scale);
 
                 if (width > 0 && height > 0)
                 {
                     MoveWindow(_terminalWindowHandle, x, y, width, height, true);
+                    SetWindowPos(_terminalWindowHandle, IntPtr.Zero, x, y, width, height, SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOOWNERZORDER);
                 }
             }
             catch (Exception ex)

@@ -94,13 +94,18 @@ namespace Ueditor.Core.Services
             var startInfo = new ProcessStartInfo
             {
                 FileName = "git",
-                Arguments = arguments,
+                Arguments = $"-c core.quotepath=false {arguments}",
                 WorkingDirectory = workingDir,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            startInfo.Environment["LANG"] = "C.UTF-8";
+            startInfo.Environment["LC_ALL"] = "C.UTF-8";
+            startInfo.Environment["OUTPUT_CHARSET"] = "UTF-8";
 
             using (var process = new Process { StartInfo = startInfo })
             {
