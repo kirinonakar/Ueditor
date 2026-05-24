@@ -96,10 +96,10 @@
     <value>폴더를 선택하세요.</value>
   </data>
   <data name="FavoritesHeader" xml:space="preserve">
-    <value>즐겨찾기 목록 (더블클릭하여 열기)</value>
+    <value>즐겨찾기 목록</value>
   </data>
   <data name="SnippetsHeader" xml:space="preserve">
-    <value>코드 및 수식 템플릿 (더블클릭하여 삽입)</value>
+    <value>코드 및 수식 템플릿</value>
   </data>
   <data name="AddSnippet" xml:space="preserve">
     <value>스니펫 추가...</value>
@@ -330,7 +330,7 @@
     <value>모두 치환</value>
   </data>
   <data name="RecentFilesHeader" xml:space="preserve">
-    <value>최근 열린 파일 (더블클릭하여 열기)</value>
+    <value>최근 열린 파일</value>
   </data>
   <data name="GitRepoHeader" xml:space="preserve">
     <value>Git 저장소 관리</value>

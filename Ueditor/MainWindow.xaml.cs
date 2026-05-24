@@ -1618,8 +1618,8 @@ namespace Ueditor
                 }
 
                 // 5. Sidebar Headers
-                if (FavoritesHeaderText != null) FavoritesHeaderText.Text = GetString("FavoritesHeader", "즐겨찾기 목록 (더블클릭하여 열기)");
-                if (SnippetsHeaderText != null) SnippetsHeaderText.Text = GetString("SnippetsHeader", "코드 및 수식 템플릿 (더블클릭하여 삽입)");
+                if (FavoritesHeaderText != null) FavoritesHeaderText.Text = GetString("FavoritesHeader", "즐겨찾기 목록");
+                if (SnippetsHeaderText != null) SnippetsHeaderText.Text = GetString("SnippetsHeader", "코드 및 수식 템플릿");
                 if (AddSnippetButton != null) AddSnippetButton.Content = GetString("AddSnippet", "스니펫 추가...");
 
                 // 6a. Explorer folder buttons
@@ -1633,7 +1633,7 @@ namespace Ueditor
                 if (LeftSidebarTabView.FavoritesPinIndicatorText != null) ToolTipService.SetToolTip(LeftSidebarTabView.FavoritesPinIndicatorText, GetString("FavoritesPinTooltip", "고정"));
 
                 // 6c. Recent Files header
-                if (RecentFilesHeaderText != null) RecentFilesHeaderText.Text = GetString("RecentFilesHeader", "최근 열린 파일 (더블클릭하여 열기)");
+                if (RecentFilesHeaderText != null) RecentFilesHeaderText.Text = GetString("RecentFilesHeader", "최근 파일");
 
                 // 6d. Search panel
                 if (SearchHeaderText != null) SearchHeaderText.Text = GetString("SearchHeader", "폴더 전체 검색 및 치환");

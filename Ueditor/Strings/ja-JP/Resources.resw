@@ -96,10 +96,10 @@
     <value>フォルダを選択してください。</value>
   </data>
   <data name="FavoritesHeader" xml:space="preserve">
-    <value>お気に入りリスト (ダブルクリックで開く)</value>
+    <value>お気に入りリスト</value>
   </data>
   <data name="SnippetsHeader" xml:space="preserve">
-    <value>コードと数式テンプレート (ダブルクリックで挿入)</value>
+    <value>コードと数式テンプレート</value>
   </data>
   <data name="AddSnippet" xml:space="preserve">
     <value>スニペット追加...</value>

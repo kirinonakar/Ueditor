@@ -96,10 +96,10 @@
     <value>Please select a folder.</value>
   </data>
   <data name="FavoritesHeader" xml:space="preserve">
-    <value>Favorites List (Double-click to open)</value>
+    <value>Favorites List</value>
   </data>
   <data name="SnippetsHeader" xml:space="preserve">
-    <value>Code &amp; Formula Templates (Double-click to insert)</value>
+    <value>Code &amp; Formula Templates</value>
   </data>
   <data name="AddSnippet" xml:space="preserve">
     <value>Add Snippet...</value>
