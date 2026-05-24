@@ -132,51 +132,51 @@
                               VerticalScrollBarVisibility="Disabled"
                               VerticalScrollMode="Disabled">
                     <StackPanel Orientation="Horizontal" Height="32" VerticalAlignment="Center" Padding="6,0,6,0">
-                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownHeadingClick" ToolTipService.ToolTip="제목">
+                        <Button x:Name="MarkdownHeadingButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownHeadingClick" ToolTipService.ToolTip="제목">
                             <TextBlock Text="H" FontWeight="SemiBold" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                         </Button>
-                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownBoldClick" ToolTipService.ToolTip="굵게 (Ctrl+B)">
+                        <Button x:Name="MarkdownBoldButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownBoldClick" ToolTipService.ToolTip="굵게 (Ctrl+B)">
                             <TextBlock Text="B" FontWeight="Bold" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                         </Button>
-                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownItalicClick" ToolTipService.ToolTip="기울임 (Ctrl+I)">
+                        <Button x:Name="MarkdownItalicButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownItalicClick" ToolTipService.ToolTip="기울임 (Ctrl+I)">
                             <TextBlock Text="I" FontStyle="Italic" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                         </Button>
-                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownUnderlineClick" ToolTipService.ToolTip="밑줄 (Ctrl+U)">
+                        <Button x:Name="MarkdownUnderlineButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownUnderlineClick" ToolTipService.ToolTip="밑줄 (Ctrl+U)">
                             <TextBlock Text="U" TextDecorations="Underline" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                         </Button>
-                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownHighlightClick" ToolTipService.ToolTip="형광펜">
+                        <Button x:Name="MarkdownHighlightButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownHighlightClick" ToolTipService.ToolTip="형광펜">
                             <Border Width="21" Height="16" CornerRadius="2" Background="#FFFFD54F" BorderBrush="#FFE0A800" BorderThickness="1">
                                 <TextBlock Text="HL" Foreground="#FF202020" FontSize="9" LineHeight="12" FontWeight="Bold" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                             </Border>
                         </Button>
                         <Border Width="1" Height="18" Margin="5,0" Background="{ThemeResource DividerStrokeColorDefaultBrush}" VerticalAlignment="Center"/>
-                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownUlClick" ToolTipService.ToolTip="글머리 목록">
+                        <Button x:Name="MarkdownUlButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownUlClick" ToolTipService.ToolTip="글머리 목록">
                             <TextBlock Text="&#xE8FD;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                         </Button>
-                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownCutLineClick" ToolTipService.ToolTip="현재 줄 자르기">
+                        <Button x:Name="MarkdownCutLineButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownCutLineClick" ToolTipService.ToolTip="현재 줄 자르기">
                             <TextBlock Text="&#xE8C6;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                         </Button>
-                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownQuoteClick" ToolTipService.ToolTip="인용문">
+                        <Button x:Name="MarkdownQuoteButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownQuoteClick" ToolTipService.ToolTip="인용문">
                             <TextBlock Text="&#xE90A;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                         </Button>
-                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownArrowClick" ToolTipService.ToolTip="화살표">
+                        <Button x:Name="MarkdownArrowButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownArrowClick" ToolTipService.ToolTip="화살표">
                             <TextBlock Text="&#xE72A;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                         </Button>
                         <Border Width="1" Height="18" Margin="5,0" Background="{ThemeResource DividerStrokeColorDefaultBrush}" VerticalAlignment="Center"/>
-                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownInlineCodeClick" ToolTipService.ToolTip="인라인 코드">
+                        <Button x:Name="MarkdownInlineCodeButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownInlineCodeClick" ToolTipService.ToolTip="인라인 코드">
                             <TextBlock Text="&#xE943;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                         </Button>
-                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownTaskClick" ToolTipService.ToolTip="체크리스트">
+                        <Button x:Name="MarkdownTaskButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownTaskClick" ToolTipService.ToolTip="체크리스트">
                             <TextBlock Text="&#xE73A;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                         </Button>
-                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownTableClick" ToolTipService.ToolTip="표">
+                        <Button x:Name="MarkdownTableButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownTableClick" ToolTipService.ToolTip="표">
                             <TextBlock Text="&#xE80A;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                         </Button>
                         <Border Width="1" Height="18" Margin="5,0" Background="{ThemeResource DividerStrokeColorDefaultBrush}" VerticalAlignment="Center"/>
-                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownFontIncreaseClick" ToolTipService.ToolTip="글자 크게">
+                        <Button x:Name="MarkdownFontIncreaseButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownFontIncreaseClick" ToolTipService.ToolTip="글자 크게">
                             <TextBlock Text="A+" FontSize="10" LineHeight="12" FontWeight="SemiBold" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                         </Button>
-                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownFontDecreaseClick" ToolTipService.ToolTip="글자 작게">
+                        <Button x:Name="MarkdownFontDecreaseButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownFontDecreaseClick" ToolTipService.ToolTip="글자 작게">
                             <TextBlock Text="A-" FontSize="10" LineHeight="12" FontWeight="SemiBold" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                         </Button>
                         <Button x:Name="TextColorButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownTextColorClick" ToolTipService.ToolTip="글자색 (우클릭: 색상 선택)" RightTapped="OnTextColorButtonRightTapped">
@@ -191,7 +191,7 @@
                                 </Flyout>
                             </Button.ContextFlyout>
                         </Button>
-                        <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownLinkClick" ToolTipService.ToolTip="링크">
+                        <Button x:Name="MarkdownLinkButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownLinkClick" ToolTipService.ToolTip="링크">
                             <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="13" LineHeight="15" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                         </Button>
                     </StackPanel>

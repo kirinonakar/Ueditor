@@ -1383,23 +1383,294 @@ namespace Ueditor
             }
         }
 
+        private static readonly Dictionary<string, Dictionary<string, string>> LocalizedStrings = new Dictionary<string, Dictionary<string, string>>
+        {
+            {
+                "ko-KR", new Dictionary<string, string>
+                {
+                    { "AppTitle", "Ueditor" },
+                    { "OpenFile", "파일 열기" },
+                    { "SaveFile", "저장" },
+                    { "Compare", "비교" },
+                    { "Terminal", "터미널" },
+                    { "TopMost", "항상위" },
+                    { "StickyNote", "스티커" },
+                    { "WordWrap", "Word Wrap" },
+                    { "Search", "검색" },
+                    { "Markdown", "Markdown" },
+                    { "Theme", "테마" },
+                    { "Split", "분할" },
+                    { "Settings", "설정" },
+                    { "FolderSelect", "폴더 선택..." },
+                    { "NoFolderSelected", "폴더를 선택하세요." },
+                    { "FavoritesHeader", "즐겨찾기 목록 (더블클릭하여 열기)" },
+                    { "SnippetsHeader", "코드 및 수식 템플릿 (더블클릭하여 삽입)" },
+                    { "AddSnippet", "스니펫 추가..." },
+                    { "SplitNone", "분할 없음 (단일)" },
+                    { "SplitVertical", "좌우 분할" },
+                    { "SplitHorizontal", "상하 분할" },
+                    { "LanguageChangedTitle", "언어 변경" },
+                    { "LanguageChangedMessage", "언어 설정을 적용하려면 애플리케이션을 다시 시작해야 합니다. 다시 시작하시겠습니까?" },
+                    { "Yes", "예" },
+                    { "No", "아니오" },
+                    { "Restart", "다시 시작" },
+                    { "LanguageDefault", "기본값 (OS 설정)" },
+                    { "LanguageKorean", "한국어" },
+                    { "LanguageEnglish", "English" },
+                    { "LanguageJapanese", "日本語" },
+                    { "Explorer", "탐색기" },
+                    { "Favorites", "즐겨찾기" },
+                    { "Snippets", "스니펫" },
+                    { "RecentFiles", "최근 파일" },
+                    { "Heading", "제목" },
+                    { "Bold", "굵게 (Ctrl+B)" },
+                    { "Italic", "기울임 (Ctrl+I)" },
+                    { "Underline", "밑줄 (Ctrl+U)" },
+                    { "Highlight", "형광펜" },
+                    { "UnorderedList", "글머리 목록" },
+                    { "CutLine", "현재 줄 자르기" },
+                    { "Quote", "인용문" },
+                    { "Arrow", "화살표" },
+                    { "InlineCode", "인라인 코드" },
+                    { "Tasklist", "체크리스트" },
+                    { "Table", "표" },
+                    { "FontIncrease", "글자 크게" },
+                    { "FontDecrease", "글자 작게" },
+                    { "TextColor", "글자색 (우클릭: 색상 선택)" },
+                    { "Link", "링크" },
+                    { "SettingsTitle", "Ueditor 설정" },
+                    { "SettingsSave", "적용 및 저장" },
+                    { "SettingsCancel", "취소" },
+                    { "SettingsAppearance", "모양" },
+                    { "SettingsEditing", "편집" },
+                    { "SettingsLLM", "LLM" },
+                    { "SettingsLanguage", "애플리케이션 언어 (Language)" },
+                    { "SettingsTheme", "앱/에디터 테마" },
+                    { "SettingsFontSize", "에디터 글자 크기" },
+                    { "SettingsFontFamily", "에디터 폰트" },
+                    { "SettingsUiFontFamily", "UI 쉘 폰트" },
+                    { "SettingsUseCustomBg", "커스텀 에디터 배경색 사용" },
+                    { "SettingsUseCustomFg", "커스텀 에디터 글자색 사용" },
+                    { "SettingsWordWrap", "기본 Word Wrap 켜기" },
+                    { "SettingsMinimap", "미니맵 표시 (로컬 Monaco 번들 사용 시)" },
+                    { "SettingsBracketPair", "Bracket pair colorization (로컬 Monaco 번들 사용 시)" },
+                    { "SettingsAutoSave", "Autosave 사용" },
+                    { "SettingsLivePreview", "실시간 미리보기 기본 활성화" },
+                    { "SettingsMarkdownToolbar", "기본 마크다운 툴바 활성화" },
+                    { "SettingsTabSize", "Tab size" },
+                    { "SettingsLargeFileThreshold", "Large File Mode 제안 기준 (MB)" },
+                    { "SettingsLlmProvider", "LLM 공급자" },
+                    { "SettingsLlmEndpoint", "LLM API Endpoint" },
+                    { "SettingsLlmModel", "LLM 모델명" },
+                    { "SettingsLlmApiKey", "LLM API Key" },
+                    { "SettingsLlmLoadModels", "LM Studio 모델 불러오기" },
+                    { "SettingsLlmInfo", "LM Studio는 서버가 켜져 있을 때 http://localhost:1234/v1/models 에서 모델 목록을 불러옵니다." },
+                    { "SettingsLlmApiKeyInfo", "API Key는 설정 파일에 저장하지 않고 Windows 자격 증명 관리자에 저장합니다. 비워두고 저장하면 기존 Key를 유지합니다. LM Studio는 기본 로컬 서버 설정에서 API Key 없이 사용할 수 있습니다." }
+                }
+            },
+            {
+                "en-US", new Dictionary<string, string>
+                {
+                    { "AppTitle", "Ueditor" },
+                    { "OpenFile", "Open File" },
+                    { "SaveFile", "Save" },
+                    { "Compare", "Compare" },
+                    { "Terminal", "Terminal" },
+                    { "TopMost", "TopMost" },
+                    { "StickyNote", "Sticky" },
+                    { "WordWrap", "Word Wrap" },
+                    { "Search", "Search" },
+                    { "Markdown", "Markdown" },
+                    { "Theme", "Theme" },
+                    { "Split", "Split" },
+                    { "Settings", "Settings" },
+                    { "FolderSelect", "Select Folder..." },
+                    { "NoFolderSelected", "Please select a folder." },
+                    { "FavoritesHeader", "Favorites List (Double-click to open)" },
+                    { "SnippetsHeader", "Code & Formula Templates (Double-click to insert)" },
+                    { "AddSnippet", "Add Snippet..." },
+                    { "SplitNone", "No Split (Single)" },
+                    { "SplitVertical", "Split Vertically" },
+                    { "SplitHorizontal", "Split Horizontally" },
+                    { "LanguageChangedTitle", "Language Change" },
+                    { "LanguageChangedMessage", "You must restart the application to apply the language settings. Would you like to restart now?" },
+                    { "Yes", "Yes" },
+                    { "No", "No" },
+                    { "Restart", "Restart" },
+                    { "LanguageDefault", "Default (OS Language)" },
+                    { "LanguageKorean", "Korean" },
+                    { "LanguageEnglish", "English" },
+                    { "LanguageJapanese", "Japanese" },
+                    { "Explorer", "Explorer" },
+                    { "Favorites", "Favorites" },
+                    { "Snippets", "Snippets" },
+                    { "RecentFiles", "Recent Files" },
+                    { "Heading", "Heading" },
+                    { "Bold", "Bold (Ctrl+B)" },
+                    { "Italic", "Italic (Ctrl+I)" },
+                    { "Underline", "Underline (Ctrl+U)" },
+                    { "Highlight", "Highlight" },
+                    { "UnorderedList", "Unordered List" },
+                    { "CutLine", "Cut Line" },
+                    { "Quote", "Quote" },
+                    { "Arrow", "Arrow" },
+                    { "InlineCode", "Inline Code" },
+                    { "Tasklist", "Tasklist" },
+                    { "Table", "Table" },
+                    { "FontIncrease", "Font Increase" },
+                    { "FontDecrease", "Font Decrease" },
+                    { "TextColor", "Text Color (Right-click: Select Color)" },
+                    { "Link", "Link" },
+                    { "SettingsTitle", "Ueditor Settings" },
+                    { "SettingsSave", "Save & Apply" },
+                    { "SettingsCancel", "Cancel" },
+                    { "SettingsAppearance", "Appearance" },
+                    { "SettingsEditing", "Editing" },
+                    { "SettingsLLM", "LLM" },
+                    { "SettingsLanguage", "Application Language" },
+                    { "SettingsTheme", "App & Editor Theme" },
+                    { "SettingsFontSize", "Editor Font Size" },
+                    { "SettingsFontFamily", "Editor Font Family" },
+                    { "SettingsUiFontFamily", "UI Shell Font Family" },
+                    { "SettingsUseCustomBg", "Use Custom Editor Background Color" },
+                    { "SettingsUseCustomFg", "Use Custom Editor Foreground Color" },
+                    { "SettingsWordWrap", "Enable Word Wrap by Default" },
+                    { "SettingsMinimap", "Show Minimap" },
+                    { "SettingsBracketPair", "Bracket Pair Colorization" },
+                    { "SettingsAutoSave", "Use Autosave" },
+                    { "SettingsLivePreview", "Enable Live Preview by Default" },
+                    { "SettingsMarkdownToolbar", "Enable Markdown Toolbar by Default" },
+                    { "SettingsTabSize", "Tab Size" },
+                    { "SettingsLargeFileThreshold", "Large File Mode Threshold (MB)" },
+                    { "SettingsLlmProvider", "LLM Provider" },
+                    { "SettingsLlmEndpoint", "LLM API Endpoint" },
+                    { "SettingsLlmModel", "LLM Model" },
+                    { "SettingsLlmApiKey", "LLM API Key" },
+                    { "SettingsLlmLoadModels", "Load LM Studio Models" },
+                    { "SettingsLlmInfo", "LM Studio loads the list of models from http://localhost:1234/v1/models when the server is running." },
+                    { "SettingsLlmApiKeyInfo", "API Keys are stored in the Windows Credential Manager, not in settings files. Leaving it empty preserves the existing Key. LM Studio does not require an API Key under default configurations." }
+                }
+            },
+            {
+                "ja-JP", new Dictionary<string, string>
+                {
+                    { "AppTitle", "Ueditor" },
+                    { "OpenFile", "ファイルを開く" },
+                    { "SaveFile", "保存" },
+                    { "Compare", "比較" },
+                    { "Terminal", "ターミナル" },
+                    { "TopMost", "常に手前" },
+                    { "StickyNote", "付箋" },
+                    { "WordWrap", "右端で折り返す" },
+                    { "Search", "検索" },
+                    { "Markdown", "Markdown" },
+                    { "Theme", "テーマ" },
+                    { "Split", "分割" },
+                    { "Settings", "設定" },
+                    { "FolderSelect", "フォルダ選択..." },
+                    { "NoFolderSelected", "フォルダを選択してください。" },
+                    { "FavoritesHeader", "お気に入りリスト (ダブルクリックで開く)" },
+                    { "SnippetsHeader", "コードと数式テンプレート (ダブルクリックで挿入)" },
+                    { "AddSnippet", "スニペット追加..." },
+                    { "SplitNone", "分割なし (単一)" },
+                    { "SplitVertical", "左右に分割" },
+                    { "SplitHorizontal", "上下に分割" },
+                    { "LanguageChangedTitle", "言語の変更" },
+                    { "LanguageChangedMessage", "言語設定を適用するにはアプリケーションを再起動する必要があります。今すぐ再起動しますか？" },
+                    { "Yes", "はい" },
+                    { "No", "いいえ" },
+                    { "Restart", "再起動" },
+                    { "LanguageDefault", "デフォルト (OS設定)" },
+                    { "LanguageKorean", "韓国語" },
+                    { "LanguageEnglish", "English" },
+                    { "LanguageJapanese", "日本語" },
+                    { "Explorer", "エクスプローラー" },
+                    { "Favorites", "お気に入り" },
+                    { "Snippets", "スニペット" },
+                    { "RecentFiles", "最近のファイル" },
+                    { "Heading", "見出し" },
+                    { "Bold", "太字 (Ctrl+B)" },
+                    { "Italic", "斜体 (Ctrl+I)" },
+                    { "Underline", "下線 (Ctrl+U)" },
+                    { "Highlight", "蛍光ペン" },
+                    { "UnorderedList", "箇条書き" },
+                    { "CutLine", "現在の行を切り取り" },
+                    { "Quote", "引用" },
+                    { "Arrow", "矢印" },
+                    { "InlineCode", "インラインコード" },
+                    { "Tasklist", "チェックリスト" },
+                    { "Table", "表" },
+                    { "FontIncrease", "フォントサイズ拡大" },
+                    { "FontDecrease", "フォントサイズ縮小" },
+                    { "TextColor", "文字色 (右クリック: 色選択)" },
+                    { "Link", "リンク" },
+                    { "SettingsTitle", "Ueditor 設定" },
+                    { "SettingsSave", "適用して保存" },
+                    { "SettingsCancel", "キャンセル" },
+                    { "SettingsAppearance", "外観" },
+                    { "SettingsEditing", "編集" },
+                    { "SettingsLLM", "LLM" },
+                    { "SettingsLanguage", "アプリケーションの言語" },
+                    { "SettingsTheme", "アプリとエディタのテーマ" },
+                    { "SettingsFontSize", "エディタの文字サイズ" },
+                    { "SettingsFontFamily", "エディタのフォント" },
+                    { "SettingsUiFontFamily", "UI シェルのフォント" },
+                    { "SettingsUseCustomBg", "カスタム背景色を使用する" },
+                    { "SettingsUseCustomFg", "カスタム文字色を使用する" },
+                    { "SettingsWordWrap", "デフォルトで右端折り返しを有効にする" },
+                    { "SettingsMinimap", "ミニマップを表示する" },
+                    { "SettingsBracketPair", "ブラケットペアのカラー表示" },
+                    { "SettingsAutoSave", "自動保存を使用する" },
+                    { "SettingsLivePreview", "デフォルトでライブプレビューを有効にする" },
+                    { "SettingsMarkdownToolbar", "デフォルトでMarkdownツールバーを表示する" },
+                    { "SettingsTabSize", "タブサイズ" },
+                    { "SettingsLargeFileThreshold", "大容量ファイル検出の閾値 (MB)" },
+                    { "SettingsLlmProvider", "LLM プロバイダー" },
+                    { "SettingsLlmEndpoint", "LLM API エンドポイント" },
+                    { "SettingsLlmModel", "LLM モデル名" },
+                    { "SettingsLlmApiKey", "LLM API キー" },
+                    { "SettingsLlmLoadModels", "LM Studioモデルを取得" },
+                    { "SettingsLlmInfo", "LM Studioは、サーバーが起動しているときに http://localhost:1234/v1/models からモデルリストを取得します。" },
+                    { "SettingsLlmApiKeyInfo", "APIキーは設定ファイルではなく、Windowsの資格情報マネージャーに保存されます。空欄で保存すると、既存のキーが維持されます。LM Studioはデフォルトのローカルサーバー設定でAPIキーなしで動作します。" }
+                }
+            }
+        };
+
+        private string GetActiveLanguage()
+        {
+            var lang = _settingsService?.CurrentSettings?.Language;
+            if (string.IsNullOrEmpty(lang) || lang.Equals("Default", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    lang = System.Globalization.CultureInfo.CurrentUICulture.Name;
+                }
+                catch
+                {
+                    lang = "en-US";
+                }
+            }
+
+            if (lang != null)
+            {
+                if (lang.StartsWith("ko", StringComparison.OrdinalIgnoreCase)) return "ko-KR";
+                if (lang.StartsWith("ja", StringComparison.OrdinalIgnoreCase)) return "ja-JP";
+            }
+            return "en-US";
+        }
+
         private void LocalizeUi()
         {
             try
             {
-                var loader = new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader();
-                
                 string GetString(string key, string fallback)
                 {
-                    try
+                    string lang = GetActiveLanguage();
+                    if (LocalizedStrings.TryGetValue(lang, out var langDict) && langDict.TryGetValue(key, out var val))
                     {
-                        string val = loader.GetString(key);
-                        return string.IsNullOrEmpty(val) ? fallback : val;
+                        return val;
                     }
-                    catch
-                    {
-                        return fallback;
-                    }
+                    return fallback;
                 }
 
                 // 1. Top Toolbar Buttons
@@ -1467,12 +1738,12 @@ namespace Ueditor
                 if (SplitHorizontalItem != null) SplitHorizontalItem.Text = GetString("SplitHorizontal", "상하 분할");
 
                 // 3. Left Panel Tooltips
-                if (ExplorerActivityButton != null) ToolTipService.SetToolTip(ExplorerActivityButton, GetString("OpenFile", "탐색기"));
-                if (FavoritesActivityButton != null) ToolTipService.SetToolTip(FavoritesActivityButton, GetString("FavoritesHeader", "즐겨찾기"));
-                if (SnippetsActivityButton != null) ToolTipService.SetToolTip(SnippetsActivityButton, GetString("SnippetsHeader", "스니펫"));
+                if (ExplorerActivityButton != null) ToolTipService.SetToolTip(ExplorerActivityButton, GetString("Explorer", "탐색기"));
+                if (FavoritesActivityButton != null) ToolTipService.SetToolTip(FavoritesActivityButton, GetString("Favorites", "즐겨찾기"));
+                if (SnippetsActivityButton != null) ToolTipService.SetToolTip(SnippetsActivityButton, GetString("Snippets", "스니펫"));
                 if (GitActivityButton != null) ToolTipService.SetToolTip(GitActivityButton, "Git");
                 if (SearchActivityButton != null) ToolTipService.SetToolTip(SearchActivityButton, GetString("Search", "검색"));
-                if (RecentActivityButton != null) ToolTipService.SetToolTip(RecentActivityButton, "최근 파일");
+                if (RecentActivityButton != null) ToolTipService.SetToolTip(RecentActivityButton, GetString("RecentFiles", "최근 파일"));
 
                 // 4. Folder Select and Status
                 if (ExplorerStatusText != null && string.IsNullOrEmpty(_currentFolderPath))
@@ -1484,6 +1755,24 @@ namespace Ueditor
                 if (FavoritesHeaderText != null) FavoritesHeaderText.Text = GetString("FavoritesHeader", "즐겨찾기 목록 (더블클릭하여 열기)");
                 if (SnippetsHeaderText != null) SnippetsHeaderText.Text = GetString("SnippetsHeader", "코드 및 수식 템플릿 (더블클릭하여 삽입)");
                 if (AddSnippetButton != null) AddSnippetButton.Content = GetString("AddSnippet", "스니펫 추가...");
+
+                // 6. Markdown Toolbar Buttons
+                if (MarkdownHeadingButton != null) ToolTipService.SetToolTip(MarkdownHeadingButton, GetString("Heading", "제목"));
+                if (MarkdownBoldButton != null) ToolTipService.SetToolTip(MarkdownBoldButton, GetString("Bold", "굵게 (Ctrl+B)"));
+                if (MarkdownItalicButton != null) ToolTipService.SetToolTip(MarkdownItalicButton, GetString("Italic", "기울임 (Ctrl+I)"));
+                if (MarkdownUnderlineButton != null) ToolTipService.SetToolTip(MarkdownUnderlineButton, GetString("Underline", "밑줄 (Ctrl+U)"));
+                if (MarkdownHighlightButton != null) ToolTipService.SetToolTip(MarkdownHighlightButton, GetString("Highlight", "형광펜"));
+                if (MarkdownUlButton != null) ToolTipService.SetToolTip(MarkdownUlButton, GetString("UnorderedList", "글머리 목록"));
+                if (MarkdownCutLineButton != null) ToolTipService.SetToolTip(MarkdownCutLineButton, GetString("CutLine", "현재 줄 자르기"));
+                if (MarkdownQuoteButton != null) ToolTipService.SetToolTip(MarkdownQuoteButton, GetString("Quote", "인용문"));
+                if (MarkdownArrowButton != null) ToolTipService.SetToolTip(MarkdownArrowButton, GetString("Arrow", "화살표"));
+                if (MarkdownInlineCodeButton != null) ToolTipService.SetToolTip(MarkdownInlineCodeButton, GetString("InlineCode", "인라인 코드"));
+                if (MarkdownTaskButton != null) ToolTipService.SetToolTip(MarkdownTaskButton, GetString("Tasklist", "체크리스트"));
+                if (MarkdownTableButton != null) ToolTipService.SetToolTip(MarkdownTableButton, GetString("Table", "표"));
+                if (MarkdownFontIncreaseButton != null) ToolTipService.SetToolTip(MarkdownFontIncreaseButton, GetString("FontIncrease", "글자 크게"));
+                if (MarkdownFontDecreaseButton != null) ToolTipService.SetToolTip(MarkdownFontDecreaseButton, GetString("FontDecrease", "글자 작게"));
+                if (TextColorButton != null) ToolTipService.SetToolTip(TextColorButton, GetString("TextColor", "글자색 (우클릭: 색상 선택)"));
+                if (MarkdownLinkButton != null) ToolTipService.SetToolTip(MarkdownLinkButton, GetString("Link", "링크"));
             }
             catch (Exception ex)
             {
@@ -1495,8 +1784,18 @@ namespace Ueditor
         {
             var settings = _settingsService.CurrentSettings;
 
+            string GetSettingsString(string key, string fallback)
+            {
+                string lang = GetActiveLanguage();
+                if (LocalizedStrings.TryGetValue(lang, out var langDict) && langDict.TryGetValue(key, out var val))
+                {
+                    return val;
+                }
+                return fallback;
+            }
+
             var languageCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
-            languageCombo.Items.Add("Default (OS Language)");
+            languageCombo.Items.Add(GetSettingsString("LanguageDefault", "Default (OS Language)"));
             languageCombo.Items.Add("한국어 (Korean)");
             languageCombo.Items.Add("English");
             languageCombo.Items.Add("日本語 (Japanese)");
@@ -1519,24 +1818,24 @@ namespace Ueditor
             var fontFamilies = GetInstalledFontFamilies();
             var fontFamilyCombo = CreateFontComboBox(settings.FontFamily, fontFamilies);
             var uiFontFamilyCombo = CreateFontComboBox(settings.UiFontFamily, fontFamilies);
-            var customBgCheck = new CheckBox { Content = "커스텀 에디터 배경색 사용", IsChecked = !string.IsNullOrWhiteSpace(settings.CustomBackgroundColor) };
-            var customFgCheck = new CheckBox { Content = "커스텀 에디터 글자색 사용", IsChecked = !string.IsNullOrWhiteSpace(settings.CustomForegroundColor) };
+            var customBgCheck = new CheckBox { Content = GetSettingsString("SettingsUseCustomBg", "커스텀 에디터 배경색 사용"), IsChecked = !string.IsNullOrWhiteSpace(settings.CustomBackgroundColor) };
+            var customFgCheck = new CheckBox { Content = GetSettingsString("SettingsUseCustomFg", "커스텀 에디터 글자색 사용"), IsChecked = !string.IsNullOrWhiteSpace(settings.CustomForegroundColor) };
             ColorPicker customBgPicker;
             ColorPicker customFgPicker;
-            var customBgDropdown = CreateColorDropdown("에디터 배경색", ResolvePickerColor(settings.CustomBackgroundColor, settings.Theme == "Light" ? "#ffffff" : "#1e1e1e"), out customBgPicker);
-            var customFgDropdown = CreateColorDropdown("에디터 글자색", ResolvePickerColor(settings.CustomForegroundColor, settings.Theme == "Light" ? "#111111" : "#d4d4d4"), out customFgPicker);
+            var customBgDropdown = CreateColorDropdown(GetSettingsString("SettingsUseCustomBg", "에디터 배경색"), ResolvePickerColor(settings.CustomBackgroundColor, settings.Theme == "Light" ? "#ffffff" : "#1e1e1e"), out customBgPicker);
+            var customFgDropdown = CreateColorDropdown(GetSettingsString("SettingsUseCustomFg", "에디터 글자색"), ResolvePickerColor(settings.CustomForegroundColor, settings.Theme == "Light" ? "#111111" : "#d4d4d4"), out customFgPicker);
             customBgDropdown.IsEnabled = customBgCheck.IsChecked == true;
             customFgDropdown.IsEnabled = customFgCheck.IsChecked == true;
             customBgCheck.Checked += (_, __) => customBgDropdown.IsEnabled = true;
             customBgCheck.Unchecked += (_, __) => customBgDropdown.IsEnabled = false;
             customFgCheck.Checked += (_, __) => customFgDropdown.IsEnabled = true;
             customFgCheck.Unchecked += (_, __) => customFgDropdown.IsEnabled = false;
-            var wordWrapCheck = new CheckBox { Content = "기본 Word Wrap 켜기", IsChecked = settings.WordWrap };
-            var minimapCheck = new CheckBox { Content = "미니맵 표시 (로컬 Monaco 번들 사용 시)", IsChecked = settings.MinimapEnabled };
-            var bracketPairCheck = new CheckBox { Content = "Bracket pair colorization (로컬 Monaco 번들 사용 시)", IsChecked = settings.BracketPairColorizationEnabled };
-            var autoSaveCheck = new CheckBox { Content = "Autosave 사용", IsChecked = settings.AutoSave };
-            var defaultMarkdownCheck = new CheckBox { Content = "실시간 미리보기 기본 활성화", IsChecked = settings.DefaultMarkdownEnabled };
-            var defaultMarkdownToolbarCheck = new CheckBox { Content = "기본 마크다운 툴바 활성화", IsChecked = settings.DefaultMarkdownToolbarEnabled };
+            var wordWrapCheck = new CheckBox { Content = GetSettingsString("SettingsWordWrap", "기본 Word Wrap 켜기"), IsChecked = settings.WordWrap };
+            var minimapCheck = new CheckBox { Content = GetSettingsString("SettingsMinimap", "미니맵 표시 (로컬 Monaco 번들 사용 시)"), IsChecked = settings.MinimapEnabled };
+            var bracketPairCheck = new CheckBox { Content = GetSettingsString("SettingsBracketPair", "Bracket pair colorization (로컬 Monaco 번들 사용 시)"), IsChecked = settings.BracketPairColorizationEnabled };
+            var autoSaveCheck = new CheckBox { Content = GetSettingsString("SettingsAutoSave", "Autosave 사용"), IsChecked = settings.AutoSave };
+            var defaultMarkdownCheck = new CheckBox { Content = GetSettingsString("SettingsLivePreview", "실시간 미리보기 기본 활성화"), IsChecked = settings.DefaultMarkdownEnabled };
+            var defaultMarkdownToolbarCheck = new CheckBox { Content = GetSettingsString("SettingsMarkdownToolbar", "기본 마크다운 툴바 활성화"), IsChecked = settings.DefaultMarkdownToolbarEnabled };
             var tabSizeBox = new TextBox { PlaceholderText = "예: 4", Text = settings.TabSize.ToString(), HorizontalAlignment = HorizontalAlignment.Stretch };
             var largeThresholdBox = new TextBox { PlaceholderText = "예: 50", Text = settings.LargeFileThresholdMB.ToString(), HorizontalAlignment = HorizontalAlignment.Stretch };
 
@@ -1560,10 +1859,10 @@ namespace Ueditor
             string initialKey = await _llmService.GetApiKeyAsync(providerNames[providerIndex]);
             llmApiKeyBox.Password = initialKey;
 
-            var refreshLmStudioModelsButton = new Button { Content = "LM Studio 모델 불러오기", HorizontalAlignment = HorizontalAlignment.Stretch };
+            var refreshLmStudioModelsButton = new Button { Content = GetSettingsString("SettingsLlmLoadModels", "LM Studio 모델 불러오기"), HorizontalAlignment = HorizontalAlignment.Stretch };
             var llmModelStatusText = new TextBlock
             {
-                Text = "LM Studio는 서버가 켜져 있을 때 http://localhost:1234/v1/models 에서 모델 목록을 불러옵니다.",
+                Text = GetSettingsString("SettingsLlmInfo", "LM Studio는 서버가 켜져 있을 때 http://localhost:1234/v1/models 에서 모델 목록을 불러옵니다."),
                 TextWrapping = TextWrapping.Wrap,
                 FontSize = 11
             };
@@ -1750,15 +2049,15 @@ namespace Ueditor
             }
 
             var appearanceSection = CreateSection();
-            AddLabel(appearanceSection, "애플리케이션 언어 (Language)");
+            AddLabel(appearanceSection, GetSettingsString("SettingsLanguage", "애플리케이션 언어 (Language)"));
             appearanceSection.Children.Add(languageCombo);
-            AddLabel(appearanceSection, "앱/에디터 테마");
+            AddLabel(appearanceSection, GetSettingsString("SettingsTheme", "앱/에디터 테마"));
             appearanceSection.Children.Add(themeCombo);
-            AddLabel(appearanceSection, $"에디터 글자 크기 ({settings.FontSize:0}pt)");
+            AddLabel(appearanceSection, GetSettingsString("SettingsFontSize", "에디터 글자 크기") + $" ({settings.FontSize:0}pt)");
             appearanceSection.Children.Add(sizeSlider);
-            AddLabel(appearanceSection, "에디터 폰트");
+            AddLabel(appearanceSection, GetSettingsString("SettingsFontFamily", "에디터 폰트"));
             appearanceSection.Children.Add(fontFamilyCombo);
-            AddLabel(appearanceSection, "UI 쉘 폰트");
+            AddLabel(appearanceSection, GetSettingsString("SettingsUiFontFamily", "UI 쉘 폰트"));
             appearanceSection.Children.Add(uiFontFamilyCombo);
             appearanceSection.Children.Add(customBgCheck);
             appearanceSection.Children.Add(customBgDropdown);
@@ -1772,39 +2071,39 @@ namespace Ueditor
             editorSection.Children.Add(autoSaveCheck);
             editorSection.Children.Add(defaultMarkdownCheck);
             editorSection.Children.Add(defaultMarkdownToolbarCheck);
-            AddLabel(editorSection, "Tab size");
+            AddLabel(editorSection, GetSettingsString("SettingsTabSize", "Tab size"));
             editorSection.Children.Add(tabSizeBox);
-            AddLabel(editorSection, "Large File Mode 제안 기준 (MB)");
+            AddLabel(editorSection, GetSettingsString("SettingsLargeFileThreshold", "Large File Mode 제안 기준 (MB)"));
             editorSection.Children.Add(largeThresholdBox);
 
             var llmSection = CreateSection();
-            AddLabel(llmSection, "LLM 공급자");
+            AddLabel(llmSection, GetSettingsString("SettingsLlmProvider", "LLM 공급자"));
             llmSection.Children.Add(llmProviderCombo);
-            AddLabel(llmSection, "LLM API Endpoint");
+            AddLabel(llmSection, GetSettingsString("SettingsLlmEndpoint", "LLM API Endpoint"));
             llmSection.Children.Add(llmEndpointBox);
-            AddLabel(llmSection, "LLM 모델명");
+            AddLabel(llmSection, GetSettingsString("SettingsLlmModel", "LLM 모델명"));
             llmSection.Children.Add(llmModelCombo);
             llmSection.Children.Add(refreshLmStudioModelsButton);
             llmSection.Children.Add(llmModelStatusText);
-            AddLabel(llmSection, "LLM API Key");
+            AddLabel(llmSection, GetSettingsString("SettingsLlmApiKey", "LLM API Key"));
             llmSection.Children.Add(llmApiKeyBox);
             llmSection.Children.Add(new TextBlock
             {
-                Text = "API Key는 설정 파일에 저장하지 않고 Windows 자격 증명 관리자에 저장합니다. 비워두고 저장하면 기존 Key를 유지합니다. LM Studio는 기본 로컬 서버 설정에서 API Key 없이 사용할 수 있습니다.",
+                Text = GetSettingsString("SettingsLlmApiKeyInfo", "API Key는 설정 파일에 저장하지 않고 Windows 자격 증명 관리자에 저장합니다. 비워두고 저장하면 기존 Key를 유지합니다. LM Studio는 기본 로컬 서버 설정에서 API Key 없이 사용할 수 있습니다."),
                 TextWrapping = TextWrapping.Wrap
             });
 
             var settingsPivot = new Pivot { Width = 500, Height = 440 };
-            settingsPivot.Items.Add(new PivotItem { Header = "모양", Content = new ScrollViewer { Content = appearanceSection } });
-            settingsPivot.Items.Add(new PivotItem { Header = "편집", Content = new ScrollViewer { Content = editorSection } });
-            settingsPivot.Items.Add(new PivotItem { Header = "LLM", Content = new ScrollViewer { Content = llmSection } });
+            settingsPivot.Items.Add(new PivotItem { Header = GetSettingsString("SettingsAppearance", "모양"), Content = new ScrollViewer { Content = appearanceSection } });
+            settingsPivot.Items.Add(new PivotItem { Header = GetSettingsString("SettingsEditing", "편집"), Content = new ScrollViewer { Content = editorSection } });
+            settingsPivot.Items.Add(new PivotItem { Header = GetSettingsString("SettingsLLM", "LLM"), Content = new ScrollViewer { Content = llmSection } });
 
             var dialog = new ContentDialog
             {
-                Title = "Ueditor 설정",
+                Title = GetSettingsString("SettingsTitle", "Ueditor 설정"),
                 Content = settingsPivot,
-                PrimaryButtonText = "적용 및 저장",
-                CloseButtonText = "취소",
+                PrimaryButtonText = GetSettingsString("SettingsSave", "적용 및 저장"),
+                CloseButtonText = GetSettingsString("SettingsCancel", "취소"),
                 XamlRoot = this.Content.XamlRoot
             };
 
@@ -1878,23 +2177,16 @@ namespace Ueditor
                 WordWrapToggle.IsChecked = settings.WordWrap;
                 ApplyUiPersonalization(settings);
 
+                // Run LocalizeUi immediately to update screen strings
+                LocalizeUi();
+
                 if (oldLanguage != settings.Language)
                 {
-                    var loader = new Microsoft.Windows.ApplicationModel.Resources.ResourceLoader();
-                    string dlgTitle = "Language Change";
-                    string dlgMessage = "You must restart the application to apply the language settings. Would you like to restart now?";
-                    string dlgYes = "Restart";
-                    string dlgNo = "Later";
+                    string dlgTitle = GetSettingsString("LanguageChangedTitle", "Language Change");
+                    string dlgMessage = GetSettingsString("LanguageChangedMessage", "You must restart the application to apply the language settings. Would you like to restart now?");
+                    string dlgYes = GetSettingsString("Restart", "Restart");
+                    string dlgNo = GetSettingsString("No", "Later");
                     
-                    try
-                    {
-                        dlgTitle = loader.GetString("LanguageChangedTitle") ?? dlgTitle;
-                        dlgMessage = loader.GetString("LanguageChangedMessage") ?? dlgMessage;
-                        dlgYes = loader.GetString("Restart") ?? dlgYes;
-                        dlgNo = loader.GetString("No") ?? dlgNo;
-                    }
-                    catch { }
-
                     var restartDialog = new ContentDialog
                     {
                         Title = dlgTitle,

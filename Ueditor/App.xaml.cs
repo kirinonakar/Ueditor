@@ -34,6 +34,7 @@ namespace Ueditor
         /// </summary>
         public App()
         {
+            ApplyLanguageSettings();
             InitializeComponent();
         }
 
@@ -43,7 +44,6 @@ namespace Ueditor
         /// <param name="args">Details about the launch request and process.</param>
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
-            ApplyLanguageSettings();
             _window = new MainWindow();
             _window.Activate();
         }
@@ -71,6 +71,13 @@ namespace Ueditor
                             else
                             {
                                 Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = lang;
+                                
+                                // Robustly sync .NET culture variables to enforce thread-level locale override
+                                var culture = new System.Globalization.CultureInfo(lang);
+                                System.Globalization.CultureInfo.DefaultThreadCurrentCulture = culture;
+                                System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = culture;
+                                System.Threading.Thread.CurrentThread.CurrentCulture = culture;
+                                System.Threading.Thread.CurrentThread.CurrentUICulture = culture;
                             }
                         }
                     }
