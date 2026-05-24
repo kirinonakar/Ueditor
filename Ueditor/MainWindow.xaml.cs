@@ -506,8 +506,8 @@ namespace Ueditor
                 _ => 0
             };
             ApplyUiPersonalization(_settingsService.CurrentSettings);
-            ApplyToolbarSettings(_settingsService.CurrentSettings);
             LocalizeUi();
+            ApplyToolbarSettings(_settingsService.CurrentSettings);
 
             // If we have a Git repo path from a loaded file, refresh Git status UI
             if (!string.IsNullOrEmpty(_currentRepoPath))
@@ -731,11 +731,12 @@ namespace Ueditor
                     {
                         if (string.IsNullOrEmpty(selectedText))
                         {
-                            SelectionStatsText.Text = "선택 영역: 없음 (전체 전송 차단 활성화)";
+                            SelectionStatsText.Text = GetLocalizedString("SelectionNoneBlocked", "선택 영역: 없음 (전체 전송 차단 활성화)");
                         }
                         else
                         {
-                            SelectionStatsText.Text = $"선택 영역: {selectedText.Length:N0} 글자 수 (약 {selectedText.Length / 4} 토큰)";
+                            string fmt = GetLocalizedString("SelectionStats", "선택 영역: {0} 글자 수 (약 {1} 토큰)");
+                            SelectionStatsText.Text = string.Format(fmt, selectedText.Length.ToString("N0"), (selectedText.Length / 4).ToString("N0"));
                         }
                     }
                 };
@@ -1468,6 +1469,8 @@ namespace Ueditor
                     { "SettingsLlmLoadModels", "LM Studio 모델 불러오기" },
                     { "SettingsLlmInfo", "LM Studio는 서버가 켜져 있을 때 http://localhost:1234/v1/models 에서 모델 목록을 불러옵니다." },
                     { "SettingsLlmApiKeyInfo", "API Key는 설정 파일에 저장하지 않고 Windows 자격 증명 관리자에 저장합니다. 비워두고 저장하면 기존 Key를 유지합니다. LM Studio는 기본 로컬 서버 설정에서 API Key 없이 사용할 수 있습니다." },
+                    { "SelectionNoneBlocked", "선택 영역: 없음 (전체 전송 차단 활성화)" },
+                    { "SelectionStats", "선택 영역: {0} 글자 수 (약 {1} 토큰)" },
                     { "SearchHeader", "폴더 전체 검색 및 치환" },
                     { "SearchPlaceholder", "검색어 입력..." },
                     { "ReplacePlaceholder", "치환할 단어 입력..." },
@@ -1495,6 +1498,7 @@ namespace Ueditor
                     { "FavoritesFileTab", "파일" },
                     { "FavoritesFolderTab", "폴더" },
                     { "FavoritesPinTooltip", "고정" },
+                    { "GitNotDetected", "Git: 감지 안됨" },
                     { "TerminalTitle", "터미널" },
                     { "NewTerminal", "새 터미널" },
                     { "CloseTerminal", "닫기" },
@@ -1590,6 +1594,8 @@ namespace Ueditor
                     { "SettingsLlmLoadModels", "Load LM Studio Models" },
                     { "SettingsLlmInfo", "LM Studio loads the list of models from http://localhost:1234/v1/models when the server is running." },
                     { "SettingsLlmApiKeyInfo", "API Keys are stored in the Windows Credential Manager, not in settings files. Leaving it empty preserves the existing Key. LM Studio does not require an API Key under default configurations." },
+                    { "SelectionNoneBlocked", "Selection: None (Full file transfer blocked)" },
+                    { "SelectionStats", "Selection: {0} chars (approx {1} tokens)" },
                     { "SearchHeader", "Search & Replace in Folder" },
                     { "SearchPlaceholder", "Enter search term..." },
                     { "ReplacePlaceholder", "Enter replacement..." },
@@ -1617,6 +1623,7 @@ namespace Ueditor
                     { "FavoritesFileTab", "Files" },
                     { "FavoritesFolderTab", "Folders" },
                     { "FavoritesPinTooltip", "Pin" },
+                    { "GitNotDetected", "Git: Not Detected" },
                     { "TerminalTitle", "Terminal" },
                     { "NewTerminal", "New Terminal" },
                     { "CloseTerminal", "Close" },
@@ -1712,6 +1719,8 @@ namespace Ueditor
                     { "SettingsLlmLoadModels", "LM Studioモデルを取得" },
                     { "SettingsLlmInfo", "LM Studioは、サーバーが起動しているときに http://localhost:1234/v1/models からモデルリストを取得します。" },
                     { "SettingsLlmApiKeyInfo", "APIキーは設定ファイルではなく、Windowsの資格情報マネージャーに保存されます。空欄で保存すると、既存のキーが維持されます。LM Studioはデフォルトのローカルサーバー設定でAPIキーなしで動作します。" },
+                    { "SelectionNoneBlocked", "選択範囲: なし (ファイル全体の送信はブロックされています)" },
+                    { "SelectionStats", "選択範囲: {0} 文字 (約 {1} トークン)" },
                     { "SearchHeader", "フォルダ内検索と置換" },
                     { "SearchPlaceholder", "検索語を入力..." },
                     { "ReplacePlaceholder", "置換する文字列を入力..." },
@@ -1739,6 +1748,7 @@ namespace Ueditor
                     { "FavoritesFileTab", "ファイル" },
                     { "FavoritesFolderTab", "フォルダ" },
                     { "FavoritesPinTooltip", "固定" },
+                    { "GitNotDetected", "Git: 検出されていません" },
                     { "TerminalTitle", "ターミナル" },
                     { "NewTerminal", "新規ターミナル" },
                     { "CloseTerminal", "閉じる" },
@@ -1972,8 +1982,8 @@ namespace Ueditor
             else _autoSaveTimer.Stop();
             WordWrapToggle.IsChecked = settings.WordWrap;
             ApplyUiPersonalization(settings);
-            ApplyToolbarSettings(settings);
             LocalizeUi();
+            ApplyToolbarSettings(settings);
 
             if (oldLanguage != settings.Language && await ConfirmRestartForLanguageChangeAsync(GetSettingsString))
             {
@@ -2536,7 +2546,7 @@ namespace Ueditor
         private async Task HandleTabViewSelectionChangedAsync(TabViewItem activeTabItem)
         {
             _lastSelectionText = string.Empty;
-            SelectionStatsText.Text = "선택 영역: 없음 (전체 전송 차단 활성화)";
+            SelectionStatsText.Text = GetLocalizedString("SelectionNoneBlocked", "선택 영역: 없음 (전체 전송 차단 활성화)");
 
             if (activeTabItem.Tag is string tabId)
             {
@@ -3212,7 +3222,7 @@ namespace Ueditor
         {
             if (string.IsNullOrEmpty(path)) return;
             string branch = await _gitService.GetCurrentBranchAsync(path);
-            StatusGitBranch.Text = branch;
+            StatusGitBranch.Text = branch == "Git: 감지 안됨" ? GetLocalizedString("GitNotDetected", "Git: 감지 안됨") : branch;
         }
 
         private static string? FindGitRepositoryRoot(string? startPath)
@@ -3460,8 +3470,8 @@ namespace Ueditor
         {
             if (string.IsNullOrEmpty(_currentRepoPath))
             {
-                GitPanelBranchText.Text = "Git: 감지 안됨";
-                StatusGitBranch.Text = "Git: 감지 안됨";
+                GitPanelBranchText.Text = GetLocalizedString("GitNotDetected", "Git: 감지 안됨");
+                StatusGitBranch.Text = GetLocalizedString("GitNotDetected", "Git: 감지 안됨");
                 _viewModel.GitFiles.Clear();
                 GitBranchesCombo.Items.Clear();
                 GitHistoryList.Items.Clear();
