@@ -147,17 +147,37 @@
                         <ColumnDefinition x:Name="EditorColumn2" Width="0"/>
                     </Grid.ColumnDefinitions>
 
-                    <TabView x:Name="EditorTabView"
-                             Grid.Row="0" Grid.Column="0"
-                             VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
-                             AddTabButtonClick="OnEditorTabViewAddTabClick"
-                             TabCloseRequested="OnEditorTabViewTabCloseRequested"
-                             SelectionChanged="OnEditorTabViewSelectionChanged"
-                             GotFocus="OnTabViewGotFocus">
-                        <TabView.TabItems>
-                            <!-- Dynamic tabs go here -->
-                        </TabView.TabItems>
-                    </TabView>
+                    <Grid Grid.Row="0" Grid.Column="0">
+                        <TabView x:Name="EditorTabView"
+                                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                                 AddTabButtonClick="OnEditorTabViewAddTabClick"
+                                 TabCloseRequested="OnEditorTabViewTabCloseRequested"
+                                 SelectionChanged="OnEditorTabViewSelectionChanged"
+                                 GotFocus="OnTabViewGotFocus">
+                            <TabView.TabItems>
+                                <!-- Dynamic tabs go here -->
+                            </TabView.TabItems>
+                            <TabView.TabStripFooter>
+                                <Border Width="72" Height="32"/>
+                            </TabView.TabStripFooter>
+                        </TabView>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,8,0" Spacing="4" Height="32">
+                            <Button x:Name="MoveTabLeftBtn"
+                                    Click="OnMoveTabLeftClick"
+                                    ToolTipService.ToolTip="왼쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)"
+                                    Background="Transparent" BorderBrush="Transparent"
+                                    Width="28" Height="28" Padding="0" CornerRadius="4">
+                                <FontIcon Glyph="&#xE760;" FontSize="12"/>
+                            </Button>
+                            <Button x:Name="MoveTabRightBtn"
+                                    Click="OnMoveTabRightClick"
+                                    ToolTipService.ToolTip="오른쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)"
+                                    Background="Transparent" BorderBrush="Transparent"
+                                    Width="28" Height="28" Padding="0" CornerRadius="4">
+                                <FontIcon Glyph="&#xE761;" FontSize="12"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
 
                     <local:CustomSplitter x:Name="EditorSplitter"
                                           Grid.Row="0" Grid.Column="1"
@@ -169,18 +189,38 @@
                                           PointerMoved="OnEditorSplitterPointerMoved"
                                           PointerReleased="OnEditorSplitterPointerReleased"/>
 
-                    <TabView x:Name="EditorTabView2"
-                             Grid.Row="0" Grid.Column="2"
-                             VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
-                             Visibility="Collapsed"
-                             AddTabButtonClick="OnEditorTabView2AddTabClick"
-                             TabCloseRequested="OnEditorTabView2TabCloseRequested"
-                             SelectionChanged="OnEditorTabView2SelectionChanged"
-                             GotFocus="OnTabViewGotFocus">
-                        <TabView.TabItems>
-                            <!-- Dynamic tabs go here -->
-                        </TabView.TabItems>
-                    </TabView>
+                    <Grid Grid.Row="0" Grid.Column="2" Visibility="{Binding ElementName=EditorTabView2, Path=Visibility}">
+                        <TabView x:Name="EditorTabView2"
+                                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                                 Visibility="Collapsed"
+                                 AddTabButtonClick="OnEditorTabView2AddTabClick"
+                                 TabCloseRequested="OnEditorTabView2TabCloseRequested"
+                                 SelectionChanged="OnEditorTabView2SelectionChanged"
+                                 GotFocus="OnTabViewGotFocus">
+                            <TabView.TabItems>
+                                <!-- Dynamic tabs go here -->
+                            </TabView.TabItems>
+                            <TabView.TabStripFooter>
+                                <Border Width="72" Height="32"/>
+                            </TabView.TabStripFooter>
+                        </TabView>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,8,0" Spacing="4" Height="32">
+                            <Button x:Name="MoveTab2LeftBtn"
+                                    Click="OnMoveTabLeftClick"
+                                    ToolTipService.ToolTip="왼쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)"
+                                    Background="Transparent" BorderBrush="Transparent"
+                                    Width="28" Height="28" Padding="0" CornerRadius="4">
+                                <FontIcon Glyph="&#xE760;" FontSize="12"/>
+                            </Button>
+                            <Button x:Name="MoveTab2RightBtn"
+                                    Click="OnMoveTabRightClick"
+                                    ToolTipService.ToolTip="오른쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)"
+                                    Background="Transparent" BorderBrush="Transparent"
+                                    Width="28" Height="28" Padding="0" CornerRadius="4">
+                                <FontIcon Glyph="&#xE761;" FontSize="12"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
                 </Grid>
                 <local:CustomSplitter x:Name="TerminalSplitter"
                                       Grid.Row="1"

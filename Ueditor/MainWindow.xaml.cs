@@ -1606,6 +1606,12 @@ namespace Ueditor
                     ToolTipService.SetToolTip(PrintButton, GetString("Print", "인쇄") + " (Ctrl+P)");
                 }
 
+                // 1b. Tab Navigation Buttons
+                if (MoveTabLeftBtn != null) ToolTipService.SetToolTip(MoveTabLeftBtn, GetString("MoveTabLeftTooltip", "왼쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)"));
+                if (MoveTabRightBtn != null) ToolTipService.SetToolTip(MoveTabRightBtn, GetString("MoveTabRightTooltip", "오른쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)"));
+                if (MoveTab2LeftBtn != null) ToolTipService.SetToolTip(MoveTab2LeftBtn, GetString("MoveTabLeftTooltip", "왼쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)"));
+                if (MoveTab2RightBtn != null) ToolTipService.SetToolTip(MoveTab2RightBtn, GetString("MoveTabRightTooltip", "오른쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)"));
+
                 // 2. Split Menu Flyouts
                 if (SplitNoneItem != null) SplitNoneItem.Text = GetString("SplitNone", "분할 없음 (단일)");
                 if (SplitVerticalItem != null) SplitVerticalItem.Text = GetString("SplitVertical", "좌우 분할");
@@ -2378,6 +2384,108 @@ namespace Ueditor
                     {
                         await bridgeGroup.Bridge.RequestSelectionAsync();
                     }
+                }
+            }
+        }
+
+        private void OnMoveTabLeftClick(object sender, RoutedEventArgs e)
+        {
+            var activeTabView = GetCurrentActiveTabView();
+            if (activeTabView == null || activeTabView.TabItems.Count <= 1) return;
+
+            int index = activeTabView.SelectedIndex;
+            if (index < 0) return;
+
+            var ctrl = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control) & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+            var shift = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift) & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+
+            if (ctrl || shift)
+            {
+                if (index > 0)
+                {
+                    var item = activeTabView.TabItems[index] as TabViewItem;
+                    if (item != null)
+                    {
+                        activeTabView.TabItems.RemoveAt(index);
+                        activeTabView.TabItems.Insert(index - 1, item);
+                        activeTabView.SelectedIndex = index - 1;
+
+                        if (item.Tag is string tabId)
+                        {
+                            var tab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
+                            if (tab != null)
+                            {
+                                int tabIdx = _viewModel.Tabs.IndexOf(tab);
+                                if (tabIdx > 0)
+                                {
+                                    _viewModel.Tabs.RemoveAt(tabIdx);
+                                    _viewModel.Tabs.Insert(tabIdx - 1, tab);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (index > 0)
+                {
+                    activeTabView.SelectedIndex = index - 1;
+                }
+                else
+                {
+                    activeTabView.SelectedIndex = activeTabView.TabItems.Count - 1;
+                }
+            }
+        }
+
+        private void OnMoveTabRightClick(object sender, RoutedEventArgs e)
+        {
+            var activeTabView = GetCurrentActiveTabView();
+            if (activeTabView == null || activeTabView.TabItems.Count <= 1) return;
+
+            int index = activeTabView.SelectedIndex;
+            if (index < 0) return;
+
+            var ctrl = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control) & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+            var shift = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift) & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+
+            if (ctrl || shift)
+            {
+                if (index < activeTabView.TabItems.Count - 1)
+                {
+                    var item = activeTabView.TabItems[index] as TabViewItem;
+                    if (item != null)
+                    {
+                        activeTabView.TabItems.RemoveAt(index);
+                        activeTabView.TabItems.Insert(index + 1, item);
+                        activeTabView.SelectedIndex = index + 1;
+
+                        if (item.Tag is string tabId)
+                        {
+                            var tab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
+                            if (tab != null)
+                            {
+                                int tabIdx = _viewModel.Tabs.IndexOf(tab);
+                                if (tabIdx < _viewModel.Tabs.Count - 1)
+                                {
+                                    _viewModel.Tabs.RemoveAt(tabIdx);
+                                    _viewModel.Tabs.Insert(tabIdx + 1, tab);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (index < activeTabView.TabItems.Count - 1)
+                {
+                    activeTabView.SelectedIndex = index + 1;
+                }
+                else
+                {
+                    activeTabView.SelectedIndex = 0;
                 }
             }
         }

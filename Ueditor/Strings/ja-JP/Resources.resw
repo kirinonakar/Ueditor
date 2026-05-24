@@ -509,4 +509,10 @@
   <data name="LlmInsertOutputTooltip" xml:space="preserve">
     <value>AIの応答を現在のカーソルに入力</value>
   </data>
+  <data name="MoveTabLeftTooltip" xml:space="preserve">
+    <value>左のタブへ移動 (Ctrl/Shiftキーを押しながらクリックでタブ位置を変更)</value>
+  </data>
+  <data name="MoveTabRightTooltip" xml:space="preserve">
+    <value>右のタブへ移動 (Ctrl/Shiftキーを押しながらクリックでタブ位置を変更)</value>
+  </data>
 </root>

@@ -509,4 +509,10 @@
   <data name="LlmInsertOutputTooltip" xml:space="preserve">
     <value>AI 응답을 현재 커서에 입력</value>
   </data>
+  <data name="MoveTabLeftTooltip" xml:space="preserve">
+    <value>왼쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)</value>
+  </data>
+  <data name="MoveTabRightTooltip" xml:space="preserve">
+    <value>오른쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)</value>
+  </data>
 </root>

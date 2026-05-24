@@ -509,4 +509,10 @@
   <data name="LlmInsertOutputTooltip" xml:space="preserve">
     <value>Insert AI response at current cursor</value>
   </data>
+  <data name="MoveTabLeftTooltip" xml:space="preserve">
+    <value>Move to left tab (Ctrl/Shift + Click to move tab position)</value>
+  </data>
+  <data name="MoveTabRightTooltip" xml:space="preserve">
+    <value>Move to right tab (Ctrl/Shift + Click to move tab position)</value>
+  </data>
 </root>
