@@ -6,16 +6,12 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using System.Xml.Linq;
-using Microsoft.Windows.ApplicationModel.Resources;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.Web.WebView2.Core;
 using Windows.ApplicationModel.DataTransfer;
-using Windows.Globalization;
-using Windows.Graphics;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
 using Ueditor.Core.Interfaces;
@@ -42,15 +38,20 @@ namespace Ueditor
         private readonly IStickyNoteService _stickyNoteService;
         private readonly ISettingsDialogService _settingsDialogService;
         private readonly IUiPersonalizationService _uiPersonalizationService;
+        private readonly ILocalizationService _localizationService;
+        private readonly IFileSaveDialogService _fileSaveDialogService;
+        private readonly ShellPanelLayoutService _shellPanelLayoutService;
+        private readonly TerminalShortcutService _terminalShortcutService;
+        private readonly ExplorerDirectoryService _explorerDirectoryService;
+        private readonly CompareSelectionDialogService _compareSelectionDialogService;
+        private readonly SearchReplaceController _searchReplaceController;
+        private readonly GitPanelController _gitPanelController;
+        private readonly FavoritesRecentController _favoritesRecentController;
+        private readonly SnippetsController _snippetsController;
+        private readonly LlmAssistantController _llmAssistantController;
         private readonly MainWindowViewModel _viewModel = new MainWindowViewModel();
-        private ResourceManager _resourceManager = new ResourceManager();
-        private ResourceContext? _resourceContext;
-        private readonly Dictionary<string, Dictionary<string, string>> _reswStringCache = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
-        private string _lastSelectionText = string.Empty;
-        private string _lastSearchQuery = string.Empty;
         private string _currentFolderPath = string.Empty;
         private string _currentRepoPath = string.Empty;
-        private string _llmFileContextText = string.Empty;
         private bool _isSyncingEncodingCombo = false;
         
         // Dynamic tabs collection
@@ -67,113 +68,35 @@ namespace Ueditor
         private readonly DispatcherTimer _autoSaveTimer;
         private bool _autoSaveEnabled = false;
 
-        // Git auto-refresh timer
         private readonly DispatcherTimer _gitAutoRefreshTimer;
-        private readonly DispatcherTimer _terminalShortcutPollTimer;
-
-        // Custom Splitter state variables
-        private bool _isDraggingLeftSplitter = false;
-        private double _leftSplitterStartExplorerWidth = 0;
-        private double _leftSplitterStartPointerX = 0;
-
-        private bool _isDraggingRightSplitter = false;
-        private double _rightSplitterStartPreviewWidth = 0;
-        private double _rightSplitterStartPointerX = 0;
-        private bool _isDraggingTerminalSplitter = false;
-        private double _terminalSplitterStartHeight = 0;
-        private double _terminalSplitterStartPointerY = 0;
-        private double _lastExplorerWidth = 260;
-        private double _lastPreviewWidth = 400;
-        private double _lastTerminalHeight = 220;
-        private const double ExplorerPanelMinWidth = 150;
-        private const double PreviewPanelMinWidth = 150;
-        private const int TerminalToggleVirtualKey = 0xC0;
-        private const int TerminalToggleScanCode = 0x29;
-        private const int ControlVirtualKey = 0x11;
-        private const short KeyDownMask = unchecked((short)0x8000);
-        private IntPtr _mainHwnd = IntPtr.Zero;
-        private bool _terminalShortcutWasDown = false;
-        private DateTimeOffset _lastTerminalShortcutAt = DateTimeOffset.MinValue;
-
-        // Split Editor State
-        private TabView? _activeTabView;
-        private bool _isDraggingEditorSplitter = false;
-        private double _editorSplitterStartWidth = 0;
-        private double _editorSplitterStartHeight = 0;
-        private double _editorSplitterStartPointerX = 0;
-        private double _editorSplitterStartPointerY = 0;
-        private bool _isVerticalSplit = true;
-        private enum SplitMode { None, Vertical, Horizontal }
-        private SplitMode _currentSplitMode = SplitMode.None;
 
         private ToggleButton LeftPanelToggle => StatusBarPane.LeftPanelToggleButton;
         private ToggleButton RightPanelToggle => StatusBarPane.RightPanelToggleButton;
         private TextBlock StatusLine => StatusBarPane.LineText;
-        private TextBlock StatusLineLabel => StatusBarPane.LineLabelText;
         private TextBlock StatusCol => StatusBarPane.ColumnText;
-        private TextBlock StatusColumnLabel => StatusBarPane.ColumnLabelText;
         private TextBlock StatusFileStats => StatusBarPane.FileStatsText;
         private TextBlock StatusGitBranch => StatusBarPane.GitBranchText;
         private TextBlock StatusLanguage => StatusBarPane.LanguageText;
         private ComboBox StatusEncodingCombo => StatusBarPane.EncodingCombo;
-        private Grid ExplorerSidebarPage => LeftSidebarTabView.ExplorerPage;
-        private Grid FavoritesSidebarPage => LeftSidebarTabView.FavoritesPage;
-        private Grid SnippetsSidebarPage => LeftSidebarTabView.SnippetsPage;
-        private Grid GitSidebarPage => LeftSidebarTabView.GitPage;
-        private Grid SearchSidebarPage => LeftSidebarTabView.SearchPage;
-        private Grid RecentSidebarPage => LeftSidebarTabView.RecentPage;
-        private ToggleButton ExplorerActivityButton => LeftSidebarTabView.ExplorerActivity;
-        private ToggleButton FavoritesActivityButton => LeftSidebarTabView.FavoritesActivity;
-        private ToggleButton SnippetsActivityButton => LeftSidebarTabView.SnippetsActivity;
-        private ToggleButton GitActivityButton => LeftSidebarTabView.GitActivity;
-        private ToggleButton SearchActivityButton => LeftSidebarTabView.SearchActivity;
-        private ToggleButton RecentActivityButton => LeftSidebarTabView.RecentActivity;
         private TextBlock ExplorerStatusText => LeftSidebarTabView.ExplorerStatus;
-        private TextBlock FavoritesHeaderText => LeftSidebarTabView.FavoritesHeader;
-        private TextBlock SnippetsHeaderText => LeftSidebarTabView.SnippetsHeader;
-        private Button AddSnippetButton => LeftSidebarTabView.AddSnippet;
         private ListView FileListView => LeftSidebarTabView.FileList;
-        private ListView FavoritesListView => LeftSidebarTabView.FavoritesList;
-        private ListView RecentFilesListView => LeftSidebarTabView.RecentFilesList;
-        private ListView SnippetsListView => LeftSidebarTabView.SnippetsList;
-        private ListView GitChangedFilesList => LeftSidebarTabView.GitChangedFiles;
-        private ListView GitHistoryList => LeftSidebarTabView.GitHistory;
         private ListView SearchResultsList => LeftSidebarTabView.SearchResults;
-        private TextBlock GitPanelBranchText => LeftSidebarTabView.GitPanelBranch;
-        private ComboBox GitBranchesCombo => LeftSidebarTabView.GitBranches;
-        private TextBox GitCommitMessageInput => LeftSidebarTabView.GitCommitMessage;
         private TextBox SearchQueryInput => LeftSidebarTabView.SearchQuery;
         private TextBox ReplaceQueryInput => LeftSidebarTabView.ReplaceQuery;
         private ToggleButton SearchMatchCaseToggle => LeftSidebarTabView.SearchMatchCase;
         private ToggleButton SearchWholeWordToggle => LeftSidebarTabView.SearchWholeWord;
         private ToggleButton SearchRegexToggle => LeftSidebarTabView.SearchRegex;
-        private TextBlock SearchHeaderText => LeftSidebarTabView.SearchHeaderLabel;
-        private Button SearchAllButton => LeftSidebarTabView.SearchAllFilesBtn;
-        private Button ReplaceAllButton => LeftSidebarTabView.ReplaceAllFilesBtn;
-        private TextBlock RecentFilesHeaderText => LeftSidebarTabView.RecentFilesHeaderLabel;
-        private TextBlock GitHeaderText => LeftSidebarTabView.GitHeaderLabel;
-        private Button GitCommitButton => LeftSidebarTabView.GitCommitBtn;
-        private Button GitStageAllButton => LeftSidebarTabView.GitStageAllBtn;
-        private Button GitRestoreAllButton => LeftSidebarTabView.GitRestoreAllBtn;
-        private Button GitPushButton => LeftSidebarTabView.GitPushBtn;
-        private Button GitRefreshButton => LeftSidebarTabView.GitRefreshBtn;
-        private TextBlock GitHistoryHeader => LeftSidebarTabView.GitHistoryHeaderLabel;
-        private Button ExplorerUpButton => LeftSidebarTabView.ExplorerUpBtn;
-        private Button ExplorerSelectFolderButton => LeftSidebarTabView.ExplorerSelectFolderBtn;
-        private Button ExplorerTerminalButton => LeftSidebarTabView.ExplorerTerminalBtn;
-        private TabView RightTabView => PreviewGrid.RightTabs;
         private ComboBox PreviewModeCombo => PreviewGrid.PreviewMode;
         private WebView2 PreviewWebView => PreviewGrid.PreviewWebViewControl;
-        private TextBlock LlmOutputText => PreviewGrid.LlmOutput;
         private TextBlock SelectionStatsText => PreviewGrid.SelectionStats;
-        private TextBox LlmFileContextInput => PreviewGrid.LlmFileContext;
-        private TextBox LlmCustomPromptInput => PreviewGrid.LlmCustomPrompt;
+        private TabView EditorTabView => EditorWorkspace.EditorTabViewControl;
+        private TabView EditorTabView2 => EditorWorkspace.EditorTabView2Control;
+        private TerminalPane TerminalPane => EditorWorkspace.TerminalPaneControl;
 
         public MainWindow()
         {
             this.InitializeComponent();
-            _activeTabView = EditorTabView;
-            SetWindowIcon();
+            WindowPlacementService.SetWindowIcon(AppWindow);
 
             _fileService = new FileService();
             _settingsService = new SettingsService();
@@ -187,19 +110,87 @@ namespace Ueditor
             _stickyNoteService = new StickyNoteService();
             _settingsDialogService = new SettingsDialogService(_llmService);
             _uiPersonalizationService = new UiPersonalizationService();
+            _localizationService = new ResourceLocalizationService(_settingsService);
+            _fileSaveDialogService = new FileSaveDialogService();
+            _explorerDirectoryService = new ExplorerDirectoryService();
+            _compareSelectionDialogService = new CompareSelectionDialogService();
+            _shellPanelLayoutService = new ShellPanelLayoutService(
+                MainWorkGrid,
+                ExplorerColumn,
+                PreviewColumn,
+                LeftSplitter,
+                RightSplitter,
+                LeftSidebarTabView,
+                PreviewGrid);
+            _terminalShortcutService = new TerminalShortcutService(WindowNative.GetWindowHandle(this));
+            _terminalShortcutService.ToggleRequested += (_, _) => ToggleTerminal();
+            _gitAutoRefreshTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(30)
+            };
+            _gitAutoRefreshTimer.Tick += OnGitAutoRefreshTimerTick;
+            _searchReplaceController = new SearchReplaceController(
+                _fileSearchService,
+                _viewModel,
+                SearchQueryInput,
+                ReplaceQueryInput,
+                SearchMatchCaseToggle,
+                SearchWholeWordToggle,
+                SearchRegexToggle,
+                SearchResultsList,
+                GetSearchRoot,
+                GetLargeFileThresholdBytes,
+                () => this.Content.XamlRoot,
+                ShowErrorMessage,
+                LoadFileIntoTabAndHighlightAsync,
+                RefreshGitStatusUIAsync);
+            _gitPanelController = new GitPanelController(
+                _gitService,
+                _fileService,
+                _viewModel,
+                LeftSidebarTabView,
+                StatusGitBranch,
+                () => _currentRepoPath,
+                () => this.Content.XamlRoot,
+                GetLocalizedString,
+                IsGitNotDetectedText,
+                ShowErrorMessage,
+                () => _gitAutoRefreshTimer.Start(),
+                OpenCompareTabAsync);
+            _favoritesRecentController = new FavoritesRecentController(
+                _settingsService,
+                _recentFilesService,
+                _viewModel,
+                LeftSidebarTabView,
+                callback => DispatcherQueue.TryEnqueue(() => callback()),
+                NavigateExplorerToFolderAsync,
+                LoadFileIntoTabAsync,
+                ShowErrorMessage);
+            _snippetsController = new SnippetsController(
+                _snippetService,
+                _viewModel,
+                LeftSidebarTabView,
+                () => this.Content.XamlRoot,
+                InsertTextIntoActiveEditorAsync,
+                ShowErrorMessage);
+            _llmAssistantController = new LlmAssistantController(
+                _llmService,
+                _settingsService,
+                _languageDetectionService,
+                PreviewGrid,
+                () => this.Content.XamlRoot,
+                GetActiveTab,
+                GetTabTextForLlmContext,
+                InsertTextIntoActiveEditorAsync,
+                ShowErrorMessage);
 
             if (Content is FrameworkElement rootElement)
             {
                 rootElement.DataContext = _viewModel;
             }
-            _mainHwnd = WindowNative.GetWindowHandle(this);
 
             // Bind Left Sidebar Tab items
             FileListView.ItemsSource = _viewModel.ExplorerItems;
-            FavoritesListView.ItemsSource = _viewModel.Favorites;
-            RecentFilesListView.ItemsSource = _viewModel.RecentFiles;
-            SnippetsListView.ItemsSource = _viewModel.Snippets;
-            GitChangedFilesList.ItemsSource = _viewModel.GitFiles;
             SearchResultsList.ItemsSource = _viewModel.SearchResults;
             foreach (string encodingName in TextEncodingService.SupportedEncodingNames)
             {
@@ -212,8 +203,10 @@ namespace Ueditor
             StatusBarPane.LineNumberClick += OnStatusLineNumberClick;
             StatusBarPane.LineEndingClick += OnStatusLineEndingClick;
             MarkdownToolbar.CommandRequested += OnMarkdownToolbarCommandRequested;
+            WireTopToolbarEvents();
             WireLeftSidebarEvents();
             WireRightSidebarEvents();
+            WireEditorWorkspaceEvents();
             TerminalPane.AttachOwner(this);
             TerminalPane.WorkingDirectoryProvider = GetTerminalWorkingDirectory;
             TerminalPane.SessionsEmptied += OnTerminalPaneSessionsEmptied;
@@ -233,19 +226,6 @@ namespace Ueditor
             };
             _autoSaveTimer.Tick += OnAutoSaveTimerTick;
 
-            // Initialize Git Auto-Refresh Timer (30 second interval)
-            _gitAutoRefreshTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(30)
-            };
-            _gitAutoRefreshTimer.Tick += OnGitAutoRefreshTimerTick;
-
-            _terminalShortcutPollTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromMilliseconds(50)
-            };
-            _terminalShortcutPollTimer.Tick += OnTerminalShortcutPollTimerTick;
-
             // Load local configurations and boot initial states
             // Setup custom title bar
             SetupCustomTitleBar();
@@ -264,43 +244,50 @@ namespace Ueditor
             LeftSidebarTabView.OpenTerminalClick += OnOpenTerminalClick;
             LeftSidebarTabView.FileListViewDoubleTapped += OnFileListViewDoubleTapped;
             LeftSidebarTabView.FileListViewItemRightTapped += OnFileListViewItemRightTapped;
-            LeftSidebarTabView.AddFileToFavoritesClick += OnAddFileToFavoritesClick;
-            LeftSidebarTabView.AddFolderToFavoritesClick += OnAddFolderToFavoritesClick;
-            LeftSidebarTabView.FavoriteItemDoubleTapped += OnFavoriteItemDoubleTapped;
-            LeftSidebarTabView.RemoveFavoriteClick += OnRemoveFavoriteClick;
-            LeftSidebarTabView.FavoritePinClick += OnFavoritePinClick;
-            LeftSidebarTabView.FavoritesTabClick += OnFavoritesTabClick;
-            LeftSidebarTabView.GitHistoryItemDoubleTapped += OnGitHistoryItemDoubleTapped;
-            LeftSidebarTabView.SnippetItemDoubleTapped += OnSnippetItemDoubleTapped;
-            LeftSidebarTabView.DeleteSnippetClick += OnDeleteSnippetClick;
-            LeftSidebarTabView.AddSnippetClick += OnAddSnippetClick;
-            LeftSidebarTabView.GitFileDoubleTapped += OnGitFileDoubleTapped;
-            LeftSidebarTabView.GitStageToggleClick += OnGitStageToggleClick;
-            LeftSidebarTabView.GitRestoreFileClick += OnGitRestoreFileClick;
-            LeftSidebarTabView.GitCommitClick += OnGitCommitClick;
-            LeftSidebarTabView.GitStageAllClick += OnGitStageAllClick;
-            LeftSidebarTabView.GitRestoreAllClick += OnGitRestoreAllClick;
-            LeftSidebarTabView.GitPushClick += OnGitPushClick;
-            LeftSidebarTabView.GitRefreshClick += OnGitRefreshClick;
             LeftSidebarTabView.SearchQueryInputKeyDown += OnSearchQueryInputKeyDown;
             LeftSidebarTabView.SearchAllFilesClick += OnSearchAllFilesClick;
             LeftSidebarTabView.ReplaceAllClick += OnReplaceAllClick;
             LeftSidebarTabView.SearchResultDoubleTapped += OnSearchResultDoubleTapped;
-            LeftSidebarTabView.RecentFileItemDoubleTapped += OnRecentFileItemDoubleTapped;
-            LeftSidebarTabView.RemoveRecentFileClick += OnRemoveRecentFileClick;
         }
 
         private void WireRightSidebarEvents()
         {
             PreviewGrid.PreviewModeSelectionChanged += OnPreviewModeComboSelectionChanged;
             PreviewGrid.OpenPreviewInBrowserClick += OnOpenPreviewInBrowserClick;
-            PreviewGrid.LlmAddFileContextClick += OnLlmAddFileContextClick;
-            PreviewGrid.LlmExplainClick += OnLlmExplainClick;
-            PreviewGrid.LlmSummarizeClick += OnLlmSummarizeClick;
-            PreviewGrid.LlmTranslateClick += OnLlmTranslateClick;
-            PreviewGrid.LlmImproveClick += OnLlmImproveClick;
-            PreviewGrid.LlmCustomClick += OnLlmCustomClick;
-            PreviewGrid.LlmInsertOutputClick += OnLlmInsertOutputClick;
+        }
+
+        private void WireTopToolbarEvents()
+        {
+            TopToolbar.OpenFileClick += OnOpenFileClick;
+            TopToolbar.SaveFileClick += OnSaveFileClick;
+            TopToolbar.SaveAsFileClick += OnSaveAsFileClick;
+            TopToolbar.CompareFilesClick += OnCompareFilesClick;
+            TopToolbar.OpenTerminalClick += OnOpenTerminalClick;
+            TopToolbar.PrintClick += OnPrintClick;
+            TopToolbar.TopMostToggleClick += OnTopMostToggleClick;
+            TopToolbar.StickyNoteClick += OnStickyNoteClick;
+            TopToolbar.WordWrapToggleClick += OnWordWrapToggleClick;
+            TopToolbar.FindClick += OnFindClick;
+            TopToolbar.ToggleMarkdownToolbarClick += OnToggleMarkdownToolbarClick;
+            TopToolbar.ToggleThemeClick += OnToggleThemeClick;
+            TopToolbar.SplitNoneClick += OnSplitNoneClick;
+            TopToolbar.SplitVerticalClick += OnSplitVerticalClick;
+            TopToolbar.SplitHorizontalClick += OnSplitHorizontalClick;
+            TopToolbar.SettingsClick += OnSettingsClick;
+        }
+
+        private void WireEditorWorkspaceEvents()
+        {
+            EditorWorkspace.PrimaryAddTabButtonClick += OnEditorTabViewAddTabClick;
+            EditorWorkspace.PrimaryTabCloseRequested += OnEditorTabViewTabCloseRequested;
+            EditorWorkspace.PrimarySelectionChanged += OnEditorTabViewSelectionChanged;
+            EditorWorkspace.SecondaryAddTabButtonClick += OnEditorTabView2AddTabClick;
+            EditorWorkspace.SecondaryTabCloseRequested += OnEditorTabView2TabCloseRequested;
+            EditorWorkspace.SecondarySelectionChanged += OnEditorTabView2SelectionChanged;
+            EditorWorkspace.TabViewGotFocus += OnTabViewGotFocus;
+            EditorWorkspace.MoveTabLeftClick += OnMoveTabLeftClick;
+            EditorWorkspace.MoveTabRightClick += OnMoveTabRightClick;
+            EditorWorkspace.TerminalPanelHeightChanged += async (_, _) => await SaveUiLayoutSettingsAsync();
         }
 
         private void SetupCustomTitleBar()
@@ -309,105 +296,10 @@ namespace Ueditor
             this.SetTitleBar(AppTitleBar);
         }
 
-        private void OnTerminalShortcutPollTimerTick(object? sender, object e)
-        {
-            bool shortcutDown = IsAppForeground() && IsAsyncKeyDown(ControlVirtualKey) && IsAsyncKeyDown(TerminalToggleVirtualKey);
-            if (shortcutDown && !_terminalShortcutWasDown)
-            {
-                ToggleTerminalFromShortcut();
-            }
-
-            _terminalShortcutWasDown = shortcutDown;
-        }
-
-        private void StartTerminalShortcutPolling()
-        {
-            _terminalShortcutWasDown = false;
-            if (!_terminalShortcutPollTimer.IsEnabled)
-            {
-                _terminalShortcutPollTimer.Start();
-            }
-        }
-
-        private void StopTerminalShortcutPolling()
-        {
-            _terminalShortcutWasDown = false;
-            if (_terminalShortcutPollTimer.IsEnabled)
-            {
-                _terminalShortcutPollTimer.Stop();
-            }
-        }
-
-        private bool IsAppForeground()
-        {
-            if (_mainHwnd == IntPtr.Zero)
-            {
-                return false;
-            }
-
-            IntPtr foregroundHwnd = GetForegroundWindow();
-            return foregroundHwnd == _mainHwnd || IsChild(_mainHwnd, foregroundHwnd);
-        }
-
-        private static bool IsAsyncKeyDown(int virtualKey)
-        {
-            return (GetAsyncKeyState(virtualKey) & KeyDownMask) != 0;
-        }
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern short GetAsyncKeyState(int vKey);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern IntPtr GetForegroundWindow();
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern bool IsChild(IntPtr hWndParent, IntPtr hWnd);
-
         private void OnWindowClosed(object sender, WindowEventArgs args)
         {
-            StopTerminalShortcutPolling();
-            TerminalPane.StopAllSessions();
-        }
-
-        private void SetWindowIcon()
-        {
-            try
-            {
-                string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "Ueditor.ico");
-                if (File.Exists(iconPath))
-                {
-                    AppWindow.SetIcon(iconPath);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to set window icon: {ex.Message}");
-            }
-        }
-
-        private void ApplySavedWindowPlacement(EditorSettings settings)
-        {
-            try
-            {
-                if (settings.WindowWidth < 400 || settings.WindowHeight < 300)
-                {
-                    return;
-                }
-
-                var size = new SizeInt32(settings.WindowWidth, settings.WindowHeight);
-                if (settings.WindowX >= 0 && settings.WindowY >= 0)
-                {
-                    AppWindow.MoveAndResize(new RectInt32(settings.WindowX, settings.WindowY, size.Width, size.Height));
-                }
-                else
-                {
-                    AppWindow.Resize(size);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to restore window placement: {ex.Message}");
-            }
+            _terminalShortcutService.Stop();
+            EditorWorkspace.StopAllTerminalSessions();
         }
 
         private async Task SaveUiLayoutSettingsAsync()
@@ -415,31 +307,10 @@ namespace Ueditor
             try
             {
                 var settings = _settingsService.CurrentSettings;
-                var position = AppWindow.Position;
-                var size = AppWindow.Size;
-
-                var overlappedPresenter = AppWindow.Presenter as Microsoft.UI.Windowing.OverlappedPresenter;
-                bool isRestored = overlappedPresenter == null || overlappedPresenter.State == Microsoft.UI.Windowing.OverlappedPresenterState.Restored;
-
-                if (isRestored && size.Width >= 400 && size.Height >= 300)
-                {
-                    settings.WindowX = position.X;
-                    settings.WindowY = position.Y;
-                    settings.WindowWidth = size.Width;
-                    settings.WindowHeight = size.Height;
-                }
-
-                if (TerminalPane.Visibility == Visibility.Visible && TerminalPanelRow.Height.Value > 0)
-                {
-                    settings.TerminalPanelHeight = TerminalPanelRow.Height.Value;
-                }
-                else
-                {
-                    settings.TerminalPanelHeight = _lastTerminalHeight;
-                }
-
-                settings.LeftSidebarVisible = LeftSidebarTabView.Visibility == Visibility.Visible;
-                settings.RightSidebarVisible = PreviewGrid.Visibility == Visibility.Visible;
+                WindowPlacementService.CaptureRestoredWindowPlacement(AppWindow, settings);
+                settings.TerminalPanelHeight = EditorWorkspace.PersistedTerminalPanelHeight;
+                settings.LeftSidebarVisible = _shellPanelLayoutService.IsLeftSidebarVisible;
+                settings.RightSidebarVisible = _shellPanelLayoutService.IsRightSidebarVisible;
 
                 await _settingsService.SaveSettingsAsync(settings);
             }
@@ -454,8 +325,8 @@ namespace Ueditor
             try
             {
                 var settings = _settingsService.CurrentSettings;
-                settings.LeftSidebarVisible = LeftSidebarTabView.Visibility == Visibility.Visible;
-                settings.RightSidebarVisible = PreviewGrid.Visibility == Visibility.Visible;
+                settings.LeftSidebarVisible = _shellPanelLayoutService.IsLeftSidebarVisible;
+                settings.RightSidebarVisible = _shellPanelLayoutService.IsRightSidebarVisible;
                 await _settingsService.SaveSettingsAsync(settings);
             }
             catch (Exception ex)
@@ -468,11 +339,11 @@ namespace Ueditor
         {
             if (e.WindowActivationState == WindowActivationState.Deactivated)
             {
-                StopTerminalShortcutPolling();
+                _terminalShortcutService.Stop();
             }
             else
             {
-                StartTerminalShortcutPolling();
+                _terminalShortcutService.Start();
             }
         }
 
@@ -511,8 +382,8 @@ namespace Ueditor
 
             // Load settings first so InitializeEditorWebView can use the correct theme from the start
             await _settingsService.LoadSettingsAsync();
-            ApplySavedWindowPlacement(_settingsService.CurrentSettings);
-            _lastTerminalHeight = Math.Clamp(_settingsService.CurrentSettings.TerminalPanelHeight, 120, 600);
+            WindowPlacementService.ApplySavedWindowPlacement(AppWindow, _settingsService.CurrentSettings);
+            EditorWorkspace.LastTerminalHeight = Math.Clamp(_settingsService.CurrentSettings.TerminalPanelHeight, 120, 600);
 
             if (filesToOpen.Count > 0)
             {
@@ -528,13 +399,13 @@ namespace Ueditor
             }
 
             // 2. Apply settings to UI and initialize preview panel WebView2 in the background
-            WordWrapToggle.IsChecked = _settingsService.CurrentSettings.WordWrap;
+            TopToolbar.WordWrapIsChecked = _settingsService.CurrentSettings.WordWrap;
             LeftPanelToggle.IsChecked = _settingsService.CurrentSettings.LeftSidebarVisible;
             ApplyLeftSidebarVisibility(_settingsService.CurrentSettings.LeftSidebarVisible);
             bool rightPanelVisible = _settingsService.CurrentSettings.RightSidebarVisible && _settingsService.CurrentSettings.DefaultMarkdownEnabled;
             RightPanelToggle.IsChecked = rightPanelVisible;
             ApplyPreviewVisibility(rightPanelVisible);
-            MarkdownToolbarToggle.IsChecked = _settingsService.CurrentSettings.DefaultMarkdownToolbarEnabled;
+            TopToolbar.MarkdownToolbarIsChecked = _settingsService.CurrentSettings.DefaultMarkdownToolbarEnabled;
             MarkdownToolbar.Visibility = _settingsService.CurrentSettings.DefaultMarkdownToolbarEnabled ? Visibility.Visible : Visibility.Collapsed;
             PreviewModeCombo.SelectedIndex = _settingsService.CurrentSettings.PreviewMode switch
             {
@@ -557,10 +428,9 @@ namespace Ueditor
             await InitializePreviewWebViewAsync();
 
             // 3. Load Snippets, Favorites and Recent Files
-            await _snippetService.LoadSnippetsAsync();
-            RefreshSnippetsUI();
-            RefreshFavoritesUI();
-            _recentFilesService.LoadInto(_viewModel.RecentFiles);
+            await _snippetsController.LoadAsync();
+            _favoritesRecentController.RefreshFavorites();
+            _favoritesRecentController.LoadRecentFiles();
         }
 
         #region WebView2 Host Resource Mapping & Preview Init
@@ -679,7 +549,7 @@ namespace Ueditor
                 tab.Language = _languageDetectionService.GetMonacoLanguageName(filePath);
                 if (File.Exists(filePath))
                 {
-                    AddRecentFile(filePath);
+                    _favoritesRecentController.AddRecentFile(filePath);
                 }
             }
             else
@@ -780,7 +650,7 @@ namespace Ueditor
                             OnOpenFileClick(this, new RoutedEventArgs());
                             break;
                         case "terminal":
-                            ToggleTerminalFromShortcut();
+                            _terminalShortcutService.RequestToggle();
                             break;
                         case "closeTab":
                             OnCloseActiveTabShortcutInvoked(null!, null!);
@@ -912,7 +782,7 @@ namespace Ueditor
 
             bridge.SelectionReceived += (selectedText) =>
             {
-                _lastSelectionText = selectedText;
+                _llmAssistantController.SetSelectionText(selectedText);
                 if (GetActiveTab() == tab)
                 {
                     if (string.IsNullOrEmpty(selectedText))
@@ -1085,7 +955,7 @@ namespace Ueditor
         {
             try
             {
-                string? repoRoot = FindGitRepositoryRoot(Path.GetDirectoryName(filePath));
+                string? repoRoot = _gitService.FindRepositoryRoot(Path.GetDirectoryName(filePath));
                 if (!string.IsNullOrEmpty(repoRoot))
                 {
                     _currentRepoPath = repoRoot;
@@ -1226,7 +1096,7 @@ namespace Ueditor
         private async void OnWordWrapToggleClick(object sender, RoutedEventArgs e)
         {
             var settings = _settingsService.CurrentSettings;
-            settings.WordWrap = WordWrapToggle.IsChecked == true;
+            settings.WordWrap = TopToolbar.WordWrapIsChecked;
             await _settingsService.SaveSettingsAsync(settings);
 
             // Propagate options to currently focused editor tab
@@ -1257,8 +1127,7 @@ namespace Ueditor
 
         private void OnTopMostToggleClick(object sender, RoutedEventArgs e)
         {
-            bool isTopMost = TopMostToggleButton?.IsChecked == true;
-            _stickyNoteService.ApplyTopMost(this, isTopMost);
+            _stickyNoteService.ApplyTopMost(this, TopToolbar.TopMostIsChecked);
         }
 
         private void OnStickyNoteClick(object sender, RoutedEventArgs e)
@@ -1297,38 +1166,13 @@ namespace Ueditor
 
         private void ShowLeftSidebarPage(int index)
         {
-            UIElement[] pages =
-            {
-                ExplorerSidebarPage,
-                FavoritesSidebarPage,
-                RecentSidebarPage,
-                SearchSidebarPage,
-                GitSidebarPage,
-                SnippetsSidebarPage
-            };
-
-            Microsoft.UI.Xaml.Controls.Primitives.ToggleButton[] buttons =
-            {
-                ExplorerActivityButton,
-                FavoritesActivityButton,
-                RecentActivityButton,
-                SearchActivityButton,
-                GitActivityButton,
-                SnippetsActivityButton
-            };
-
-            int safeIndex = Math.Clamp(index, 0, pages.Length - 1);
-            for (int i = 0; i < pages.Length; i++)
-            {
-                pages[i].Visibility = i == safeIndex ? Visibility.Visible : Visibility.Collapsed;
-                buttons[i].IsChecked = i == safeIndex;
-            }
+            int safeIndex = LeftSidebarTabView.ShowPage(index);
 
             if (safeIndex == 1)
             {
                 LeftSidebarTabView.FavoritesFileTabButton.IsChecked = true;
                 LeftSidebarTabView.FavoritesFolderTabButton.IsChecked = false;
-                RefreshFavoritesUI(true);
+                _favoritesRecentController.RefreshFavorites(true);
             }
 
             if (safeIndex == 3)
@@ -1343,7 +1187,7 @@ namespace Ueditor
 
         private void EnsureLeftPanelVisible()
         {
-            if (LeftPanelToggle.IsChecked == true && LeftSidebarTabView.Visibility == Visibility.Visible)
+            if (LeftPanelToggle.IsChecked == true && _shellPanelLayoutService.IsLeftSidebarVisible)
             {
                 return;
             }
@@ -1355,26 +1199,7 @@ namespace Ueditor
 
         private void ApplyLeftSidebarVisibility(bool show)
         {
-            ExplorerColumn.MinWidth = ExplorerPanelMinWidth;
-            if (show)
-            {
-                ExplorerColumn.MinWidth = ExplorerPanelMinWidth;
-                ExplorerColumn.Width = new GridLength(Math.Max(_lastExplorerWidth, ExplorerColumn.MinWidth));
-                LeftSplitter.Visibility = Visibility.Visible;
-                LeftSidebarTabView.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                double currentWidth = LeftSidebarTabView.ActualWidth > 0 ? LeftSidebarTabView.ActualWidth : ExplorerColumn.Width.Value;
-                if (currentWidth > 0)
-                {
-                    _lastExplorerWidth = currentWidth;
-                }
-                ExplorerColumn.MinWidth = 0;
-                ExplorerColumn.Width = new GridLength(0);
-                LeftSplitter.Visibility = Visibility.Collapsed;
-                LeftSidebarTabView.Visibility = Visibility.Collapsed;
-            }
+            _shellPanelLayoutService.ApplyLeftSidebarVisibility(show);
         }
 
         private async void OnToggleLeftPanelClick(object sender, RoutedEventArgs e)
@@ -1429,142 +1254,14 @@ namespace Ueditor
 
         private string GetLocalizedString(string key, string fallback)
         {
-            string reswValue = GetLocalizedStringFromResw(key);
-            if (!string.IsNullOrEmpty(reswValue))
-            {
-                return reswValue;
-            }
-
-            try
-            {
-                EnsureResourceContext();
-                string value = _resourceContext == null
-                    ? new ResourceLoader().GetString(key)
-                    : _resourceManager.MainResourceMap.GetSubtree("Resources").GetValue(key, _resourceContext).ValueAsString;
-                return string.IsNullOrEmpty(value) ? fallback : value;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Missing localized string '{key}': {ex.Message}");
-                return fallback;
-            }
-        }
-
-        private string GetLocalizedStringFromResw(string key)
-        {
-            try
-            {
-                string language = GetActiveLanguage();
-                var strings = GetReswStrings(language);
-                if (strings.TryGetValue(key, out string? value) && !string.IsNullOrEmpty(value))
-                {
-                    return value;
-                }
-
-                if (!language.Equals("en-US", StringComparison.OrdinalIgnoreCase) &&
-                    GetReswStrings("en-US").TryGetValue(key, out value) &&
-                    !string.IsNullOrEmpty(value))
-                {
-                    return value;
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to read localized resw string '{key}': {ex.Message}");
-            }
-
-            return string.Empty;
-        }
-
-        private Dictionary<string, string> GetReswStrings(string language)
-        {
-            if (_reswStringCache.TryGetValue(language, out var strings))
-            {
-                return strings;
-            }
-
-            string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Strings", language, "Resources.resw");
-            if (!File.Exists(path))
-            {
-                path = Path.Combine(AppContext.BaseDirectory, "Strings", language, "Resources.resw");
-            }
-
-            strings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            if (File.Exists(path))
-            {
-                var doc = XDocument.Load(path);
-                foreach (var data in doc.Root?.Elements("data") ?? Enumerable.Empty<XElement>())
-                {
-                    string? name = data.Attribute("name")?.Value;
-                    string? value = data.Element("value")?.Value;
-                    if (!string.IsNullOrWhiteSpace(name) && value != null)
-                    {
-                        strings[name] = value;
-                    }
-                }
-            }
-
-            _reswStringCache[language] = strings;
-            return strings;
-        }
-
-        private string GetActiveLanguage()
-        {
-            var lang = _settingsService?.CurrentSettings?.Language;
-            if (string.IsNullOrEmpty(lang) || lang.Equals("Default", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    lang = System.Globalization.CultureInfo.CurrentUICulture.Name;
-                }
-                catch
-                {
-                    lang = "en-US";
-                }
-            }
-
-            if (lang != null)
-            {
-                if (lang.StartsWith("ko", StringComparison.OrdinalIgnoreCase)) return "ko-KR";
-                if (lang.StartsWith("ja", StringComparison.OrdinalIgnoreCase)) return "ja-JP";
-            }
-            return "en-US";
+            return _localizationService.GetString(key, fallback);
         }
 
         private void ApplyResourceLanguage()
         {
-            try
-            {
-                string configuredLanguage = _settingsService?.CurrentSettings?.Language ?? "Default";
-                string activeLanguage = GetActiveLanguage();
-                ApplicationLanguages.PrimaryLanguageOverride = configuredLanguage.Equals("Default", StringComparison.OrdinalIgnoreCase)
-                    ? string.Empty
-                    : activeLanguage;
-
-                var culture = new System.Globalization.CultureInfo(activeLanguage);
-                System.Globalization.CultureInfo.DefaultThreadCurrentCulture = culture;
-                System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = culture;
-                System.Threading.Thread.CurrentThread.CurrentCulture = culture;
-                System.Threading.Thread.CurrentThread.CurrentUICulture = culture;
-
-                _resourceManager = new ResourceManager();
-                _resourceContext = _resourceManager.CreateResourceContext();
-                _resourceContext.QualifierValues["Language"] = activeLanguage;
-                _reswStringCache.Clear();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to apply resource language: {ex.Message}");
-            }
+            _localizationService.ApplyResourceLanguage();
         }
 
-        private void EnsureResourceContext()
-        {
-            if (_resourceContext == null)
-            {
-                ApplyResourceLanguage();
-            }
-        }
         private void LocalizeUi()
         {
             try
@@ -1572,199 +1269,12 @@ namespace Ueditor
                 ApplyResourceLanguage();
                 string GetString(string key, string fallback) => GetLocalizedString(key, fallback);
 
-                // 1. Top Toolbar Buttons
-                if (OpenFileButton != null)
-                {
-                    OpenFileButton.Label = GetString("OpenFile", "파일 열기");
-                    ToolTipService.SetToolTip(OpenFileButton, GetString("OpenFile", "파일 열기") + " (Ctrl+O)");
-                }
-                if (SaveFileButton != null)
-                {
-                    SaveFileButton.Label = GetString("SaveFile", "저장");
-                    ToolTipService.SetToolTip(SaveFileButton, GetString("SaveFile", "저장") + " (Ctrl+S)");
-                }
-                if (SaveAsFileButton != null)
-                {
-                    SaveAsFileButton.Label = GetString("SaveAsFile", "다른 이름으로 저장");
-                    ToolTipService.SetToolTip(SaveAsFileButton, GetString("SaveAsFile", "다른 이름으로 저장") + " (Ctrl+Shift+S)");
-                }
-                if (CompareButton != null)
-                {
-                    CompareButton.Label = GetString("Compare", "비교");
-                    ToolTipService.SetToolTip(CompareButton, GetString("Compare", "비교") + " (Diff)");
-                }
-                if (TerminalToggleButton != null)
-                {
-                    TerminalToggleButton.Label = GetString("Terminal", "터미널");
-                    ToolTipService.SetToolTip(TerminalToggleButton, GetString("Terminal", "터미널") + " (Ctrl+`)");
-                }
-                if (TopMostToggleButton != null)
-                {
-                    TopMostToggleButton.Label = GetString("TopMost", "항상위");
-                    ToolTipService.SetToolTip(TopMostToggleButton, GetString("TopMost", "항상 위"));
-                }
-                if (StickyNoteButton != null)
-                {
-                    StickyNoteButton.Label = GetString("StickyNote", "스티커");
-                    ToolTipService.SetToolTip(StickyNoteButton, GetString("StickyNote", "스티커 노트"));
-                }
-                if (WordWrapToggle != null)
-                {
-                    WordWrapToggle.Label = GetString("WordWrap", "Word Wrap");
-                }
-                if (SearchButton != null)
-                {
-                    SearchButton.Label = GetString("Search", "검색");
-                    ToolTipService.SetToolTip(SearchButton, GetString("Search", "검색") + " (Ctrl+F)");
-                }
-                if (MarkdownToolbarToggle != null)
-                {
-                    MarkdownToolbarToggle.Label = GetString("Markdown", "Markdown");
-                    ToolTipService.SetToolTip(MarkdownToolbarToggle, GetString("Markdown", "마크다운 툴바 토글"));
-                }
-                if (ThemeButton != null)
-                {
-                    ThemeButton.Label = GetString("Theme", "테마");
-                }
-                if (SplitButton != null)
-                {
-                    SplitButton.Label = GetString("Split", "분할");
-                    ToolTipService.SetToolTip(SplitButton, GetString("Split", "에디터 화면 분할"));
-                }
-                if (SettingsButton != null)
-                {
-                    SettingsButton.Label = GetString("Settings", "설정");
-                }
-                if (PrintButton != null)
-                {
-                    PrintButton.Label = GetString("Print", "인쇄");
-                    ToolTipService.SetToolTip(PrintButton, GetString("Print", "인쇄") + " (Ctrl+P)");
-                }
-
-                // 1b. Tab Navigation Buttons
-                if (MoveTabLeftBtn != null) ToolTipService.SetToolTip(MoveTabLeftBtn, GetString("MoveTabLeftTooltip", "왼쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)"));
-                if (MoveTabRightBtn != null) ToolTipService.SetToolTip(MoveTabRightBtn, GetString("MoveTabRightTooltip", "오른쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)"));
-                if (MoveTab2LeftBtn != null) ToolTipService.SetToolTip(MoveTab2LeftBtn, GetString("MoveTabLeftTooltip", "왼쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)"));
-                if (MoveTab2RightBtn != null) ToolTipService.SetToolTip(MoveTab2RightBtn, GetString("MoveTabRightTooltip", "오른쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)"));
-
-                // 2. Split Menu Flyouts
-                if (SplitNoneItem != null) SplitNoneItem.Text = GetString("SplitNone", "분할 없음 (단일)");
-                if (SplitVerticalItem != null) SplitVerticalItem.Text = GetString("SplitVertical", "좌우 분할");
-                if (SplitHorizontalItem != null) SplitHorizontalItem.Text = GetString("SplitHorizontal", "상하 분할");
-
-                // 3. Left Panel Tooltips
-                if (ExplorerActivityButton != null) ToolTipService.SetToolTip(ExplorerActivityButton, GetString("Explorer", "탐색기"));
-                if (FavoritesActivityButton != null) ToolTipService.SetToolTip(FavoritesActivityButton, GetString("Favorites", "즐겨찾기"));
-                if (SnippetsActivityButton != null) ToolTipService.SetToolTip(SnippetsActivityButton, GetString("Snippets", "스니펫"));
-                if (GitActivityButton != null) ToolTipService.SetToolTip(GitActivityButton, GetString("Git", "Git"));
-                if (SearchActivityButton != null) ToolTipService.SetToolTip(SearchActivityButton, GetString("Search", "검색"));
-                if (RecentActivityButton != null) ToolTipService.SetToolTip(RecentActivityButton, GetString("RecentFiles", "최근 파일"));
-
-                // 4. Folder Select and Status
-                if (ExplorerStatusText != null && string.IsNullOrEmpty(_currentFolderPath))
-                {
-                    ExplorerStatusText.Text = GetString("NoFolderSelected", "폴더를 선택하세요.");
-                }
-
-                // 5. Sidebar Headers
-                if (FavoritesHeaderText != null) FavoritesHeaderText.Text = GetString("FavoritesHeader", "즐겨찾기 목록");
-                if (SnippetsHeaderText != null) SnippetsHeaderText.Text = GetString("SnippetsHeader", "코드 및 수식 템플릿");
-                if (AddSnippetButton != null) AddSnippetButton.Content = GetString("AddSnippet", "스니펫 추가...");
-
-                // 6a. Explorer folder buttons
-                if (ExplorerUpButton != null) ToolTipService.SetToolTip(ExplorerUpButton, GetString("ExplorerUpTooltip", "상위 폴더"));
-                if (ExplorerSelectFolderButton != null) ExplorerSelectFolderButton.Content = GetString("ExplorerSelectFolder", "폴더 선택...");
-                if (ExplorerTerminalButton != null) ToolTipService.SetToolTip(ExplorerTerminalButton, GetString("ExplorerOpenTerminalTooltip", "현재 폴더에서 터미널 열기"));
-
-                // 6b. Favorites tabs and pins
-                if (LeftSidebarTabView.FavoritesFileTabButton != null) LeftSidebarTabView.FavoritesFileTabButton.Content = GetString("FavoritesFileTab", "파일");
-                if (LeftSidebarTabView.FavoritesFolderTabButton != null) LeftSidebarTabView.FavoritesFolderTabButton.Content = GetString("FavoritesFolderTab", "폴더");
-                if (LeftSidebarTabView.FavoritesPinIndicatorText != null) ToolTipService.SetToolTip(LeftSidebarTabView.FavoritesPinIndicatorText, GetString("FavoritesPinTooltip", "고정"));
-
-                // 6c. Recent Files header
-                if (RecentFilesHeaderText != null) RecentFilesHeaderText.Text = GetString("RecentFilesHeader", "최근 파일");
-
-                // 6d. Search panel
-                if (SearchHeaderText != null) SearchHeaderText.Text = GetString("SearchHeader", "폴더 전체 검색 및 치환");
-                if (SearchQueryInput != null) SearchQueryInput.PlaceholderText = GetString("SearchPlaceholder", "검색어 입력...");
-                if (ReplaceQueryInput != null) ReplaceQueryInput.PlaceholderText = GetString("ReplacePlaceholder", "치환할 단어 입력...");
-                if (SearchMatchCaseToggle != null) ToolTipService.SetToolTip(SearchMatchCaseToggle, GetString("SearchMatchCaseTooltip", "대소문자 구분"));
-                if (SearchWholeWordToggle != null) ToolTipService.SetToolTip(SearchWholeWordToggle, GetString("SearchWholeWordTooltip", "단어 단위"));
-                if (SearchRegexToggle != null) ToolTipService.SetToolTip(SearchRegexToggle, GetString("SearchRegexTooltip", "정규식 검색"));
-                if (SearchAllButton != null) SearchAllButton.Content = GetString("SearchAllFiles", "전체 검색");
-                if (ReplaceAllButton != null) ReplaceAllButton.Content = GetString("ReplaceAllFiles", "모두 치환");
-
-                // 6e. Git panel
-                if (GitHeaderText != null) GitHeaderText.Text = GetString("GitRepoHeader", "Git 저장소 관리");
-                if (GitBranchesCombo != null) GitBranchesCombo.PlaceholderText = GetString("GitBranchPlaceholder", "브랜치 목록");
-                if (GitCommitMessageInput != null) GitCommitMessageInput.PlaceholderText = GetString("GitCommitPlaceholder", "커밋 메시지 입력...");
-                if (GitCommitButton != null) GitCommitButton.Content = GetString("GitCommit", "커밋 (Commit)");
-                if (GitStageAllButton != null) GitStageAllButton.Content = GetString("GitStageAll", "전체 Stage");
-                if (GitRestoreAllButton != null) GitRestoreAllButton.Content = GetString("GitRestoreAll", "전체 Restore");
-                if (GitPushButton != null) GitPushButton.Content = GetString("GitPush", "Push");
-                if (GitRefreshButton != null) GitRefreshButton.Content = GetString("GitRefresh", "새로고침");
-                if (GitHistoryHeader != null) GitHistoryHeader.Text = GetString("GitHistory", "과거 기록");
-
-                // 6f. Markdown Toolbar Buttons
+                TopToolbar.Localize(GetString);
+                EditorWorkspace.Localize(GetString);
+                LeftSidebarTabView.Localize(GetString, string.IsNullOrEmpty(_currentFolderPath), IsGitNotDetectedText);
+                StatusBarPane.Localize(GetString, IsGitNotDetectedText);
+                PreviewGrid.Localize(GetString);
                 MarkdownToolbar.LocalizeTooltips(GetString);
-
-                if (StatusLineLabel != null) StatusLineLabel.Text = GetString("StatusLineLabel", "줄");
-                if (StatusColumnLabel != null) StatusColumnLabel.Text = GetString("StatusColumnLabel", "열");
-                if (StatusGitBranch != null && IsGitNotDetectedText(StatusGitBranch.Text)) StatusGitBranch.Text = GetString("GitNotDetected", "Git: 감지 안됨");
-                if (GitPanelBranchText != null && IsGitNotDetectedText(GitPanelBranchText.Text)) GitPanelBranchText.Text = GetString("GitNotDetected", "Git: 감지 안됨");
-                ToolTipService.SetToolTip(LeftPanelToggle, GetString("StatusLeftPanelTooltip", "좌측 패널"));
-                ToolTipService.SetToolTip(RightPanelToggle, GetString("StatusRightPanelTooltip", "우측 패널"));
-                ToolTipService.SetToolTip(StatusBarPane.LineNumberButtonControl, GetString("StatusGoToLineTooltip", "클릭하여 줄 이동"));
-                ToolTipService.SetToolTip(StatusBarPane.LineEndingButtonControl, GetString("StatusLineEndingTooltip", "클릭하여 줄 끝 방식 변경"));
-                ToolTipService.SetToolTip(StatusEncodingCombo, GetString("StatusEncodingTooltip", "파일 인코딩 선택"));
-
-                // 7. Right Panel (RightSidebarPane / PreviewGrid) Localization
-                if (PreviewGrid != null)
-                {
-                    if (PreviewGrid.LivePreviewTabItem != null) PreviewGrid.LivePreviewTabItem.Header = GetString("LivePreviewTabHeader", "실시간 프리뷰");
-                    if (PreviewGrid.ComboMarkdown != null) PreviewGrid.ComboMarkdown.Content = GetString("ComboItemMarkdown", "Markdown");
-                    if (PreviewGrid.ComboHtml != null) PreviewGrid.ComboHtml.Content = GetString("ComboItemHtml", "HTML Source");
-                    if (PreviewGrid.ComboLatex != null) PreviewGrid.ComboLatex.Content = GetString("ComboItemLatex", "LaTeX Block");
-                    if (PreviewGrid.ComboAozora != null) PreviewGrid.ComboAozora.Content = GetString("ComboItemAozora", "Aozora");
-                    if (PreviewGrid.OpenBrowserBtnText != null) PreviewGrid.OpenBrowserBtnText.Text = GetString("OpenInBrowserButtonText", "브라우저");
-                    if (PreviewGrid.OpenBrowserBtn != null) ToolTipService.SetToolTip(PreviewGrid.OpenBrowserBtn, GetString("OpenInBrowserTooltip", "HTML 미리보기를 브라우저로 열기"));
-                    
-                    if (PreviewGrid.AiAssistantTabItem != null) PreviewGrid.AiAssistantTabItem.Header = GetString("AiAssistantTabHeader", "AI Assistant");
-                    
-                    if (LlmOutputText != null)
-                    {
-                        string currentLlmText = LlmOutputText.Text;
-                        if (currentLlmText.Contains("대기 중...") || currentLlmText.Contains("待機中...") || currentLlmText.Contains("Waiting..."))
-                        {
-                            LlmOutputText.Text = GetString("LlmOutputPlaceholder", "대기 중... 에디터에서 영역을 선택한 후 하단의 AI 분석 도구를 사용해 보세요.");
-                        }
-                    }
-
-                    if (SelectionStatsText != null)
-                    {
-                        string currentStatsText = SelectionStatsText.Text;
-                        if (currentStatsText.Contains("선택 영역: 없음") || currentStatsText.Contains("選択範囲: なし") || currentStatsText.Contains("Selection: None") || currentStatsText.Contains("선택 영역: 없음"))
-                        {
-                            SelectionStatsText.Text = GetString("SelectionStatsPlaceholder", "선택 영역: 없음 (전체 전송 차단 활성화)");
-                        }
-                    }
-
-                    if (LlmFileContextInput != null) LlmFileContextInput.PlaceholderText = GetString("LlmFileContextPlaceholder", "파일 맥락 없음");
-                    if (PreviewGrid.LlmAddFileCtxButton != null) PreviewGrid.LlmAddFileCtxButton.Content = GetString("LlmAddFileContextButtonText", "파일 맥락 추가");
-                    
-                    if (PreviewGrid.LlmExplainBtn != null) PreviewGrid.LlmExplainBtn.Content = GetString("LlmExplainButtonText", "선택 영역 설명 (Explain)");
-                    if (PreviewGrid.LlmSummarizeBtn != null) PreviewGrid.LlmSummarizeBtn.Content = GetString("LlmSummarizeButtonText", "선택 영역 요약");
-                    if (PreviewGrid.LlmTranslateBtn != null) PreviewGrid.LlmTranslateBtn.Content = GetString("LlmTranslateButtonText", "선택 영역 번역");
-                    if (PreviewGrid.LlmImproveBtn != null) PreviewGrid.LlmImproveBtn.Content = GetString("LlmImproveButtonText", "수식/마크다운 개선");
-                    
-                    if (LlmCustomPromptInput != null) LlmCustomPromptInput.PlaceholderText = GetString("LlmCustomPromptPlaceholder", "질문이나 커스텀 지시사항 입력...");
-                    if (PreviewGrid.LlmCustomRunBtn != null) PreviewGrid.LlmCustomRunBtn.Content = GetString("LlmCustomRunButtonText", "실행");
-                    if (PreviewGrid.LlmInsertOutputBtn != null)
-                    {
-                        PreviewGrid.LlmInsertOutputBtn.Content = GetString("LlmInsertOutputButtonText", "입력");
-                        ToolTipService.SetToolTip(PreviewGrid.LlmInsertOutputBtn, GetString("LlmInsertOutputTooltip", "AI 응답을 현재 커서에 입력"));
-                    }
-                }
             }
             catch (Exception ex)
             {
@@ -1782,7 +1292,7 @@ namespace Ueditor
         private async void OnSettingsClick(object sender, RoutedEventArgs e)
         {
             // Suspend native terminal windows so settings dialog is not hidden behind them
-            bool terminalWasVisible = TerminalPane.Visibility == Visibility.Visible;
+            bool terminalWasVisible = EditorWorkspace.IsTerminalVisible;
             if (terminalWasVisible)
                 TerminalPane.SuspendNativeWindows();
 
@@ -1801,20 +1311,20 @@ namespace Ueditor
 
             if (!string.IsNullOrWhiteSpace(result.ApiKeyStatusMessage))
             {
-                LlmOutputText.Text = result.ApiKeyStatusMessage;
+                _llmAssistantController.SetOutput(result.ApiKeyStatusMessage);
             }
 
             await _settingsService.SaveSettingsAsync(settings);
             ApplyResourceLanguage();
             ApplyPreviewVisibility(settings.DefaultMarkdownEnabled);
-            MarkdownToolbarToggle.IsChecked = settings.DefaultMarkdownToolbarEnabled;
+            TopToolbar.MarkdownToolbarIsChecked = settings.DefaultMarkdownToolbarEnabled;
             MarkdownToolbar.Visibility = settings.DefaultMarkdownToolbarEnabled ? Visibility.Visible : Visibility.Collapsed;
 
             // Enable auto-save if setting is on and git is available
             _autoSaveEnabled = settings.AutoSave && !string.IsNullOrEmpty(_currentRepoPath);
             if (_autoSaveEnabled) _autoSaveTimer.Start();
             else _autoSaveTimer.Stop();
-            WordWrapToggle.IsChecked = settings.WordWrap;
+            TopToolbar.WordWrapIsChecked = settings.WordWrap;
             ApplyUiPersonalization(settings);
             LocalizeUi();
             ApplyToolbarSettings(settings);
@@ -1889,117 +1399,32 @@ namespace Ueditor
 
         private void OnLeftSplitterPointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
-            if (sender is UIElement splitter)
-            {
-                _isDraggingLeftSplitter = true;
-                _leftSplitterStartExplorerWidth = ExplorerColumn.Width.Value;
-                var pt = e.GetCurrentPoint(MainWorkGrid).Position;
-                _leftSplitterStartPointerX = pt.X;
-                splitter.CapturePointer(e.Pointer);
-                e.Handled = true;
-            }
+            _shellPanelLayoutService.OnLeftSplitterPointerPressed(sender, e);
         }
 
         private void OnLeftSplitterPointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
-            if (_isDraggingLeftSplitter && sender is UIElement splitter)
-            {
-                var pt = e.GetCurrentPoint(MainWorkGrid).Position;
-                double deltaX = pt.X - _leftSplitterStartPointerX;
-                double newWidth = _leftSplitterStartExplorerWidth + deltaX;
-                
-                // Clamp between MinWidth and MaxWidth
-                newWidth = Math.Clamp(newWidth, ExplorerColumn.MinWidth, ExplorerColumn.MaxWidth);
-                ExplorerColumn.Width = new GridLength(newWidth);
-                e.Handled = true;
-            }
+            _shellPanelLayoutService.OnLeftSplitterPointerMoved(sender, e);
         }
 
         private void OnLeftSplitterPointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
-            if (_isDraggingLeftSplitter && sender is UIElement splitter)
-            {
-                _isDraggingLeftSplitter = false;
-                splitter.ReleasePointerCapture(e.Pointer);
-                e.Handled = true;
-            }
+            _shellPanelLayoutService.OnLeftSplitterPointerReleased(sender, e);
         }
 
         private void OnRightSplitterPointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
-            if (sender is UIElement splitter)
-            {
-                _isDraggingRightSplitter = true;
-                _rightSplitterStartPreviewWidth = PreviewColumn.Width.Value;
-                var pt = e.GetCurrentPoint(MainWorkGrid).Position;
-                _rightSplitterStartPointerX = pt.X;
-                splitter.CapturePointer(e.Pointer);
-                e.Handled = true;
-            }
+            _shellPanelLayoutService.OnRightSplitterPointerPressed(sender, e);
         }
 
         private void OnRightSplitterPointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
-            if (_isDraggingRightSplitter && sender is UIElement splitter)
-            {
-                var pt = e.GetCurrentPoint(MainWorkGrid).Position;
-                double deltaX = pt.X - _rightSplitterStartPointerX;
-                double newWidth = _rightSplitterStartPreviewWidth - deltaX;
-                
-                // Clamp between MinWidth and MaxWidth
-                newWidth = Math.Clamp(newWidth, PreviewColumn.MinWidth, PreviewColumn.MaxWidth);
-                PreviewColumn.Width = new GridLength(newWidth);
-                e.Handled = true;
-            }
+            _shellPanelLayoutService.OnRightSplitterPointerMoved(sender, e);
         }
 
         private void OnRightSplitterPointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
-            if (_isDraggingRightSplitter && sender is UIElement splitter)
-            {
-                _isDraggingRightSplitter = false;
-                splitter.ReleasePointerCapture(e.Pointer);
-                e.Handled = true;
-            }
-        }
-
-        private void OnTerminalSplitterPointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        {
-            if (sender is UIElement splitter && TerminalPane.Visibility == Visibility.Visible)
-            {
-                _isDraggingTerminalSplitter = true;
-                _terminalSplitterStartHeight = TerminalPanelRow.Height.Value > 0 ? TerminalPanelRow.Height.Value : _lastTerminalHeight;
-                var pt = e.GetCurrentPoint(MainWorkGrid).Position;
-                _terminalSplitterStartPointerY = pt.Y;
-                splitter.CapturePointer(e.Pointer);
-                e.Handled = true;
-            }
-        }
-
-        private void OnTerminalSplitterPointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        {
-            if (_isDraggingTerminalSplitter)
-            {
-                var pt = e.GetCurrentPoint(MainWorkGrid).Position;
-                double deltaY = _terminalSplitterStartPointerY - pt.Y;
-                double maxHeight = Math.Max(160, MainWorkGrid.ActualHeight - 180);
-                double newHeight = Math.Clamp(_terminalSplitterStartHeight + deltaY, 120, maxHeight);
-                _lastTerminalHeight = newHeight;
-                TerminalPanelRow.Height = new GridLength(newHeight);
-                TerminalPane.ResizeEmbeddedTerminal();
-                e.Handled = true;
-            }
-        }
-
-        private async void OnTerminalSplitterPointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        {
-            if (_isDraggingTerminalSplitter && sender is UIElement splitter)
-            {
-                _isDraggingTerminalSplitter = false;
-                splitter.ReleasePointerCapture(e.Pointer);
-                await SaveUiLayoutSettingsAsync();
-                e.Handled = true;
-            }
+            _shellPanelLayoutService.OnRightSplitterPointerReleased(sender, e);
         }
 
         #endregion
@@ -2017,7 +1442,7 @@ namespace Ueditor
             if (folder != null)
             {
                 _currentFolderPath = folder.Path;
-                _currentRepoPath = FindGitRepositoryRoot(folder.Path) ?? string.Empty;
+                _currentRepoPath = _gitService.FindRepositoryRoot(folder.Path) ?? string.Empty;
                 LoadDirectoryRoot(folder.Path);
 
                 // Trigger Git branch detection & status update
@@ -2030,7 +1455,7 @@ namespace Ueditor
             _viewModel.ExplorerItems.Clear();
             _currentFolderPath = folderPath;
 
-            foreach (var item in CreateDirectoryItems(folderPath))
+            foreach (var item in _explorerDirectoryService.CreateDirectoryItems(folderPath))
             {
                 _viewModel.ExplorerItems.Add(item);
             }
@@ -2043,7 +1468,7 @@ namespace Ueditor
             if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath)) return;
 
             _currentFolderPath = folderPath;
-            _currentRepoPath = FindGitRepositoryRoot(folderPath) ?? string.Empty;
+            _currentRepoPath = _gitService.FindRepositoryRoot(folderPath) ?? string.Empty;
             LoadDirectoryRoot(folderPath);
 
             // Ensure the left panel is visible and switch to Explorer page (index 0)
@@ -2091,58 +1516,9 @@ namespace Ueditor
 
         #region Terminal Panel Layout
 
-        private void EnsureTerminalPanelVisible()
-        {
-            TerminalPane.Visibility = Visibility.Visible;
-            TerminalSplitter.Visibility = Visibility.Visible;
-            TerminalSplitterRow.Height = new GridLength(4);
-            TerminalPanelRow.Height = new GridLength(Math.Clamp(_lastTerminalHeight, 120, Math.Max(160, MainWorkGrid.ActualHeight - 180)));
-        }
-
         private void ToggleTerminal()
         {
-            if (TerminalPane.Visibility == Visibility.Visible)
-            {
-                if (TerminalPane.HasSessions)
-                {
-                    TerminalPane.SuspendNativeWindows();
-                }
-                TerminalPane.Visibility = Visibility.Collapsed;
-                TerminalSplitter.Visibility = Visibility.Collapsed;
-                TerminalSplitterRow.Height = new GridLength(0);
-                TerminalPanelRow.Height = new GridLength(0);
-                if (TerminalToggleButton != null)
-                    TerminalToggleButton.IsChecked = false;
-            }
-            else
-            {
-                EnsureTerminalPanelVisible();
-                if (TerminalPane.HasSessions)
-                {
-                    TerminalPane.ResumeNativeWindows();
-                    TerminalPane.ResizeEmbeddedTerminal();
-                }
-                else
-                {
-                    string workingDirectory = GetTerminalWorkingDirectory();
-                    if (string.IsNullOrWhiteSpace(workingDirectory) || !Directory.Exists(workingDirectory))
-                        workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                    TerminalPane.OpenTerminal(workingDirectory);
-                }
-                if (TerminalToggleButton != null) TerminalToggleButton.IsChecked = true;
-            }
-        }
-
-        private void ToggleTerminalFromShortcut()
-        {
-            var now = DateTimeOffset.UtcNow;
-            if ((now - _lastTerminalShortcutAt).TotalMilliseconds < 150)
-            {
-                return;
-            }
-
-            _lastTerminalShortcutAt = now;
-            ToggleTerminal();
+            TopToolbar.TerminalIsChecked = EditorWorkspace.ToggleTerminal(GetTerminalWorkingDirectory);
         }
 
         private void OnTerminalPaneCloseRequested(object? sender, EventArgs e)
@@ -2152,23 +1528,9 @@ namespace Ueditor
 
         private void OnTerminalPaneSessionsEmptied(object? sender, EventArgs e)
         {
-            HideTerminalPanel();
-        }
-
-        private void HideTerminalPanel()
-        {
-            if (TerminalPane.HasSessions)
+            if (EditorWorkspace.HideTerminalPanelIfEmpty())
             {
-                return;
-            }
-
-            TerminalPane.Visibility = Visibility.Collapsed;
-            TerminalSplitter.Visibility = Visibility.Collapsed;
-            TerminalSplitterRow.Height = new GridLength(0);
-            TerminalPanelRow.Height = new GridLength(0);
-            if (TerminalToggleButton != null)
-            {
-                TerminalToggleButton.IsChecked = false;
+                TopToolbar.TerminalIsChecked = false;
             }
         }
 
@@ -2180,7 +1542,7 @@ namespace Ueditor
         {
             if (sender is TabView tabView)
             {
-                _activeTabView = tabView;
+                EditorWorkspace.ActiveTabView = tabView;
                 var activeTab = GetActiveTab();
                 if (activeTab != null)
                 {
@@ -2194,210 +1556,28 @@ namespace Ueditor
 
         private TabView GetCurrentActiveTabView()
         {
-            return _activeTabView ?? EditorTabView;
+            return EditorWorkspace.GetCurrentActiveTabView();
         }
 
-        private void OnSplitNoneClick(object sender, RoutedEventArgs e) => SetSplitMode(SplitMode.None);
-        private void OnSplitVerticalClick(object sender, RoutedEventArgs e) => SetSplitMode(SplitMode.Vertical);
-        private void OnSplitHorizontalClick(object sender, RoutedEventArgs e) => SetSplitMode(SplitMode.Horizontal);
-
-        private void SetSplitMode(SplitMode mode)
-        {
-            _currentSplitMode = mode;
-
-            if (mode == SplitMode.None)
-            {
-                EditorRow1.Height = new GridLength(1, GridUnitType.Star);
-                EditorRow2.Height = new GridLength(0);
-                EditorSplitterRow.Height = new GridLength(0);
-
-                EditorColumn1.Width = new GridLength(1, GridUnitType.Star);
-                EditorColumn2.Width = new GridLength(0);
-                EditorSplitterColumn.Width = new GridLength(0);
-
-                EditorSplitter.Visibility = Visibility.Collapsed;
-                EditorTabView2.Visibility = Visibility.Collapsed;
-
-                while (EditorTabView2.TabItems.Count > 0)
-                {
-                    var item = (TabViewItem)EditorTabView2.TabItems[0];
-                    EditorTabView2.TabItems.RemoveAt(0);
-                    EditorTabView.TabItems.Add(item);
-                }
-
-                _activeTabView = EditorTabView;
-                if (EditorTabView.SelectedItem == null && EditorTabView.TabItems.Count > 0)
-                {
-                    EditorTabView.SelectedIndex = 0;
-                }
-            }
-            else if (mode == SplitMode.Vertical)
-            {
-                _isVerticalSplit = true;
-
-                EditorRow1.Height = new GridLength(1, GridUnitType.Star);
-                EditorRow2.Height = new GridLength(0);
-                EditorSplitterRow.Height = new GridLength(0);
-
-                double totalWidth = EditorSplitGrid.ActualWidth;
-                double halfWidth = (totalWidth - 4) / 2;
-                if (halfWidth < 100) halfWidth = 300;
-                EditorColumn1.Width = new GridLength(halfWidth);
-                EditorColumn2.Width = new GridLength(halfWidth);
-                EditorSplitterColumn.Width = new GridLength(4);
-
-                Grid.SetRow(EditorSplitter, 0);
-                Grid.SetRowSpan(EditorSplitter, 1);
-                Grid.SetColumn(EditorSplitter, 1);
-                Grid.SetColumnSpan(EditorSplitter, 1);
-                EditorSplitter.Width = 4;
-                EditorSplitter.Height = double.NaN;
-                EditorSplitter.HorizontalAlignment = HorizontalAlignment.Stretch;
-                EditorSplitter.VerticalAlignment = VerticalAlignment.Stretch;
-
-                Grid.SetRow(EditorTabView2, 0);
-                Grid.SetColumn(EditorTabView2, 2);
-
-                EditorSplitter.Visibility = Visibility.Visible;
-                EditorTabView2.Visibility = Visibility.Visible;
-
-                if (EditorTabView2.TabItems.Count == 0)
-                {
-                    if (EditorTabView.TabItems.Count > 1)
-                    {
-                        var activeItem = (TabViewItem)EditorTabView.SelectedItem;
-                        if (activeItem != null)
-                        {
-                            EditorTabView.TabItems.Remove(activeItem);
-                            EditorTabView2.TabItems.Add(activeItem);
-                            EditorTabView2.SelectedItem = activeItem;
-                        }
-                    }
-                    else
-                    {
-                        _activeTabView = EditorTabView2;
-                        OpenNewTab();
-                    }
-                }
-            }
-            else if (mode == SplitMode.Horizontal)
-            {
-                _isVerticalSplit = false;
-
-                double totalHeight = EditorSplitGrid.ActualHeight;
-                double halfHeight = (totalHeight - 4) / 2;
-                if (halfHeight < 100) halfHeight = 300;
-                EditorRow1.Height = new GridLength(halfHeight);
-                EditorRow2.Height = new GridLength(halfHeight);
-                EditorSplitterRow.Height = new GridLength(4);
-
-                EditorColumn1.Width = new GridLength(1, GridUnitType.Star);
-                EditorColumn2.Width = new GridLength(0);
-                EditorSplitterColumn.Width = new GridLength(0);
-
-                Grid.SetRow(EditorSplitter, 1);
-                Grid.SetRowSpan(EditorSplitter, 1);
-                Grid.SetColumn(EditorSplitter, 0);
-                Grid.SetColumnSpan(EditorSplitter, 1);
-                EditorSplitter.Width = double.NaN;
-                EditorSplitter.Height = 4;
-                EditorSplitter.HorizontalAlignment = HorizontalAlignment.Stretch;
-                EditorSplitter.VerticalAlignment = VerticalAlignment.Stretch;
-
-                Grid.SetRow(EditorTabView2, 2);
-                Grid.SetColumn(EditorTabView2, 0);
-
-                EditorSplitter.Visibility = Visibility.Visible;
-                EditorTabView2.Visibility = Visibility.Visible;
-
-                if (EditorTabView2.TabItems.Count == 0)
-                {
-                    if (EditorTabView.TabItems.Count > 1)
-                    {
-                        var activeItem = (TabViewItem)EditorTabView.SelectedItem;
-                        if (activeItem != null)
-                        {
-                            EditorTabView.TabItems.Remove(activeItem);
-                            EditorTabView2.TabItems.Add(activeItem);
-                            EditorTabView2.SelectedItem = activeItem;
-                        }
-                    }
-                    else
-                    {
-                        _activeTabView = EditorTabView2;
-                        OpenNewTab();
-                    }
-                }
-            }
-        }
-
-        private void OnEditorSplitterPointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        {
-            if (sender is UIElement splitter)
-            {
-                _isDraggingEditorSplitter = true;
-                _editorSplitterStartWidth = EditorColumn1.Width.Value;
-                _editorSplitterStartHeight = EditorRow1.Height.Value;
-                var pt = e.GetCurrentPoint(EditorSplitGrid).Position;
-                _editorSplitterStartPointerX = pt.X;
-                _editorSplitterStartPointerY = pt.Y;
-                splitter.CapturePointer(e.Pointer);
-                e.Handled = true;
-            }
-        }
-
-        private void OnEditorSplitterPointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        {
-            if (_isDraggingEditorSplitter && sender is UIElement splitter)
-            {
-                var pt = e.GetCurrentPoint(EditorSplitGrid).Position;
-                if (_isVerticalSplit)
-                {
-                    double deltaX = pt.X - _editorSplitterStartPointerX;
-                    double newWidth = _editorSplitterStartWidth + deltaX;
-                    double totalWidth = EditorSplitGrid.ActualWidth;
-                    newWidth = Math.Clamp(newWidth, 100, totalWidth - 100);
-                    EditorColumn1.Width = new GridLength(newWidth);
-                    EditorColumn2.Width = new GridLength(totalWidth - newWidth - 4);
-                }
-                else
-                {
-                    double deltaY = pt.Y - _editorSplitterStartPointerY;
-                    double newHeight = _editorSplitterStartHeight + deltaY;
-                    double totalHeight = EditorSplitGrid.ActualHeight;
-                    newHeight = Math.Clamp(newHeight, 100, totalHeight - 100);
-                    EditorRow1.Height = new GridLength(newHeight);
-                    EditorRow2.Height = new GridLength(totalHeight - newHeight - 4);
-                }
-                e.Handled = true;
-            }
-        }
-
-        private void OnEditorSplitterPointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        {
-            if (_isDraggingEditorSplitter && sender is UIElement splitter)
-            {
-                _isDraggingEditorSplitter = false;
-                splitter.ReleasePointerCapture(e.Pointer);
-                e.Handled = true;
-            }
-        }
+        private void OnSplitNoneClick(object sender, RoutedEventArgs e) => EditorWorkspace.SetSplitMode(EditorSplitMode.None, () => OpenNewTab());
+        private void OnSplitVerticalClick(object sender, RoutedEventArgs e) => EditorWorkspace.SetSplitMode(EditorSplitMode.Vertical, () => OpenNewTab());
+        private void OnSplitHorizontalClick(object sender, RoutedEventArgs e) => EditorWorkspace.SetSplitMode(EditorSplitMode.Horizontal, () => OpenNewTab());
 
         private void OnEditorTabView2AddTabClick(TabView sender, object args)
         {
-            _activeTabView = sender;
+            EditorWorkspace.ActiveTabView = sender;
             OpenNewTab();
         }
 
         private void OnEditorTabView2TabCloseRequested(TabView sender, TabViewTabCloseRequestedEventArgs args)
         {
-            _activeTabView = sender;
+            EditorWorkspace.ActiveTabView = sender;
             OnEditorTabViewTabCloseRequested(sender, args);
         }
 
         private async void OnEditorTabView2SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            _activeTabView = EditorTabView2;
+            EditorWorkspace.ActiveTabView = EditorTabView2;
             if (EditorTabView2.SelectedItem is TabViewItem activeTabItem)
             {
                 await HandleTabViewSelectionChangedAsync(activeTabItem);
@@ -2406,7 +1586,7 @@ namespace Ueditor
 
         private async Task HandleTabViewSelectionChangedAsync(TabViewItem activeTabItem)
         {
-            _lastSelectionText = string.Empty;
+            _llmAssistantController.ClearSelection();
             SelectionStatsText.Text = GetLocalizedString("SelectionNoneBlocked", "선택 영역: 없음 (전체 전송 차단 활성화)");
 
             if (activeTabItem.Tag is string tabId)
@@ -2533,45 +1713,6 @@ namespace Ueditor
 
         #region Explorer Directory Items
 
-        private IEnumerable<ExplorerItem> CreateDirectoryItems(string parentPath)
-        {
-            var items = new List<ExplorerItem>();
-            try
-            {
-                var dirInfo = new DirectoryInfo(parentPath);
-                var enumerationOptions = new EnumerationOptions
-                {
-                    IgnoreInaccessible = true,
-                    ReturnSpecialDirectories = false
-                };
-
-                // 1. Folders first
-                foreach (var dir in dirInfo.EnumerateDirectories("*", enumerationOptions))
-                {
-                    // Ignore hidden directories like .git
-                    if (dir.Attributes.HasFlag(FileAttributes.Hidden) || dir.Name.StartsWith("."))
-                        continue;
-
-                    items.Add(new ExplorerItem { Name = dir.Name, Path = dir.FullName, IsFolder = true });
-                }
-
-                // 2. Files next
-                foreach (var file in dirInfo.EnumerateFiles("*", enumerationOptions))
-                {
-                    if (file.Attributes.HasFlag(FileAttributes.Hidden))
-                        continue;
-
-                    items.Add(new ExplorerItem { Name = file.Name, Path = file.FullName, IsFolder = false });
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed reading folder hierarchy: {ex.Message}");
-            }
-
-            return items;
-        }
-
         private void OnExplorerUpClick(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(_currentFolderPath)) return;
@@ -2579,18 +1720,18 @@ namespace Ueditor
             var parent = Directory.GetParent(_currentFolderPath);
             if (parent == null) return;
 
-            _currentRepoPath = FindGitRepositoryRoot(parent.FullName) ?? string.Empty;
+            _currentRepoPath = _gitService.FindRepositoryRoot(parent.FullName) ?? string.Empty;
             LoadDirectoryRoot(parent.FullName);
         }
 
         private void OnFileListViewDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
         {
-            var item = GetDataContextFromOriginalSource<ExplorerItem>(e.OriginalSource) ?? FileListView.SelectedItem as ExplorerItem;
+            var item = VisualTreeDataContext.FindFromOriginalSource<ExplorerItem>(e.OriginalSource) ?? FileListView.SelectedItem as ExplorerItem;
             if (item == null) return;
 
             if (item.IsFolder)
             {
-                _currentRepoPath = FindGitRepositoryRoot(item.Path) ?? string.Empty;
+                _currentRepoPath = _gitService.FindRepositoryRoot(item.Path) ?? string.Empty;
                 LoadDirectoryRoot(item.Path);
             }
             else
@@ -2695,7 +1836,7 @@ namespace Ueditor
 
         private async void OnEditorTabViewSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            _activeTabView = EditorTabView;
+            EditorWorkspace.ActiveTabView = EditorTabView;
             if (EditorTabView.SelectedItem is TabViewItem activeTabItem)
             {
                 await HandleTabViewSelectionChangedAsync(activeTabItem);
@@ -2799,33 +1940,8 @@ namespace Ueditor
 
         private void OnToggleMarkdownToolbarClick(object sender, RoutedEventArgs e)
         {
-            bool show = MarkdownToolbarToggle?.IsChecked == true;
+            bool show = TopToolbar.MarkdownToolbarIsChecked;
             MarkdownToolbar.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        }
-
-        #endregion
-
-        #region Sidebar Favorite Commands
-
-        private async void OnAddFolderToFavoritesClick(object sender, RoutedEventArgs e)
-        {
-            if (sender is MenuFlyoutItem item &&
-                (item.Tag as ExplorerItem ?? item.DataContext as ExplorerItem ?? FileListView.SelectedItem as ExplorerItem) is ExplorerItem explorerItem)
-            {
-                string folderPath = explorerItem.IsFolder
-                    ? explorerItem.Path
-                    : (Path.GetDirectoryName(explorerItem.Path) ?? string.Empty);
-
-                if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath)) return;
-
-                var settings = _settingsService.CurrentSettings;
-                if (!settings.FavoritePaths.Contains(folderPath, StringComparer.OrdinalIgnoreCase))
-                {
-                    settings.FavoritePaths.Add(folderPath);
-                    await _settingsService.SaveSettingsAsync(settings);
-                    RefreshFavoritesUI();
-                }
-            }
         }
 
         #endregion
@@ -3007,180 +2123,29 @@ namespace Ueditor
             return null;
         }
 
-        private string GetActiveSelectionLanguage()
+        private async Task<bool> InsertTextIntoActiveEditorAsync(string text)
         {
-            var activeTab = GetActiveTab();
-            if (activeTab == null)
+            var activeTabView = GetCurrentActiveTabView();
+            if (activeTabView.SelectedItem is not TabViewItem activeTabItem ||
+                activeTabItem.Tag is not string tabId ||
+                !_tabBridges.TryGetValue(tabId, out var bridgeGroup) ||
+                bridgeGroup.Bridge == null)
             {
-                return "plaintext";
+                return false;
             }
 
-            if (!string.IsNullOrWhiteSpace(activeTab.Language))
-            {
-                return activeTab.Language;
-            }
-
-            if (!string.IsNullOrWhiteSpace(activeTab.FilePath))
-            {
-                return _languageDetectionService.GetMonacoLanguageName(activeTab.FilePath);
-            }
-
-            return "plaintext";
+            await bridgeGroup.Bridge.InsertTextAsync(text);
+            return true;
         }
 
-        private async void OnLlmExplainClick(object sender, RoutedEventArgs e)
+        private string GetTabTextForLlmContext(OpenedTab tab, int maxChars)
         {
-            if (string.IsNullOrEmpty(_lastSelectionText))
+            if (_editorSessions.TryGetValue(tab.Id, out var session))
             {
-                ShowErrorMessage("AI 오류", "선택된 텍스트가 없습니다. 에디터에서 분석할 범위를 드래그한 후 실행하십시오.");
-                return;
+                return session.GetText(maxChars);
             }
 
-            string language = GetActiveSelectionLanguage();
-            string context = BuildLlmContext(_lastSelectionText);
-            await PreflightCheckAndRunAsync("선택 영역 설명 (Explain)", context,
-                () => _llmService.ExplainCodeAsync(context, language));
-        }
-
-        private async void OnLlmSummarizeClick(object sender, RoutedEventArgs e)
-        {
-            if (string.IsNullOrEmpty(_lastSelectionText))
-            {
-                ShowErrorMessage("AI 오류", "선택된 텍스트가 없습니다. 요약할 범위를 드래그하십시오.");
-                return;
-            }
-            string context = BuildLlmContext(_lastSelectionText);
-            await PreflightCheckAndRunAsync("선택 영역 요약 (Summarize)", context,
-                () => _llmService.SummarizeTextAsync(context));
-        }
-
-        private async void OnLlmTranslateClick(object sender, RoutedEventArgs e)
-        {
-            if (string.IsNullOrEmpty(_lastSelectionText))
-            {
-                ShowErrorMessage("AI 오류", "선택된 텍스트가 없습니다. 번역할 범위를 드래그하십시오.");
-                return;
-            }
-
-            string context = BuildLlmContext(_lastSelectionText);
-            await PreflightCheckAndRunAsync("선택 영역 번역 (Translate)", context,
-                () => _llmService.TranslateTextAsync(context));
-        }
-
-        private async void OnLlmImproveClick(object sender, RoutedEventArgs e)
-        {
-            if (string.IsNullOrEmpty(_lastSelectionText))
-            {
-                ShowErrorMessage("AI 오류", "선택된 텍스트가 없습니다. 개선할 범위를 드래그하십시오.");
-                return;
-            }
-            string context = BuildLlmContext(_lastSelectionText);
-            await PreflightCheckAndRunAsync("수식 및 마크다운 개선", context,
-                () => _llmService.CustomPromptAsync("제공된 텍스트의 가독성, 마크다운 형식, 또는 LaTeX 수학 공식을 표준 문법에 맞게 개선하여 한글로 정제해 주십시오.", context));
-        }
-
-        private async void OnLlmCustomClick(object sender, RoutedEventArgs e)
-        {
-            if (string.IsNullOrEmpty(_lastSelectionText) && string.IsNullOrEmpty(_llmFileContextText))
-            {
-                ShowErrorMessage("AI 오류", "선택 영역이나 파일 맥락이 없습니다. 텍스트를 선택하거나 파일 맥락을 추가하십시오.");
-                return;
-            }
-            string prompt = LlmCustomPromptInput.Text;
-            if (string.IsNullOrEmpty(prompt))
-            {
-                ShowErrorMessage("AI 오류", "커스텀 지시사항 입력란이 비어 있습니다.");
-                return;
-            }
-
-            string context = BuildLlmContext(_lastSelectionText);
-            await PreflightCheckAndRunAsync("커스텀 지시사항 실행", context,
-                () => _llmService.CustomPromptAsync(prompt, context));
-        }
-
-        private void OnLlmAddFileContextClick(object sender, RoutedEventArgs e)
-        {
-            var tab = GetActiveTab();
-            if (tab == null)
-            {
-                ShowErrorMessage("AI 파일 맥락", "파일 맥락으로 추가할 활성 탭이 없습니다.");
-                return;
-            }
-
-            string title = string.IsNullOrWhiteSpace(tab.FilePath) ? tab.Title : tab.FilePath;
-            const int maxChars = 120_000;
-            string content = _editorSessions.TryGetValue(tab.Id, out var session)
-                ? session.GetText(maxChars)
-                : tab.Content ?? string.Empty;
-            if (content.Length > maxChars)
-            {
-                content = content.Substring(0, maxChars) + "\n\n[파일 맥락이 길어 앞부분만 포함됨]";
-            }
-
-            _llmFileContextText = $"[파일 맥락: {title}]\n{content}";
-            LlmFileContextInput.Text = $"{Path.GetFileName(title)} · {_llmFileContextText.Length:N0} 글자";
-        }
-
-        private async void OnLlmInsertOutputClick(object sender, RoutedEventArgs e)
-        {
-            if (string.IsNullOrWhiteSpace(LlmOutputText.Text) || LlmOutputText.Text.StartsWith("대기 중", StringComparison.Ordinal))
-            {
-                ShowErrorMessage("AI 응답 입력", "입력할 AI 응답이 없습니다.");
-                return;
-            }
-
-            if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
-                activeTabItem.Tag is string tabId &&
-                _tabBridges.TryGetValue(tabId, out var bridgeGroup) &&
-                bridgeGroup.Bridge != null)
-            {
-                await bridgeGroup.Bridge.InsertTextAsync(LlmOutputText.Text);
-            }
-        }
-
-        private string BuildLlmContext(string selectedText)
-        {
-            if (string.IsNullOrEmpty(_llmFileContextText))
-            {
-                return selectedText;
-            }
-
-            if (string.IsNullOrEmpty(selectedText))
-            {
-                return _llmFileContextText;
-            }
-
-            return $"{_llmFileContextText}\n\n[선택 영역]\n{selectedText}";
-        }
-
-        private async Task PreflightCheckAndRunAsync(string actionName, string contentText, Func<Task<string>> llmCall)
-        {
-            var textPreview = contentText.Length > 200 ? contentText.Substring(0, 200) + "..." : contentText;
-            var dialog = new ContentDialog
-            {
-                Title = "AI 전송 사전 확인 (Pre-flight Check)",
-                Content = $"액션: {actionName}\n\n전송될 AI 공급자: {_settingsService.CurrentSettings.LlmProvider} ({_settingsService.CurrentSettings.LlmModel})\n전송 텍스트 크기: {contentText.Length:N0} 자 (약 {contentText.Length / 4:N0} 토큰 소모)\n\n[전송 내용 미리보기]\n{textPreview}\n\n보안상의 문제나 의도하지 않은 토큰 대량 유실이 없는지 확인 후 전송해 주십시오.",
-                PrimaryButtonText = "API 전송 승인",
-                CloseButtonText = "취소",
-                XamlRoot = this.Content.XamlRoot
-            };
-
-            var result = await dialog.ShowAsync();
-            if (result == ContentDialogResult.Primary)
-            {
-                LlmOutputText.Text = "AI 분석 및 응답 생성이 비동기 구동 중입니다. 잠시만 대기해 주십시오...";
-                RightTabView.SelectedIndex = 1; // Focus to AI Tab
-                
-                try
-                {
-                    string aiResponse = await llmCall();
-                    LlmOutputText.Text = aiResponse;
-                }
-                catch (Exception ex)
-                {
-                    LlmOutputText.Text = $"AI 실행 도중 예외가 터졌습니다: {ex.Message}";
-                }
-            }
+            return tab.Content ?? string.Empty;
         }
 
         private async Task UpdateGitBranchStatusAsync(string path)
@@ -3188,202 +2153,6 @@ namespace Ueditor
             if (string.IsNullOrEmpty(path)) return;
             string branch = await _gitService.GetCurrentBranchAsync(path);
             StatusGitBranch.Text = IsGitNotDetectedText(branch) ? GetLocalizedString("GitNotDetected", "Git: 감지 안됨") : branch;
-        }
-
-        private static string? FindGitRepositoryRoot(string? startPath)
-        {
-            if (string.IsNullOrEmpty(startPath))
-            {
-                return null;
-            }
-
-            var dir = new DirectoryInfo(startPath);
-            while (dir != null)
-            {
-                string gitPath = Path.Combine(dir.FullName, ".git");
-                if (Directory.Exists(gitPath) || File.Exists(gitPath))
-                {
-                    return dir.FullName;
-                }
-
-                dir = dir.Parent;
-            }
-
-            return null;
-        }
-
-        #endregion
-
-        #region Favorites Handlers
-
-        private async void OnAddFileToFavoritesClick(object sender, RoutedEventArgs e)
-        {
-            if (sender is MenuFlyoutItem item &&
-                (item.Tag as ExplorerItem ?? item.DataContext as ExplorerItem ?? FileListView.SelectedItem as ExplorerItem) is ExplorerItem explorerItem)
-            {
-                if (explorerItem.IsFolder) return; // This handler is for files only
-
-                var settings = _settingsService.CurrentSettings;
-                if (!settings.FavoritePaths.Contains(explorerItem.Path, StringComparer.OrdinalIgnoreCase))
-                {
-                    settings.FavoritePaths.Add(explorerItem.Path);
-                    await _settingsService.SaveSettingsAsync(settings);
-                    RefreshFavoritesUI();
-                }
-            }
-        }
-
-        private void RefreshFavoritesUI()
-        {
-            RefreshFavoritesUI(null);
-        }
-
-        private async void OnRemoveFavoriteClick(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is string path)
-            {
-                var settings = _settingsService.CurrentSettings;
-                settings.FavoritePaths.Remove(path);
-                await _settingsService.SaveSettingsAsync(settings);
-                RefreshFavoritesUI();
-            }
-        }
-
-        private async void OnFavoriteItemDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
-        {
-            var item = GetDataContextFromOriginalSource<FavoriteItem>(e.OriginalSource) ?? FavoritesListView.SelectedItem as FavoriteItem;
-            if (item != null)
-            {
-                if (item.IsFolder)
-                {
-                    await NavigateExplorerToFolderAsync(item.Path);
-                }
-                else
-                {
-                    string? parentDir = Path.GetDirectoryName(item.Path);
-                    if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir))
-                    {
-                        await NavigateExplorerToFolderAsync(parentDir);
-                    }
-                    await LoadFileIntoTabAsync(item.Path);
-                }
-            }
-        }
-
-        #endregion
-
-        #region Recent Files Handlers
-
-        private void AddRecentFile(string filePath)
-        {
-            DispatcherQueue.TryEnqueue(() => _recentFilesService.Add(_viewModel.RecentFiles, filePath));
-        }
-
-        private void OnRemoveRecentFileClick(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is string path)
-            {
-                _recentFilesService.Remove(_viewModel.RecentFiles, path);
-            }
-        }
-
-        private async void OnRecentFileItemDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
-        {
-            var item = GetDataContextFromOriginalSource<RecentFileItem>(e.OriginalSource) ?? RecentFilesListView.SelectedItem as RecentFileItem;
-            if (item != null)
-            {
-                if (File.Exists(item.Path))
-                {
-                    string? folderPath = Path.GetDirectoryName(item.Path);
-                    if (!string.IsNullOrWhiteSpace(folderPath) && Directory.Exists(folderPath))
-                    {
-                        await NavigateExplorerToFolderAsync(folderPath);
-                    }
-
-                    await LoadFileIntoTabAsync(item.Path);
-                }
-                else
-                {
-                    ShowErrorMessage("파일 열기 실패", $"최근 파일이 존재하지 않습니다:\n{item.Path}");
-                }
-            }
-        }
-
-        #endregion
-
-        #region Snippets Handlers
-
-        private void RefreshSnippetsUI()
-        {
-            _viewModel.Snippets.Clear();
-            var list = _snippetService.GetSnippets();
-            foreach (var item in list)
-            {
-                _viewModel.Snippets.Add(item);
-            }
-        }
-
-        private async void OnSnippetItemDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
-        {
-            if (SnippetsListView.SelectedItem is SnippetItem item)
-            {
-                if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
-                    activeTabItem.Tag is string tabId &&
-                    _tabBridges.TryGetValue(tabId, out var bridgeGroup))
-                {
-                    await bridgeGroup.Bridge.InsertTextAsync(item.Content);
-                }
-                else
-                {
-                    ShowErrorMessage("스니펫 삽입 오류", "현재 텍스트 에디터 창이 활성화되어 있지 않습니다.");
-                }
-            }
-        }
-
-        private async void OnDeleteSnippetClick(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is string title)
-            {
-                await _snippetService.DeleteSnippetAsync(title);
-                RefreshSnippetsUI();
-            }
-        }
-
-        private async void OnAddSnippetClick(object sender, RoutedEventArgs e)
-        {
-            var titleBox = new TextBox { PlaceholderText = "스니펫 이름 (예: C# Loop)", Width = 300 };
-            var descBox = new TextBox { PlaceholderText = "간단한 설명", Width = 300 };
-            var contentBox = new TextBox { PlaceholderText = "코드 본문 입력...", AcceptsReturn = true, Height = 150, Width = 300, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas") };
-
-            var stack = new StackPanel { Spacing = 10 };
-            stack.Children.Add(new TextBlock { Text = "스니펫 이름" });
-            stack.Children.Add(titleBox);
-            stack.Children.Add(new TextBlock { Text = "설명" });
-            stack.Children.Add(descBox);
-            stack.Children.Add(new TextBlock { Text = "템플릿 내용" });
-            stack.Children.Add(contentBox);
-
-            var dialog = new ContentDialog
-            {
-                Title = "새 코드/수식 스니펫 추가",
-                Content = stack,
-                PrimaryButtonText = "추가",
-                CloseButtonText = "취소",
-                XamlRoot = this.Content.XamlRoot
-            };
-
-            var result = await dialog.ShowAsync();
-            if (result == ContentDialogResult.Primary && !string.IsNullOrEmpty(titleBox.Text))
-            {
-                var newSnippet = new SnippetItem
-                {
-                    Title = titleBox.Text,
-                    Description = descBox.Text,
-                    Content = contentBox.Text
-                };
-                await _snippetService.AddSnippetAsync(newSnippet);
-                RefreshSnippetsUI();
-            }
         }
 
         #endregion
@@ -3400,107 +2169,7 @@ namespace Ueditor
 
         private void ApplyToolbarSettings(EditorSettings settings)
         {
-            bool showLabels = settings.ToolbarShowLabels;
-            var hiddenSet = new HashSet<string>(
-                (settings.ToolbarHiddenButtons ?? new List<string>()).Select(ToolbarButtonCatalog.NormalizeId),
-                StringComparer.OrdinalIgnoreCase);
-            var buttonsById = GetToolbarButtonsById();
-            var orderedIds = NormalizeToolbarOrder(settings.ToolbarButtonOrder);
-
-            TopCommandBar.PrimaryCommands.Clear();
-            AddToolbarCommandsInOriginalGroups(orderedIds, buttonsById, hiddenSet);
-
-            foreach (var (id, entry) in buttonsById)
-            {
-                bool isSettings = id.Equals("settings", StringComparison.OrdinalIgnoreCase);
-                entry.Button.Visibility = isSettings || !hiddenSet.Contains(id) ? Visibility.Visible : Visibility.Collapsed;
-                string label = GetLocalizedString(entry.ResourceKey, id);
-                string labelText = showLabels ? label : string.Empty;
-                if (entry.Button is AppBarButton abb) abb.Label = labelText;
-                else if (entry.Button is AppBarToggleButton atb) atb.Label = labelText;
-            }
-        }
-
-        private void AddToolbarCommandsInOriginalGroups(
-            IReadOnlyList<string> orderedIds,
-            IReadOnlyDictionary<string, (FrameworkElement Button, string ResourceKey)> buttonsById,
-            ISet<string> hiddenSet)
-        {
-            var groupLookup = ToolbarButtonCatalog.DefaultGroups
-                .SelectMany((group, groupIndex) => group.Select(id => (id, groupIndex)))
-                .ToDictionary(item => item.id, item => item.groupIndex, StringComparer.OrdinalIgnoreCase);
-            int? lastGroupIndex = null;
-
-            foreach (string id in orderedIds.Concat(new[] { "settings" }))
-            {
-                if (!buttonsById.TryGetValue(id, out var entry))
-                {
-                    continue;
-                }
-
-                bool isSettings = id.Equals("settings", StringComparison.OrdinalIgnoreCase);
-                if (!isSettings && hiddenSet.Contains(id))
-                {
-                    continue;
-                }
-
-                int groupIndex = groupLookup.TryGetValue(id, out int index) ? index : 0;
-                if (lastGroupIndex.HasValue && groupIndex != lastGroupIndex.Value)
-                {
-                    TopCommandBar.PrimaryCommands.Add(new AppBarSeparator());
-                }
-
-                TopCommandBar.PrimaryCommands.Add((ICommandBarElement)entry.Button);
-                lastGroupIndex = groupIndex;
-            }
-        }
-
-        private Dictionary<string, (FrameworkElement Button, string ResourceKey)> GetToolbarButtonsById()
-        {
-            return new Dictionary<string, (FrameworkElement Button, string ResourceKey)>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["openFile"] = (OpenFileButton, "OpenFile"),
-                ["saveFile"] = (SaveFileButton, "SaveFile"),
-                ["saveAsFile"] = (SaveAsFileButton, "SaveAsFile"),
-                ["compare"] = (CompareButton, "Compare"),
-                ["terminal"] = (TerminalToggleButton, "Terminal"),
-                ["print"] = (PrintButton, "Print"),
-                ["topMost"] = (TopMostToggleButton, "TopMost"),
-                ["stickyNote"] = (StickyNoteButton, "StickyNote"),
-                ["wordWrap"] = (WordWrapToggle, "WordWrap"),
-                ["search"] = (SearchButton, "Search"),
-                ["markdown"] = (MarkdownToolbarToggle, "Markdown"),
-                ["theme"] = (ThemeButton, "Theme"),
-                ["split"] = (SplitButton, "Split"),
-                ["settings"] = (SettingsButton, "Settings")
-            };
-        }
-
-        private static List<string> NormalizeToolbarOrder(IReadOnlyList<string>? savedOrder)
-        {
-            var validIds = new HashSet<string>(
-                ToolbarButtonCatalog.DefaultOrder,
-                StringComparer.OrdinalIgnoreCase);
-            var orderedIds = new List<string>();
-
-            foreach (string rawId in savedOrder ?? Array.Empty<string>())
-            {
-                string id = ToolbarButtonCatalog.NormalizeId(rawId);
-                if (validIds.Contains(id) && !orderedIds.Contains(id, StringComparer.OrdinalIgnoreCase))
-                {
-                    orderedIds.Add(id);
-                }
-            }
-
-            foreach (string id in ToolbarButtonCatalog.DefaultOrder)
-            {
-                if (!orderedIds.Contains(id, StringComparer.OrdinalIgnoreCase))
-                {
-                    orderedIds.Add(id);
-                }
-            }
-
-            return orderedIds;
+            TopToolbar.ApplySettings(settings, GetLocalizedString);
         }
         #endregion
 
@@ -3508,459 +2177,37 @@ namespace Ueditor
 
         private async Task RefreshGitStatusUIAsync()
         {
-            if (string.IsNullOrEmpty(_currentRepoPath))
-            {
-                GitPanelBranchText.Text = GetLocalizedString("GitNotDetected", "Git: 감지 안됨");
-                StatusGitBranch.Text = GetLocalizedString("GitNotDetected", "Git: 감지 안됨");
-                _viewModel.GitFiles.Clear();
-                GitBranchesCombo.Items.Clear();
-                GitHistoryList.Items.Clear();
-                return;
-            }
-
-            string branch = await _gitService.GetCurrentBranchAsync(_currentRepoPath);
-            string localizedBranch = IsGitNotDetectedText(branch) ? GetLocalizedString("GitNotDetected", "Git: 감지 안됨") : branch;
-            GitPanelBranchText.Text = localizedBranch;
-            StatusGitBranch.Text = localizedBranch;
-            _gitAutoRefreshTimer.Start();
-
-            _viewModel.GitFiles.Clear();
-            GitBranchesCombo.Items.Clear();
-            foreach (var branchName in await _gitService.GetBranchesAsync(_currentRepoPath))
-            {
-                GitBranchesCombo.Items.Add(branchName.Trim());
-            }
-
-            GitHistoryList.Items.Clear();
-            foreach (var history in await _gitService.GetRecentHistoryAsync(_currentRepoPath))
-            {
-                GitHistoryList.Items.Add(history);
-            }
-
-            var fileStatuses = await _gitService.GetFileStatusesAsync(_currentRepoPath);
-            foreach (var kvp in fileStatuses)
-            {
-                string fullPath = kvp.Key;
-                string status = kvp.Value; // e.g. "M ", " M", "A ", "??", "D "
-
-                bool isStaged = status.Length > 0 && status[0] != ' ' && status != "??";
-                bool isUnstaged = status.Length > 1 && status[1] != ' ';
-                string statusDesc = isStaged ? "Staged" : "Unstaged";
-                if (status == "??") statusDesc = "Untracked";
-                else if (status.Contains("D")) statusDesc = isStaged ? "Deleted staged" : "Deleted";
-                else if (status.Contains("R")) statusDesc = "Renamed";
-                else if (status.Contains("A")) statusDesc = isStaged ? "Added staged" : "Added";
-                else if (isStaged && isUnstaged) statusDesc = "Staged + Unstaged";
-
-                string actionGlyph = isStaged ? "\xE108" : "\xE109"; // Minus (Unstage) or Plus (Stage) in Segoe MDL2
-
-                _viewModel.GitFiles.Add(new GitFileItem
-                {
-                    Name = Path.GetFileName(fullPath),
-                    Path = fullPath,
-                    StatusText = $"{statusDesc} ({status.Trim()})",
-                    ActionGlyph = actionGlyph,
-                    IsStaged = isStaged
-                });
-            }
-        }
-
-        private async void OnGitStageAllClick(object sender, RoutedEventArgs e)
-        {
-            bool success = await _gitService.StageAllAsync(_currentRepoPath);
-            if (success)
-            {
-                await RefreshGitStatusUIAsync();
-            }
-            else
-            {
-                ShowErrorMessage("Git Stage 실패", "전체 Stage 처리에 실패했습니다.");
-            }
-        }
-
-        private async void OnGitStageToggleClick(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is string filePath)
-            {
-                var item = _viewModel.GitFiles.FirstOrDefault(f => f.Path == filePath);
-                if (item == null) return;
-
-                bool success;
-                if (item.IsStaged)
-                {
-                    success = await _gitService.UnstageFileAsync(_currentRepoPath, filePath);
-                }
-                else
-                {
-                    success = await _gitService.StageFileAsync(_currentRepoPath, filePath);
-                }
-
-                if (success)
-                {
-                    await RefreshGitStatusUIAsync();
-                }
-                else
-                {
-                    ShowErrorMessage("Git Stage 변경 실패", "Git CLI 명령 처리에 실패했습니다.");
-                }
-            }
-        }
-
-        private async void OnGitFileDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
-        {
-            if (GitChangedFilesList.SelectedItem is GitFileItem item)
-            {
-                string originalContent = await _gitService.GetGitFileContentAsync(_currentRepoPath, item.Path);
-                string currentContent = "";
-                if (File.Exists(item.Path))
-                {
-                    currentContent = await _fileService.ReadTextFileAsync(item.Path);
-                }
-
-                string fileName = Path.GetFileName(item.Path);
-                string customTitle = $"Git 비교: {fileName}";
-                string labelA = $"{fileName} (이전 버전)";
-                string labelB = $"{fileName} (현재 변경 사항)";
-
-                await OpenCompareTabAsync(item.Path, item.Path, originalContent, currentContent, customTitle, labelA, labelB);
-            }
-        }
-
-        private async void OnGitRestoreFileClick(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is string filePath)
-            {
-                var dialog = new ContentDialog
-                {
-                    Title = "Git 파일 복원",
-                    Content = $"{Path.GetFileName(filePath)} 변경 사항을 복원합니다. Untracked 파일은 삭제됩니다.",
-                    PrimaryButtonText = "복원",
-                    CloseButtonText = "취소",
-                    XamlRoot = this.Content.XamlRoot
-                };
-
-                if (await dialog.ShowAsync() != ContentDialogResult.Primary)
-                {
-                    return;
-                }
-
-                bool success = await _gitService.RestoreFileAsync(_currentRepoPath, filePath);
-                if (success)
-                {
-                    await RefreshGitStatusUIAsync();
-                }
-                else
-                {
-                    ShowErrorMessage("Git Restore 실패", "파일 복원 처리에 실패했습니다.");
-                }
-            }
-        }
-
-        private async void OnGitCommitClick(object sender, RoutedEventArgs e)
-        {
-            string msg = GitCommitMessageInput.Text;
-            if (string.IsNullOrEmpty(msg))
-            {
-                ShowErrorMessage("Git 커밋", "커밋 메시지를 채워주십시오.");
-                return;
-            }
-
-            bool success = await _gitService.CommitAsync(_currentRepoPath, msg);
-            if (success)
-            {
-                GitCommitMessageInput.Text = string.Empty;
-                await RefreshGitStatusUIAsync();
-                ShowErrorMessage("Git 커밋", "성공적으로 커밋 완료되었습니다!");
-            }
-            else
-            {
-                ShowErrorMessage("Git 커밋 실패", "커밋 도중 에러가 났습니다. 변경 조각(Staged)이 등록되었는지 확인하십시오.");
-            }
-        }
-
-        private async void OnGitPushClick(object sender, RoutedEventArgs e)
-        {
-            bool success = await _gitService.PushAsync(_currentRepoPath);
-            if (success)
-            {
-                await RefreshGitStatusUIAsync();
-                ShowErrorMessage("Git Push", "Push가 완료되었습니다.");
-            }
-            else
-            {
-                ShowErrorMessage("Git Push 실패", "Push 처리에 실패했습니다. 원격 저장소/인증/업스트림 설정을 확인하십시오.");
-            }
-        }
-
-        private async void OnGitRestoreAllClick(object sender, RoutedEventArgs e)
-        {
-            var dialog = new ContentDialog
-            {
-                Title = "Git 전체 복원",
-                Content = "모든 변경 사항을 복원합니다. Untracked 파일은 삭제됩니다.",
-                PrimaryButtonText = "전체 복원",
-                CloseButtonText = "취소",
-                XamlRoot = this.Content.XamlRoot
-            };
-
-            if (await dialog.ShowAsync() != ContentDialogResult.Primary)
-            {
-                return;
-            }
-
-            bool success = await _gitService.RestoreAllAsync(_currentRepoPath);
-            if (success)
-            {
-                await RefreshGitStatusUIAsync();
-            }
-            else
-            {
-                ShowErrorMessage("Git Restore 실패", "전체 복원 처리에 실패했습니다.");
-            }
-        }
-
-        private async void OnGitRefreshClick(object sender, RoutedEventArgs e)
-        {
-            await RefreshGitStatusUIAsync();
+            await _gitPanelController.RefreshAsync();
         }
 
         #endregion
 
         #region Advanced Search & Replace Handlers
 
-        private FileSearchOptions GetSearchOptions()
-        {
-            return new FileSearchOptions
-            {
-                IsRegex = SearchRegexToggle.IsChecked == true,
-                MatchCase = SearchMatchCaseToggle.IsChecked == true,
-                WholeWord = SearchWholeWordToggle.IsChecked == true
-            };
-        }
-
         private async void OnSearchAllFilesClick(object sender, RoutedEventArgs e)
         {
-            string query = SearchQueryInput.Text;
-            if (string.IsNullOrWhiteSpace(query)) return;
-
-            if (string.IsNullOrEmpty(_currentFolderPath) && string.IsNullOrEmpty(_currentRepoPath))
-            {
-                ShowErrorMessage("검색 실패", "먼저 탐색기에서 작업할 폴더를 선택하십시오.");
-                return;
-            }
-
-            _lastSearchQuery = query;
-            _viewModel.SearchResults.Clear();
-
-            string searchRoot = !string.IsNullOrEmpty(_currentFolderPath) ? _currentFolderPath : _currentRepoPath;
-            var options = GetSearchOptions();
-            long thresholdBytes = _settingsService.CurrentSettings.LargeFileThresholdMB * 1024L * 1024L;
-            FileSearchSummary summary;
-
-            try
-            {
-                summary = await _fileSearchService.SearchAsync(searchRoot, query, thresholdBytes, options, PublishSearchResults);
-            }
-            catch (ArgumentException ex)
-            {
-                ShowErrorMessage("검색 실패", $"정규식이 올바르지 않습니다.\n{ex.Message}");
-                return;
-            }
-
-            if (summary.FoundCount == 0 && summary.SkippedFiles > 0)
-            {
-                ShowErrorMessage("검색 완료", $"검색 결과가 없습니다.\n읽을 수 없어 건너뛴 파일: {summary.SkippedFiles:N0}개");
-            }
-            else if (summary.FoundCount > 0)
-            {
-                DispatcherQueue.TryEnqueue(async () =>
-                {
-                    SearchResultsList.SelectedIndex = 0;
-                    SearchResultsList.ScrollIntoView(SearchResultsList.SelectedItem);
-                    if (SearchResultsList.SelectedItem is SearchResultItem selectedItem)
-                    {
-                        await LoadFileIntoTabAndHighlightAsync(selectedItem);
-                    }
-                });
-            }
-        }
-
-        private void PublishSearchResults(IReadOnlyList<SearchResultItem> results)
-        {
-            DispatcherQueue.TryEnqueue(() =>
-            {
-                foreach (var item in results)
-                {
-                    _viewModel.SearchResults.Add(item);
-                }
-            });
-        }
-
-        private static T? GetDataContextFromOriginalSource<T>(object originalSource) where T : class
-        {
-            if (originalSource is not DependencyObject current)
-            {
-                return null;
-            }
-
-            while (current != null)
-            {
-                if (current is FrameworkElement { DataContext: T item })
-                {
-                    return item;
-                }
-
-                current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current);
-            }
-
-            return null;
+            await _searchReplaceController.SearchAllFilesAsync();
         }
 
         private async void OnReplaceAllClick(object sender, RoutedEventArgs e)
         {
-            string query = SearchQueryInput.Text;
-            string replace = ReplaceQueryInput.Text;
-            if (string.IsNullOrEmpty(query) || _viewModel.SearchResults.Count == 0) return;
-
-            var options = GetSearchOptions();
-            try
-            {
-                _fileSearchService.BuildSearchRegex(query, options);
-            }
-            catch (ArgumentException ex)
-            {
-                ShowErrorMessage("치환 실패", $"정규식이 올바르지 않습니다.\n{ex.Message}");
-                return;
-            }
-
-            var dialog = new ContentDialog
-            {
-                Title = "전체 치환 경고",
-                Content = $"{_viewModel.SearchResults.Count}개의 일치 항목을 '{replace}'(으)로 일괄 치환하시겠습니까?",
-                PrimaryButtonText = "치환 실행",
-                CloseButtonText = "취소",
-                XamlRoot = this.Content.XamlRoot
-            };
-
-            var result = await dialog.ShowAsync();
-            if (result != ContentDialogResult.Primary)
-            {
-                return;
-            }
-
-            long thresholdBytes = _settingsService.CurrentSettings.LargeFileThresholdMB * 1024L * 1024L;
-            var grouped = _viewModel.SearchResults.GroupBy(r => r.Path).ToList();
-            foreach (var group in grouped)
-            {
-                string filePath = group.Key;
-                try
-                {
-                    var info = new FileInfo(filePath);
-                    if (info.Length > thresholdBytes)
-                    {
-                        await _fileSearchService.ReplaceInLargeFileAsync(filePath, group.ToList(), query, replace, options);
-                    }
-                    else
-                    {
-                        var lines = File.ReadAllLines(filePath).ToList();
-                        foreach (int lineNumber in group.Select(r => r.LineNumber).Distinct())
-                        {
-                            int index = lineNumber - 1;
-                            if (index >= 0 && index < lines.Count)
-                            {
-                                lines[index] = _fileSearchService.ReplaceSearchMatches(lines[index], query, replace, options);
-                            }
-                        }
-
-                        await File.WriteAllLinesAsync(filePath, lines);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Failed replace in {filePath}: {ex.Message}");
-                }
-            }
-
-            _viewModel.SearchResults.Clear();
-            ShowErrorMessage("치환 완료", "모든 매칭 항목의 치환 처리가 완료되었습니다.");
-            await RefreshGitStatusUIAsync();
+            await _searchReplaceController.ReplaceAllAsync();
         }
 
         private async void OnSearchResultDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
         {
-            var item = GetDataContextFromOriginalSource<SearchResultItem>(e.OriginalSource) ?? SearchResultsList.SelectedItem as SearchResultItem;
-            if (item != null)
-            {
-                // Open file
-                await LoadFileIntoTabAsync(item.Path);
-
-                // Tiny delay to allow WebView2 rendering and virtual host loading to settle
-                await Task.Delay(250);
-
-                if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
-                    activeTabItem.Tag is string tabId &&
-                    _tabBridges.TryGetValue(tabId, out var bridgeGroup))
-                {
-                    if (bridgeGroup.Bridge != null)
-                    {
-                        await bridgeGroup.Bridge.RevealLineAsync(item.LineNumber, item.IndexOfMatch, item.MatchLength, _lastSearchQuery);
-                    }
-                    else if (bridgeGroup.WebView != null && bridgeGroup.WebView.CoreWebView2 != null)
-                    {
-                        var revealMsg = new { action = "revealLine", lineNumber = item.LineNumber, indexOfMatch = item.IndexOfMatch, matchLength = item.MatchLength, query = _lastSearchQuery };
-                        string revealJson = System.Text.Json.JsonSerializer.Serialize(revealMsg);
-                        bridgeGroup.WebView.CoreWebView2.PostWebMessageAsJson(revealJson);
-                    }
-                }
-            }
+            await _searchReplaceController.OpenSearchResultAsync(e.OriginalSource);
         }
 
-        
-        // ----------------------------------------------------
-        // Premium Helpers added for Ueditor Enhancements
-        // ----------------------------------------------------
-
-        [System.Runtime.InteropServices.DllImport("comdlg32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
-        private static extern bool GetSaveFileNameW(ref OPENFILENAME ofn);
-
-        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
-        private struct OPENFILENAME
+        private string GetSearchRoot()
         {
-            public int lStructSize;
-            public IntPtr hwndOwner;
-            public IntPtr hInstance;
-            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPWStr)]
-            public string? lpstrFilter;
-            public IntPtr lpstrCustomFilter;
-            public int nMaxCustFilter;
-            public int nFilterIndex;
-            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPWStr)]
-            public string? lpstrFile;
-            public int nMaxFile;
-            public IntPtr lpstrFileTitle;
-            public int nMaxFileTitle;
-            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPWStr)]
-            public string? lpstrInitialDir;
-            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPWStr)]
-            public string? lpstrTitle;
-            public int Flags;
-            public short nFileOffset;
-            public short nFileExtension;
-            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPWStr)]
-            public string? lpstrDefExt;
-            public IntPtr lCustData;
-            public IntPtr lpfnHook;
-            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPWStr)]
-            public string? lpTemplateName;
-            public IntPtr pvReserved;
-            public int dwReserved;
-            public int flagsEx;
+            return !string.IsNullOrEmpty(_currentFolderPath) ? _currentFolderPath : _currentRepoPath;
         }
 
-        private const int OFN_HIDEREADONLY = 0x00000004;
-        private const int OFN_OVERWRITEPROMPT = 0x00000002;
-        private const int OFN_PATHMUSTEXIST = 0x00000800;
-        private const int OFN_NOCHANGEDIR = 0x00000008;
+        private long GetLargeFileThresholdBytes()
+        {
+            return _settingsService.CurrentSettings.LargeFileThresholdMB * 1024L * 1024L;
+        }
 
         private string? GetSaveInitialDirectory()
         {
@@ -3969,44 +2216,30 @@ namespace Ueditor
             return null;
         }
 
-        private bool ShowFileSaveDialog(OpenedTab tab, string? initialDir)
+        private bool TryChooseSavePath(OpenedTab tab, string? initialDir)
         {
-            string filter = "텍스트 파일 (*.txt)\0*.txt\0마크다운 파일 (*.md;*.markdown)\0*.md;*.markdown\0HTML 파일 (*.html)\0*.html\0LaTeX 파일 (*.tex)\0*.tex\0\0";
-
             string suggestedName = tab.FilePath != null
                 ? Path.GetFileNameWithoutExtension(tab.FilePath)
                 : tab.Title;
-
-            var fileNameBuffer = new string('\0', 1024);
-            if (!string.IsNullOrEmpty(suggestedName))
-                fileNameBuffer = suggestedName + fileNameBuffer.Substring(suggestedName.Length);
-
-            var ofn = new OPENFILENAME();
-            ofn.lStructSize = System.Runtime.InteropServices.Marshal.SizeOf(typeof(OPENFILENAME));
-            ofn.hwndOwner = WindowNative.GetWindowHandle(this);
-            ofn.lpstrFilter = filter;
-            ofn.lpstrFile = fileNameBuffer;
-            ofn.nMaxFile = 1024;
-            ofn.lpstrInitialDir = initialDir;
-            ofn.Flags = OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
-            ofn.nFilterIndex = 1;
-
-            if (GetSaveFileNameW(ref ofn))
+            string? selectedPath = _fileSaveDialogService.ShowSaveDialog(this, suggestedName, initialDir);
+            if (string.IsNullOrEmpty(selectedPath))
             {
-                string selectedPath = ofn.lpstrFile ?? string.Empty;
-                int nullPos = selectedPath.IndexOf('\0');
-                if (nullPos >= 0) selectedPath = selectedPath.Substring(0, nullPos);
-
-                if (string.IsNullOrEmpty(selectedPath)) return false;
-
-                tab.FilePath = selectedPath;
-                tab.Title = Path.GetFileName(selectedPath);
-                tab.Language = _languageDetectionService.GetMonacoLanguageName(selectedPath);
-                if (string.IsNullOrWhiteSpace(tab.EncodingName))
-                    tab.EncodingName = "UTF-8";
-                return true;
+                return false;
             }
-            return false;
+
+            ApplySavePathToTab(tab, selectedPath);
+            return true;
+        }
+
+        private void ApplySavePathToTab(OpenedTab tab, string selectedPath)
+        {
+            tab.FilePath = selectedPath;
+            tab.Title = Path.GetFileName(selectedPath);
+            tab.Language = _languageDetectionService.GetMonacoLanguageName(selectedPath);
+            if (string.IsNullOrWhiteSpace(tab.EncodingName))
+            {
+                tab.EncodingName = "UTF-8";
+            }
         }
 
         private async Task<bool> SaveTabAsync(OpenedTab tab)
@@ -4017,7 +2250,7 @@ namespace Ueditor
 
             if (string.IsNullOrEmpty(tab.FilePath))
             {
-                if (!ShowFileSaveDialog(tab, GetSaveInitialDirectory()))
+                if (!TryChooseSavePath(tab, GetSaveInitialDirectory()))
                     return false;
             }
 
@@ -4058,10 +2291,13 @@ namespace Ueditor
             if (initialDir == null && !string.IsNullOrEmpty(tab.FilePath))
                 initialDir = Path.GetDirectoryName(tab.FilePath);
 
-            if (!ShowFileSaveDialog(tab, initialDir))
+            var oldFilePath = tab.FilePath;
+            var oldTitle = tab.Title;
+            var oldLanguage = tab.Language;
+            var oldEncodingName = tab.EncodingName;
+            if (!TryChooseSavePath(tab, initialDir))
                 return false;
 
-            var oldFilePath = tab.FilePath;
             try
             {
                 if (_editorSessions.TryGetValue(tab.Id, out var session))
@@ -4085,6 +2321,9 @@ namespace Ueditor
             catch (Exception ex)
             {
                 tab.FilePath = oldFilePath;
+                tab.Title = oldTitle;
+                tab.Language = oldLanguage;
+                tab.EncodingName = oldEncodingName;
                 ShowErrorMessage(GetLocalizedString("SaveFile", "저장") + " - " + GetLocalizedString("SaveAsFile", "다른 이름으로 저장"), ex.Message);
                 return false;
             }
@@ -4186,7 +2425,7 @@ namespace Ueditor
             }
         }
 
-        private async Task LoadFileIntoTabAndHighlightAsync(SearchResultItem item)
+        private async Task LoadFileIntoTabAndHighlightAsync(SearchResultItem item, string query)
         {
             await LoadFileIntoTabAsync(item.Path);
             await Task.Delay(250);
@@ -4196,11 +2435,11 @@ namespace Ueditor
             {
                 if (bridgeGroup.Bridge != null)
                 {
-                    await bridgeGroup.Bridge.RevealLineAsync(item.LineNumber, item.IndexOfMatch, item.MatchLength, _lastSearchQuery);
+                    await bridgeGroup.Bridge.RevealLineAsync(item.LineNumber, item.IndexOfMatch, item.MatchLength, query);
                 }
                 else if (bridgeGroup.WebView?.CoreWebView2 != null)
                 {
-                    var revealMsg = new { action = "revealLine", lineNumber = item.LineNumber, indexOfMatch = item.IndexOfMatch, matchLength = item.MatchLength, query = _lastSearchQuery };
+                    var revealMsg = new { action = "revealLine", lineNumber = item.LineNumber, indexOfMatch = item.IndexOfMatch, matchLength = item.MatchLength, query };
                     bridgeGroup.WebView.CoreWebView2.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(revealMsg));
                 }
             }
@@ -4211,196 +2450,35 @@ namespace Ueditor
             if (e.Key == Windows.System.VirtualKey.Enter)
             {
                 e.Handled = true;
-                string query = SearchQueryInput.Text;
-                if (string.IsNullOrWhiteSpace(query)) return;
-
-                if (_viewModel.SearchResults.Count == 0 || query != _lastSearchQuery)
-                {
-                    OnSearchAllFilesClick(this, new RoutedEventArgs());
-                }
-                else
-                {
-                    int nextIndex = 0;
-                    if (SearchResultsList.SelectedIndex >= 0)
-                    {
-                        nextIndex = (SearchResultsList.SelectedIndex + 1) % _viewModel.SearchResults.Count;
-                    }
-                    SearchResultsList.SelectedIndex = nextIndex;
-                    SearchResultsList.ScrollIntoView(SearchResultsList.SelectedItem);
-                    
-                    if (SearchResultsList.SelectedItem is SearchResultItem selectedItem)
-                    {
-                        await LoadFileIntoTabAndHighlightAsync(selectedItem);
-                    }
-                }
+                await _searchReplaceController.HandleSearchQueryEnterAsync();
             }
         }
 
         private void ApplyPreviewVisibility(bool show)
         {
             RightPanelToggle.IsChecked = show;
-            if (!show)
+            _shellPanelLayoutService.ApplyPreviewVisibility(show);
+            if (show)
             {
-                double currentWidth = PreviewGrid.ActualWidth > 0 ? PreviewGrid.ActualWidth : PreviewColumn.Width.Value;
-                if (currentWidth > 0)
-                {
-                    _lastPreviewWidth = currentWidth;
-                }
-                PreviewColumn.MinWidth = 0;
-                PreviewColumn.Width = new GridLength(0);
-                RightSplitter.Visibility = Visibility.Collapsed;
-                PreviewGrid.Visibility = Visibility.Collapsed;
-            }
-            else
-            {
-                PreviewColumn.MinWidth = PreviewPanelMinWidth;
-                PreviewColumn.Width = new GridLength(Math.Max(_lastPreviewWidth, PreviewColumn.MinWidth));
-                RightSplitter.Visibility = Visibility.Visible;
-                PreviewGrid.Visibility = Visibility.Visible;
-                if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
-                    activeTabItem.Tag is string tabId)
-                {
-                    var tab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
-                    if (tab != null) UpdateLivePreview(tab);
-                }
+                RefreshActivePreview();
             }
         }
 
         private async void OnCompareFilesClick(object sender, RoutedEventArgs e)
         {
-            var panel = new StackPanel { Spacing = 12, Width = 400 };
-            
-            // Build tab list for ComboBoxes
-            var tabChoices = new List<string> { "직접 파일 선택..." };
-            foreach (var t in _viewModel.Tabs)
+            var selection = await _compareSelectionDialogService.ShowAsync(this, this.Content.XamlRoot, _viewModel.Tabs);
+            if (selection == null)
             {
-                tabChoices.Add($"[탭] {t.Title}");
+                return;
             }
 
-            var originalLabel = new TextBlock { Text = "원본 파일 (Original File)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
-            var originalCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 0, 0, 4) };
-            foreach (var choice in tabChoices) originalCombo.Items.Add(choice);
-            originalCombo.SelectedIndex = 0;
-
-            var originalPathBox = new TextBox { PlaceholderText = "원본 파일 경로...", IsReadOnly = true };
-            var originalBrowseBtn = new Button { Content = "찾아보기..." };
-            var originalRow = new Grid();
-            originalRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            originalRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            Grid.SetColumn(originalPathBox, 0);
-            Grid.SetColumn(originalBrowseBtn, 1);
-            originalBrowseBtn.Margin = new Thickness(8, 0, 0, 0);
-            originalRow.Children.Add(originalPathBox);
-            originalRow.Children.Add(originalBrowseBtn);
-
-            var modifiedLabel = new TextBlock { Text = "비교 대상 파일 (Modified File)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
-            var modifiedCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 0, 0, 4) };
-            foreach (var choice in tabChoices) modifiedCombo.Items.Add(choice);
-            modifiedCombo.SelectedIndex = 0;
-
-            var modifiedPathBox = new TextBox { PlaceholderText = "비교 대상 파일 경로...", IsReadOnly = true };
-            var modifiedBrowseBtn = new Button { Content = "찾아보기..." };
-            var modifiedRow = new Grid();
-            modifiedRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            modifiedRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            Grid.SetColumn(modifiedPathBox, 0);
-            Grid.SetColumn(modifiedBrowseBtn, 1);
-            modifiedBrowseBtn.Margin = new Thickness(8, 0, 0, 0);
-            modifiedRow.Children.Add(modifiedPathBox);
-            modifiedRow.Children.Add(modifiedBrowseBtn);
-
-            panel.Children.Add(originalLabel);
-            panel.Children.Add(originalCombo);
-            panel.Children.Add(originalRow);
-            panel.Children.Add(new MenuFlyoutSeparator());
-            panel.Children.Add(modifiedLabel);
-            panel.Children.Add(modifiedCombo);
-            panel.Children.Add(modifiedRow);
-
-            originalCombo.SelectionChanged += (_, __) =>
+            if (selection.IsValid)
             {
-                bool isBrowse = originalCombo.SelectedIndex == 0;
-                originalBrowseBtn.IsEnabled = isBrowse;
-                if (!isBrowse)
-                {
-                    originalPathBox.Text = originalCombo.SelectedItem.ToString();
-                }
-                else
-                {
-                    originalPathBox.Text = string.Empty;
-                }
-            };
-
-            modifiedCombo.SelectionChanged += (_, __) =>
+                await OpenCompareTabAsync(selection.PathA, selection.PathB, selection.ContentA, selection.ContentB);
+            }
+            else
             {
-                bool isBrowse = modifiedCombo.SelectedIndex == 0;
-                modifiedBrowseBtn.IsEnabled = isBrowse;
-                if (!isBrowse)
-                {
-                    modifiedPathBox.Text = modifiedCombo.SelectedItem.ToString();
-                }
-                else
-                {
-                    modifiedPathBox.Text = string.Empty;
-                }
-            };
-
-            originalBrowseBtn.Click += async (_, __) =>
-            {
-                var picker = new FileOpenPicker();
-                InitializePickerWindow(picker);
-                picker.FileTypeFilter.Add("*");
-                var file = await picker.PickSingleFileAsync();
-                if (file != null) originalPathBox.Text = file.Path;
-            };
-
-            modifiedBrowseBtn.Click += async (_, __) =>
-            {
-                var picker = new FileOpenPicker();
-                InitializePickerWindow(picker);
-                picker.FileTypeFilter.Add("*");
-                var file = await picker.PickSingleFileAsync();
-                if (file != null) modifiedPathBox.Text = file.Path;
-            };
-
-            var dialog = new ContentDialog
-            {
-                Title = "파일 비교 (File Compare)",
-                Content = panel,
-                PrimaryButtonText = "비교하기",
-                CloseButtonText = "취소",
-                XamlRoot = this.Content.XamlRoot
-            };
-
-            var result = await dialog.ShowAsync();
-            if (result == ContentDialogResult.Primary)
-            {
-                OpenedTab? tabA = null;
-                OpenedTab? tabB = null;
-
-                if (originalCombo.SelectedIndex > 0)
-                {
-                    tabA = _viewModel.Tabs[originalCombo.SelectedIndex - 1];
-                }
-                if (modifiedCombo.SelectedIndex > 0)
-                {
-                    tabB = _viewModel.Tabs[modifiedCombo.SelectedIndex - 1];
-                }
-
-                string pathA = tabA == null ? originalPathBox.Text.Trim() : (string.IsNullOrEmpty(tabA.FilePath) ? tabA.Title : tabA.FilePath);
-                string pathB = tabB == null ? modifiedPathBox.Text.Trim() : (string.IsNullOrEmpty(tabB.FilePath) ? tabB.Title : tabB.FilePath);
-
-                bool validA = tabA != null || (!string.IsNullOrEmpty(pathA) && File.Exists(pathA));
-                bool validB = tabB != null || (!string.IsNullOrEmpty(pathB) && File.Exists(pathB));
-
-                if (validA && validB)
-                {
-                    await OpenCompareTabAsync(pathA, pathB, tabA?.Content, tabB?.Content);
-                }
-                else
-                {
-                    ShowErrorMessage("비교 오류", "올바른 두 파일 혹은 탭을 선택해 주세요.");
-                }
+                ShowErrorMessage("비교 오류", "올바른 두 파일 혹은 탭을 선택해 주세요.");
             }
         }
 
@@ -4478,13 +2556,7 @@ namespace Ueditor
         private void OnTabAddBookmark(OpenedTab tab)
         {
             if (string.IsNullOrEmpty(tab.FilePath)) return;
-            var settings = _settingsService.CurrentSettings;
-            if (!settings.FavoritePaths.Contains(tab.FilePath, StringComparer.OrdinalIgnoreCase))
-            {
-                settings.FavoritePaths.Add(tab.FilePath);
-                _ = _settingsService.SaveSettingsAsync(settings);
-                RefreshFavoritesUI();
-            }
+            _ = _favoritesRecentController.AddFavoritePathAsync(tab.FilePath);
         }
 
         private async void OnTabOpenFolder(OpenedTab tab)
@@ -4609,205 +2681,9 @@ namespace Ueditor
                 flyout.ShowAt(btn, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Top });
         }
 
-        private async void OnGitHistoryItemDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
-        {
-            if (GitHistoryList.SelectedItem is string historyItem && !string.IsNullOrEmpty(_currentRepoPath))
-            {
-                // Parse the hash robustly using regex to bypass any preceding graph characters (*, |, \, /)
-                string? hash = null;
-                var match = System.Text.RegularExpressions.Regex.Match(historyItem, @"\b[0-9a-fA-F]{7,40}\b");
-                if (match.Success)
-                {
-                    hash = match.Value;
-                }
-
-                if (string.IsNullOrEmpty(hash))
-                {
-                    return;
-                }
-
-                try
-                {
-                    // Fetch full commit metadata
-                    string commitInfo = await _gitService.RunGitCommandAsync(_currentRepoPath, $"show --quiet --format=fuller {hash}");
-                    // Fetch list of changed files
-                    var changedFiles = await _gitService.GetCommitChangedFilesAsync(_currentRepoPath, hash);
-
-                    var dialog = new ContentDialog
-                    {
-                        Title = string.Format(GetLocalizedString("GitHistoryItemDialogTitle", "커밋 정보 [{0}]"), hash.Substring(0, 7)),
-                        CloseButtonText = GetLocalizedString("GitHistoryItemClose", "닫기"),
-                        XamlRoot = this.Content.XamlRoot
-                    };
-
-                    var infoScroll = new ScrollViewer
-                    {
-                        MaxHeight = 130,
-                        VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                        Margin = new Thickness(0, 0, 0, 8),
-                        Content = new TextBlock
-                        {
-                            Text = commitInfo,
-                            FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
-                            FontSize = 11,
-                            TextWrapping = TextWrapping.Wrap
-                        }
-                    };
-
-                    var fileListView = new ListView
-                    {
-                        Height = 220,
-                        SelectionMode = ListViewSelectionMode.Single,
-                        Margin = new Thickness(0, 5, 0, 0)
-                    };
-
-                    foreach (var file in changedFiles)
-                    {
-                        // Color coding status badges: Green for Added, Red for Deleted, Blue/Gray for Modified
-                        var statusColor = file.Status.StartsWith("A", StringComparison.OrdinalIgnoreCase) ? Windows.UI.Color.FromArgb(255, 46, 160, 67) :
-                                          file.Status.StartsWith("D", StringComparison.OrdinalIgnoreCase) ? Windows.UI.Color.FromArgb(255, 248, 81, 73) :
-                                          Windows.UI.Color.FromArgb(255, 0, 95, 184);
-
-                        var grid = new Grid { Padding = new Thickness(0, 2, 0, 2) };
-                        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                        var border = new Border
-                        {
-                            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(statusColor),
-                            CornerRadius = new CornerRadius(3),
-                            Padding = new Thickness(5, 1, 5, 1),
-                            Margin = new Thickness(0, 0, 8, 0),
-                            VerticalAlignment = VerticalAlignment.Center,
-                            Child = new TextBlock
-                            {
-                                Text = file.Status,
-                                FontSize = 9,
-                                FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-                                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White)
-                            }
-                        };
-
-                        var pathText = new TextBlock
-                        {
-                            Text = file.Path,
-                            FontSize = 11,
-                            TextTrimming = TextTrimming.CharacterEllipsis,
-                            VerticalAlignment = VerticalAlignment.Center
-                        };
-
-                        Grid.SetColumn(border, 0);
-                        Grid.SetColumn(pathText, 1);
-                        grid.Children.Add(border);
-                        grid.Children.Add(pathText);
-
-                        fileListView.Items.Add(new ListViewItem
-                        {
-                            Content = grid,
-                            Tag = file
-                        });
-                    }
-
-                    string currentHash = hash;
-                    fileListView.DoubleTapped += async (s, args) =>
-                    {
-                        if (fileListView.SelectedItem is ListViewItem clickedItem && clickedItem.Tag is ValueTuple<string, string> fileTuple)
-                        {
-                            string status = fileTuple.Item1;
-                            string relPath = fileTuple.Item2;
-
-                            dialog.Hide(); // Close commit info explorer
-
-                            string fullPath = Path.Combine(_currentRepoPath, relPath);
-                            string parentHash = $"{currentHash}^";
-
-                            string contentA = "";
-                            string contentB = "";
-
-                            if (!status.StartsWith("A", StringComparison.OrdinalIgnoreCase)) // exists in parent
-                            {
-                                contentA = await _gitService.GetCommitFileContentAsync(_currentRepoPath, parentHash, relPath);
-                            }
-                            if (!status.StartsWith("D", StringComparison.OrdinalIgnoreCase)) // exists in current
-                            {
-                                contentB = await _gitService.GetCommitFileContentAsync(_currentRepoPath, currentHash, relPath);
-                            }
-
-                            string fileName = Path.GetFileName(relPath);
-                            string shortHash = currentHash.Substring(0, 7);
-                            string customTitle = $"비교 [{shortHash}]: {fileName}";
-                            string labelA = $"{fileName} (이전 커밋)";
-                            string labelB = $"{fileName} (커밋 {shortHash})";
-
-                            await OpenCompareTabAsync(fullPath, fullPath, contentA, contentB, customTitle, labelA, labelB);
-                        }
-                    };
-
-                    var stack = new StackPanel { Spacing = 2 };
-                    stack.Children.Add(infoScroll);
-                    stack.Children.Add(new TextBlock
-                    {
-                        Text = GetLocalizedString("GitHistoryItemDialogHeader", "변경된 파일 목록 (더블클릭 시 비교 뷰어 열림):"),
-                        FontSize = 11,
-                        FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                        Margin = new Thickness(0, 5, 0, 5)
-                    });
-                    stack.Children.Add(fileListView);
-
-                    dialog.Content = stack;
-                    await dialog.ShowAsync();
-                }
-                catch (Exception ex)
-                {
-                    ShowErrorMessage("커밋 상세 조회 실패", ex.Message);
-                }
-            }
-        }
-
 #pragma warning disable CS0414
         private static string? _currentLineEnding = "LF";
 #pragma warning restore CS0414
-
-        private async void OnFavoritePinClick(object sender, RoutedEventArgs e)
-        {
-            if (sender is ToggleButton btn && btn.Tag is string path)
-            {
-                var settings = _settingsService.CurrentSettings;
-                bool isPinned = btn.IsChecked == true;
-                if (isPinned) { if (!settings.PinnedFavoritePaths.Contains(path)) settings.PinnedFavoritePaths.Add(path); }
-                else { settings.PinnedFavoritePaths.Remove(path); }
-                await _settingsService.SaveSettingsAsync(settings);
-                RefreshFavoritesUI();
-            }
-        }
-
-        private void OnFavoritesTabClick(object sender, RoutedEventArgs e)
-        {
-            if (sender is ToggleButton btn)
-            {
-                bool showFiles = btn == LeftSidebarTabView.FavoritesFileTabButton;
-                LeftSidebarTabView.FavoritesFileTabButton.IsChecked = showFiles;
-                LeftSidebarTabView.FavoritesFolderTabButton.IsChecked = !showFiles;
-                RefreshFavoritesUI(showFiles);
-            }
-        }
-
-        private void RefreshFavoritesUI(bool? filterFiles = null)
-        {
-            _viewModel.Favorites.Clear();
-            var settings = _settingsService.CurrentSettings;
-            var items = new List<FavoriteItem>();
-            foreach (var path in settings.FavoritePaths)
-            {
-                bool isFolder = Directory.Exists(path);
-                bool isFile = !isFolder && File.Exists(path);
-                if (isFolder || isFile)
-                    items.Add(new FavoriteItem { Name = isFolder ? Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) : Path.GetFileName(path), Path = path, IsFolder = isFolder, IsPinned = settings.PinnedFavoritePaths.Contains(path) });
-            }
-            var sorted = items.OrderByDescending(i => i.IsPinned).ThenBy(i => i.Name).ToList();
-            if (filterFiles.HasValue) sorted = sorted.Where(i => i.IsFolder == !filterFiles.Value).ToList();
-            foreach (var item in sorted) _viewModel.Favorites.Add(item);
-        }
 
         private void OnRootKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
@@ -4851,18 +2727,12 @@ namespace Ueditor
                     e.Handled = true;
                     OnPrintClick(this, new RoutedEventArgs());
                 }
-                else if (IsTerminalToggleKey(e))
+                else if (TerminalShortcutService.IsTerminalToggleKey(e))
                 {
                     e.Handled = true;
-                    ToggleTerminalFromShortcut();
+                    _terminalShortcutService.RequestToggle();
                 }
             }
-        }
-
-        private static bool IsTerminalToggleKey(Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
-        {
-            return (int)e.Key == TerminalToggleVirtualKey ||
-                   (int)e.KeyStatus.ScanCode == TerminalToggleScanCode;
         }
 
         #endregion

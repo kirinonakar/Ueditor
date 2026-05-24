@@ -1,3 +1,4 @@
+using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -98,6 +99,91 @@ namespace Ueditor.Controls
         public ToggleButton FavoritesFileTabButton => FavoritesFileTab;
         public ToggleButton FavoritesFolderTabButton => FavoritesFolderTab;
         public TextBlock FavoritesPinIndicatorText => FavoritesPinIndicator;
+
+        public void Localize(Func<string, string, string> getString, bool updateEmptyFolderStatus, Func<string, bool> isGitNotDetected)
+        {
+            ToolTipService.SetToolTip(ExplorerActivityButton, getString("Explorer", "탐색기"));
+            ToolTipService.SetToolTip(FavoritesActivityButton, getString("Favorites", "즐겨찾기"));
+            ToolTipService.SetToolTip(SnippetsActivityButton, getString("Snippets", "스니펫"));
+            ToolTipService.SetToolTip(GitActivityButton, getString("Git", "Git"));
+            ToolTipService.SetToolTip(SearchActivityButton, getString("Search", "검색"));
+            ToolTipService.SetToolTip(RecentActivityButton, getString("RecentFiles", "최근 파일"));
+
+            if (updateEmptyFolderStatus)
+            {
+                ExplorerStatusText.Text = getString("NoFolderSelected", "폴더를 선택하세요.");
+            }
+
+            FavoritesHeaderText.Text = getString("FavoritesHeader", "즐겨찾기 목록");
+            SnippetsHeaderText.Text = getString("SnippetsHeader", "코드 및 수식 템플릿");
+            AddSnippetButton.Content = getString("AddSnippet", "스니펫 추가...");
+
+            ToolTipService.SetToolTip(ExplorerUpButton, getString("ExplorerUpTooltip", "상위 폴더"));
+            ExplorerSelectFolderButton.Content = getString("ExplorerSelectFolder", "폴더 선택...");
+            ToolTipService.SetToolTip(ExplorerTerminalButton, getString("ExplorerOpenTerminalTooltip", "현재 폴더에서 터미널 열기"));
+
+            FavoritesFileTab.Content = getString("FavoritesFileTab", "파일");
+            FavoritesFolderTab.Content = getString("FavoritesFolderTab", "폴더");
+            ToolTipService.SetToolTip(FavoritesPinIndicator, getString("FavoritesPinTooltip", "고정"));
+
+            RecentFilesHeaderText.Text = getString("RecentFilesHeader", "최근 파일");
+
+            SearchHeaderText.Text = getString("SearchHeader", "폴더 전체 검색 및 치환");
+            SearchQueryInput.PlaceholderText = getString("SearchPlaceholder", "검색어 입력...");
+            ReplaceQueryInput.PlaceholderText = getString("ReplacePlaceholder", "치환할 단어 입력...");
+            ToolTipService.SetToolTip(SearchMatchCaseToggle, getString("SearchMatchCaseTooltip", "대소문자 구분"));
+            ToolTipService.SetToolTip(SearchWholeWordToggle, getString("SearchWholeWordTooltip", "단어 단위"));
+            ToolTipService.SetToolTip(SearchRegexToggle, getString("SearchRegexTooltip", "정규식 검색"));
+            SearchAllButton.Content = getString("SearchAllFiles", "전체 검색");
+            ReplaceAllButton.Content = getString("ReplaceAllFiles", "모두 치환");
+
+            GitHeaderText.Text = getString("GitRepoHeader", "Git 저장소 관리");
+            GitBranchesCombo.PlaceholderText = getString("GitBranchPlaceholder", "브랜치 목록");
+            GitCommitMessageInput.PlaceholderText = getString("GitCommitPlaceholder", "커밋 메시지 입력...");
+            GitCommitButton.Content = getString("GitCommit", "커밋 (Commit)");
+            GitStageAllButton.Content = getString("GitStageAll", "전체 Stage");
+            GitRestoreAllButton.Content = getString("GitRestoreAll", "전체 Restore");
+            GitPushButton.Content = getString("GitPush", "Push");
+            GitRefreshButton.Content = getString("GitRefresh", "새로고침");
+            GitHistoryHeader.Text = getString("GitHistory", "과거 기록");
+
+            if (isGitNotDetected(GitPanelBranchText.Text))
+            {
+                GitPanelBranchText.Text = getString("GitNotDetected", "Git: 감지 안됨");
+            }
+        }
+
+        public int ShowPage(int index)
+        {
+            Grid[] pages =
+            {
+                ExplorerSidebarPage,
+                FavoritesSidebarPage,
+                RecentSidebarPage,
+                SearchSidebarPage,
+                GitSidebarPage,
+                SnippetsSidebarPage
+            };
+
+            ToggleButton[] buttons =
+            {
+                ExplorerActivityButton,
+                FavoritesActivityButton,
+                RecentActivityButton,
+                SearchActivityButton,
+                GitActivityButton,
+                SnippetsActivityButton
+            };
+
+            int safeIndex = Math.Clamp(index, 0, pages.Length - 1);
+            for (int i = 0; i < pages.Length; i++)
+            {
+                pages[i].Visibility = i == safeIndex ? Visibility.Visible : Visibility.Collapsed;
+                buttons[i].IsChecked = i == safeIndex;
+            }
+
+            return safeIndex;
+        }
 
         private void OnLeftActivityClick(object sender, RoutedEventArgs e) => LeftActivityClick?.Invoke(sender, e);
         private void OnExplorerUpClick(object sender, RoutedEventArgs e) => ExplorerUpClick?.Invoke(sender, e);

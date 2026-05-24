@@ -1,3 +1,4 @@
+using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -30,6 +31,22 @@ namespace Ueditor.Controls
         public TextBlock LineEndingText => StatusLineEnding;
         public Button LineNumberButtonControl => LineNumberButton;
         public Button LineEndingButtonControl => LineEndingButton;
+
+        public void Localize(Func<string, string, string> getString, Func<string, bool> isGitNotDetected)
+        {
+            StatusLineLabel.Text = getString("StatusLineLabel", "줄");
+            StatusColumnLabel.Text = getString("StatusColumnLabel", "열");
+            if (isGitNotDetected(StatusGitBranch.Text))
+            {
+                StatusGitBranch.Text = getString("GitNotDetected", "Git: 감지 안됨");
+            }
+
+            ToolTipService.SetToolTip(LeftPanelToggle, getString("StatusLeftPanelTooltip", "좌측 패널"));
+            ToolTipService.SetToolTip(RightPanelToggle, getString("StatusRightPanelTooltip", "우측 패널"));
+            ToolTipService.SetToolTip(LineNumberButton, getString("StatusGoToLineTooltip", "클릭하여 줄 이동"));
+            ToolTipService.SetToolTip(LineEndingButton, getString("StatusLineEndingTooltip", "클릭하여 줄 끝 방식 변경"));
+            ToolTipService.SetToolTip(StatusEncodingCombo, getString("StatusEncodingTooltip", "파일 인코딩 선택"));
+        }
 
         private void HandleLeftPanelToggleClick(object sender, RoutedEventArgs e)
         {

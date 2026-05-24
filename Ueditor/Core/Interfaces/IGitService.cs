@@ -5,6 +5,7 @@ namespace Ueditor.Core.Interfaces
 {
     public interface IGitService
     {
+        string? FindRepositoryRoot(string? startPath);
         Task<string> GetCurrentBranchAsync(string repoPath);
         Task<Dictionary<string, string>> GetFileStatusesAsync(string repoPath);
         Task<string> GetFileDiffAsync(string repoPath, string filePath);

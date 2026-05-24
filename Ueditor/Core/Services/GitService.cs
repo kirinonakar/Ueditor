@@ -10,6 +10,28 @@ namespace Ueditor.Core.Services
 {
     public class GitService : IGitService
     {
+        public string? FindRepositoryRoot(string? startPath)
+        {
+            if (string.IsNullOrEmpty(startPath))
+            {
+                return null;
+            }
+
+            var dir = new DirectoryInfo(startPath);
+            while (dir != null)
+            {
+                string gitPath = Path.Combine(dir.FullName, ".git");
+                if (Directory.Exists(gitPath) || File.Exists(gitPath))
+                {
+                    return dir.FullName;
+                }
+
+                dir = dir.Parent;
+            }
+
+            return null;
+        }
+
         public async Task<string> GetCurrentBranchAsync(string repoPath)
         {
             if (string.IsNullOrEmpty(repoPath) || !Directory.Exists(repoPath))
