@@ -162,20 +162,29 @@
             const scrollHeight = totalLines * LINE_HEIGHT;
             virtualSpacer.style.height = `${scrollHeight}px`;
             
-            // Calculate visible count plus 10 buffer lines
-            visibleCount = Math.ceil(scrollContainer.clientHeight / LINE_HEIGHT) + 10;
-            
             // Initial render
             lineBuffer = {};
-            render();
+            render(true);
+
+            // Fallback for visual transition delay or initial tab rendering delay
+            setTimeout(() => render(true), 100);
+            setTimeout(() => render(true), 300);
         }
 
-        function render() {
+        function render(force = false) {
             const scrollTop = scrollContainer.scrollTop;
             
-            // Throttle rendering
-            if (Math.abs(scrollTop - lastScrollTop) < 5 && lastScrollTop !== -1) return;
+            // Throttle rendering unless forced
+            if (!force && Math.abs(scrollTop - lastScrollTop) < 5 && lastScrollTop !== -1) return;
             lastScrollTop = scrollTop;
+
+            // Recalculate visible count dynamically if clientHeight is positive
+            const currentHeight = scrollContainer.clientHeight;
+            if (currentHeight > 0) {
+                visibleCount = Math.ceil(currentHeight / LINE_HEIGHT) + 10;
+            } else if (visibleCount === 0) {
+                visibleCount = 10; // safe fallback
+            }
 
             // Calculate start and end indices
             const rawStart = Math.floor(scrollTop / LINE_HEIGHT);
@@ -305,8 +314,7 @@
         window.addEventListener('dragover', e => e.preventDefault(), false);
         window.addEventListener('drop', e => e.preventDefault(), false);
         window.addEventListener('resize', () => {
-            visibleCount = Math.ceil(scrollContainer.clientHeight / LINE_HEIGHT) + 10;
-            render();
+            render(true);
         });
 
         // Communication wrappers
@@ -351,9 +359,8 @@
                     }
                     isFetching = false;
                     
-                    // Re-render viewport DOM with fresh lines
-                    const end = Math.min(totalLines, startLine + visibleCount);
-                    updateViewportDOM(startLine, end);
+                    // Re-render viewport DOM and check if we need to request newly visible lines due to viewport expansion
+                    render(true);
                     break;
                 case 'updateOptions':
                     applyTheme(msg);
