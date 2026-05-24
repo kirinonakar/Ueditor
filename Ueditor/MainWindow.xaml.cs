@@ -1246,20 +1246,20 @@ namespace Ueditor
             {
                 ExplorerSidebarPage,
                 FavoritesSidebarPage,
-                SnippetsSidebarPage,
-                GitSidebarPage,
+                RecentSidebarPage,
                 SearchSidebarPage,
-                RecentSidebarPage
+                GitSidebarPage,
+                SnippetsSidebarPage
             };
 
             Microsoft.UI.Xaml.Controls.Primitives.ToggleButton[] buttons =
             {
                 ExplorerActivityButton,
                 FavoritesActivityButton,
-                SnippetsActivityButton,
-                GitActivityButton,
+                RecentActivityButton,
                 SearchActivityButton,
-                RecentActivityButton
+                GitActivityButton,
+                SnippetsActivityButton
             };
 
             int safeIndex = Math.Clamp(index, 0, pages.Length - 1);
@@ -1269,7 +1269,7 @@ namespace Ueditor
                 buttons[i].IsChecked = i == safeIndex;
             }
 
-            if (safeIndex == 4)
+            if (safeIndex == 3)
             {
                 this.DispatcherQueue.TryEnqueue(() =>
                 {
