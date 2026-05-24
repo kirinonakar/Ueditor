@@ -13,6 +13,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Graphics;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
 using Ueditor.Core.Interfaces;
@@ -41,8 +42,8 @@ namespace Ueditor
         private string _lastSearchQuery = string.Empty;
         private string _currentFolderPath = string.Empty;
         private string _currentRepoPath = string.Empty;
-        private Process? _terminalProcess;
-        private string _terminalWorkingDirectory = string.Empty;
+        private readonly ObservableCollection<TerminalSession> _terminalSessions = new ObservableCollection<TerminalSession>();
+        private TerminalSession? _activeTerminalSession;
         private string _llmFileContextText = string.Empty;
         private Window? _stickyNoteWindow;
         private TextBox? _stickyNoteTextBox;
@@ -66,8 +67,12 @@ namespace Ueditor
         private bool _isDraggingRightSplitter = false;
         private double _rightSplitterStartPreviewWidth = 0;
         private double _rightSplitterStartPointerX = 0;
+        private bool _isDraggingTerminalSplitter = false;
+        private double _terminalSplitterStartHeight = 0;
+        private double _terminalSplitterStartPointerY = 0;
         private double _lastExplorerWidth = 260;
         private double _lastPreviewWidth = 400;
+        private double _lastTerminalHeight = 220;
         private string _lastTextColorHex = "#E53935";
         private const double ExplorerPanelMinWidth = 150;
         private const double PreviewPanelMinWidth = 150;
@@ -97,6 +102,7 @@ namespace Ueditor
             SnippetsListView.ItemsSource = _snippetsList;
             GitChangedFilesList.ItemsSource = _gitFilesList;
             SearchResultsList.ItemsSource = _searchResultsList;
+            TerminalSessionsList.ItemsSource = _terminalSessions;
             foreach (string encodingName in TextEncodingService.SupportedEncodingNames)
             {
                 StatusEncodingCombo.Items.Add(encodingName);
@@ -146,6 +152,82 @@ namespace Ueditor
             }
         }
 
+        private void ApplySavedWindowPlacement(EditorSettings settings)
+        {
+            try
+            {
+                if (settings.WindowWidth < 400 || settings.WindowHeight < 300)
+                {
+                    return;
+                }
+
+                var size = new SizeInt32(settings.WindowWidth, settings.WindowHeight);
+                if (settings.WindowX >= 0 && settings.WindowY >= 0)
+                {
+                    AppWindow.MoveAndResize(new RectInt32(settings.WindowX, settings.WindowY, size.Width, size.Height));
+                }
+                else
+                {
+                    AppWindow.Resize(size);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to restore window placement: {ex.Message}");
+            }
+        }
+
+        private async Task SaveUiLayoutSettingsAsync()
+        {
+            try
+            {
+                var settings = _settingsService.CurrentSettings;
+                var position = AppWindow.Position;
+                var size = AppWindow.Size;
+
+                if (size.Width >= 400 && size.Height >= 300)
+                {
+                    settings.WindowX = position.X;
+                    settings.WindowY = position.Y;
+                    settings.WindowWidth = size.Width;
+                    settings.WindowHeight = size.Height;
+                }
+
+                if (TerminalPanel.Visibility == Visibility.Visible && TerminalPanelRow.Height.Value > 0)
+                {
+                    settings.TerminalPanelHeight = TerminalPanelRow.Height.Value;
+                }
+                else
+                {
+                    settings.TerminalPanelHeight = _lastTerminalHeight;
+                }
+
+                settings.LeftSidebarVisible = LeftSidebarTabView.Visibility == Visibility.Visible;
+                settings.RightSidebarVisible = PreviewGrid.Visibility == Visibility.Visible;
+
+                await _settingsService.SaveSettingsAsync(settings);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to save UI layout settings: {ex.Message}");
+            }
+        }
+
+        private async Task SaveSidebarVisibilitySettingsAsync()
+        {
+            try
+            {
+                var settings = _settingsService.CurrentSettings;
+                settings.LeftSidebarVisible = LeftSidebarTabView.Visibility == Visibility.Visible;
+                settings.RightSidebarVisible = PreviewGrid.Visibility == Visibility.Visible;
+                await _settingsService.SaveSettingsAsync(settings);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to save sidebar visibility settings: {ex.Message}");
+            }
+        }
+
         private async void OnWindowActivated(object sender, WindowActivatedEventArgs e)
         {
             this.Activated -= OnWindowActivated;
@@ -181,6 +263,8 @@ namespace Ueditor
 
             // Load settings first so InitializeEditorWebView can use the correct theme from the start
             await _settingsService.LoadSettingsAsync();
+            ApplySavedWindowPlacement(_settingsService.CurrentSettings);
+            _lastTerminalHeight = Math.Clamp(_settingsService.CurrentSettings.TerminalPanelHeight, 120, 600);
 
             if (filesToOpen.Count > 0)
             {
@@ -255,9 +339,11 @@ namespace Ueditor
 
             // 2. Apply settings to UI and initialize preview panel WebView2 in the background
             WordWrapToggle.IsChecked = _settingsService.CurrentSettings.WordWrap;
-            LeftPanelToggle.IsChecked = true;
-            RightPanelToggle.IsChecked = _settingsService.CurrentSettings.DefaultMarkdownEnabled;
-            ApplyPreviewVisibility(_settingsService.CurrentSettings.DefaultMarkdownEnabled);
+            LeftPanelToggle.IsChecked = _settingsService.CurrentSettings.LeftSidebarVisible;
+            ApplyLeftSidebarVisibility(_settingsService.CurrentSettings.LeftSidebarVisible);
+            bool rightPanelVisible = _settingsService.CurrentSettings.RightSidebarVisible && _settingsService.CurrentSettings.DefaultMarkdownEnabled;
+            RightPanelToggle.IsChecked = rightPanelVisible;
+            ApplyPreviewVisibility(rightPanelVisible);
             MarkdownToolbarToggle.IsChecked = _settingsService.CurrentSettings.DefaultMarkdownToolbarEnabled;
             MarkdownToolbar.Visibility = _settingsService.CurrentSettings.DefaultMarkdownToolbarEnabled ? Visibility.Visible : Visibility.Collapsed;
             PreviewModeCombo.SelectedIndex = _settingsService.CurrentSettings.PreviewMode switch
@@ -1203,15 +1289,13 @@ namespace Ueditor
             }
 
             LeftPanelToggle.IsChecked = true;
-            ExplorerColumn.MinWidth = ExplorerPanelMinWidth;
-            ExplorerColumn.Width = new GridLength(Math.Max(_lastExplorerWidth, ExplorerColumn.MinWidth));
-            LeftSplitter.Visibility = Visibility.Visible;
-            LeftSidebarTabView.Visibility = Visibility.Visible;
+            ApplyLeftSidebarVisibility(true);
+            _ = SaveSidebarVisibilitySettingsAsync();
         }
 
-        private void OnToggleLeftPanelClick(object sender, RoutedEventArgs e)
+        private void ApplyLeftSidebarVisibility(bool show)
         {
-            bool show = LeftPanelToggle.IsChecked == true;
+            ExplorerColumn.MinWidth = ExplorerPanelMinWidth;
             if (show)
             {
                 ExplorerColumn.MinWidth = ExplorerPanelMinWidth;
@@ -1233,9 +1317,17 @@ namespace Ueditor
             }
         }
 
-        private void OnTogglePreviewClick(object sender, RoutedEventArgs e)
+        private async void OnToggleLeftPanelClick(object sender, RoutedEventArgs e)
+        {
+            bool show = LeftPanelToggle.IsChecked == true;
+            ApplyLeftSidebarVisibility(show);
+            await SaveSidebarVisibilitySettingsAsync();
+        }
+
+        private async void OnTogglePreviewClick(object sender, RoutedEventArgs e)
         {
             ApplyPreviewVisibility(RightPanelToggle.IsChecked == true);
+            await SaveSidebarVisibilitySettingsAsync();
         }
 
         private async void OnToggleThemeClick(object sender, RoutedEventArgs e)
@@ -1292,24 +1384,16 @@ namespace Ueditor
             var uiFontFamilyCombo = CreateFontComboBox(settings.UiFontFamily, fontFamilies);
             var customBgCheck = new CheckBox { Content = "커스텀 에디터 배경색 사용", IsChecked = !string.IsNullOrWhiteSpace(settings.CustomBackgroundColor) };
             var customFgCheck = new CheckBox { Content = "커스텀 에디터 글자색 사용", IsChecked = !string.IsNullOrWhiteSpace(settings.CustomForegroundColor) };
-            var customBgPicker = new ColorPicker
-            {
-                Color = ResolvePickerColor(settings.CustomBackgroundColor, settings.Theme == "Light" ? "#ffffff" : "#1e1e1e"),
-                IsAlphaEnabled = false,
-                HorizontalAlignment = HorizontalAlignment.Stretch
-            };
-            var customFgPicker = new ColorPicker
-            {
-                Color = ResolvePickerColor(settings.CustomForegroundColor, settings.Theme == "Light" ? "#111111" : "#d4d4d4"),
-                IsAlphaEnabled = false,
-                HorizontalAlignment = HorizontalAlignment.Stretch
-            };
-            customBgPicker.IsEnabled = customBgCheck.IsChecked == true;
-            customFgPicker.IsEnabled = customFgCheck.IsChecked == true;
-            customBgCheck.Checked += (_, __) => customBgPicker.IsEnabled = true;
-            customBgCheck.Unchecked += (_, __) => customBgPicker.IsEnabled = false;
-            customFgCheck.Checked += (_, __) => customFgPicker.IsEnabled = true;
-            customFgCheck.Unchecked += (_, __) => customFgPicker.IsEnabled = false;
+            ColorPicker customBgPicker;
+            ColorPicker customFgPicker;
+            var customBgDropdown = CreateColorDropdown("에디터 배경색", ResolvePickerColor(settings.CustomBackgroundColor, settings.Theme == "Light" ? "#ffffff" : "#1e1e1e"), out customBgPicker);
+            var customFgDropdown = CreateColorDropdown("에디터 글자색", ResolvePickerColor(settings.CustomForegroundColor, settings.Theme == "Light" ? "#111111" : "#d4d4d4"), out customFgPicker);
+            customBgDropdown.IsEnabled = customBgCheck.IsChecked == true;
+            customFgDropdown.IsEnabled = customFgCheck.IsChecked == true;
+            customBgCheck.Checked += (_, __) => customBgDropdown.IsEnabled = true;
+            customBgCheck.Unchecked += (_, __) => customBgDropdown.IsEnabled = false;
+            customFgCheck.Checked += (_, __) => customFgDropdown.IsEnabled = true;
+            customFgCheck.Unchecked += (_, __) => customFgDropdown.IsEnabled = false;
             var wordWrapCheck = new CheckBox { Content = "기본 Word Wrap 켜기", IsChecked = settings.WordWrap };
             var minimapCheck = new CheckBox { Content = "미니맵 표시 (로컬 Monaco 번들 사용 시)", IsChecked = settings.MinimapEnabled };
             var bracketPairCheck = new CheckBox { Content = "Bracket pair colorization (로컬 Monaco 번들 사용 시)", IsChecked = settings.BracketPairColorizationEnabled };
@@ -1538,9 +1622,9 @@ namespace Ueditor
             AddLabel(appearanceSection, "UI 쉘 폰트");
             appearanceSection.Children.Add(uiFontFamilyCombo);
             appearanceSection.Children.Add(customBgCheck);
-            appearanceSection.Children.Add(customBgPicker);
+            appearanceSection.Children.Add(customBgDropdown);
             appearanceSection.Children.Add(customFgCheck);
-            appearanceSection.Children.Add(customFgPicker);
+            appearanceSection.Children.Add(customFgDropdown);
 
             var editorSection = CreateSection();
             editorSection.Children.Add(wordWrapCheck);
@@ -1625,6 +1709,7 @@ namespace Ueditor
                 }
 
                 settings.DefaultMarkdownEnabled = defaultMarkdownCheck.IsChecked == true;
+                settings.RightSidebarVisible = settings.DefaultMarkdownEnabled;
                 settings.DefaultMarkdownToolbarEnabled = defaultMarkdownToolbarCheck.IsChecked == true;
                 
                 string newApiKey = llmApiKeyBox.Password.Trim();
@@ -1759,6 +1844,45 @@ namespace Ueditor
             }
         }
 
+        private void OnTerminalSplitterPointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is UIElement splitter && TerminalPanel.Visibility == Visibility.Visible)
+            {
+                _isDraggingTerminalSplitter = true;
+                _terminalSplitterStartHeight = TerminalPanelRow.Height.Value > 0 ? TerminalPanelRow.Height.Value : _lastTerminalHeight;
+                var pt = e.GetCurrentPoint(MainWorkGrid).Position;
+                _terminalSplitterStartPointerY = pt.Y;
+                splitter.CapturePointer(e.Pointer);
+                e.Handled = true;
+            }
+        }
+
+        private void OnTerminalSplitterPointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (_isDraggingTerminalSplitter)
+            {
+                var pt = e.GetCurrentPoint(MainWorkGrid).Position;
+                double deltaY = _terminalSplitterStartPointerY - pt.Y;
+                double maxHeight = Math.Max(160, MainWorkGrid.ActualHeight - 180);
+                double newHeight = Math.Clamp(_terminalSplitterStartHeight + deltaY, 120, maxHeight);
+                _lastTerminalHeight = newHeight;
+                TerminalPanelRow.Height = new GridLength(newHeight);
+                ResizeEmbeddedTerminal();
+                e.Handled = true;
+            }
+        }
+
+        private async void OnTerminalSplitterPointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (_isDraggingTerminalSplitter && sender is UIElement splitter)
+            {
+                _isDraggingTerminalSplitter = false;
+                splitter.ReleasePointerCapture(e.Pointer);
+                await SaveUiLayoutSettingsAsync();
+                e.Handled = true;
+            }
+        }
+
         #endregion
 
         #region Explorer Side Panel & Folder Picker
@@ -1820,18 +1944,13 @@ namespace Ueditor
                 return;
             }
 
-            if (TerminalPanel.Visibility == Visibility.Visible &&
-                _terminalProcess != null &&
-                !_terminalProcess.HasExited &&
-                _terminalWorkingDirectory.Equals(workingDirectory, StringComparison.OrdinalIgnoreCase))
-            {
-                OnCloseTerminalClick(this, new RoutedEventArgs());
-                if (TerminalToggleButton != null) TerminalToggleButton.IsChecked = false;
-                return;
-            }
-
             OpenEmbeddedTerminal(workingDirectory);
             if (TerminalToggleButton != null) TerminalToggleButton.IsChecked = true;
+        }
+
+        private void OnNewTerminalClick(object sender, RoutedEventArgs e)
+        {
+            OnOpenTerminalClick(sender, e);
         }
 
         private string GetTerminalWorkingDirectory()
@@ -1888,6 +2007,27 @@ namespace Ueditor
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern IntPtr SetFocus(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern IntPtr SetActiveWindow(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool BringWindowToTop(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr lpdwProcessId);
+
+        [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+        private static extern uint GetCurrentThreadId();
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
         private const int GWL_STYLE = -16;
         private const int WS_CAPTION = 0x00C00000;
         private const int WS_THICKFRAME = 0x00040000;
@@ -1907,66 +2047,52 @@ namespace Ueditor
         private static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
         private static readonly IntPtr HWND_NOTOPMOST = new IntPtr(-2);
 
-        private IntPtr _terminalWindowHandle = IntPtr.Zero;
-
         private void OpenEmbeddedTerminal(string workingDirectory)
         {
-            TerminalPanelRow.Height = new GridLength(220);
-            TerminalPanel.Visibility = Visibility.Visible;
-            TerminalTitleText.Text = $"터미널 - {workingDirectory}";
-
-            if (_terminalProcess != null && !_terminalProcess.HasExited && _terminalWorkingDirectory.Equals(workingDirectory, StringComparison.OrdinalIgnoreCase))
-            {
-                if (_terminalWindowHandle != IntPtr.Zero)
-                {
-                    ShowWindow(_terminalWindowHandle, SW_SHOW);
-                    ResizeEmbeddedTerminal();
-                }
-                else
-                {
-                    TerminalInputBox.Focus(FocusState.Programmatic);
-                }
-                return;
-            }
-
+            EnsureTerminalPanelVisible();
             StartEmbeddedTerminal(workingDirectory);
         }
 
         private async void StartEmbeddedTerminal(string workingDirectory)
         {
-            StopEmbeddedTerminal();
-            _terminalWorkingDirectory = workingDirectory;
+            var session = new TerminalSession(workingDirectory);
+            _terminalSessions.Add(session);
 
-            // Show native terminal border container and hide old textBox controls
-            TerminalHostBorder.Visibility = Visibility.Visible;
-            TerminalOutputTextBox.Visibility = Visibility.Collapsed;
-            TerminalInputAreaGrid.Visibility = Visibility.Collapsed;
+            bool useNativeTerminalHost = true;
+            if (!useNativeTerminalHost)
+            {
+                // Native console HWND hosting does not reliably receive keyboard input inside WinUI.
+                // Use redirected PowerShell I/O so commands typed in TerminalInputBox always reach the process.
+                StartRedirectedTerminal(session);
+                SetActiveTerminalSession(session);
+                TerminalInputBox.Focus(FocusState.Programmatic);
+                return;
+            }
 
             try
             {
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = "powershell.exe",
-                    Arguments = $"-NoExit -Command \"$Host.UI.RawUI.WindowTitle = 'Ueditor_Console_{Process.GetCurrentProcess().Id}'\"",
+                    Arguments = $"-NoExit -Command \"$Host.UI.RawUI.WindowTitle = '{session.WindowTitle}'\"",
                     WorkingDirectory = workingDirectory,
                     UseShellExecute = true,
                     WindowStyle = ProcessWindowStyle.Hidden
                 };
 
-                _terminalProcess = Process.Start(startInfo);
-                if (_terminalProcess == null)
+                session.Process = Process.Start(startInfo);
+                if (session.Process == null)
                 {
                     throw new Exception("PowerShell native process failed to start.");
                 }
 
                 IntPtr childHwnd = IntPtr.Zero;
-                string targetTitle = $"Ueditor_Console_{Process.GetCurrentProcess().Id}";
 
                 // Wait up to 3 seconds for console window creation
                 for (int i = 0; i < 30; i++)
                 {
                     await Task.Delay(100);
-                    childHwnd = FindWindow("ConsoleWindowClass", targetTitle);
+                    childHwnd = FindWindow("ConsoleWindowClass", session.WindowTitle);
                     if (childHwnd != IntPtr.Zero)
                     {
                         break;
@@ -1975,8 +2101,8 @@ namespace Ueditor
 
                 if (childHwnd == IntPtr.Zero)
                 {
-                    _terminalProcess.Refresh();
-                    childHwnd = _terminalProcess.MainWindowHandle;
+                    session.Process.Refresh();
+                    childHwnd = session.Process.MainWindowHandle;
                 }
 
                 if (childHwnd == IntPtr.Zero)
@@ -1984,39 +2110,55 @@ namespace Ueditor
                     throw new Exception("Native terminal window handle could not be resolved.");
                 }
 
-                _terminalWindowHandle = childHwnd;
-                ShowWindow(_terminalWindowHandle, SW_HIDE);
+                session.WindowHandle = childHwnd;
+                session.IsNative = true;
+                ShowWindow(session.WindowHandle, SW_HIDE);
 
                 // Reparent console window into WinUI 3 Window HWND
                 IntPtr parentHwnd = WindowNative.GetWindowHandle(this);
-                SetParent(_terminalWindowHandle, parentHwnd);
+                SetParent(session.WindowHandle, parentHwnd);
 
                 // Override style properties to child borderless window
-                int style = GetWindowLong(_terminalWindowHandle, GWL_STYLE);
+                int style = GetWindowLong(session.WindowHandle, GWL_STYLE);
                 style = (style | WS_CHILD) & ~WS_CAPTION & ~WS_THICKFRAME & ~WS_MINIMIZEBOX & ~WS_MAXIMIZEBOX & ~WS_SYSMENU;
-                SetWindowLong(_terminalWindowHandle, GWL_STYLE, style);
+                SetWindowLong(session.WindowHandle, GWL_STYLE, style);
 
                 // Force frame changed repaint update
-                SetWindowPos(_terminalWindowHandle, IntPtr.Zero, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOOWNERZORDER);
+                SetWindowPos(session.WindowHandle, IntPtr.Zero, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOOWNERZORDER);
 
                 // Synchronize size alignment
+                SetActiveTerminalSession(session);
                 await WaitForTerminalHostLayoutAsync();
                 ResizeEmbeddedTerminal();
 
                 // Show window inside border
-                ShowWindow(_terminalWindowHandle, SW_SHOW);
+                if (_activeTerminalSession == session)
+                {
+                    ShowWindow(session.WindowHandle, SW_SHOW);
+                    FocusTerminalSession(session);
+                }
                 ResizeEmbeddedTerminal();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Failed native terminal hosting, falling back to redirected textbox: {ex.Message}");
+                try
+                {
+                    if (session.Process != null && !session.Process.HasExited)
+                    {
+                        session.Process.Kill();
+                    }
+                    session.Process?.Dispose();
+                    session.Process = null;
+                }
+                catch { }
                 
                 // Graceful fallback UI restoration
                 TerminalHostBorder.Visibility = Visibility.Collapsed;
                 TerminalOutputTextBox.Visibility = Visibility.Visible;
                 TerminalInputAreaGrid.Visibility = Visibility.Visible;
 
-                StartRedirectedTerminal(workingDirectory);
+                StartRedirectedTerminal(session);
             }
         }
 
@@ -2033,11 +2175,11 @@ namespace Ueditor
             }
         }
 
-        private void StartRedirectedTerminal(string workingDirectory)
+        private void StartRedirectedTerminal(TerminalSession session)
         {
-            StopEmbeddedTerminal();
-            _terminalWorkingDirectory = workingDirectory;
-            TerminalOutputTextBox.Text = $"PowerShell 시작 (리다이렉션 모드): {workingDirectory}\r\n";
+            session.IsNative = false;
+            session.WindowHandle = IntPtr.Zero;
+            AppendTerminalOutput(session, $"PowerShell 시작: {session.WorkingDirectory}");
 
             try
             {
@@ -2045,7 +2187,7 @@ namespace Ueditor
                 {
                     FileName = "powershell.exe",
                     Arguments = "-NoLogo -NoProfile -NoExit -ExecutionPolicy Bypass -Command \"[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; [Console]::InputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8\"",
-                    WorkingDirectory = workingDirectory,
+                    WorkingDirectory = session.WorkingDirectory,
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     RedirectStandardInput = true,
@@ -2055,54 +2197,70 @@ namespace Ueditor
                     StandardErrorEncoding = Encoding.UTF8
                 };
 
-                _terminalProcess = new Process
+                session.Process = new Process
                 {
                     StartInfo = startInfo,
                     EnableRaisingEvents = true
                 };
-                _terminalProcess.OutputDataReceived += (_, args) => AppendTerminalOutput(args.Data);
-                _terminalProcess.ErrorDataReceived += (_, args) => AppendTerminalOutput(args.Data);
-                _terminalProcess.Exited += (_, __) => AppendTerminalOutput("[터미널 종료]");
+                session.Process.OutputDataReceived += (_, args) => AppendTerminalOutput(session, args.Data);
+                session.Process.ErrorDataReceived += (_, args) => AppendTerminalOutput(session, args.Data);
+                session.Process.Exited += (_, __) => AppendTerminalOutput(session, "[터미널 종료]");
 
-                _terminalProcess.Start();
-                _terminalProcess.BeginOutputReadLine();
-                _terminalProcess.BeginErrorReadLine();
+                session.Process.Start();
+                session.Process.BeginOutputReadLine();
+                session.Process.BeginErrorReadLine();
             }
             catch (Exception ex)
             {
-                AppendTerminalOutput($"터미널을 시작하지 못했습니다: {ex.Message}");
+                AppendTerminalOutput(session, $"터미널을 시작하지 못했습니다: {ex.Message}");
             }
         }
 
         private void StopEmbeddedTerminal()
         {
+            foreach (var session in _terminalSessions.ToList())
+            {
+                StopTerminalSession(session);
+            }
+
+            _terminalSessions.Clear();
+            _activeTerminalSession = null;
+        }
+
+        private void StopTerminalSession(TerminalSession session)
+        {
             try
             {
-                _terminalWindowHandle = IntPtr.Zero;
-                if (_terminalProcess != null)
+                if (session.WindowHandle != IntPtr.Zero)
                 {
-                    if (!_terminalProcess.HasExited)
+                    ShowWindow(session.WindowHandle, SW_HIDE);
+                    session.WindowHandle = IntPtr.Zero;
+                }
+
+                if (session.Process != null)
+                {
+                    if (!session.Process.HasExited)
                     {
-                        try { _terminalProcess.StandardInput.WriteLine("exit"); } catch {}
-                        if (!_terminalProcess.WaitForExit(300))
+                        try { session.Process.StandardInput.WriteLine("exit"); } catch {}
+                        if (!session.Process.WaitForExit(300))
                         {
-                            _terminalProcess.Kill();
+                            session.Process.Kill();
                         }
                     }
 
-                    _terminalProcess.Dispose();
-                    _terminalProcess = null;
+                    session.Process.Dispose();
+                    session.Process = null;
                 }
             }
             catch
             {
-                _terminalProcess = null;
+                session.Process = null;
             }
         }
 
         private void ResizeEmbeddedTerminal()
         {
-            if (_terminalWindowHandle == IntPtr.Zero || TerminalHostBorder == null || TerminalHostBorder.Visibility != Visibility.Visible)
+            if (_activeTerminalSession == null || _activeTerminalSession.WindowHandle == IntPtr.Zero || TerminalHostBorder == null || TerminalHostBorder.Visibility != Visibility.Visible)
             {
                 return;
             }
@@ -2120,8 +2278,8 @@ namespace Ueditor
 
                 if (width > 0 && height > 0)
                 {
-                    MoveWindow(_terminalWindowHandle, x, y, width, height, true);
-                    SetWindowPos(_terminalWindowHandle, IntPtr.Zero, x, y, width, height, SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOOWNERZORDER);
+                    MoveWindow(_activeTerminalSession.WindowHandle, x, y, width, height, true);
+                    SetWindowPos(_activeTerminalSession.WindowHandle, IntPtr.Zero, x, y, width, height, SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOOWNERZORDER);
                 }
             }
             catch (Exception ex)
@@ -2135,14 +2293,73 @@ namespace Ueditor
             ResizeEmbeddedTerminal();
         }
 
-        private void AppendTerminalOutput(string? text)
+        private void OnTerminalHostBorderPointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            FocusActiveTerminal();
+        }
+
+        private void FocusActiveTerminal()
+        {
+            if (_activeTerminalSession == null)
+            {
+                return;
+            }
+
+            FocusTerminalSession(_activeTerminalSession);
+        }
+
+        private void FocusTerminalSession(TerminalSession session)
+        {
+            if (!session.IsNative || session.WindowHandle == IntPtr.Zero)
+            {
+                TerminalInputBox.Focus(FocusState.Programmatic);
+                return;
+            }
+
+            try
+            {
+                IntPtr parentHwnd = WindowNative.GetWindowHandle(this);
+                ShowWindow(session.WindowHandle, SW_SHOW);
+                SetForegroundWindow(session.WindowHandle);
+                BringWindowToTop(session.WindowHandle);
+                SetActiveWindow(session.WindowHandle);
+                ResizeEmbeddedTerminal();
+
+                uint currentThread = GetCurrentThreadId();
+                uint terminalThread = GetWindowThreadProcessId(session.WindowHandle, IntPtr.Zero);
+                bool attached = terminalThread != 0 && terminalThread != currentThread && AttachThreadInput(currentThread, terminalThread, true);
+                try
+                {
+                    BringWindowToTop(session.WindowHandle);
+                    SetActiveWindow(session.WindowHandle);
+                    SetFocus(session.WindowHandle);
+                }
+                finally
+                {
+                    if (attached)
+                    {
+                        AttachThreadInput(currentThread, terminalThread, false);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to focus native terminal: {ex.Message}");
+            }
+        }
+
+        private void AppendTerminalOutput(TerminalSession session, string? text)
         {
             if (string.IsNullOrEmpty(text)) return;
+            session.Output.AppendLine(text);
 
             DispatcherQueue.TryEnqueue(() =>
             {
-                TerminalOutputTextBox.Text += text + Environment.NewLine;
-                TerminalOutputTextBox.Select(TerminalOutputTextBox.Text.Length, 0);
+                if (_activeTerminalSession == session && !session.IsNative)
+                {
+                    TerminalOutputTextBox.Text = session.Output.ToString();
+                    TerminalOutputTextBox.Select(TerminalOutputTextBox.Text.Length, 0);
+                }
             });
         }
 
@@ -2160,29 +2377,132 @@ namespace Ueditor
 
             try
             {
-                if (_terminalProcess == null || _terminalProcess.HasExited)
+                if (_activeTerminalSession == null)
                 {
-                    StartRedirectedTerminal(GetTerminalWorkingDirectory());
+                    OpenEmbeddedTerminal(GetTerminalWorkingDirectory());
+                    return;
                 }
 
-                _terminalProcess?.StandardInput.WriteLine(command);
-                _terminalProcess?.StandardInput.Flush();
+                if (_activeTerminalSession.Process == null || _activeTerminalSession.Process.HasExited)
+                {
+                    AppendTerminalOutput(_activeTerminalSession, "[터미널이 종료되었습니다]");
+                    return;
+                }
+
+                _activeTerminalSession.Process.StandardInput.WriteLine(command);
+                _activeTerminalSession.Process.StandardInput.Flush();
             }
             catch (Exception ex)
             {
-                AppendTerminalOutput($"명령 전송 실패: {ex.Message}");
+                if (_activeTerminalSession != null)
+                {
+                    AppendTerminalOutput(_activeTerminalSession, $"명령 전송 실패: {ex.Message}");
+                }
             }
         }
 
         private void OnCloseTerminalClick(object sender, RoutedEventArgs e)
         {
-            StopEmbeddedTerminal();
+            if (_activeTerminalSession != null)
+            {
+                CloseTerminalSession(_activeTerminalSession);
+            }
+        }
+
+        private void OnTerminalSessionsListSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (TerminalSessionsList.SelectedItem is TerminalSession session && _activeTerminalSession != session)
+            {
+                SetActiveTerminalSession(session);
+            }
+        }
+
+        private void EnsureTerminalPanelVisible()
+        {
+            TerminalPanel.Visibility = Visibility.Visible;
+            TerminalSplitter.Visibility = Visibility.Visible;
+            TerminalSplitterRow.Height = new GridLength(4);
+            TerminalPanelRow.Height = new GridLength(Math.Clamp(_lastTerminalHeight, 120, Math.Max(160, MainWorkGrid.ActualHeight - 180)));
+        }
+
+        private void HideTerminalPanelIfEmpty()
+        {
+            if (_terminalSessions.Count > 0)
+            {
+                return;
+            }
+
             TerminalPanel.Visibility = Visibility.Collapsed;
+            TerminalSplitter.Visibility = Visibility.Collapsed;
+            TerminalSplitterRow.Height = new GridLength(0);
             TerminalPanelRow.Height = new GridLength(0);
+            TerminalHostBorder.Visibility = Visibility.Collapsed;
+            TerminalOutputTextBox.Visibility = Visibility.Visible;
+            TerminalInputAreaGrid.Visibility = Visibility.Visible;
+            TerminalTitleText.Text = "터미널";
             if (TerminalToggleButton != null)
             {
                 TerminalToggleButton.IsChecked = false;
             }
+        }
+
+        private void SetActiveTerminalSession(TerminalSession session)
+        {
+            if (_activeTerminalSession != null && _activeTerminalSession.WindowHandle != IntPtr.Zero)
+            {
+                ShowWindow(_activeTerminalSession.WindowHandle, SW_HIDE);
+            }
+
+            _activeTerminalSession = session;
+            TerminalTitleText.Text = $"터미널 - {session.WorkingDirectory}";
+
+            if (TerminalSessionsList.SelectedItem != session)
+            {
+                TerminalSessionsList.SelectedItem = session;
+            }
+
+            if (session.IsNative && session.WindowHandle != IntPtr.Zero)
+            {
+                TerminalHostBorder.Visibility = Visibility.Visible;
+                TerminalOutputTextBox.Visibility = Visibility.Collapsed;
+                TerminalInputAreaGrid.Visibility = Visibility.Collapsed;
+                ShowWindow(session.WindowHandle, SW_SHOW);
+                ResizeEmbeddedTerminal();
+                FocusTerminalSession(session);
+                DispatcherQueue.TryEnqueue(async () =>
+                {
+                    await Task.Delay(50);
+                    if (_activeTerminalSession == session)
+                    {
+                        FocusTerminalSession(session);
+                    }
+                });
+            }
+            else
+            {
+                TerminalHostBorder.Visibility = Visibility.Collapsed;
+                TerminalOutputTextBox.Visibility = Visibility.Visible;
+                TerminalInputAreaGrid.Visibility = Visibility.Visible;
+                TerminalOutputTextBox.Text = session.Output.ToString();
+                TerminalInputBox.Focus(FocusState.Programmatic);
+            }
+        }
+
+        private void CloseTerminalSession(TerminalSession session)
+        {
+            int index = _terminalSessions.IndexOf(session);
+            StopTerminalSession(session);
+            _terminalSessions.Remove(session);
+
+            if (_terminalSessions.Count == 0)
+            {
+                _activeTerminalSession = null;
+                HideTerminalPanelIfEmpty();
+                return;
+            }
+
+            int nextIndex = Math.Clamp(index, 0, _terminalSessions.Count - 1);
+            SetActiveTerminalSession(_terminalSessions[nextIndex]);
         }
 
         private IEnumerable<ExplorerItem> CreateDirectoryItems(string parentPath)
@@ -3368,6 +3688,48 @@ namespace Ueditor
             return (comboBox.SelectedItem as string)?.Trim() ?? fallback.Trim();
         }
 
+        private static DropDownButton CreateColorDropdown(string title, Windows.UI.Color initialColor, out ColorPicker colorPicker)
+        {
+            var swatch = new Border
+            {
+                Width = 120,
+                Height = 22,
+                CornerRadius = new CornerRadius(3),
+                BorderThickness = new Thickness(1),
+                BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(120, 128, 128, 128)),
+                Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(initialColor)
+            };
+
+            var picker = new ColorPicker
+            {
+                Color = initialColor,
+                IsAlphaEnabled = false,
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+            colorPicker = picker;
+
+            var flyoutContent = new StackPanel
+            {
+                Width = 320,
+                Spacing = 8,
+                Padding = new Thickness(8)
+            };
+            flyoutContent.Children.Add(new TextBlock { Text = title, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            flyoutContent.Children.Add(picker);
+
+            picker.ColorChanged += (_, __) =>
+            {
+                swatch.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(picker.Color);
+            };
+
+            return new DropDownButton
+            {
+                Content = swatch,
+                Flyout = new Flyout { Content = flyoutContent },
+                HorizontalAlignment = HorizontalAlignment.Left
+            };
+        }
+
         private static IReadOnlyList<string> GetInstalledFontFamilies()
         {
             if (_installedFontFamiliesCache != null)
@@ -4206,12 +4568,20 @@ namespace Ueditor
         private bool _isClosingConfirmed = false;
         private async void OnAppWindowClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
         {
-            if (_isClosingConfirmed) return;
+            if (_isClosingConfirmed)
+            {
+                await SaveUiLayoutSettingsAsync();
+                return;
+            }
 
             var dirtyTabs = _tabs.Where(t => t.IsDirty).ToList();
-            if (dirtyTabs.Count == 0) return;
+            if (dirtyTabs.Count > 0)
+            {
+                args.Cancel = true; // Prevent immediate close before awaiting UI work
+            }
 
-            args.Cancel = true; // Prevent immediate close
+            await SaveUiLayoutSettingsAsync();
+            if (dirtyTabs.Count == 0) return;
 
             var dialog = new ContentDialog
             {
@@ -4709,6 +5079,27 @@ namespace Ueditor
         }
 
         #endregion
+    }
+
+    public class TerminalSession
+    {
+        private static int _nextNumber = 1;
+
+        public TerminalSession(string workingDirectory)
+        {
+            Number = _nextNumber++;
+            WorkingDirectory = workingDirectory;
+            WindowTitle = $"Ueditor_Console_{Process.GetCurrentProcess().Id}_{Guid.NewGuid():N}";
+        }
+
+        public int Number { get; }
+        public string WorkingDirectory { get; }
+        public string WindowTitle { get; }
+        public string DisplayTitle => $"pwsh {Number}";
+        public Process? Process { get; set; }
+        public IntPtr WindowHandle { get; set; } = IntPtr.Zero;
+        public bool IsNative { get; set; }
+        public StringBuilder Output { get; } = new StringBuilder();
     }
 
     public class RecentFileItem

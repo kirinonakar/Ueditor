@@ -20,8 +20,15 @@ namespace Ueditor.Core.Models
         public string MarkdownToolbarBackgroundColor { get; set; } = string.Empty;
         public bool AutoSave { get; set; } = false;
         public string PreviewMode { get; set; } = "Markdown"; // "Markdown", "HTML", "LaTeX"
+        public bool LeftSidebarVisible { get; set; } = true;
+        public bool RightSidebarVisible { get; set; } = true;
         public bool DefaultMarkdownEnabled { get; set; } = true;
         public bool DefaultMarkdownToolbarEnabled { get; set; } = false;
+        public int WindowX { get; set; } = -1;
+        public int WindowY { get; set; } = -1;
+        public int WindowWidth { get; set; } = 1200;
+        public int WindowHeight { get; set; } = 800;
+        public double TerminalPanelHeight { get; set; } = 220;
 
         // LLM Config
         public string LlmProvider { get; set; } = "OpenAI"; // "OpenAI" or "Gemini"

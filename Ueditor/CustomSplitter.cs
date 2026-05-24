@@ -10,6 +10,8 @@ namespace Ueditor
     {
         private Brush? _originalBackground;
         private double _normalWidth;
+        private double _normalHeight;
+        private bool _isHorizontalSplitter;
 
         public CustomSplitter()
         {
@@ -19,9 +21,21 @@ namespace Ueditor
 
         private void CustomSplitter_PointerEntered(object sender, PointerRoutedEventArgs e)
         {
-            this.ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.SizeWestEast);
+            _isHorizontalSplitter = ActualWidth > ActualHeight * 4;
+            this.ProtectedCursor = InputSystemCursor.Create(_isHorizontalSplitter
+                ? InputSystemCursorShape.SizeNorthSouth
+                : InputSystemCursorShape.SizeWestEast);
             _normalWidth = this.Width;
-            this.Width = 6;
+            _normalHeight = this.Height;
+
+            if (_isHorizontalSplitter)
+            {
+                this.Height = 6;
+            }
+            else
+            {
+                this.Width = 6;
+            }
 
             if (this.Background != null && _originalBackground == null)
             {
@@ -38,7 +52,14 @@ namespace Ueditor
         private void CustomSplitter_PointerExited(object sender, PointerRoutedEventArgs e)
         {
             this.ProtectedCursor = null;
-            if (_normalWidth > 0)
+            if (_isHorizontalSplitter)
+            {
+                if (_normalHeight > 0)
+                {
+                    this.Height = _normalHeight;
+                }
+            }
+            else if (_normalWidth > 0)
             {
                 this.Width = _normalWidth;
             }

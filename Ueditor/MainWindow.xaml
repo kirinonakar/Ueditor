@@ -84,6 +84,7 @@
                     Grid.Row="2"
                     Height="32"
                     Padding="0"
+                    HorizontalContentAlignment="Right"
                     Visibility="Collapsed"
                     OverflowButtonVisibility="Collapsed"
                     DefaultLabelPosition="Collapsed"
@@ -114,6 +115,7 @@
             </CommandBar.Resources>
             <CommandBar.Content>
                 <ScrollViewer Height="32"
+                              HorizontalAlignment="Right"
                               HorizontalScrollBarVisibility="Auto"
                               HorizontalScrollMode="Auto"
                               VerticalScrollBarVisibility="Disabled"
@@ -132,7 +134,9 @@
                             <TextBlock Text="U" TextDecorations="Underline" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                         </Button>
                         <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownHighlightClick" ToolTipService.ToolTip="형광펜">
-                            <TextBlock Text="HL" FontSize="9" LineHeight="12" FontWeight="Bold" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                            <Border Width="21" Height="16" CornerRadius="2" Background="#FFFFD54F" BorderBrush="#FFE0A800" BorderThickness="1">
+                                <TextBlock Text="HL" Foreground="#FF202020" FontSize="9" LineHeight="12" FontWeight="Bold" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
+                            </Border>
                         </Button>
                         <Border Width="1" Height="18" Margin="5,0" Background="{ThemeResource DividerStrokeColorDefaultBrush}" VerticalAlignment="Center"/>
                         <Button Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnMarkdownUlClick" ToolTipService.ToolTip="글머리 목록">
@@ -486,6 +490,7 @@
             <Grid Grid.Column="2" Background="{ThemeResource SystemControlBackgroundAltHighBrush}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
+                    <RowDefinition x:Name="TerminalSplitterRow" Height="0"/>
                     <RowDefinition x:Name="TerminalPanelRow" Height="0"/>
                 </Grid.RowDefinitions>
                 <TabView x:Name="EditorTabView"
@@ -498,23 +503,39 @@
                         <!-- Dynamic tabs go here -->
                     </TabView.TabItems>
                 </TabView>
-                <Grid x:Name="TerminalPanel" Grid.Row="1" Visibility="Collapsed" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}">
+                <local:CustomSplitter x:Name="TerminalSplitter"
+                                      Grid.Row="1"
+                                      Height="4"
+                                      HorizontalAlignment="Stretch"
+                                      Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                                      Visibility="Collapsed"
+                                      PointerPressed="OnTerminalSplitterPointerPressed"
+                                      PointerMoved="OnTerminalSplitterPointerMoved"
+                                      PointerReleased="OnTerminalSplitterPointerReleased"/>
+                <Grid x:Name="TerminalPanel" Grid.Row="2" Visibility="Collapsed" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="180"/>
+                    </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <Grid Grid.Row="0" Padding="8,5,8,5" ColumnSpacing="8">
+                    <Grid Grid.Row="0" Grid.ColumnSpan="2" Padding="8,5,8,5" ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="TerminalTitleText" Text="터미널" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
-                        <Button Grid.Column="1" Content="닫기" Click="OnCloseTerminalClick" Padding="10,3,10,3"/>
+                        <Button Grid.Column="1" Content="새 터미널" Click="OnNewTerminalClick" Padding="10,3,10,3"/>
+                        <Button Grid.Column="2" Content="닫기" Click="OnCloseTerminalClick" Padding="10,3,10,3"/>
                     </Grid>
-                    <Border x:Name="TerminalHostBorder" Grid.Row="1" Grid.RowSpan="2" Background="Black" Visibility="Collapsed" SizeChanged="OnTerminalHostBorderSizeChanged"/>
+                    <Border x:Name="TerminalHostBorder" Grid.Row="1" Grid.Column="0" Background="Black" Visibility="Collapsed" SizeChanged="OnTerminalHostBorderSizeChanged" PointerPressed="OnTerminalHostBorderPointerPressed"/>
                     <TextBox x:Name="TerminalOutputTextBox"
                              Grid.Row="1"
+                             Grid.Column="0"
                              IsReadOnly="True"
                              AcceptsReturn="True"
                              TextWrapping="NoWrap"
@@ -525,7 +546,7 @@
                              Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                              ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
-                    <Grid x:Name="TerminalInputAreaGrid" Grid.Row="2" Padding="8" ColumnSpacing="8">
+                    <Grid x:Name="TerminalInputAreaGrid" Grid.Row="2" Grid.Column="0" Padding="8" ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
@@ -538,6 +559,19 @@
                                  Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"
                                  KeyDown="OnTerminalInputKeyDown"/>
                     </Grid>
+                    <Border Grid.Row="1" Grid.Column="1" Grid.RowSpan="2" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1,0,0,0" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}">
+                        <ListView x:Name="TerminalSessionsList"
+                                  SelectionMode="Single"
+                                  SelectionChanged="OnTerminalSessionsListSelectionChanged">
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Padding="8,6,8,6">
+                                        <TextBlock Text="{Binding DisplayTitle}" TextTrimming="CharacterEllipsis"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Border>
                 </Grid>
             </Grid>
 
