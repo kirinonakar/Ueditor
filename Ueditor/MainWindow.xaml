@@ -57,7 +57,7 @@
             <controls:LeftSidebarPane x:Name="LeftSidebarTabView" Grid.Column="0" />
 
             <!-- B. Sidebar Splitter -->
-            <local:CustomSplitter x:Name="LeftSplitter" Grid.Column="1" Width="2" HorizontalAlignment="Stretch" Background="{ThemeResource SidebarBorderBrush}"
+            <local:CustomSplitter x:Name="LeftSplitter" Grid.Column="1" Width="2" HorizontalAlignment="Stretch" Background="{ThemeResource SplitterBackgroundBrush}"
                                   PointerPressed="OnLeftSplitterPointerPressed"
                                   PointerMoved="OnLeftSplitterPointerMoved"
                                   PointerReleased="OnLeftSplitterPointerReleased"/>
@@ -66,7 +66,7 @@
             <controls:EditorWorkspacePane x:Name="EditorWorkspace" Grid.Column="2"/>
 
             <!-- D. Preview Splitter -->
-            <local:CustomSplitter x:Name="RightSplitter" Grid.Column="3" Width="2" HorizontalAlignment="Stretch" Background="{ThemeResource SidebarBorderBrush}"
+            <local:CustomSplitter x:Name="RightSplitter" Grid.Column="3" Width="2" HorizontalAlignment="Stretch" Background="{ThemeResource SplitterBackgroundBrush}"
                                   PointerPressed="OnRightSplitterPointerPressed"
                                   PointerMoved="OnRightSplitterPointerMoved"
                                   PointerReleased="OnRightSplitterPointerReleased"/>

@@ -29,7 +29,7 @@ namespace Ueditor
                 _originalBackground = this.Background;
             }
 
-            if (Application.Current.Resources.TryGetValue("SystemControlBackgroundAccentBrush", out var accentBrush) && accentBrush is Brush brush)
+            if (Application.Current.Resources.TryGetValue("SplitterHoverBackgroundBrush", out var hoverBrush) && hoverBrush is Brush brush)
             {
                 this.Background = brush;
             }

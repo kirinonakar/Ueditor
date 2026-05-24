@@ -17,6 +17,8 @@
                     <SolidColorBrush x:Key="SidebarBorderBrush" Color="#E5E7EB"/>
                     <SolidColorBrush x:Key="StatusBarBackgroundBrush" Color="#F3F4F6"/>
                     <SolidColorBrush x:Key="StatusBarForegroundBrush" Color="#1F2937"/>
+                    <SolidColorBrush x:Key="SplitterBackgroundBrush" Color="#E0E2E6"/>
+                    <SolidColorBrush x:Key="SplitterHoverBackgroundBrush" Color="#C8CCD0"/>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#1E1E1E"/>
@@ -28,6 +30,8 @@
                     <SolidColorBrush x:Key="SidebarBorderBrush" Color="#3E3E3E"/>
                     <SolidColorBrush x:Key="StatusBarBackgroundBrush" Color="#252526"/>
                     <SolidColorBrush x:Key="StatusBarForegroundBrush" Color="#FFFFFF"/>
+                    <SolidColorBrush x:Key="SplitterBackgroundBrush" Color="#2A2A2A"/>
+                    <SolidColorBrush x:Key="SplitterHoverBackgroundBrush" Color="#404040"/>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
             <ResourceDictionary.MergedDictionaries>
