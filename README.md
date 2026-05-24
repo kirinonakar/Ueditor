@@ -23,53 +23,45 @@
 
 **Ueditor** is a high-performance, elegant, and modern desktop text editor shell built for Windows. It marries the robust, native desktop capabilities of **WinUI 3 (.NET 10.0)** with the rendering flexibility of a **WebView2-based hybrid core**. 
 
-Designed for developers, writers, and power users, Ueditor provides a fluid, distraction-free environment that operates fully offline, requiring no external CDNs. It features standard workspace tools like a **live Markdown/HTML/LaTeX previewer**, a **built-in terminal**, **comprehensive Git integration**, **multi-provider secure AI assistance**, and a dedicated **virtualized Large File Mode** capable of opening 200MB+ files seamlessly.
+Designed for developers, writers, and power users, Ueditor provides a fluid, distraction-free environment that operates fully offline, requiring no external CDNs. It features standard workspace tools like a **live Markdown/HTML/LaTeX previewer**, a **built-in terminal**, **comprehensive Git integration**, **multi-provider secure AI assistance**, and a **virtualized editor core** capable of opening and editing files from small snippets to 200MB+ logs seamlessly.
 
 ---
 
 ## ✨ Key Features
 
-### 🖥️ Native Premium Windows UI
-*   **Mica Backdrop & Dark Mode:** Built-in support for fluid native Windows themes, using a high-fidelity Mica backdrop (`MicaBackdrop` Base) for a premium operating system look and feel.
-*   **Responsive Multi-Pane Splitters:** Seamlessly adjust your workspace with interactive sidebars, preview sections, and terminal splitters using custom drag-to-resize C# split-controls.
-*   **Custom Title Bar:** Clean native Windows title bar integration for standard control interactions.
-*   **Always on Top & Sticky Notes:** Pin your editor window or launch quick sticky notes directly from the toolbar for rapid prototyping.
-
-### 📝 Hybrid Monaco-Bridge Editor
-*   **WebView2 Editor Core:** A highly configurable, local-resource-based textarea editor that emulates the behavior of Monaco.
-*   **C# IPC MonacoBridge:** Inter-process communication lets C# seamlessly sync selection states, editor contents, font styles, word wrap settings, and trigger markdown formatting commands in real-time.
-*   **Rich Markdown Toolbar:** Apply bold, italic, underline, highlight, quote, list, tables, and color styling to your text with a single click.
-
-### 👁️ Built-in Real-Time Preview
-*   **Unified Live Renderer:** Preview your content side-by-side using the right preview pane (`preview.html`).
-*   **Multiple Modes:** Easily toggle rendering output modes between **Markdown**, **HTML Source**, and **LaTeX Blocks** (powered by a local **KaTeX** bundle).
-*   **Theme Synchronization:** The preview automatically inherits the system theme, editor font, and colors.
-*   **External View:** Open your rendered preview in an external default web browser with a single tap.
-
-### ⚡ High-Performance Large File Mode
-*   **Virtual Viewport Scrolling & Editing:** When large files (above the threshold) are detected, Ueditor switches into a virtual scrolling view (`large-viewer.html`). **You can edit any line by simply double-clicking it.**
-*   **Line-Offset Indexing:** Scans files to map line positions instantly, rendering only the lines visible in the viewport, which keeps the WinUI thread completely responsive.
+### 📝 Virtualized Editor Core
+*   **Massive File Support:** Instantly open and edit extremely large files (200MB+ logs or source code) with zero lag, keeping the editor highly responsive.
+*   **Virtual Scrolling:** Renders only visible viewport lines plus an overscan buffer (`editor.html`), keeping DOM elements minimal and rendering fast.
+*   **Inline Editing:** Smooth, direct text editing synchronized with the high-performance C# `VirtualTextModel` backend in real-time.
 *   **Streaming Search:** Search inside massive files efficiently without loading the entire contents into memory.
+*   **Monaco-Bridge IPC:** Inter-process communication automatically syncs selection, font styles, word wrap, and formatting.
+*   **Rich Toolbar:** Quick-apply styling (bold, italic, underline, list, color, tables) to selected text.
 
-### 🤖 Secure Integrated AI Assistant
-*   **Multi-Provider Support:** Fully integrates with **Gemini**, **OpenAI**, and local **LM Studio** endpoints.
-*   **Windows Credential Storage:** API keys are stored securely using the native Windows Generic Credentials manager via the `CredentialService`.
-*   **Selection-Context Quick Actions:** Select text in the active tab to instantly invoke context-aware AI prompts such as **Explain**, **Summarize**, **Refactor**, **Check Grammar**, or **Fix Code**.
+### 🖥️ Native Premium Windows UI
+*   **Mica Backdrop & Dark Mode:** Native Windows themes using a high-fidelity Mica backdrop (`MicaBackdrop` Base).
+*   **Multi-Pane Splitters:** Easily adjust sidebars, preview sections, and terminal panes via interactive C# split-controls.
+*   **Always on Top & Sticky Notes:** Pin your editor window or launch quick sticky notes directly from the toolbar.
+
+### 👁️ Real-Time Preview
+*   **Live Renderer:** View Markdown, HTML, or LaTeX (powered by KaTeX) in a split view or an external browser.
+*   **Theme Sync:** Automatically inherits editor fonts, colors, and system theme.
+
+### 🤖 Secure AI Assistant
+*   **Multi-Provider:** Connect with Gemini, OpenAI, or local LM Studio endpoints.
+*   **Secure Storage:** API keys are securely saved via native Windows Credential Manager.
+*   **Context Actions:** Quick AI actions (Explain, Refactor, Summarize, Fix) on selected text.
 
 ### 💻 Embedded Native Terminal
-*   **Powershell / CMD Integration:** Seamlessly launch and switch terminal sessions directly beneath your editor canvas using the `TerminalPane` control.
-*   **Directory Synchronization:** Automatically matches the terminal's working directory with the current workspace or file explorer folder.
+*   **PowerShell & CMD:** Launch terminal sessions directly beneath your editor canvas.
+*   **Path Syncing:** Automatically matches the terminal's working directory with the active workspace.
 
-### 🌿 Full Git Integration Panel
-*   **Active Status Tracker:** Detects repository configurations on-the-fly and monitors branch statuses.
-*   **Interactive Sidebar:** Switch branches, view staged/unstaged changes, toggle staging per-file or globally, and execute commits.
-*   **Remote Synchronization:** Perform standard Git push actions directly from the side panel.
-*   **Commit History Viewer:** Visually inspect your repository's recent commit history list.
+### 🌿 Git Panel
+*   **Status Tracker:** View staged/unstaged changes, stage/unstage files, execute commits, and push to remotes.
+*   **History Viewer:** Visual repository branch and commit history logs.
 
-### 🔍 Advanced Search & Replace
-*   **Folder-Wide Search:** Perform fast multi-file lookups with robust filtering.
-*   **Text & Pattern Matching:** Supports Match Case, Whole Word, and complex **Regex** search and replacements.
-*   **Dynamic Results List:** View matches instantly with file names and lines, and double-click to jump straight to the source.
+### 🔍 Advanced Search
+*   **Global Lookup:** Folder-wide multi-file search with Match Case, Whole Word, and Regex filtering.
+*   **Jump-to-Source:** Double-click search results to open the file and focus the exact line.
 
 ---
 
@@ -78,10 +70,11 @@ Designed for developers, writers, and power users, Ueditor provides a fluid, dis
 Ueditor is built with clean, modular separation of concerns. Below is a high-level overview of the module hierarchy:
 
 *   **App Shell (`MainWindow`):** Owns the main container grid, toolbar components, side tab views, editor canvas, previewer splitters, and status controls.
-*   **Editor Module (`MonacoBridge`):** Interfaces C# with the local HTML5/JS editor. Can easily be updated to run a fully bundled local Monaco Editor package without rewriting core shell bindings.
+*   **Editor Model Module (`VirtualTextModel`):** Owns the line-based text model, range/edit APIs, search, encoding-aware file loading, and streaming save. It keeps editor state separate from the UI.
+*   **Editor Bridge Module (`MonacoBridge`):** Interfaces C# with the local HTML5/JS editor (`editor.html`). Handles IPC communication, viewport syncing, and line editing.
 *   **Terminal Module (`TerminalPane`):** Manages native console host redirection and UI integration.
 *   **Core Services:**
-    *   `FileService`: Manages line index parsing, large file offsets, and I/O pipelines.
+    *   `FileService`: Manages file loading, saving, and line-offset indexing.
     *   `GitService`: Communicates with the local Git CLI to map states, staging, and history.
     *   `LLMService`: Handles chat queries and handles providers (`GeminiProvider`, `OpenAIProvider`, `LMStudioProvider`).
     *   `CredentialService`: Securely hooks into Windows Credential Manager to protect API secrets.
@@ -112,7 +105,8 @@ Ueditor/
     │   ├── Models/            # Domain models (Settings, Tabs, Terminal sessions)
     │   └── Services/          # Service layer (Git, File, LLM, Credentials)
     ├── Editor/
-    │   └── MonacoBridge.cs    # C# WebView2 Javascript bridge
+    │   ├── MonacoBridge.cs    # C# WebView2 Javascript bridge
+    │   └── VirtualTextModel.cs # Virtual text model
     └── WebResources/          # Local offline editor, preview, and KaTeX assets
 ```
 

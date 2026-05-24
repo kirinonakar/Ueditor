@@ -249,6 +249,17 @@
         .token-punctuation { color: var(--token-punctuation); }
         .token-tag { color: var(--token-tag); }
         .token-attr { color: var(--token-attr); }
+
+        @media print {
+            html, body { background: #fff !important; overflow: visible !important; }
+            .line-number { display: none !important; }
+            .line-row { grid-template-columns: minmax(0, 1fr) !important; }
+            .line-text { color: #000 !important; }
+            #find-panel { display: none !important; }
+            #editor-host { height: auto !important; overflow: visible !important; }
+            #scroll-container { overflow: visible !important; height: auto !important; position: relative !important; }
+            #viewport { position: relative !important; transform: none !important; }
+        }
     </style>
 </head>
 <body>
@@ -1395,6 +1406,30 @@
             requestLines(Math.max(1, safeLine - state.overscan), state.overscan * 2 + 1);
             queueRender(true);
             setTimeout(() => focusLine(safeLine, Math.max(0, indexOfMatch || 0)), 40);
+        }
+
+        function printDocument(fullText) {
+            var printContainer = document.getElementById('print-container');
+            if (!printContainer) {
+                printContainer = document.createElement('div');
+                printContainer.id = 'print-container';
+                document.body.appendChild(printContainer);
+            }
+            printContainer.textContent = fullText;
+
+            var editorHost = document.getElementById('editor-host');
+            printContainer.style.cssText = 'display:block; font-family: ' + getComputedStyle(document.documentElement).getPropertyValue('--font-family').trim() + '; font-size: ' + getComputedStyle(document.documentElement).getPropertyValue('--font-size').trim() + '; white-space: pre; padding: 20px; color: #000; background: #fff; margin: 0; position: absolute; inset: 0; z-index: 1000; overflow: auto;';
+            editorHost.style.display = 'none';
+
+            window.onafterprint = function () {
+                editorHost.style.display = '';
+                printContainer.style.cssText = 'display:none;';
+                window.onafterprint = null;
+            };
+
+            setTimeout(function () {
+                window.print();
+            }, 100);
         }
 
         viewport.addEventListener('input', event => {

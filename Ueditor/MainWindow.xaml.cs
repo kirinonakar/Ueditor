@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Microsoft.Windows.ApplicationModel.Resources;
@@ -4553,10 +4554,14 @@ namespace Ueditor
         {
             if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
                 activeTabItem.Tag is string tabId &&
+                _editorSessions.TryGetValue(tabId, out var session) &&
                 _tabBridges.TryGetValue(tabId, out var bridgeGroup) &&
                 bridgeGroup.WebView.CoreWebView2 != null)
             {
-                await bridgeGroup.WebView.CoreWebView2.ExecuteScriptAsync("window.print()");
+                string fullText = session.GetText();
+                string jsonText = System.Text.Json.JsonSerializer.Serialize(fullText);
+                await bridgeGroup.WebView.CoreWebView2.ExecuteScriptAsync(
+                    $"printDocument({jsonText})");
             }
         }
 
