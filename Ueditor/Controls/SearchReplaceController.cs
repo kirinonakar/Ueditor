@@ -129,15 +129,15 @@ namespace Ueditor.Controls
             }
             catch (ArgumentException ex)
             {
-                _showError("치환 실패", $"정규식이 올바르지 않습니다.\n{ex.Message}");
+                _showError("바꾸기 실패", $"정규식이 올바르지 않습니다.\n{ex.Message}");
                 return;
             }
 
             var dialog = new ContentDialog
             {
-                Title = "전체 치환 경고",
-                Content = $"{_viewModel.SearchResults.Count}개의 일치 항목을 '{replace}'(으)로 일괄 치환하시겠습니까?",
-                PrimaryButtonText = "치환 실행",
+                Title = "전체 바꾸기 경고",
+                Content = $"{_viewModel.SearchResults.Count}개의 일치 항목을 '{replace}'(으)로 일괄 바꾸기하시겠습니까?",
+                PrimaryButtonText = "바꾸기 실행",
                 CloseButtonText = "취소",
                 XamlRoot = _xamlRootProvider()
             };
@@ -182,7 +182,7 @@ namespace Ueditor.Controls
             }
 
             _viewModel.SearchResults.Clear();
-            _showError("치환 완료", "모든 매칭 항목의 치환 처리가 완료되었습니다.");
+            _showError("바꾸기 완료", "모든 매칭 항목의 바꾸기 처리가 완료되었습니다.");
             await _refreshGitStatusAsync();
         }
 

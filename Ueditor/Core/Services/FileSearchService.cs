@@ -164,7 +164,7 @@ namespace Ueditor.Core.Services
                     File.Delete(tempPath);
                 }
 
-                throw new IOException($"대용량 치환 중 실패: {ex.Message}", ex);
+                throw new IOException($"대용량 바꾸기 중 실패: {ex.Message}", ex);
             }
         }
 

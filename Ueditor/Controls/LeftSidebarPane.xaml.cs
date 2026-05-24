@@ -128,14 +128,14 @@ namespace Ueditor.Controls
 
             RecentFilesHeaderText.Text = getString("RecentFilesHeader", "최근 파일");
 
-            SearchHeaderText.Text = getString("SearchHeader", "폴더 전체 검색 및 치환");
+            SearchHeaderText.Text = getString("SearchHeader", "폴더 전체 검색 및 바꾸기");
             SearchQueryInput.PlaceholderText = getString("SearchPlaceholder", "검색어 입력...");
-            ReplaceQueryInput.PlaceholderText = getString("ReplacePlaceholder", "치환할 단어 입력...");
+            ReplaceQueryInput.PlaceholderText = getString("ReplacePlaceholder", "바꿀 단어 입력...");
             ToolTipService.SetToolTip(SearchMatchCaseToggle, getString("SearchMatchCaseTooltip", "대소문자 구분"));
             ToolTipService.SetToolTip(SearchWholeWordToggle, getString("SearchWholeWordTooltip", "단어 단위"));
             ToolTipService.SetToolTip(SearchRegexToggle, getString("SearchRegexTooltip", "정규식 검색"));
             SearchAllButton.Content = getString("SearchAllFiles", "전체 검색");
-            ReplaceAllButton.Content = getString("ReplaceAllFiles", "모두 치환");
+            ReplaceAllButton.Content = getString("ReplaceAllFiles", "모두 바꾸기");
 
             GitHeaderText.Text = getString("GitRepoHeader", "Git 저장소 관리");
             GitBranchesCombo.PlaceholderText = getString("GitBranchPlaceholder", "브랜치 목록");

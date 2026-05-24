@@ -306,13 +306,13 @@
     <value>선택 영역: {0} 글자 수 (약 {1} 토큰)</value>
   </data>
   <data name="SearchHeader" xml:space="preserve">
-    <value>폴더 전체 검색 및 치환</value>
+    <value>폴더 전체 검색 및 바꾸기</value>
   </data>
   <data name="SearchPlaceholder" xml:space="preserve">
     <value>검색어 입력...</value>
   </data>
   <data name="ReplacePlaceholder" xml:space="preserve">
-    <value>치환할 단어 입력...</value>
+    <value>바꿀 단어 입력...</value>
   </data>
   <data name="SearchMatchCaseTooltip" xml:space="preserve">
     <value>대소문자 구분</value>
@@ -327,7 +327,7 @@
     <value>전체 검색</value>
   </data>
   <data name="ReplaceAllFiles" xml:space="preserve">
-    <value>모두 치환</value>
+    <value>모두 바꾸기</value>
   </data>
   <data name="RecentFilesHeader" xml:space="preserve">
     <value>최근 열린 파일</value>
