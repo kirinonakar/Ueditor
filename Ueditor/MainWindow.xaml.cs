@@ -1,16 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Text;
-using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.Web.WebView2.Core;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Graphics;
@@ -19,7 +16,9 @@ using WinRT.Interop;
 using Ueditor.Core.Interfaces;
 using Ueditor.Core.Services;
 using Ueditor.Core.Models;
+using Ueditor.Controls;
 using Ueditor.Editor;
+using Ueditor.ViewModels;
 
 namespace Ueditor
 {
@@ -31,25 +30,21 @@ namespace Ueditor
         private readonly ILLMService _llmService;
         private readonly IGitService _gitService;
         private readonly ISnippetService _snippetService;
-        private readonly ObservableCollection<FavoriteItem> _favoritesList = new ObservableCollection<FavoriteItem>();
-        private readonly ObservableCollection<RecentFileItem> _recentFilesList = new ObservableCollection<RecentFileItem>();
-        private readonly string _recentFilesFilePath;
-        private readonly ObservableCollection<SnippetItem> _snippetsList = new ObservableCollection<SnippetItem>();
-        private readonly ObservableCollection<GitFileItem> _gitFilesList = new ObservableCollection<GitFileItem>();
-        private readonly ObservableCollection<SearchResultItem> _searchResultsList = new ObservableCollection<SearchResultItem>();
-        private readonly ObservableCollection<ExplorerItem> _explorerItems = new ObservableCollection<ExplorerItem>();
+        private readonly ILanguageDetectionService _languageDetectionService;
+        private readonly IRecentFilesService _recentFilesService;
+        private readonly IFileSearchService _fileSearchService;
+        private readonly IStickyNoteService _stickyNoteService;
+        private readonly ISettingsDialogService _settingsDialogService;
+        private readonly IUiPersonalizationService _uiPersonalizationService;
+        private readonly MainWindowViewModel _viewModel = new MainWindowViewModel();
         private string _lastSelectionText = string.Empty;
         private string _lastSearchQuery = string.Empty;
         private string _currentFolderPath = string.Empty;
         private string _currentRepoPath = string.Empty;
         private string _llmFileContextText = string.Empty;
-        private Window? _stickyNoteWindow;
-        private TextBox? _stickyNoteTextBox;
-        private bool _isTopMost = false;
         private bool _isSyncingEncodingCombo = false;
         
         // Dynamic tabs collection
-        private readonly ObservableCollection<OpenedTab> _tabs = new ObservableCollection<OpenedTab>();
         private readonly Dictionary<string, (WebView2 WebView, MonacoBridge Bridge)> _tabBridges = 
             new Dictionary<string, (WebView2 WebView, MonacoBridge Bridge)>();
 
@@ -71,10 +66,8 @@ namespace Ueditor
         private double _lastExplorerWidth = 260;
         private double _lastPreviewWidth = 400;
         private double _lastTerminalHeight = 220;
-        private string _lastTextColorHex = "#E53935";
         private const double ExplorerPanelMinWidth = 150;
         private const double PreviewPanelMinWidth = 150;
-        private static IReadOnlyList<string>? _installedFontFamiliesCache;
 
         // Split Editor State
         private TabView? _activeTabView;
@@ -86,6 +79,54 @@ namespace Ueditor
         private bool _isVerticalSplit = true;
         private enum SplitMode { None, Vertical, Horizontal }
         private SplitMode _currentSplitMode = SplitMode.None;
+
+        private ToggleButton LeftPanelToggle => StatusBarPane.LeftPanelToggleButton;
+        private ToggleButton RightPanelToggle => StatusBarPane.RightPanelToggleButton;
+        private TextBlock StatusLine => StatusBarPane.LineText;
+        private TextBlock StatusCol => StatusBarPane.ColumnText;
+        private TextBlock StatusFileStats => StatusBarPane.FileStatsText;
+        private TextBlock StatusGitBranch => StatusBarPane.GitBranchText;
+        private TextBlock StatusMode => StatusBarPane.ModeText;
+        private TextBlock StatusLanguage => StatusBarPane.LanguageText;
+        private ComboBox StatusEncodingCombo => StatusBarPane.EncodingCombo;
+        private Grid ExplorerSidebarPage => LeftSidebarTabView.ExplorerPage;
+        private Grid FavoritesSidebarPage => LeftSidebarTabView.FavoritesPage;
+        private Grid SnippetsSidebarPage => LeftSidebarTabView.SnippetsPage;
+        private Grid GitSidebarPage => LeftSidebarTabView.GitPage;
+        private Grid SearchSidebarPage => LeftSidebarTabView.SearchPage;
+        private Grid RecentSidebarPage => LeftSidebarTabView.RecentPage;
+        private ToggleButton ExplorerActivityButton => LeftSidebarTabView.ExplorerActivity;
+        private ToggleButton FavoritesActivityButton => LeftSidebarTabView.FavoritesActivity;
+        private ToggleButton SnippetsActivityButton => LeftSidebarTabView.SnippetsActivity;
+        private ToggleButton GitActivityButton => LeftSidebarTabView.GitActivity;
+        private ToggleButton SearchActivityButton => LeftSidebarTabView.SearchActivity;
+        private ToggleButton RecentActivityButton => LeftSidebarTabView.RecentActivity;
+        private TextBlock ExplorerStatusText => LeftSidebarTabView.ExplorerStatus;
+        private TextBlock FavoritesHeaderText => LeftSidebarTabView.FavoritesHeader;
+        private TextBlock SnippetsHeaderText => LeftSidebarTabView.SnippetsHeader;
+        private Button AddSnippetButton => LeftSidebarTabView.AddSnippet;
+        private ListView FileListView => LeftSidebarTabView.FileList;
+        private ListView FavoritesListView => LeftSidebarTabView.FavoritesList;
+        private ListView RecentFilesListView => LeftSidebarTabView.RecentFilesList;
+        private ListView SnippetsListView => LeftSidebarTabView.SnippetsList;
+        private ListView GitChangedFilesList => LeftSidebarTabView.GitChangedFiles;
+        private ListView GitHistoryList => LeftSidebarTabView.GitHistory;
+        private ListView SearchResultsList => LeftSidebarTabView.SearchResults;
+        private TextBlock GitPanelBranchText => LeftSidebarTabView.GitPanelBranch;
+        private ComboBox GitBranchesCombo => LeftSidebarTabView.GitBranches;
+        private TextBox GitCommitMessageInput => LeftSidebarTabView.GitCommitMessage;
+        private TextBox SearchQueryInput => LeftSidebarTabView.SearchQuery;
+        private TextBox ReplaceQueryInput => LeftSidebarTabView.ReplaceQuery;
+        private ToggleButton SearchMatchCaseToggle => LeftSidebarTabView.SearchMatchCase;
+        private ToggleButton SearchWholeWordToggle => LeftSidebarTabView.SearchWholeWord;
+        private ToggleButton SearchRegexToggle => LeftSidebarTabView.SearchRegex;
+        private TabView RightTabView => PreviewGrid.RightTabs;
+        private ComboBox PreviewModeCombo => PreviewGrid.PreviewMode;
+        private WebView2 PreviewWebView => PreviewGrid.PreviewWebViewControl;
+        private TextBlock LlmOutputText => PreviewGrid.LlmOutput;
+        private TextBlock SelectionStatsText => PreviewGrid.SelectionStats;
+        private TextBox LlmFileContextInput => PreviewGrid.LlmFileContext;
+        private TextBox LlmCustomPromptInput => PreviewGrid.LlmCustomPrompt;
 
         public MainWindow()
         {
@@ -99,23 +140,36 @@ namespace Ueditor
             _llmService = new LLMService(_settingsService, _credentialService);
             _gitService = new GitService();
             _snippetService = new SnippetService();
+            _languageDetectionService = new LanguageDetectionService();
+            _recentFilesService = new RecentFilesService();
+            _fileSearchService = new FileSearchService(_fileService);
+            _stickyNoteService = new StickyNoteService();
+            _settingsDialogService = new SettingsDialogService(_llmService);
+            _uiPersonalizationService = new UiPersonalizationService();
 
-            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            string settingsDir = Path.Combine(userProfile, ".ueditor");
-            _recentFilesFilePath = Path.Combine(settingsDir, "recent_files.json");
+            if (Content is FrameworkElement rootElement)
+            {
+                rootElement.DataContext = _viewModel;
+            }
 
             // Bind Left Sidebar Tab items
-            FileListView.ItemsSource = _explorerItems;
-            FavoritesListView.ItemsSource = _favoritesList;
-            RecentFilesListView.ItemsSource = _recentFilesList;
-            SnippetsListView.ItemsSource = _snippetsList;
-            GitChangedFilesList.ItemsSource = _gitFilesList;
-            SearchResultsList.ItemsSource = _searchResultsList;
+            FileListView.ItemsSource = _viewModel.ExplorerItems;
+            FavoritesListView.ItemsSource = _viewModel.Favorites;
+            RecentFilesListView.ItemsSource = _viewModel.RecentFiles;
+            SnippetsListView.ItemsSource = _viewModel.Snippets;
+            GitChangedFilesList.ItemsSource = _viewModel.GitFiles;
+            SearchResultsList.ItemsSource = _viewModel.SearchResults;
             foreach (string encodingName in TextEncodingService.SupportedEncodingNames)
             {
                 StatusEncodingCombo.Items.Add(encodingName);
             }
             StatusEncodingCombo.SelectedItem = "UTF-8";
+            StatusBarPane.LeftPanelToggleClick += OnToggleLeftPanelClick;
+            StatusBarPane.RightPanelToggleClick += OnTogglePreviewClick;
+            StatusBarPane.EncodingSelectionChanged += OnStatusEncodingSelectionChanged;
+            MarkdownToolbar.CommandRequested += OnMarkdownToolbarCommandRequested;
+            WireLeftSidebarEvents();
+            WireRightSidebarEvents();
             TerminalPane.AttachOwner(this);
             TerminalPane.WorkingDirectoryProvider = GetTerminalWorkingDirectory;
             TerminalPane.SessionsEmptied += OnTerminalPaneSessionsEmptied;
@@ -134,6 +188,50 @@ namespace Ueditor
             this.Activated += OnWindowActivated;
             this.Closed += OnWindowClosed;
             this.AppWindow.Closing += OnAppWindowClosing;
+        }
+
+        private void WireLeftSidebarEvents()
+        {
+            LeftSidebarTabView.LeftActivityClick += OnLeftActivityClick;
+            LeftSidebarTabView.ExplorerUpClick += OnExplorerUpClick;
+            LeftSidebarTabView.SelectFolderClick += OnSelectFolderClick;
+            LeftSidebarTabView.OpenTerminalClick += OnOpenTerminalClick;
+            LeftSidebarTabView.FileListViewDoubleTapped += OnFileListViewDoubleTapped;
+            LeftSidebarTabView.FileListViewItemRightTapped += OnFileListViewItemRightTapped;
+            LeftSidebarTabView.AddFileToFavoritesClick += OnAddFileToFavoritesClick;
+            LeftSidebarTabView.AddFolderToFavoritesClick += OnAddFolderToFavoritesClick;
+            LeftSidebarTabView.FavoriteItemDoubleTapped += OnFavoriteItemDoubleTapped;
+            LeftSidebarTabView.RemoveFavoriteClick += OnRemoveFavoriteClick;
+            LeftSidebarTabView.SnippetItemDoubleTapped += OnSnippetItemDoubleTapped;
+            LeftSidebarTabView.DeleteSnippetClick += OnDeleteSnippetClick;
+            LeftSidebarTabView.AddSnippetClick += OnAddSnippetClick;
+            LeftSidebarTabView.GitFileDoubleTapped += OnGitFileDoubleTapped;
+            LeftSidebarTabView.GitStageToggleClick += OnGitStageToggleClick;
+            LeftSidebarTabView.GitRestoreFileClick += OnGitRestoreFileClick;
+            LeftSidebarTabView.GitCommitClick += OnGitCommitClick;
+            LeftSidebarTabView.GitStageAllClick += OnGitStageAllClick;
+            LeftSidebarTabView.GitRestoreAllClick += OnGitRestoreAllClick;
+            LeftSidebarTabView.GitPushClick += OnGitPushClick;
+            LeftSidebarTabView.GitRefreshClick += OnGitRefreshClick;
+            LeftSidebarTabView.SearchQueryInputKeyDown += OnSearchQueryInputKeyDown;
+            LeftSidebarTabView.SearchAllFilesClick += OnSearchAllFilesClick;
+            LeftSidebarTabView.ReplaceAllClick += OnReplaceAllClick;
+            LeftSidebarTabView.SearchResultDoubleTapped += OnSearchResultDoubleTapped;
+            LeftSidebarTabView.RecentFileItemDoubleTapped += OnRecentFileItemDoubleTapped;
+            LeftSidebarTabView.RemoveRecentFileClick += OnRemoveRecentFileClick;
+        }
+
+        private void WireRightSidebarEvents()
+        {
+            PreviewGrid.PreviewModeSelectionChanged += OnPreviewModeComboSelectionChanged;
+            PreviewGrid.OpenPreviewInBrowserClick += OnOpenPreviewInBrowserClick;
+            PreviewGrid.LlmAddFileContextClick += OnLlmAddFileContextClick;
+            PreviewGrid.LlmExplainClick += OnLlmExplainClick;
+            PreviewGrid.LlmSummarizeClick += OnLlmSummarizeClick;
+            PreviewGrid.LlmTranslateClick += OnLlmTranslateClick;
+            PreviewGrid.LlmImproveClick += OnLlmImproveClick;
+            PreviewGrid.LlmCustomClick += OnLlmCustomClick;
+            PreviewGrid.LlmInsertOutputClick += OnLlmInsertOutputClick;
         }
 
         private void SetupCustomTitleBar()
@@ -312,7 +410,7 @@ namespace Ueditor
                                 var readResult = await _fileService.ReadTextFileAsync(filePath, "Auto");
                                 this.DispatcherQueue.TryEnqueue(async () =>
                                 {
-                                    var tab = _tabs.FirstOrDefault(t => t.FilePath == filePath);
+                                    var tab = _viewModel.Tabs.FirstOrDefault(t => t.FilePath == filePath);
                                     if (tab != null)
                                     {
                                         tab.Content = readResult.Content;
@@ -381,13 +479,7 @@ namespace Ueditor
             await _snippetService.LoadSnippetsAsync();
             RefreshSnippetsUI();
             RefreshFavoritesUI();
-            LoadRecentFiles();
-
-            // 4. Initialize text color button with default color
-            if (TryParseHexColor(_lastTextColorHex, out var defaultColor))
-            {
-                UpdateTextColorButtonVisual(defaultColor);
-            }
+            _recentFilesService.LoadInto(_viewModel.RecentFiles);
         }
 
         #region WebView2 Host Resource Mapping & Preview Init
@@ -446,7 +538,7 @@ namespace Ueditor
                 tab.FilePath = filePath;
                 tab.Title = Path.GetFileName(filePath);
                 tab.Content = content;
-                tab.Language = GetMonacoLanguageName(filePath);
+                tab.Language = _languageDetectionService.GetMonacoLanguageName(filePath);
                 if (File.Exists(filePath))
                 {
                     AddRecentFile(filePath);
@@ -458,7 +550,7 @@ namespace Ueditor
                 tab.Content = "";
             }
 
-            _tabs.Add(tab);
+            _viewModel.Tabs.Add(tab);
 
             // Create host layout grid for standard WebView2 editor
             var grid = new Grid();
@@ -737,66 +829,6 @@ namespace Ueditor
             {
                 System.Diagnostics.Debug.WriteLine($"Failed initialization of editor: {ex.Message}");
             }
-        }
-
-        private string GetMonacoLanguageName(string filePath)
-        {
-            string name = Path.GetFileName(filePath);
-            if (name.Equals("Dockerfile", StringComparison.OrdinalIgnoreCase)) return "dockerfile";
-            if (name.Equals("Makefile", StringComparison.OrdinalIgnoreCase)) return "makefile";
-            string ext = Path.GetExtension(filePath).ToLower();
-            return ext switch
-            {
-                ".md" => "markdown",
-                ".markdown" => "markdown",
-                ".html" => "html",
-                ".htm" => "html",
-                ".tex" => "latex",
-                ".diff" => "diff",
-                ".cs" => "csharp",
-                ".fs" => "fsharp",
-                ".vb" => "vb",
-                ".js" => "javascript",
-                ".jsx" => "javascript",
-                ".ts" => "typescript",
-                ".tsx" => "typescript",
-                ".css" => "css",
-                ".scss" => "scss",
-                ".less" => "less",
-                ".json" => "json",
-                ".jsonc" => "json",
-                ".py" => "python",
-                ".cpp" => "cpp",
-                ".cxx" => "cpp",
-                ".cc" => "cpp",
-                ".c" => "cpp",
-                ".h" => "cpp",
-                ".hpp" => "cpp",
-                ".xml" => "xml",
-                ".xaml" => "xml",
-                ".sql" => "sql",
-                ".sh" => "shell",
-                ".bash" => "shell",
-                ".zsh" => "shell",
-                ".ps1" => "powershell",
-                ".rs" => "rust",
-                ".go" => "go",
-                ".java" => "java",
-                ".kt" => "kotlin",
-                ".kts" => "kotlin",
-                ".swift" => "swift",
-                ".php" => "php",
-                ".rb" => "ruby",
-                ".dart" => "dart",
-                ".lua" => "lua",
-                ".r" => "r",
-                ".dockerfile" => "dockerfile",
-                ".toml" => "toml",
-                ".ini" => "ini",
-                ".yml" => "yaml",
-                ".yaml" => "yaml",
-                _ => "plaintext"
-            };
         }
 
         #endregion
@@ -1078,7 +1110,7 @@ namespace Ueditor
             if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
                 activeTabItem.Tag is string tabId)
             {
-                var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
+                var tab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
                 if (tab != null)
                 {
                     await SaveTabAsync(tab);
@@ -1120,113 +1152,13 @@ namespace Ueditor
 
         private void OnTopMostToggleClick(object sender, RoutedEventArgs e)
         {
-            _isTopMost = TopMostToggleButton?.IsChecked == true;
-            ApplyTopMostToWindow(this, _isTopMost);
+            bool isTopMost = TopMostToggleButton?.IsChecked == true;
+            _stickyNoteService.ApplyTopMost(this, isTopMost);
         }
 
         private void OnStickyNoteClick(object sender, RoutedEventArgs e)
         {
-            if (_stickyNoteWindow != null)
-            {
-                _stickyNoteWindow.Activate();
-                return;
-            }
-
-            string stickyPath = GetStickyNotePath();
-            string initialText = File.Exists(stickyPath) ? File.ReadAllText(stickyPath, Encoding.UTF8) : string.Empty;
-
-            var root = new Grid
-            {
-                Padding = new Thickness(10),
-                RowSpacing = 8,
-                Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemControlBackgroundChromeMediumLowBrush"]
-            };
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-            _stickyNoteTextBox = new TextBox
-            {
-                Text = initialText,
-                AcceptsReturn = true,
-                TextWrapping = TextWrapping.Wrap,
-                PlaceholderText = "빠르게 메모...",
-                MinWidth = 320,
-                MinHeight = 240,
-                FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe UI, Malgun Gothic")
-            };
-            ScrollViewer.SetVerticalScrollBarVisibility(_stickyNoteTextBox, ScrollBarVisibility.Auto);
-            Grid.SetRow(_stickyNoteTextBox, 0);
-
-            var actions = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Spacing = 8
-            };
-            var saveButton = new Button { Content = "저장" };
-            var closeButton = new Button { Content = "닫기" };
-            actions.Children.Add(saveButton);
-            actions.Children.Add(closeButton);
-            Grid.SetRow(actions, 1);
-
-            root.Children.Add(_stickyNoteTextBox);
-            root.Children.Add(actions);
-
-            _stickyNoteWindow = new Window
-            {
-                Title = "스티커 노트",
-                Content = root
-            };
-
-            saveButton.Click += (_, __) => SaveStickyNote();
-            closeButton.Click += (_, __) => _stickyNoteWindow?.Close();
-            _stickyNoteWindow.Closed += (_, __) =>
-            {
-                SaveStickyNote();
-                _stickyNoteWindow = null;
-                _stickyNoteTextBox = null;
-            };
-
-            _stickyNoteWindow.Activate();
-            ApplyTopMostToWindow(_stickyNoteWindow, true);
-        }
-
-        private string GetStickyNotePath()
-        {
-            string? settingsDir = Path.GetDirectoryName(_recentFilesFilePath);
-            if (string.IsNullOrWhiteSpace(settingsDir))
-            {
-                settingsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ueditor");
-            }
-
-            Directory.CreateDirectory(settingsDir);
-            return Path.Combine(settingsDir, "sticky_note.txt");
-        }
-
-        private void SaveStickyNote()
-        {
-            try
-            {
-                if (_stickyNoteTextBox == null) return;
-                File.WriteAllText(GetStickyNotePath(), _stickyNoteTextBox.Text ?? string.Empty, Encoding.UTF8);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to save sticky note: {ex.Message}");
-            }
-        }
-
-        private void ApplyTopMostToWindow(Window window, bool topMost)
-        {
-            try
-            {
-                IntPtr hwnd = WindowNative.GetWindowHandle(window);
-                SetWindowPos(hwnd, topMost ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to apply topmost: {ex.Message}");
-            }
+            _stickyNoteService.ShowOrActivate(this);
         }
 
         private async void OnFindClick(object sender, RoutedEventArgs e)
@@ -1378,7 +1310,7 @@ namespace Ueditor
             if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
                 activeTabItem.Tag is string tabId)
             {
-                var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
+                var tab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
                 if (tab != null) UpdateLivePreview(tab);
             }
         }
@@ -1757,22 +1689,7 @@ namespace Ueditor
                 if (AddSnippetButton != null) AddSnippetButton.Content = GetString("AddSnippet", "스니펫 추가...");
 
                 // 6. Markdown Toolbar Buttons
-                if (MarkdownHeadingButton != null) ToolTipService.SetToolTip(MarkdownHeadingButton, GetString("Heading", "제목"));
-                if (MarkdownBoldButton != null) ToolTipService.SetToolTip(MarkdownBoldButton, GetString("Bold", "굵게 (Ctrl+B)"));
-                if (MarkdownItalicButton != null) ToolTipService.SetToolTip(MarkdownItalicButton, GetString("Italic", "기울임 (Ctrl+I)"));
-                if (MarkdownUnderlineButton != null) ToolTipService.SetToolTip(MarkdownUnderlineButton, GetString("Underline", "밑줄 (Ctrl+U)"));
-                if (MarkdownHighlightButton != null) ToolTipService.SetToolTip(MarkdownHighlightButton, GetString("Highlight", "형광펜"));
-                if (MarkdownUlButton != null) ToolTipService.SetToolTip(MarkdownUlButton, GetString("UnorderedList", "글머리 목록"));
-                if (MarkdownCutLineButton != null) ToolTipService.SetToolTip(MarkdownCutLineButton, GetString("CutLine", "현재 줄 자르기"));
-                if (MarkdownQuoteButton != null) ToolTipService.SetToolTip(MarkdownQuoteButton, GetString("Quote", "인용문"));
-                if (MarkdownArrowButton != null) ToolTipService.SetToolTip(MarkdownArrowButton, GetString("Arrow", "화살표"));
-                if (MarkdownInlineCodeButton != null) ToolTipService.SetToolTip(MarkdownInlineCodeButton, GetString("InlineCode", "인라인 코드"));
-                if (MarkdownTaskButton != null) ToolTipService.SetToolTip(MarkdownTaskButton, GetString("Tasklist", "체크리스트"));
-                if (MarkdownTableButton != null) ToolTipService.SetToolTip(MarkdownTableButton, GetString("Table", "표"));
-                if (MarkdownFontIncreaseButton != null) ToolTipService.SetToolTip(MarkdownFontIncreaseButton, GetString("FontIncrease", "글자 크게"));
-                if (MarkdownFontDecreaseButton != null) ToolTipService.SetToolTip(MarkdownFontDecreaseButton, GetString("FontDecrease", "글자 작게"));
-                if (TextColorButton != null) ToolTipService.SetToolTip(TextColorButton, GetString("TextColor", "글자색 (우클릭: 색상 선택)"));
-                if (MarkdownLinkButton != null) ToolTipService.SetToolTip(MarkdownLinkButton, GetString("Link", "링크"));
+                MarkdownToolbar.LocalizeTooltips(GetString);
             }
             catch (Exception ex)
             {
@@ -1783,6 +1700,7 @@ namespace Ueditor
         private async void OnSettingsClick(object sender, RoutedEventArgs e)
         {
             var settings = _settingsService.CurrentSettings;
+            string oldLanguage = settings.Language;
 
             string GetSettingsString(string key, string fallback)
             {
@@ -1794,447 +1712,85 @@ namespace Ueditor
                 return fallback;
             }
 
-            var languageCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
-            languageCombo.Items.Add(GetSettingsString("LanguageDefault", "Default (OS Language)"));
-            languageCombo.Items.Add("한국어 (Korean)");
-            languageCombo.Items.Add("English");
-            languageCombo.Items.Add("日本語 (Japanese)");
-
-            languageCombo.SelectedIndex = settings.Language switch
+            var result = await _settingsDialogService.ShowAsync(settings, this.Content.XamlRoot, GetSettingsString);
+            if (!result.Saved)
             {
-                "ko-KR" => 1,
-                "en-US" => 2,
-                "ja-JP" => 3,
-                _ => 0
-            };
-
-            // XAML-based quick options injection for Dialog
-            var themeCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, SelectedIndex = settings.Theme == "Dark" ? 0 : 1 };
-            themeCombo.Items.Add("Dark Theme (vs-dark)");
-            themeCombo.Items.Add("Light Theme (vs)");
-
-            var sizeSlider = new Slider { Minimum = 10, Maximum = 24, Value = settings.FontSize, StepFrequency = 1 };
-            
-            var fontFamilies = GetInstalledFontFamilies();
-            var fontFamilyCombo = CreateFontComboBox(settings.FontFamily, fontFamilies);
-            var uiFontFamilyCombo = CreateFontComboBox(settings.UiFontFamily, fontFamilies);
-            var customBgCheck = new CheckBox { Content = GetSettingsString("SettingsUseCustomBg", "커스텀 에디터 배경색 사용"), IsChecked = !string.IsNullOrWhiteSpace(settings.CustomBackgroundColor) };
-            var customFgCheck = new CheckBox { Content = GetSettingsString("SettingsUseCustomFg", "커스텀 에디터 글자색 사용"), IsChecked = !string.IsNullOrWhiteSpace(settings.CustomForegroundColor) };
-            ColorPicker customBgPicker;
-            ColorPicker customFgPicker;
-            var customBgDropdown = CreateColorDropdown(GetSettingsString("SettingsUseCustomBg", "에디터 배경색"), ResolvePickerColor(settings.CustomBackgroundColor, settings.Theme == "Light" ? "#ffffff" : "#1e1e1e"), out customBgPicker);
-            var customFgDropdown = CreateColorDropdown(GetSettingsString("SettingsUseCustomFg", "에디터 글자색"), ResolvePickerColor(settings.CustomForegroundColor, settings.Theme == "Light" ? "#111111" : "#d4d4d4"), out customFgPicker);
-            customBgDropdown.IsEnabled = customBgCheck.IsChecked == true;
-            customFgDropdown.IsEnabled = customFgCheck.IsChecked == true;
-            customBgCheck.Checked += (_, __) => customBgDropdown.IsEnabled = true;
-            customBgCheck.Unchecked += (_, __) => customBgDropdown.IsEnabled = false;
-            customFgCheck.Checked += (_, __) => customFgDropdown.IsEnabled = true;
-            customFgCheck.Unchecked += (_, __) => customFgDropdown.IsEnabled = false;
-            var wordWrapCheck = new CheckBox { Content = GetSettingsString("SettingsWordWrap", "기본 Word Wrap 켜기"), IsChecked = settings.WordWrap };
-            var minimapCheck = new CheckBox { Content = GetSettingsString("SettingsMinimap", "미니맵 표시 (로컬 Monaco 번들 사용 시)"), IsChecked = settings.MinimapEnabled };
-            var bracketPairCheck = new CheckBox { Content = GetSettingsString("SettingsBracketPair", "Bracket pair colorization (로컬 Monaco 번들 사용 시)"), IsChecked = settings.BracketPairColorizationEnabled };
-            var autoSaveCheck = new CheckBox { Content = GetSettingsString("SettingsAutoSave", "Autosave 사용"), IsChecked = settings.AutoSave };
-            var defaultMarkdownCheck = new CheckBox { Content = GetSettingsString("SettingsLivePreview", "실시간 미리보기 기본 활성화"), IsChecked = settings.DefaultMarkdownEnabled };
-            var defaultMarkdownToolbarCheck = new CheckBox { Content = GetSettingsString("SettingsMarkdownToolbar", "기본 마크다운 툴바 활성화"), IsChecked = settings.DefaultMarkdownToolbarEnabled };
-            var tabSizeBox = new TextBox { PlaceholderText = "예: 4", Text = settings.TabSize.ToString(), HorizontalAlignment = HorizontalAlignment.Stretch };
-            var largeThresholdBox = new TextBox { PlaceholderText = "예: 50", Text = settings.LargeFileThresholdMB.ToString(), HorizontalAlignment = HorizontalAlignment.Stretch };
-
-            // LLM Settings Injection
-            string[] providerNames = { "Gemini", "OpenAI", "LM Studio" };
-            int providerIndex = Array.FindIndex(providerNames, p => p.Equals(settings.LlmProvider, StringComparison.OrdinalIgnoreCase));
-            if (providerIndex < 0) providerIndex = 1;
-
-            var llmProviderCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
-            foreach (var providerName in providerNames)
-            {
-                llmProviderCombo.Items.Add(providerName);
-            }
-            llmProviderCombo.SelectedIndex = providerIndex;
-
-            var llmEndpointBox = new TextBox { PlaceholderText = "예: http://localhost:1234/v1", Text = settings.LlmEndpoint, HorizontalAlignment = HorizontalAlignment.Stretch };
-            var llmModelCombo = new ComboBox { PlaceholderText = "모델 선택", HorizontalAlignment = HorizontalAlignment.Stretch };
-            var llmApiKeyBox = new PasswordBox { PasswordChar = "●", PlaceholderText = "API Key 입력 (비워두면 저장된 Key 삭제)", HorizontalAlignment = HorizontalAlignment.Stretch };
-            
-            // Async load the stored key for currently selected provider
-            string initialKey = await _llmService.GetApiKeyAsync(providerNames[providerIndex]);
-            llmApiKeyBox.Password = initialKey;
-
-            var refreshLmStudioModelsButton = new Button { Content = GetSettingsString("SettingsLlmLoadModels", "LM Studio 모델 불러오기"), HorizontalAlignment = HorizontalAlignment.Stretch };
-            var llmModelStatusText = new TextBlock
-            {
-                Text = GetSettingsString("SettingsLlmInfo", "LM Studio는 서버가 켜져 있을 때 http://localhost:1234/v1/models 에서 모델 목록을 불러옵니다."),
-                TextWrapping = TextWrapping.Wrap,
-                FontSize = 11
-            };
-
-            string GetSelectedProviderName()
-            {
-                return llmProviderCombo.SelectedItem as string ?? "OpenAI";
+                return;
             }
 
-            void AddModelChoice(string model)
+            if (!string.IsNullOrWhiteSpace(result.ApiKeyStatusMessage))
             {
-                if (!string.IsNullOrWhiteSpace(model) && !llmModelCombo.Items.Contains(model))
-                {
-                    llmModelCombo.Items.Add(model);
-                }
+                LlmOutputText.Text = result.ApiKeyStatusMessage;
             }
 
-            void SelectModelChoice(string model)
+            await _settingsService.SaveSettingsAsync(settings);
+            ApplyPreviewVisibility(settings.DefaultMarkdownEnabled);
+            MarkdownToolbarToggle.IsChecked = settings.DefaultMarkdownToolbarEnabled;
+            MarkdownToolbar.Visibility = settings.DefaultMarkdownToolbarEnabled ? Visibility.Visible : Visibility.Collapsed;
+            WordWrapToggle.IsChecked = settings.WordWrap;
+            ApplyUiPersonalization(settings);
+            LocalizeUi();
+
+            if (oldLanguage != settings.Language && await ConfirmRestartForLanguageChangeAsync(GetSettingsString))
             {
-                AddModelChoice(model);
-                if (!string.IsNullOrWhiteSpace(model))
-                {
-                    llmModelCombo.SelectedItem = model;
-                }
-                else if (llmModelCombo.Items.Count > 0)
-                {
-                    llmModelCombo.SelectedIndex = 0;
-                }
+                Microsoft.Windows.AppLifecycle.AppInstance.Restart("");
+                return;
             }
 
-            void PopulateModelChoices(string provider, string selectedModel)
+            await ApplySettingsToOpenEditorsAsync(settings);
+            RefreshActivePreview();
+        }
+
+        private async Task<bool> ConfirmRestartForLanguageChangeAsync(Func<string, string, string> getString)
+        {
+            var restartDialog = new ContentDialog
             {
-                llmModelCombo.Items.Clear();
-
-                if (provider.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
-                {
-                    AddModelChoice("gemini-flash-lite-latest");
-                    AddModelChoice("gemini-flash-latest");
-                    AddModelChoice("gemini-pro-latest");
-                    AddModelChoice("gemma-4-26b-a4b-it");
-                    AddModelChoice("gemma-4-31b-it");
-
-                    string target = !string.IsNullOrEmpty(settings.LlmModelGemini) ? settings.LlmModelGemini : selectedModel;
-                    if (string.IsNullOrEmpty(target) || 
-                        (!target.Equals("gemini-flash-lite-latest", StringComparison.OrdinalIgnoreCase) &&
-                         !target.Equals("gemini-flash-latest", StringComparison.OrdinalIgnoreCase) &&
-                         !target.Equals("gemini-pro-latest", StringComparison.OrdinalIgnoreCase) &&
-                         !target.Equals("gemma-4-26b-a4b-it", StringComparison.OrdinalIgnoreCase) &&
-                         !target.Equals("gemma-4-31b-it", StringComparison.OrdinalIgnoreCase)))
-                    {
-                        target = "gemini-flash-lite-latest";
-                    }
-                    SelectModelChoice(target);
-                }
-                else if (provider.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
-                {
-                    AddModelChoice("gpt-5.5");
-
-                    string target = !string.IsNullOrEmpty(settings.LlmModelOpenAI) ? settings.LlmModelOpenAI : selectedModel;
-                    if (string.IsNullOrEmpty(target) || !target.Equals("gpt-5.5", StringComparison.OrdinalIgnoreCase))
-                    {
-                        target = "gpt-5.5";
-                    }
-                    SelectModelChoice(target);
-                }
-                else if (provider.Equals("LM Studio", StringComparison.OrdinalIgnoreCase))
-                {
-                    string target = !string.IsNullOrEmpty(settings.LlmModelLmStudio) ? settings.LlmModelLmStudio : selectedModel;
-                    SelectModelChoice(target);
-                }
-            }
-
-            bool IsKnownDefaultEndpoint(string endpoint)
-            {
-                return string.IsNullOrWhiteSpace(endpoint) ||
-                       endpoint.Equals("https://api.openai.com/v1", StringComparison.OrdinalIgnoreCase) ||
-                       endpoint.Equals("http://localhost:1234/v1", StringComparison.OrdinalIgnoreCase) ||
-                       endpoint.Equals("https://generativelanguage.googleapis.com", StringComparison.OrdinalIgnoreCase);
-            }
-
-            void ApplyProviderDefaults(string provider)
-            {
-                if (!IsKnownDefaultEndpoint(llmEndpointBox.Text.Trim()))
-                {
-                    return;
-                }
-
-                if (provider.Equals("LM Studio", StringComparison.OrdinalIgnoreCase))
-                {
-                    llmEndpointBox.Text = "http://localhost:1234/v1";
-                }
-                else if (provider.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
-                {
-                    llmEndpointBox.Text = "https://api.openai.com/v1";
-                }
-                else if (provider.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
-                {
-                    llmEndpointBox.Text = "https://generativelanguage.googleapis.com";
-                }
-            }
-
-            async Task RefreshLmStudioModelsAsync()
-            {
-                if (!GetSelectedProviderName().Equals("LM Studio", StringComparison.OrdinalIgnoreCase))
-                {
-                    llmModelStatusText.Text = "LM Studio 공급자를 선택하면 로컬 모델 목록을 불러올 수 있습니다.";
-                    return;
-                }
-
-                try
-                {
-                    refreshLmStudioModelsButton.IsEnabled = false;
-                    llmModelStatusText.Text = "LM Studio 모델 목록을 불러오는 중입니다...";
-                    var models = await FetchLmStudioModelsAsync(llmEndpointBox.Text.Trim());
-
-                    llmModelCombo.Items.Clear();
-                    foreach (var model in models)
-                    {
-                        AddModelChoice(model);
-                    }
-
-                    string targetModel = !string.IsNullOrEmpty(settings.LlmModelLmStudio) ? settings.LlmModelLmStudio : settings.LlmModel;
-                    SelectModelChoice(models.Contains(targetModel) ? targetModel : models.FirstOrDefault() ?? targetModel);
-                    llmModelStatusText.Text = models.Count > 0
-                        ? $"{models.Count}개 모델을 불러왔습니다."
-                        : "LM Studio에서 사용 가능한 모델을 찾지 못했습니다.";
-                }
-                catch (Exception ex)
-                {
-                    string targetModel = !string.IsNullOrEmpty(settings.LlmModelLmStudio) ? settings.LlmModelLmStudio : settings.LlmModel;
-                    SelectModelChoice(targetModel);
-                    llmModelStatusText.Text = $"LM Studio 모델 목록을 불러오지 못했습니다: {ex.Message}";
-                }
-                finally
-                {
-                    refreshLmStudioModelsButton.IsEnabled = true;
-                }
-            }
-
-            PopulateModelChoices(GetSelectedProviderName(), settings.LlmModel);
-
-            llmProviderCombo.SelectionChanged += async (_, __) =>
-            {
-                string provider = GetSelectedProviderName();
-                ApplyProviderDefaults(provider);
-                
-                string targetModel = settings.LlmModel;
-                if (provider.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
-                {
-                    targetModel = !string.IsNullOrEmpty(settings.LlmModelGemini) ? settings.LlmModelGemini : "gemini-flash-lite-latest";
-                }
-                else if (provider.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
-                {
-                    targetModel = !string.IsNullOrEmpty(settings.LlmModelOpenAI) ? settings.LlmModelOpenAI : "gpt-5.5";
-                }
-                else if (provider.Equals("LM Studio", StringComparison.OrdinalIgnoreCase))
-                {
-                    targetModel = !string.IsNullOrEmpty(settings.LlmModelLmStudio) ? settings.LlmModelLmStudio : "";
-                }
-
-                PopulateModelChoices(provider, targetModel);
-
-                if (provider.Equals("LM Studio", StringComparison.OrdinalIgnoreCase))
-                {
-                    llmModelStatusText.Text = "LM Studio 모델 목록을 불러오는 중...";
-                    _ = RefreshLmStudioModelsAsync();
-                }
-
-                // Dynamic API Key Loading per provider
-                string key = await _llmService.GetApiKeyAsync(provider);
-                llmApiKeyBox.Password = key;
-            };
-
-            refreshLmStudioModelsButton.Click += async (_, __) => await RefreshLmStudioModelsAsync();
-
-            StackPanel CreateSection()
-            {
-                return new StackPanel { Spacing = 10, Width = 460, Padding = new Thickness(2, 8, 2, 2) };
-            }
-
-            void AddLabel(StackPanel target, string text)
-            {
-                target.Children.Add(new TextBlock { Text = text, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            }
-
-            var appearanceSection = CreateSection();
-            AddLabel(appearanceSection, GetSettingsString("SettingsLanguage", "애플리케이션 언어 (Language)"));
-            appearanceSection.Children.Add(languageCombo);
-            AddLabel(appearanceSection, GetSettingsString("SettingsTheme", "앱/에디터 테마"));
-            appearanceSection.Children.Add(themeCombo);
-            AddLabel(appearanceSection, GetSettingsString("SettingsFontSize", "에디터 글자 크기") + $" ({settings.FontSize:0}pt)");
-            appearanceSection.Children.Add(sizeSlider);
-            AddLabel(appearanceSection, GetSettingsString("SettingsFontFamily", "에디터 폰트"));
-            appearanceSection.Children.Add(fontFamilyCombo);
-            AddLabel(appearanceSection, GetSettingsString("SettingsUiFontFamily", "UI 쉘 폰트"));
-            appearanceSection.Children.Add(uiFontFamilyCombo);
-            appearanceSection.Children.Add(customBgCheck);
-            appearanceSection.Children.Add(customBgDropdown);
-            appearanceSection.Children.Add(customFgCheck);
-            appearanceSection.Children.Add(customFgDropdown);
-
-            var editorSection = CreateSection();
-            editorSection.Children.Add(wordWrapCheck);
-            editorSection.Children.Add(minimapCheck);
-            editorSection.Children.Add(bracketPairCheck);
-            editorSection.Children.Add(autoSaveCheck);
-            editorSection.Children.Add(defaultMarkdownCheck);
-            editorSection.Children.Add(defaultMarkdownToolbarCheck);
-            AddLabel(editorSection, GetSettingsString("SettingsTabSize", "Tab size"));
-            editorSection.Children.Add(tabSizeBox);
-            AddLabel(editorSection, GetSettingsString("SettingsLargeFileThreshold", "Large File Mode 제안 기준 (MB)"));
-            editorSection.Children.Add(largeThresholdBox);
-
-            var llmSection = CreateSection();
-            AddLabel(llmSection, GetSettingsString("SettingsLlmProvider", "LLM 공급자"));
-            llmSection.Children.Add(llmProviderCombo);
-            AddLabel(llmSection, GetSettingsString("SettingsLlmEndpoint", "LLM API Endpoint"));
-            llmSection.Children.Add(llmEndpointBox);
-            AddLabel(llmSection, GetSettingsString("SettingsLlmModel", "LLM 모델명"));
-            llmSection.Children.Add(llmModelCombo);
-            llmSection.Children.Add(refreshLmStudioModelsButton);
-            llmSection.Children.Add(llmModelStatusText);
-            AddLabel(llmSection, GetSettingsString("SettingsLlmApiKey", "LLM API Key"));
-            llmSection.Children.Add(llmApiKeyBox);
-            llmSection.Children.Add(new TextBlock
-            {
-                Text = GetSettingsString("SettingsLlmApiKeyInfo", "API Key는 설정 파일에 저장하지 않고 Windows 자격 증명 관리자에 저장합니다. 비워두고 저장하면 기존 Key를 유지합니다. LM Studio는 기본 로컬 서버 설정에서 API Key 없이 사용할 수 있습니다."),
-                TextWrapping = TextWrapping.Wrap
-            });
-
-            var settingsPivot = new Pivot { Width = 500, Height = 440 };
-            settingsPivot.Items.Add(new PivotItem { Header = GetSettingsString("SettingsAppearance", "모양"), Content = new ScrollViewer { Content = appearanceSection } });
-            settingsPivot.Items.Add(new PivotItem { Header = GetSettingsString("SettingsEditing", "편집"), Content = new ScrollViewer { Content = editorSection } });
-            settingsPivot.Items.Add(new PivotItem { Header = GetSettingsString("SettingsLLM", "LLM"), Content = new ScrollViewer { Content = llmSection } });
-
-            var dialog = new ContentDialog
-            {
-                Title = GetSettingsString("SettingsTitle", "Ueditor 설정"),
-                Content = settingsPivot,
-                PrimaryButtonText = GetSettingsString("SettingsSave", "적용 및 저장"),
-                CloseButtonText = GetSettingsString("SettingsCancel", "취소"),
+                Title = getString("LanguageChangedTitle", "Language Change"),
+                Content = getString("LanguageChangedMessage", "You must restart the application to apply the language settings. Would you like to restart now?"),
+                PrimaryButtonText = getString("Restart", "Restart"),
+                CloseButtonText = getString("No", "Later"),
                 XamlRoot = this.Content.XamlRoot
             };
 
-            var result = await dialog.ShowAsync();
-            if (result == ContentDialogResult.Primary)
+            return await restartDialog.ShowAsync() == ContentDialogResult.Primary;
+        }
+
+        private async Task ApplySettingsToOpenEditorsAsync(EditorSettings settings)
+        {
+            foreach (var grp in _tabBridges.Values)
             {
-                string oldLanguage = settings.Language;
-                settings.Language = languageCombo.SelectedIndex switch
+                if (grp.Bridge != null)
                 {
-                    1 => "ko-KR",
-                    2 => "en-US",
-                    3 => "ja-JP",
-                    _ => "Default"
-                };
-
-                settings.Theme = themeCombo.SelectedIndex == 0 ? "Dark" : "Light";
-                settings.FontSize = sizeSlider.Value;
-                settings.CustomBackgroundColor = customBgCheck.IsChecked == true ? ColorToHex(customBgPicker.Color) : string.Empty;
-                settings.CustomForegroundColor = customFgCheck.IsChecked == true ? ColorToHex(customFgPicker.Color) : string.Empty;
-                settings.FontFamily = GetSelectedComboText(fontFamilyCombo, settings.FontFamily);
-                settings.UiFontFamily = GetSelectedComboText(uiFontFamilyCombo, settings.UiFontFamily);
-                settings.WordWrap = wordWrapCheck.IsChecked == true;
-                settings.MinimapEnabled = minimapCheck.IsChecked == true;
-                settings.BracketPairColorizationEnabled = bracketPairCheck.IsChecked == true;
-                settings.AutoSave = autoSaveCheck.IsChecked == true;
-                if (int.TryParse(tabSizeBox.Text.Trim(), out int tabSize))
-                {
-                    settings.TabSize = Math.Clamp(tabSize, 1, 16);
+                    await grp.Bridge.UpdateOptionsAsync(settings);
                 }
-                if (long.TryParse(largeThresholdBox.Text.Trim(), out long thresholdMb))
+                else if (grp.WebView?.CoreWebView2 != null)
                 {
-                    settings.LargeFileThresholdMB = Math.Clamp(thresholdMb, 1, 1024);
-                }
-                settings.LlmProvider = GetSelectedProviderName();
-                settings.LlmEndpoint = llmEndpointBox.Text.Trim();
-                settings.LlmModel = (llmModelCombo.SelectedItem as string ?? settings.LlmModel).Trim();
-                
-                // Save to provider-specific field
-                if (settings.LlmProvider.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
-                {
-                    settings.LlmModelGemini = settings.LlmModel;
-                }
-                else if (settings.LlmProvider.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
-                {
-                    settings.LlmModelOpenAI = settings.LlmModel;
-                }
-                else if (settings.LlmProvider.Equals("LM Studio", StringComparison.OrdinalIgnoreCase))
-                {
-                    settings.LlmModelLmStudio = settings.LlmModel;
-                }
-
-                settings.DefaultMarkdownEnabled = defaultMarkdownCheck.IsChecked == true;
-                settings.RightSidebarVisible = settings.DefaultMarkdownEnabled;
-                settings.DefaultMarkdownToolbarEnabled = defaultMarkdownToolbarCheck.IsChecked == true;
-                
-                string newApiKey = llmApiKeyBox.Password.Trim();
-                await _llmService.SaveApiKeyAsync(settings.LlmProvider, newApiKey);
-                if (string.IsNullOrEmpty(newApiKey))
-                {
-                    LlmOutputText.Text = $"{settings.LlmProvider} API Key가 Windows 자격 증명 저장소에서 삭제되었습니다.";
-                }
-                else
-                {
-                    LlmOutputText.Text = $"{settings.LlmProvider} API Key가 Windows 자격 증명 저장소에 저장되었습니다.";
-                }
-
-                await _settingsService.SaveSettingsAsync(settings);
-                ApplyPreviewVisibility(settings.DefaultMarkdownEnabled);
-                MarkdownToolbarToggle.IsChecked = settings.DefaultMarkdownToolbarEnabled;
-                MarkdownToolbar.Visibility = settings.DefaultMarkdownToolbarEnabled ? Visibility.Visible : Visibility.Collapsed;
-                WordWrapToggle.IsChecked = settings.WordWrap;
-                ApplyUiPersonalization(settings);
-
-                // Run LocalizeUi immediately to update screen strings
-                LocalizeUi();
-
-                if (oldLanguage != settings.Language)
-                {
-                    string dlgTitle = GetSettingsString("LanguageChangedTitle", "Language Change");
-                    string dlgMessage = GetSettingsString("LanguageChangedMessage", "You must restart the application to apply the language settings. Would you like to restart now?");
-                    string dlgYes = GetSettingsString("Restart", "Restart");
-                    string dlgNo = GetSettingsString("No", "Later");
-                    
-                    var restartDialog = new ContentDialog
+                    var updateMsg = new
                     {
-                        Title = dlgTitle,
-                        Content = dlgMessage,
-                        PrimaryButtonText = dlgYes,
-                        CloseButtonText = dlgNo,
-                        XamlRoot = this.Content.XamlRoot
+                        action = "updateOptions",
+                        theme = settings.Theme,
+                        fontSize = settings.FontSize,
+                        fontFamily = settings.FontFamily,
+                        customBackgroundColor = settings.CustomBackgroundColor,
+                        customForegroundColor = settings.CustomForegroundColor,
+                        readOnly = true
                     };
-                    
-                    var restartResult = await restartDialog.ShowAsync();
-                    if (restartResult == ContentDialogResult.Primary)
-                    {
-                        Microsoft.Windows.AppLifecycle.AppInstance.Restart("");
-                        return;
-                    }
+                    string updateJson = System.Text.Json.JsonSerializer.Serialize(updateMsg);
+                    grp.WebView.CoreWebView2.PostWebMessageAsJson(updateJson);
                 }
+            }
+        }
 
-                // Update settings for all active Monaco and Large File editors
-                foreach (var grp in _tabBridges.Values)
+        private void RefreshActivePreview()
+        {
+            var activeTabView = GetCurrentActiveTabView();
+            if (activeTabView.SelectedItem is TabViewItem activeTabItem &&
+                activeTabItem.Tag is string tabId)
+            {
+                var tab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
+                if (tab != null)
                 {
-                    if (grp.Bridge != null)
-                    {
-                        await grp.Bridge.UpdateOptionsAsync(settings);
-                    }
-                    else if (grp.WebView != null && grp.WebView.CoreWebView2 != null)
-                    {
-                        var updateMsg = new
-                        {
-                            action = "updateOptions",
-                            theme = settings.Theme,
-                            fontSize = settings.FontSize,
-                            fontFamily = settings.FontFamily,
-                            customBackgroundColor = settings.CustomBackgroundColor,
-                            customForegroundColor = settings.CustomForegroundColor,
-                            readOnly = true
-                        };
-                        string updateJson = System.Text.Json.JsonSerializer.Serialize(updateMsg);
-                        grp.WebView.CoreWebView2.PostWebMessageAsJson(updateJson);
-                    }
-                }
-
-                // Update current preview panel render if applicable
-                var activeTabView = GetCurrentActiveTabView();
-                if (activeTabView.SelectedItem is TabViewItem activeTabItem &&
-                    activeTabItem.Tag is string tabId)
-                {
-                    var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
-                    if (tab != null) UpdateLivePreview(tab);
+                    UpdateLivePreview(tab);
                 }
             }
         }
@@ -2383,15 +1939,15 @@ namespace Ueditor
 
         private void LoadDirectoryRoot(string folderPath)
         {
-            _explorerItems.Clear();
+            _viewModel.ExplorerItems.Clear();
             _currentFolderPath = folderPath;
 
             foreach (var item in CreateDirectoryItems(folderPath))
             {
-                _explorerItems.Add(item);
+                _viewModel.ExplorerItems.Add(item);
             }
 
-            ExplorerStatusText.Text = $"{folderPath}\n{_explorerItems.Count:N0}개 항목";
+            ExplorerStatusText.Text = $"{folderPath}\n{_viewModel.ExplorerItems.Count:N0}개 항목";
         }
 
         private async Task NavigateExplorerToFolderAsync(string folderPath)
@@ -2452,19 +2008,6 @@ namespace Ueditor
 
             return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         }
-
-        #endregion
-
-        #region Window Interop
-
-        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
-        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
-
-        private const uint SWP_NOACTIVATE = 0x0010;
-        private const uint SWP_NOSIZE = 0x0001;
-        private const uint SWP_NOMOVE = 0x0002;
-        private static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
-        private static readonly IntPtr HWND_NOTOPMOST = new IntPtr(-2);
 
         #endregion
 
@@ -2739,7 +2282,7 @@ namespace Ueditor
 
             if (activeTabItem.Tag is string tabId)
             {
-                var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
+                var tab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
                 if (tab != null)
                 {
                     UpdateStatusFileStats(tab);
@@ -2847,7 +2390,7 @@ namespace Ueditor
         {
             if (args.Item is TabViewItem tabItem && tabItem.Tag is string tabId)
             {
-                var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
+                var tab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
                 if (tab != null)
                 {
                     if (tab.IsDirty)
@@ -2891,7 +2434,7 @@ namespace Ueditor
 
         private void CloseTabAndCleanup(OpenedTab tab, TabViewItem tabItem)
         {
-            _tabs.Remove(tab);
+            _viewModel.Tabs.Remove(tab);
             if (EditorTabView.TabItems.Contains(tabItem))
             {
                 EditorTabView.TabItems.Remove(tabItem);
@@ -2931,7 +2474,7 @@ namespace Ueditor
             if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
                 activeTabItem.Tag is string tabId)
             {
-                var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
+                var tab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
                 if (tab != null) UpdateLivePreview(tab);
             }
         }
@@ -3008,37 +2551,9 @@ namespace Ueditor
             }
         }
 
-        private async void OnMarkdownBoldClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("bold");
-        private async void OnMarkdownItalicClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("italic");
-        private async void OnMarkdownUnderlineClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("underline");
-        private async void OnMarkdownHighlightClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("highlight");
-        private async void OnMarkdownInlineCodeClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("inlineCode");
-        private async void OnMarkdownCodeBlockClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("codeBlock");
-        private async void OnMarkdownHeadingClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("heading");
-        private async void OnMarkdownLinkClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("link");
-        private async void OnMarkdownQuoteClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("quote");
-        private async void OnMarkdownUlClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("ul");
-        private async void OnMarkdownOlClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("ol");
-        private async void OnMarkdownTaskClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("task");
-        private async void OnMarkdownTableClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("table");
-        private async void OnMarkdownMathClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("math");
-        private async void OnMarkdownArrowClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("arrow");
-        private async void OnMarkdownFontIncreaseClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("fontIncrease");
-        private async void OnMarkdownFontDecreaseClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("fontDecrease");
-        private async void OnMarkdownTextColorClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("textColor", _lastTextColorHex);
-        private async void OnMarkdownCutLineClick(object sender, RoutedEventArgs e) => await ApplyMarkdownCommandToActiveEditorAsync("cutLine");
-
-        private async void OnMarkdownToolbarBackgroundClick(object sender, RoutedEventArgs e)
+        private async void OnMarkdownToolbarCommandRequested(object? sender, MarkdownCommandRequestedEventArgs e)
         {
-            var settings = _settingsService.CurrentSettings;
-            settings.MarkdownToolbarBackgroundColor = settings.MarkdownToolbarBackgroundColor switch
-            {
-                "#243B53" => "#ECECEE",
-                "#ECECEE" => string.Empty,
-                _ => "#243B53"
-            };
-            await _settingsService.SaveSettingsAsync(settings);
-            ApplyUiPersonalization(settings);
+            await ApplyMarkdownCommandToActiveEditorAsync(e.Command, e.Color);
         }
 
         private void OnToggleMarkdownToolbarClick(object sender, RoutedEventArgs e)
@@ -3047,28 +2562,9 @@ namespace Ueditor
             MarkdownToolbar.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        private void OnTextColorButtonRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
-        {
-            ColorPickerFlyout.ShowAt(TextColorButton);
-        }
+        #endregion
 
-        private async void OnApplyTextColorClick(object sender, RoutedEventArgs e)
-        {
-            ColorPickerFlyout.Hide();
-            var color = TextColorPicker.Color;
-            string hex = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
-            _lastTextColorHex = hex;
-            UpdateTextColorButtonVisual(color);
-            await ApplyMarkdownCommandToActiveEditorAsync("textColor", hex);
-        }
-
-        private void UpdateTextColorButtonVisual(Windows.UI.Color color)
-        {
-            var brush = new Microsoft.UI.Xaml.Media.SolidColorBrush(color);
-            TextColorButton.Foreground = brush;
-            TextColorButton.Resources["AppBarButtonForegroundPointerOver"] = brush;
-            TextColorButton.Resources["AppBarButtonForegroundPressed"] = brush;
-        }
+        #region Sidebar Favorite Commands
 
         private async void OnAddFolderToFavoritesClick(object sender, RoutedEventArgs e)
         {
@@ -3257,50 +2753,13 @@ namespace Ueditor
             await dialog.ShowAsync();
         }
 
-        private static async Task<IReadOnlyList<string>> FetchLmStudioModelsAsync(string endpoint)
-        {
-            string baseEndpoint = string.IsNullOrWhiteSpace(endpoint) ? "http://localhost:1234/v1" : endpoint.Trim();
-            string requestUrl = baseEndpoint.TrimEnd('/') + "/models";
-
-            using (var client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) })
-            using (var response = await client.GetAsync(requestUrl))
-            {
-                string responseBody = await response.Content.ReadAsStringAsync();
-                if (!response.IsSuccessStatusCode)
-                {
-                    throw new HttpRequestException($"모델 목록 요청 실패 ({response.StatusCode}): {responseBody}");
-                }
-
-                using (var doc = JsonDocument.Parse(responseBody))
-                {
-                    var models = new List<string>();
-                    if (doc.RootElement.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array)
-                    {
-                        foreach (var item in data.EnumerateArray())
-                        {
-                            if (item.TryGetProperty("id", out var idElement))
-                            {
-                                string? id = idElement.GetString();
-                                if (!string.IsNullOrWhiteSpace(id))
-                                {
-                                    models.Add(id);
-                                }
-                            }
-                        }
-                    }
-
-                    return models;
-                }
-            }
-        }
-
         private OpenedTab? GetActiveTab()
         {
             var activeTabView = GetCurrentActiveTabView();
             if (activeTabView.SelectedItem is TabViewItem activeTabItem &&
                 activeTabItem.Tag is string tabId)
             {
-                return _tabs.FirstOrDefault(t => t.Id == tabId);
+                return _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
             }
 
             return null;
@@ -3321,7 +2780,7 @@ namespace Ueditor
 
             if (!string.IsNullOrWhiteSpace(activeTab.FilePath))
             {
-                return GetMonacoLanguageName(activeTab.FilePath);
+                return _languageDetectionService.GetMonacoLanguageName(activeTab.FilePath);
             }
 
             return "plaintext";
@@ -3538,7 +2997,7 @@ namespace Ueditor
 
         private void RefreshFavoritesUI()
         {
-            _favoritesList.Clear();
+            _viewModel.Favorites.Clear();
             var settings = _settingsService.CurrentSettings;
             foreach (var path in settings.FavoritePaths)
             {
@@ -3546,7 +3005,7 @@ namespace Ueditor
                 bool isFile = !isFolder && File.Exists(path);
                 if (isFolder || isFile)
                 {
-                    _favoritesList.Add(new FavoriteItem
+                    _viewModel.Favorites.Add(new FavoriteItem
                     {
                         Name = isFolder ? Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) : Path.GetFileName(path),
                         Path = path,
@@ -3592,103 +3051,16 @@ namespace Ueditor
 
         #region Recent Files Handlers
 
-        private void LoadRecentFiles()
-        {
-            try
-            {
-                if (File.Exists(_recentFilesFilePath))
-                {
-                    string json = File.ReadAllText(_recentFilesFilePath);
-                    var items = System.Text.Json.JsonSerializer.Deserialize<List<RecentFileItem>>(json);
-                    if (items != null)
-                    {
-                        _recentFilesList.Clear();
-                        foreach (var item in items)
-                        {
-                            if (!string.IsNullOrWhiteSpace(item.Path) && File.Exists(item.Path))
-                            {
-                                _recentFilesList.Add(item);
-                            }
-                        }
-                        SaveRecentFiles();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to load recent files: {ex.Message}");
-            }
-        }
-
-        private void SaveRecentFiles()
-        {
-            try
-            {
-                string? dir = Path.GetDirectoryName(_recentFilesFilePath);
-                if (dir != null && !Directory.Exists(dir))
-                {
-                    Directory.CreateDirectory(dir);
-                }
-
-                var list = _recentFilesList.ToList();
-                string json = System.Text.Json.JsonSerializer.Serialize(list, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(_recentFilesFilePath, json);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to save recent files: {ex.Message}");
-            }
-        }
-
         private void AddRecentFile(string filePath)
         {
-            if (string.IsNullOrWhiteSpace(filePath)) return;
-            if (!File.Exists(filePath)) return;
-
-            this.DispatcherQueue.TryEnqueue(() =>
-            {
-                try
-                {
-                    string fullPath = Path.GetFullPath(filePath);
-                    var existing = _recentFilesList.FirstOrDefault(f => f.Path.Equals(fullPath, StringComparison.OrdinalIgnoreCase));
-                    if (existing != null)
-                    {
-                        _recentFilesList.Remove(existing);
-                    }
-
-                    var newItem = new RecentFileItem
-                    {
-                        Name = Path.GetFileName(fullPath),
-                        Path = fullPath,
-                        LastOpenedText = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
-                    };
-
-                    _recentFilesList.Insert(0, newItem);
-
-                    while (_recentFilesList.Count > 30)
-                    {
-                        _recentFilesList.RemoveAt(_recentFilesList.Count - 1);
-                    }
-
-                    SaveRecentFiles();
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Failed to add recent file: {ex.Message}");
-                }
-            });
+            DispatcherQueue.TryEnqueue(() => _recentFilesService.Add(_viewModel.RecentFiles, filePath));
         }
 
         private void OnRemoveRecentFileClick(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string path)
             {
-                var existing = _recentFilesList.FirstOrDefault(f => f.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
-                if (existing != null)
-                {
-                    _recentFilesList.Remove(existing);
-                    SaveRecentFiles();
-                }
+                _recentFilesService.Remove(_viewModel.RecentFiles, path);
             }
         }
 
@@ -3720,11 +3092,11 @@ namespace Ueditor
 
         private void RefreshSnippetsUI()
         {
-            _snippetsList.Clear();
+            _viewModel.Snippets.Clear();
             var list = _snippetService.GetSnippets();
             foreach (var item in list)
             {
-                _snippetsList.Add(item);
+                _viewModel.Snippets.Add(item);
             }
         }
 
@@ -3796,316 +3168,11 @@ namespace Ueditor
         #region UI Personalization Helper
         private void ApplyUiPersonalization(EditorSettings settings)
         {
-            if (this.Content is FrameworkElement rootElement)
-            {
-                rootElement.RequestedTheme = settings.Theme == "Light"
-                    ? ElementTheme.Light
-                    : ElementTheme.Dark;
-
-                ApplyTitleBarTheme(settings);
-                ApplyMarkdownToolbarTheme(settings);
-
-                try
-                {
-                    var fontFamily = new Microsoft.UI.Xaml.Media.FontFamily(settings.UiFontFamily);
-                    ApplyFontFamilyRecursively(rootElement, fontFamily);
-                }
-                catch { }
-
-                if (!string.IsNullOrEmpty(settings.CustomBackgroundColor))
-                {
-                    try
-                    {
-                        string hex = settings.CustomBackgroundColor.Trim().Replace("#", "");
-                        if (hex.Length == 6)
-                        {
-                            byte r = byte.Parse(hex.Substring(0, 2), System.Globalization.NumberStyles.HexNumber);
-                            byte g = byte.Parse(hex.Substring(2, 2), System.Globalization.NumberStyles.HexNumber);
-                            byte b = byte.Parse(hex.Substring(4, 2), System.Globalization.NumberStyles.HexNumber);
-                            
-                            var brush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, r, g, b));
-                            if (rootElement is Grid rootGrid)
-                            {
-                                rootGrid.Background = brush;
-                            }
-                        }
-                    }
-                    catch { }
-                }
-                else
-                {
-                    if (rootElement is Grid rootGrid)
-                    {
-                        rootGrid.Background = null; // Revert default (Transparent to keep Mica Backdrop)
-                    }
-                }
-            }
-        }
-
-        private void ApplyTitleBarTheme(EditorSettings settings)
-        {
-            try
-            {
-                var titleBar = AppWindow.TitleBar;
-                bool light = settings.Theme == "Light";
-
-                Windows.UI.Color background = TryParseHexColor(settings.CustomBackgroundColor, out var customBg)
-                    ? customBg
-                    : (light ? Windows.UI.Color.FromArgb(255, 243, 243, 243) : Windows.UI.Color.FromArgb(255, 32, 32, 32));
-                Windows.UI.Color foreground = TryParseHexColor(settings.CustomForegroundColor, out var customFg)
-                    ? customFg
-                    : (light ? Windows.UI.Color.FromArgb(255, 32, 32, 32) : Windows.UI.Color.FromArgb(255, 242, 242, 242));
-                Windows.UI.Color inactiveBackground = light
-                    ? Windows.UI.Color.FromArgb(255, 232, 232, 232)
-                    : Windows.UI.Color.FromArgb(255, 38, 38, 38);
-                Windows.UI.Color hoverBackground = light
-                    ? Windows.UI.Color.FromArgb(255, 224, 224, 224)
-                    : Windows.UI.Color.FromArgb(255, 56, 56, 56);
-
-                titleBar.BackgroundColor = background;
-                titleBar.ForegroundColor = foreground;
-                titleBar.InactiveBackgroundColor = inactiveBackground;
-                titleBar.InactiveForegroundColor = foreground;
-                titleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
-                titleBar.ButtonForegroundColor = foreground;
-                titleBar.ButtonInactiveBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
-                titleBar.ButtonInactiveForegroundColor = foreground;
-                titleBar.ButtonHoverBackgroundColor = hoverBackground;
-                titleBar.ButtonHoverForegroundColor = foreground;
-                titleBar.ButtonPressedBackgroundColor = hoverBackground;
-                titleBar.ButtonPressedForegroundColor = foreground;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to apply titlebar theme: {ex.Message}");
-            }
-        }
-
-        private void ApplyMarkdownToolbarTheme(EditorSettings settings)
-        {
-            try
-            {
-                Windows.UI.Color background = TryParseHexColor(settings.MarkdownToolbarBackgroundColor, out var customToolbarBg)
-                    ? customToolbarBg
-                    : (settings.Theme == "Light"
-                        ? Windows.UI.Color.FromArgb(255, 236, 236, 238)
-                        : Windows.UI.Color.FromArgb(255, 43, 47, 54));
-                MarkdownToolbar.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(background);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to apply markdown toolbar theme: {ex.Message}");
-            }
-        }
-
-        private static ComboBox CreateFontComboBox(string currentFontFamily, IReadOnlyList<string> fontFamilies)
-        {
-            var comboBox = new ComboBox
-            {
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                PlaceholderText = "폰트 선택"
-            };
-
-            string current = string.IsNullOrWhiteSpace(currentFontFamily)
-                ? "Consolas"
-                : currentFontFamily.Trim();
-
-            if (!fontFamilies.Contains(current, StringComparer.OrdinalIgnoreCase))
-            {
-                comboBox.Items.Add(current);
-            }
-
-            foreach (string family in fontFamilies)
-            {
-                comboBox.Items.Add(family);
-            }
-
-            comboBox.SelectedItem = comboBox.Items
-                .OfType<string>()
-                .FirstOrDefault(item => item.Equals(current, StringComparison.OrdinalIgnoreCase))
-                ?? comboBox.Items.OfType<string>().FirstOrDefault();
-
-            return comboBox;
-        }
-
-        private static string GetSelectedComboText(ComboBox comboBox, string fallback)
-        {
-            return (comboBox.SelectedItem as string)?.Trim() ?? fallback.Trim();
-        }
-
-        private static DropDownButton CreateColorDropdown(string title, Windows.UI.Color initialColor, out ColorPicker colorPicker)
-        {
-            var swatch = new Border
-            {
-                Width = 120,
-                Height = 22,
-                CornerRadius = new CornerRadius(3),
-                BorderThickness = new Thickness(1),
-                BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(120, 128, 128, 128)),
-                Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(initialColor)
-            };
-
-            var picker = new ColorPicker
-            {
-                Color = initialColor,
-                IsAlphaEnabled = false,
-                HorizontalAlignment = HorizontalAlignment.Stretch
-            };
-            colorPicker = picker;
-
-            var flyoutContent = new StackPanel
-            {
-                Width = 320,
-                Spacing = 8,
-                Padding = new Thickness(8)
-            };
-            flyoutContent.Children.Add(new TextBlock { Text = title, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            flyoutContent.Children.Add(picker);
-
-            picker.ColorChanged += (_, __) =>
-            {
-                swatch.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(picker.Color);
-            };
-
-            return new DropDownButton
-            {
-                Content = swatch,
-                Flyout = new Flyout { Content = flyoutContent },
-                HorizontalAlignment = HorizontalAlignment.Left
-            };
-        }
-
-        private static IReadOnlyList<string> GetInstalledFontFamilies()
-        {
-            if (_installedFontFamiliesCache != null)
-            {
-                return _installedFontFamiliesCache;
-            }
-
-            var fonts = new SortedSet<string>(StringComparer.CurrentCultureIgnoreCase)
-            {
-                "Consolas",
-                "Courier New",
-                "Segoe UI",
-                "Malgun Gothic"
-            };
-
-            AddFontsFromRegistry(fonts, Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"));
-            AddFontsFromRegistry(fonts, Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"));
-
-            _installedFontFamiliesCache = fonts.ToList();
-            return _installedFontFamiliesCache;
-        }
-
-        private static void AddFontsFromRegistry(ISet<string> fonts, Microsoft.Win32.RegistryKey? key)
-        {
-            if (key == null)
-            {
-                return;
-            }
-
-            using (key)
-            {
-                foreach (string valueName in key.GetValueNames())
-                {
-                    string family = NormalizeFontRegistryName(valueName);
-                    if (!string.IsNullOrWhiteSpace(family))
-                    {
-                        fonts.Add(family);
-                    }
-                }
-            }
-        }
-
-        private static string NormalizeFontRegistryName(string valueName)
-        {
-            string family = Regex.Replace(valueName, @"\s*\([^)]+\)\s*$", string.Empty).Trim();
-            family = Regex.Replace(family, @"\s+(Regular|Normal|Bold|Italic|Oblique|Light|Medium|SemiBold|Semibold|ExtraLight|ExtraBold|Black|Thin|Condensed|Narrow)$", string.Empty, RegexOptions.IgnoreCase).Trim();
-            return family;
-        }
-
-        private static Windows.UI.Color ResolvePickerColor(string? colorValue, string fallbackHex)
-        {
-            if (TryParseHexColor(colorValue, out var color) || TryParseHexColor(fallbackHex, out color))
-            {
-                return color;
-            }
-
-            return Windows.UI.Color.FromArgb(255, 0, 0, 0);
-        }
-
-        private static string ColorToHex(Windows.UI.Color color)
-        {
-            return $"#{color.R:X2}{color.G:X2}{color.B:X2}";
-        }
-
-        private static bool TryParseHexColor(string? value, out Windows.UI.Color color)
-        {
-            color = Windows.UI.Color.FromArgb(255, 0, 0, 0);
-            string hex = (value ?? string.Empty).Trim().TrimStart('#');
-            if (hex.Length != 6)
-            {
-                return false;
-            }
-
-            try
-            {
-                byte r = byte.Parse(hex.Substring(0, 2), System.Globalization.NumberStyles.HexNumber);
-                byte g = byte.Parse(hex.Substring(2, 2), System.Globalization.NumberStyles.HexNumber);
-                byte b = byte.Parse(hex.Substring(4, 2), System.Globalization.NumberStyles.HexNumber);
-                color = Windows.UI.Color.FromArgb(255, r, g, b);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private static Windows.UI.Color GetReadableForeground(Windows.UI.Color background)
-        {
-            double luminance = (0.2126 * background.R + 0.7152 * background.G + 0.0722 * background.B) / 255.0;
-            return luminance < 0.48
-                ? Windows.UI.Color.FromArgb(255, 245, 247, 250)
-                : Windows.UI.Color.FromArgb(255, 24, 24, 27);
-        }
-
-        private void ApplyFontFamilyRecursively(DependencyObject parent, Microsoft.UI.Xaml.Media.FontFamily fontFamily)
-        {
-            if (parent == null) return;
-
-            if (parent is IconElement)
-            {
-                return;
-            }
-
-            if (parent is Control ctrl)
-            {
-                if (ctrl.FontFamily.Source.Contains("Segoe MDL2 Assets", StringComparison.OrdinalIgnoreCase))
-                {
-                    return;
-                }
-
-                if (ctrl is Microsoft.UI.Xaml.Controls.Primitives.ButtonBase button &&
-                    button.Content is string content &&
-                    content.Any(ch => ch >= '\uE000' && ch <= '\uF8FF'))
-                {
-                    return;
-                }
-
-                ctrl.FontFamily = fontFamily;
-            }
-            else if (parent is TextBlock tb)
-            {
-                tb.FontFamily = fontFamily;
-            }
-
-            int count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(parent);
-            for (int i = 0; i < count; i++)
-            {
-                var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(parent, i);
-                ApplyFontFamilyRecursively(child, fontFamily);
-            }
+            _uiPersonalizationService.Apply(
+                settings,
+                AppWindow,
+                Content as FrameworkElement,
+                MarkdownToolbar.SetToolbarBackground);
         }
         #endregion
 
@@ -4117,7 +3184,7 @@ namespace Ueditor
             {
                 GitPanelBranchText.Text = "Git: 감지 안됨";
                 StatusGitBranch.Text = "Git: 감지 안됨";
-                _gitFilesList.Clear();
+                _viewModel.GitFiles.Clear();
                 GitBranchesCombo.Items.Clear();
                 GitHistoryList.Items.Clear();
                 return;
@@ -4127,7 +3194,7 @@ namespace Ueditor
             GitPanelBranchText.Text = branch;
             StatusGitBranch.Text = branch;
 
-            _gitFilesList.Clear();
+            _viewModel.GitFiles.Clear();
             GitBranchesCombo.Items.Clear();
             foreach (var branchName in await _gitService.GetBranchesAsync(_currentRepoPath))
             {
@@ -4157,7 +3224,7 @@ namespace Ueditor
 
                 string actionGlyph = isStaged ? "\xE108" : "\xE109"; // Minus (Unstage) or Plus (Stage) in Segoe MDL2
 
-                _gitFilesList.Add(new GitFileItem
+                _viewModel.GitFiles.Add(new GitFileItem
                 {
                     Name = Path.GetFileName(fullPath),
                     Path = fullPath,
@@ -4185,7 +3252,7 @@ namespace Ueditor
         {
             if (sender is Button btn && btn.Tag is string filePath)
             {
-                var item = _gitFilesList.FirstOrDefault(f => f.Path == filePath);
+                var item = _viewModel.GitFiles.FirstOrDefault(f => f.Path == filePath);
                 if (item == null) return;
 
                 bool success;
@@ -4331,6 +3398,16 @@ namespace Ueditor
 
         #region Advanced Search & Replace Handlers
 
+        private FileSearchOptions GetSearchOptions()
+        {
+            return new FileSearchOptions
+            {
+                IsRegex = SearchRegexToggle.IsChecked == true,
+                MatchCase = SearchMatchCaseToggle.IsChecked == true,
+                WholeWord = SearchWholeWordToggle.IsChecked == true
+            };
+        }
+
         private async void OnSearchAllFilesClick(object sender, RoutedEventArgs e)
         {
             string query = SearchQueryInput.Text;
@@ -4343,16 +3420,16 @@ namespace Ueditor
             }
 
             _lastSearchQuery = query;
-            _searchResultsList.Clear();
+            _viewModel.SearchResults.Clear();
+
             string searchRoot = !string.IsNullOrEmpty(_currentFolderPath) ? _currentFolderPath : _currentRepoPath;
-            bool isRegex = SearchRegexToggle.IsChecked == true;
-            bool isMatchCase = SearchMatchCaseToggle.IsChecked == true;
-            bool isWholeWord = SearchWholeWordToggle.IsChecked == true;
-            Regex? searchRegex;
+            var options = GetSearchOptions();
+            long thresholdBytes = _settingsService.CurrentSettings.LargeFileThresholdMB * 1024L * 1024L;
+            FileSearchSummary summary;
 
             try
             {
-                searchRegex = BuildSearchRegex(query, isRegex, isMatchCase, isWholeWord);
+                summary = await _fileSearchService.SearchAsync(searchRoot, query, thresholdBytes, options, PublishSearchResults);
             }
             catch (ArgumentException ex)
             {
@@ -4360,79 +3437,13 @@ namespace Ueditor
                 return;
             }
 
-            int foundCount = 0;
-            int skippedFiles = 0;
-            await Task.Run(() =>
+            if (summary.FoundCount == 0 && summary.SkippedFiles > 0)
             {
-                var tempResults = new List<SearchResultItem>();
-                var settings = _settingsService.CurrentSettings;
-                long thresholdBytes = settings.LargeFileThresholdMB * 1024 * 1024;
-
-                foreach (var file in EnumerateSearchFiles(searchRoot))
-                {
-                    try
-                    {
-                        var info = new FileInfo(file);
-                        if (info.Length > thresholdBytes)
-                        {
-                            var largeResults = _fileService.SearchLargeFileAsync(file, query, isRegex, isMatchCase, isWholeWord).GetAwaiter().GetResult();
-                            foreach (var lr in largeResults)
-                            {
-                                tempResults.Add(new SearchResultItem
-                                {
-                                    Path = file,
-                                    LineNumber = lr.LineNumber,
-                                    LineContent = lr.LineContent,
-                                    IndexOfMatch = lr.IndexOfMatch,
-                                    MatchLength = lr.MatchLength
-                                });
-                                foundCount++;
-
-                                FlushSearchResultsIfNeeded(tempResults);
-                            }
-
-                            continue;
-                        }
-
-                        int lineNum = 1;
-                        foreach (var line in File.ReadLines(file))
-                        {
-                            var match = searchRegex.Match(line);
-                            if (match.Success)
-                            {
-                                tempResults.Add(new SearchResultItem
-                                {
-                                    Path = file,
-                                    LineNumber = lineNum,
-                                    LineContent = line,
-                                    IndexOfMatch = match.Index,
-                                    MatchLength = match.Length
-                                });
-                                foundCount++;
-
-                                FlushSearchResultsIfNeeded(tempResults);
-                            }
-
-                            lineNum++;
-                        }
-                    }
-                    catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is System.Security.SecurityException || ex is NotSupportedException)
-                    {
-                        skippedFiles++;
-                        System.Diagnostics.Debug.WriteLine($"Skipped search file {file}: {ex.Message}");
-                    }
-                }
-
-                FlushSearchResults(tempResults);
-            });
-
-            if (foundCount == 0 && skippedFiles > 0)
-            {
-                ShowErrorMessage("검색 완료", $"검색 결과가 없습니다.\n읽을 수 없어 건너뛴 파일: {skippedFiles:N0}개");
+                ShowErrorMessage("검색 완료", $"검색 결과가 없습니다.\n읽을 수 없어 건너뛴 파일: {summary.SkippedFiles:N0}개");
             }
-            else if (foundCount > 0)
+            else if (summary.FoundCount > 0)
             {
-                this.DispatcherQueue.TryEnqueue(async () =>
+                DispatcherQueue.TryEnqueue(async () =>
                 {
                     SearchResultsList.SelectedIndex = 0;
                     SearchResultsList.ScrollIntoView(SearchResultsList.SelectedItem);
@@ -4444,87 +3455,13 @@ namespace Ueditor
             }
         }
 
-        private static Regex BuildSearchRegex(string query, bool isRegex, bool isMatchCase, bool isWholeWord)
+        private void PublishSearchResults(IReadOnlyList<SearchResultItem> results)
         {
-            string pattern = isRegex ? query : Regex.Escape(query);
-            if (isWholeWord)
+            DispatcherQueue.TryEnqueue(() =>
             {
-                pattern = $"\\b{pattern}\\b";
-            }
-
-            var options = isMatchCase ? RegexOptions.None : RegexOptions.IgnoreCase;
-            return new Regex(pattern, options);
-        }
-
-        private IEnumerable<string> EnumerateSearchFiles(string searchRoot)
-        {
-            var options = new EnumerationOptions
-            {
-                RecurseSubdirectories = true,
-                IgnoreInaccessible = true,
-                ReturnSpecialDirectories = false
-            };
-
-            IEnumerable<string> files;
-            try
-            {
-                files = Directory.EnumerateFiles(searchRoot, "*", options);
-            }
-            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is System.Security.SecurityException || ex is DirectoryNotFoundException)
-            {
-                System.Diagnostics.Debug.WriteLine($"Search root unavailable: {ex.Message}");
-                yield break;
-            }
-
-            foreach (var file in files)
-            {
-                if (ShouldSkipSearchPath(file))
+                foreach (var item in results)
                 {
-                    continue;
-                }
-
-                yield return file;
-            }
-        }
-
-        private static bool ShouldSkipSearchPath(string filePath)
-        {
-            string normalized = filePath.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
-            string[] skippedSegments =
-            {
-                $"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}",
-                $"{Path.DirectorySeparatorChar}.vs{Path.DirectorySeparatorChar}",
-                $"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}",
-                $"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}",
-                $"{Path.DirectorySeparatorChar}node_modules{Path.DirectorySeparatorChar}",
-                $"{Path.DirectorySeparatorChar}packages{Path.DirectorySeparatorChar}"
-            };
-
-            return skippedSegments.Any(segment => normalized.Contains(segment, StringComparison.OrdinalIgnoreCase));
-        }
-
-        private void FlushSearchResultsIfNeeded(List<SearchResultItem> results)
-        {
-            if (results.Count >= 30)
-            {
-                FlushSearchResults(results);
-            }
-        }
-
-        private void FlushSearchResults(List<SearchResultItem> results)
-        {
-            if (results.Count == 0)
-            {
-                return;
-            }
-
-            var batch = results.ToList();
-            results.Clear();
-            this.DispatcherQueue.TryEnqueue(() =>
-            {
-                foreach (var item in batch)
-                {
-                    _searchResultsList.Add(item);
+                    _viewModel.SearchResults.Add(item);
                 }
             });
         }
@@ -4549,125 +3486,74 @@ namespace Ueditor
             return null;
         }
 
-        private string ReplaceSearchMatches(string original, string query, string replace)
-        {
-            bool isRegex = SearchRegexToggle.IsChecked == true;
-            bool isMatchCase = SearchMatchCaseToggle.IsChecked == true;
-            bool isWholeWord = SearchWholeWordToggle.IsChecked == true;
-
-            if (isRegex || isWholeWord)
-            {
-                var regex = BuildSearchRegex(query, isRegex, isMatchCase, isWholeWord);
-                return regex.Replace(original, replace);
-            }
-
-            var comparison = isMatchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-            return original.Replace(query, replace, comparison);
-        }
-
         private async void OnReplaceAllClick(object sender, RoutedEventArgs e)
         {
             string query = SearchQueryInput.Text;
             string replace = ReplaceQueryInput.Text;
-            if (string.IsNullOrEmpty(query) || _searchResultsList.Count == 0) return;
+            if (string.IsNullOrEmpty(query) || _viewModel.SearchResults.Count == 0) return;
+
+            var options = GetSearchOptions();
+            try
+            {
+                _fileSearchService.BuildSearchRegex(query, options);
+            }
+            catch (ArgumentException ex)
+            {
+                ShowErrorMessage("치환 실패", $"정규식이 올바르지 않습니다.\n{ex.Message}");
+                return;
+            }
 
             var dialog = new ContentDialog
             {
                 Title = "전체 치환 경고",
-                Content = $"{_searchResultsList.Count}개의 일치 항목을 '{replace}'(으)로 일괄 치환하시겠습니까?",
+                Content = $"{_viewModel.SearchResults.Count}개의 일치 항목을 '{replace}'(으)로 일괄 치환하시겠습니까?",
                 PrimaryButtonText = "치환 실행",
                 CloseButtonText = "취소",
                 XamlRoot = this.Content.XamlRoot
             };
 
             var result = await dialog.ShowAsync();
-            if (result == ContentDialogResult.Primary)
+            if (result != ContentDialogResult.Primary)
             {
-                var grouped = _searchResultsList.GroupBy(r => r.Path);
-                foreach (var group in grouped)
+                return;
+            }
+
+            long thresholdBytes = _settingsService.CurrentSettings.LargeFileThresholdMB * 1024L * 1024L;
+            var grouped = _viewModel.SearchResults.GroupBy(r => r.Path).ToList();
+            foreach (var group in grouped)
+            {
+                string filePath = group.Key;
+                try
                 {
-                    string filePath = group.Key;
-                    try
+                    var info = new FileInfo(filePath);
+                    if (info.Length > thresholdBytes)
                     {
-                        var info = new FileInfo(filePath);
-                        if (info.Length > 50 * 1024 * 1024)
-                        {
-                            await ReplaceInLargeFileAsync(filePath, group.ToList(), query, replace);
-                        }
-                        else
-                        {
-                            var lines = File.ReadAllLines(filePath).ToList();
-                            var sorted = group.OrderByDescending(r => r.LineNumber).ToList();
-                            foreach (var res in sorted)
-                            {
-                                if (res.LineNumber - 1 < lines.Count)
-                                {
-                                    lines[res.LineNumber - 1] = ReplaceSearchMatches(lines[res.LineNumber - 1], query, replace);
-                                }
-                            }
-                            await File.WriteAllLinesAsync(filePath, lines);
-                        }
+                        await _fileSearchService.ReplaceInLargeFileAsync(filePath, group.ToList(), query, replace, options);
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        System.Diagnostics.Debug.WriteLine($"Failed replace in {filePath}: {ex.Message}");
+                        var lines = File.ReadAllLines(filePath).ToList();
+                        foreach (int lineNumber in group.Select(r => r.LineNumber).Distinct())
+                        {
+                            int index = lineNumber - 1;
+                            if (index >= 0 && index < lines.Count)
+                            {
+                                lines[index] = _fileSearchService.ReplaceSearchMatches(lines[index], query, replace, options);
+                            }
+                        }
+
+                        await File.WriteAllLinesAsync(filePath, lines);
                     }
                 }
-
-                _searchResultsList.Clear();
-                ShowErrorMessage("치환 완료", "모든 매칭 항목의 치환 처리가 완료되었습니다.");
-                await RefreshGitStatusUIAsync();
-            }
-        }
-
-        private async Task ReplaceInLargeFileAsync(string filePath, List<SearchResultItem> results, string query, string replace)
-        {
-            string tempPath = Path.Combine(Path.GetDirectoryName(filePath) ?? Path.GetTempPath(), $"._{Path.GetFileName(filePath)}.tmp");
-            string backupPath = filePath + ".bak";
-
-            try
-            {
-                var sorted = results.OrderBy(r => r.LineNumber).ToList();
-                int idx = 0;
-
-                using (var reader = new StreamReader(filePath))
-                using (var writer = new StreamWriter(tempPath, false, Encoding.UTF8))
+                catch (Exception ex)
                 {
-                    string? line;
-                    int lineNum = 1;
-                    while ((line = await reader.ReadLineAsync()) != null)
-                    {
-                        if (idx < sorted.Count && sorted[idx].LineNumber == lineNum)
-                        {
-                            string updated;
-                            if (SearchRegexToggle.IsChecked == true)
-                            {
-                                var options = SearchMatchCaseToggle.IsChecked == true ? System.Text.RegularExpressions.RegexOptions.None : System.Text.RegularExpressions.RegexOptions.IgnoreCase;
-                                updated = System.Text.RegularExpressions.Regex.Replace(line, query, replace, options);
-                            }
-                            else
-                            {
-                                updated = line.Replace(query, replace, StringComparison.OrdinalIgnoreCase);
-                            }
-                            await writer.WriteLineAsync(updated);
-                            idx++;
-                        }
-                        else
-                        {
-                            await writer.WriteLineAsync(line);
-                        }
-                        lineNum++;
-                    }
+                    System.Diagnostics.Debug.WriteLine($"Failed replace in {filePath}: {ex.Message}");
                 }
+            }
 
-                File.Replace(tempPath, filePath, backupPath);
-                if (File.Exists(backupPath)) File.Delete(backupPath);
-            }
-            catch (Exception ex)
-            {
-                if (File.Exists(tempPath)) File.Delete(tempPath);
-                throw new IOException($"대용량 치환 중 실패: {ex.Message}", ex);
-            }
+            _viewModel.SearchResults.Clear();
+            ShowErrorMessage("치환 완료", "모든 매칭 항목의 치환 처리가 완료되었습니다.");
+            await RefreshGitStatusUIAsync();
         }
 
         private async void OnSearchResultDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
@@ -4773,7 +3659,7 @@ namespace Ueditor
                 {
                     tab.FilePath = file.Path;
                     tab.Title = file.Name;
-                    tab.Language = GetMonacoLanguageName(file.Path);
+                    tab.Language = _languageDetectionService.GetMonacoLanguageName(file.Path);
                     if (string.IsNullOrWhiteSpace(tab.EncodingName))
                     {
                         tab.EncodingName = "UTF-8";
@@ -4808,7 +3694,7 @@ namespace Ueditor
             var activeTabView = GetCurrentActiveTabView();
             if (activeTabView.SelectedItem is TabViewItem tabItem && tabItem.Tag is string tabId)
             {
-                var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
+                var tab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
                 if (tab != null)
                 {
                     if (tab.IsDirty)
@@ -4832,7 +3718,7 @@ namespace Ueditor
                 return;
             }
 
-            var dirtyTabs = _tabs.Where(t => t.IsDirty).ToList();
+            var dirtyTabs = _viewModel.Tabs.Where(t => t.IsDirty).ToList();
             if (dirtyTabs.Count > 0)
             {
                 args.Cancel = true; // Prevent immediate close before awaiting UI work
@@ -4869,122 +3755,13 @@ namespace Ueditor
             }
         }
 
-        private string DetectLanguageFromContent(string text, string defaultLanguage = "plaintext")
-        {
-            if (string.IsNullOrWhiteSpace(text)) return defaultLanguage;
-
-            string sample = text.Trim();
-            if (sample.Length > 2000) sample = sample.Substring(0, 2000);
-
-            if (sample.StartsWith("{") && sample.EndsWith("}") && sample.Contains("\"")) return "json";
-            if (sample.StartsWith("[") && sample.EndsWith("]") && sample.Contains("{\"")) return "json";
-            if (sample.StartsWith("diff --git") || sample.Contains("\n@@ ")) return "diff";
-
-            if (sample.Contains("<!DOCTYPE html", StringComparison.OrdinalIgnoreCase) ||
-                sample.Contains("<html", StringComparison.OrdinalIgnoreCase) ||
-                sample.Contains("<head", StringComparison.OrdinalIgnoreCase) ||
-                sample.Contains("<body", StringComparison.OrdinalIgnoreCase)) return "html";
-
-            if (sample.Contains("\\documentclass") ||
-                sample.Contains("\\begin{document}") ||
-                sample.Contains("\\begin{align}") ||
-                sample.Contains("$$\n") ||
-                sample.Contains("\\frac{")) return "latex";
-
-            if (sample.Contains("\n# ") || sample.StartsWith("# ") ||
-                sample.Contains("## ") ||
-                sample.Contains("```") ||
-                sample.Contains("- [ ] ") ||
-                sample.Contains("**")) return "markdown";
-
-            if (sample.Contains("using System;") ||
-                sample.Contains("namespace ") ||
-                (sample.Contains("public class ") && sample.Contains("void Main")) ||
-                sample.Contains("Console.WriteLine(")) return "csharp";
-
-            if (sample.Contains("#include <iostream>") ||
-                sample.Contains("std::cout") ||
-                sample.Contains("int main()")) return "cpp";
-
-            if (sample.Contains("public class ") && sample.Contains("public static void main") ||
-                sample.Contains("System.out.println(")) return "java";
-
-            if (sample.Contains("import os") ||
-                (sample.Contains("def ") && sample.Contains(":")) ||
-                (sample.Contains("print(") && sample.Contains("if __name__ == ")) ||
-                sample.Contains("elif ")) return "python";
-
-            if ((sample.Contains("const ") && sample.Contains(" = require(")) ||
-                (sample.Contains("import ") && sample.Contains(" from ")) ||
-                sample.Contains("console.log(") ||
-                sample.Contains("document.getElementById(")) return "javascript";
-
-            if (sample.Contains("interface ") && sample.Contains(": ") ||
-                sample.Contains("type ") && sample.Contains(" = ") ||
-                sample.Contains("React.") ||
-                sample.Contains("useState(")) return "typescript";
-
-            if (sample.Contains("fn main()") ||
-                sample.Contains("let mut ") ||
-                sample.Contains("pub struct ") ||
-                sample.Contains("impl ") ||
-                sample.Contains("use std::")) return "rust";
-
-            if (sample.Contains("package main") ||
-                sample.Contains("import (") ||
-                sample.Contains("func main()")) return "go";
-
-            if (sample.Contains("fun main(") ||
-                sample.Contains("val ") ||
-                sample.Contains("data class ")) return "kotlin";
-
-            if (sample.Contains("import SwiftUI") ||
-                sample.Contains("let ") && sample.Contains("func ")) return "swift";
-
-            if (sample.Contains("<?php") ||
-                sample.Contains("echo $") ||
-                sample.Contains("function ") && sample.Contains("$")) return "php";
-
-            if (sample.StartsWith("#!/usr/bin/env ruby") ||
-                sample.Contains("puts ") ||
-                sample.Contains("def ") && sample.Contains("end")) return "ruby";
-
-            if (sample.Contains("FROM ") && sample.Contains("RUN ", StringComparison.OrdinalIgnoreCase)) return "dockerfile";
-
-            if (sample.Contains("SELECT ", StringComparison.OrdinalIgnoreCase) &&
-                sample.Contains("FROM ", StringComparison.OrdinalIgnoreCase)) return "sql";
-
-            if (sample.Contains("body {") ||
-                sample.Contains(".class {") ||
-                sample.Contains("#id {") ||
-                sample.Contains("margin:") ||
-                sample.Contains("padding:")) return "css";
-
-            if (sample.Contains("---") &&
-                (sample.Contains("version:") || sample.Contains("name:") || sample.Contains("author:"))) return "yaml";
-
-            if (sample.Contains("[package]") || sample.Contains("[dependencies]")) return "toml";
-
-            if (sample.StartsWith("#!/bin/bash") ||
-                sample.StartsWith("#!/bin/sh") ||
-                sample.StartsWith("#!/usr/bin/env bash") ||
-                sample.Contains("echo ") ||
-                sample.Contains("export ")) return "shell";
-
-            if (sample.Contains("param(") ||
-                sample.Contains("Write-Host") ||
-                sample.Contains("Get-ChildItem")) return "powershell";
-
-            return defaultLanguage;
-        }
-
         private void UpdateLanguageUI(OpenedTab tab)
         {
             if (tab == null) return;
             string detected = tab.Language;
             if (detected == "plaintext" || string.IsNullOrEmpty(detected))
             {
-                detected = DetectLanguageFromContent(tab.Content, "plaintext");
+                detected = _languageDetectionService.DetectLanguageFromContent(tab.Content, "plaintext");
             }
 
             if (StatusLanguage != null)
@@ -5030,7 +3807,7 @@ namespace Ueditor
                 string query = SearchQueryInput.Text;
                 if (string.IsNullOrWhiteSpace(query)) return;
 
-                if (_searchResultsList.Count == 0 || query != _lastSearchQuery)
+                if (_viewModel.SearchResults.Count == 0 || query != _lastSearchQuery)
                 {
                     OnSearchAllFilesClick(this, new RoutedEventArgs());
                 }
@@ -5039,7 +3816,7 @@ namespace Ueditor
                     int nextIndex = 0;
                     if (SearchResultsList.SelectedIndex >= 0)
                     {
-                        nextIndex = (SearchResultsList.SelectedIndex + 1) % _searchResultsList.Count;
+                        nextIndex = (SearchResultsList.SelectedIndex + 1) % _viewModel.SearchResults.Count;
                     }
                     SearchResultsList.SelectedIndex = nextIndex;
                     SearchResultsList.ScrollIntoView(SearchResultsList.SelectedItem);
@@ -5076,7 +3853,7 @@ namespace Ueditor
                 if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
                     activeTabItem.Tag is string tabId)
                 {
-                    var tab = _tabs.FirstOrDefault(t => t.Id == tabId);
+                    var tab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
                     if (tab != null) UpdateLivePreview(tab);
                 }
             }
@@ -5088,7 +3865,7 @@ namespace Ueditor
             
             // Build tab list for ComboBoxes
             var tabChoices = new List<string> { "직접 파일 선택..." };
-            foreach (var t in _tabs)
+            foreach (var t in _viewModel.Tabs)
             {
                 tabChoices.Add($"[탭] {t.Title}");
             }
@@ -5196,11 +3973,11 @@ namespace Ueditor
 
                 if (originalCombo.SelectedIndex > 0)
                 {
-                    tabA = _tabs[originalCombo.SelectedIndex - 1];
+                    tabA = _viewModel.Tabs[originalCombo.SelectedIndex - 1];
                 }
                 if (modifiedCombo.SelectedIndex > 0)
                 {
-                    tabB = _tabs[modifiedCombo.SelectedIndex - 1];
+                    tabB = _viewModel.Tabs[modifiedCombo.SelectedIndex - 1];
                 }
 
                 string pathA = tabA == null ? originalPathBox.Text.Trim() : (string.IsNullOrEmpty(tabA.FilePath) ? tabA.Title : tabA.FilePath);
@@ -5234,7 +4011,7 @@ namespace Ueditor
                 Content = ""
             };
 
-            _tabs.Add(tab);
+            _viewModel.Tabs.Add(tab);
 
             var grid = new Grid();
             var diffWebView = new WebView2
