@@ -5,6 +5,7 @@ Ueditor is a WinUI 3 desktop text editor shell with WebView2-based editing and p
 ## Modules
 
 - App Shell: `MainWindow.xaml` owns the toolbar, left explorer/favorites/library/search/Git tabs, center editor tabs, right preview/AI panel, splitters, and status bar.
+- Terminal UI: `Controls/TerminalPane.xaml` owns embedded terminal session UI, native console hosting, redirected fallback I/O, and terminal session switching. `MainWindow` only controls panel placement and supplies the working directory.
 - Editor Module: `Editor/MonacoBridge.cs` is the C# bridge for the WebView editor page. The current `WebResources/editor.html` is a standalone textarea editor with line numbers, selection IPC, word wrap, tab handling, and Markdown command support. The bridge name is kept so a local Monaco bundle can be swapped in later without rewriting the shell.
 - Preview Module: `WebResources/preview.html` is a unified built-in renderer for Markdown, sanitized HTML, and lightweight LaTeX display. It receives debounced content updates from the active tab and syncs theme/font/color settings.
 - Large File Module: `FileService` builds line-offset indexes and `WebResources/large-viewer.html` renders only the viewport lines. The current mode is read-only by default, with patch-save plumbing preserved for the later limited-edit phase.
