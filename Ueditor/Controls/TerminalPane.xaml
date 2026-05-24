@@ -12,7 +12,7 @@
           Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="180"/>
+            <ColumnDefinition Width="70"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -86,8 +86,8 @@
                       SelectionChanged="OnTerminalSessionsListSelectionChanged">
                 <ListView.ItemTemplate>
                     <DataTemplate>
-                        <Grid Padding="8,6,8,6">
-                            <TextBlock Text="{Binding DisplayTitle}" TextTrimming="CharacterEllipsis"/>
+                        <Grid Padding="6,4,6,4">
+                            <TextBlock Text="{Binding DisplayTitle}" TextTrimming="CharacterEllipsis" FontSize="11"/>
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>
