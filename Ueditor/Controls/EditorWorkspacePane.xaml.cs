@@ -66,6 +66,17 @@ namespace Ueditor.Controls
             return ActiveTabView ?? EditorTabView;
         }
 
+        public void RefreshSplitters()
+        {
+            foreach (var child in EditorSplitGrid.Children)
+            {
+                if (child is CustomSplitter cs)
+                    cs.RefreshTheme();
+            }
+            if (TerminalSplitter is CustomSplitter terminalSplitter)
+                terminalSplitter.RefreshTheme();
+        }
+
         public void Localize(Func<string, string, string> getString)
         {
             string leftTooltip = getString("MoveTabLeftTooltip", "왼쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)");
@@ -348,8 +359,8 @@ namespace Ueditor.Controls
             if (_isDraggingTerminalSplitter)
             {
                 var pt = e.GetCurrentPoint(this).Position;
-                double deltaY = _terminalSplitterStartPointerY - pt.Y;
-                double maxHeight = Math.Max(160, ActualHeight - 180);
+                double deltaY = pt.Y - _terminalSplitterStartPointerY;
+                double maxHeight = Math.Max(160, ActualHeight * 0.6);
                 double newHeight = Math.Clamp(_terminalSplitterStartHeight + deltaY, 120, maxHeight);
                 LastTerminalHeight = newHeight;
                 TerminalPanelRow.Height = new GridLength(newHeight);

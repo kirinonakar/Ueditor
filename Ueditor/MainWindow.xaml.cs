@@ -951,7 +951,7 @@ namespace Ueditor
             }
         }
 
-        private async Task LoadFileIntoTabAsync(string filePath)
+        internal async Task LoadFileIntoTabAsync(string filePath)
         {
             try
             {
@@ -959,7 +959,7 @@ namespace Ueditor
                 if (!string.IsNullOrEmpty(repoRoot))
                 {
                     _currentRepoPath = repoRoot;
-                        await RefreshGitStatusUIAsync();
+                    await RefreshGitStatusUIAsync();
                 }
 
                 var readResult = await LineArrayTextModel.LoadFromFileAsync(filePath, "Auto");
@@ -1221,6 +1221,7 @@ namespace Ueditor
             settings.Theme = settings.Theme == "Light" ? "Dark" : "Light";
             await _settingsService.SaveSettingsAsync(settings);
             ApplyUiPersonalization(settings);
+            RefreshAllSplitters();
 
             foreach (var grp in _tabBridges.Values)
             {
@@ -1250,6 +1251,13 @@ namespace Ueditor
                 var tab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
                 if (tab != null) UpdateLivePreview(tab);
             }
+        }
+
+        private void RefreshAllSplitters()
+        {
+            LeftSplitter.RefreshTheme();
+            RightSplitter.RefreshTheme();
+            EditorWorkspace.RefreshSplitters();
         }
 
         private string GetLocalizedString(string key, string fallback)

@@ -155,6 +155,21 @@
             overflow: visible;
         }
 
+        table {
+            border-collapse: collapse;
+            margin: 6px 0;
+            font-size: 0.9em;
+        }
+        th, td {
+            border: 1px solid var(--border);
+            padding: 5px 10px;
+            text-align: left;
+        }
+        th {
+            background: color-mix(in srgb, var(--fg) 10%, transparent);
+            font-weight: 600;
+        }
+
         blockquote {
             padding-left: 12px;
             color: var(--muted);
@@ -334,26 +349,54 @@
             return `<p class="aozora">${html}</p>`;
         }
 
-        function renderMarkdownLine(line) {
+        function renderMarkdownLine(line, prevLine, accumulated) {
             const trimmed = line.trim();
             if (!trimmed) return '';
             if (/^```/.test(trimmed)) return '<pre><code>```</code></pre>';
+
+            // Table row
+            if (/^\|.+\|$/.test(trimmed) && /\|/.test(trimmed.replace(/^\|/, '').replace(/\|$/, ''))) {
+                const isHeader = prevLine && /^\|[-:| ]+\|$/.test(prevLine.trim());
+                if (isHeader) return null;
+                const cells = trimmed.split(/(?<!\\)\|/).filter(c => c !== '' || trimmed.startsWith('|'));
+                const isSep = cells.every(c => /^[-:| ]+$/.test(c.trim()));
+                if (isSep) return null;
+                const cols = cells.map(c => {
+                    const content = c.trim();
+                    const isAlignedRight = /^:?-+:?$/.test(content);
+                    const align = isAlignedRight ? (content.endsWith(':') && content.startsWith(':') ? 'center' : content.endsWith(':') ? 'right' : 'left') : '';
+                    return align ? { content: inlineMarkdown(c), align } : inlineMarkdown(c);
+                });
+                const cellHtml = cols.map(c => typeof c === 'string' ? `<td>${c}</td>` : `<td style="text-align:${c.align}">${c.content}</td>`).join('');
+                return `<tr>${cellHtml}</tr>`;
+            }
+
             const heading = /^(#{1,6})\s+(.+)$/.exec(line);
             if (heading) {
                 const level = Math.min(6, heading[1].length);
                 return `<h${level}>${inlineMarkdown(heading[2])}</h${level}>`;
             }
             if (/^>\s?/.test(line)) return `<blockquote>${inlineMarkdown(line.replace(/^>\s?/, ''))}</blockquote>`;
-            const task = /^[-*]\s+\[( |x|X)\]\s+(.+)$/.exec(line);
+            const task = /^(\s*)[-*]\s+\[( |x|X)\]\s+(.+)$/.exec(line);
             if (task) {
-                const checked = task[1].toLowerCase() === 'x' ? ' checked' : '';
-                return `<p><input type="checkbox" disabled${checked}> ${inlineMarkdown(task[2])}</p>`;
+                const indent = Math.floor(task[1].length / 2);
+                const checked = task[2].toLowerCase() === 'x' ? ' checked' : '';
+                const nest = '  '.repeat(indent);
+                return `${nest}<p style="margin-left:${indent * 20}px"><input type="checkbox" disabled${checked}> ${inlineMarkdown(task[3])}</p>`;
             }
-            const ul = /^[-*]\s+(.+)$/.exec(line);
-            if (ul) return `<ul><li>${inlineMarkdown(ul[1])}</li></ul>`;
-            const ol = /^\d+\.\s+(.+)$/.exec(line);
-            if (ol) return `<ol><li>${inlineMarkdown(ol[1])}</li></ol>`;
-            if (/^---+$/.test(trimmed)) return '<hr>';
+            const ul = /^(\s*)[-*+]\s+(.+)$/.exec(line);
+            if (ul) {
+                const indent = Math.floor(ul[1].length / 2);
+                const nest = '  '.repeat(indent);
+                return `${nest}<ul><li style="margin-left:${indent * 20}px">${inlineMarkdown(ul[2])}</li></ul>`;
+            }
+            const ol = /^(\s*)\d+\.\s+(.+)$/.exec(line);
+            if (ol) {
+                const indent = Math.floor(ol[1].length / 2);
+                const nest = '  '.repeat(indent);
+                return `${nest}<ol><li style="margin-left:${indent * 20}px">${inlineMarkdown(ol[2])}</li></ol>`;
+            }
+            if (/^\*{3,}\s*$/.test(trimmed) || /^-{3,}\s*$/.test(trimmed) || /^_{3,}\s*$/.test(trimmed)) return '<hr>';
             if (/^\$\$[\s\S]*\$\$$/.test(trimmed)) return renderLatexLine(trimmed);
             if (/^\\\[[\s\S]*\\\]$/.test(trimmed)) return renderLatexLine(trimmed);
             if (/^<\/?[A-Za-z][A-Za-z0-9:-]*(?:\s+[^<>]*?)?\s*\/?>/.test(trimmed)) {
@@ -494,30 +537,61 @@
             viewport.style.transform = `translateY(${rowTop(range.start)}px)`;
 
             const rows = [];
-            let skipUntilLine = 0;
-            for (let lineNumber = range.start; lineNumber <= range.end; lineNumber++) {
-                if (!state.cache.has(lineNumber)) {
-                    rows.push(`<div class="preview-row loading">로딩 중...</div>`);
-                    continue;
-                }
-
-                const line = state.cache.get(lineNumber) || '';
-                let rendered;
-                if (lineNumber <= skipUntilLine) {
-                    rendered = '';
-                } else if (state.mode === 'markdown' && isDisplayMathFence(line)) {
-                    const block = collectDisplayMathBlock(lineNumber, range.end);
-                    if (block) {
-                        rendered = renderLatexLine(block.text);
-                        skipUntilLine = block.endLine;
-                    } else {
-                        rendered = '';
+                let skipUntilLine = 0;
+                let inTable = false;
+                let tableRows = [];
+                for (let lineNumber = range.start; lineNumber <= range.end; lineNumber++) {
+                    if (!state.cache.has(lineNumber)) {
+                        rows.push(`<div class="preview-row loading">로딩 중...</div>`);
+                        continue;
                     }
-                } else {
-                    rendered = renderLine(line);
+
+                    const line = state.cache.get(lineNumber) || '';
+                    const prevLine = state.cache.get(lineNumber - 1);
+                    let rendered;
+                    if (lineNumber <= skipUntilLine) {
+                        rendered = '';
+                    } else if (state.mode === 'markdown' && isDisplayMathFence(line)) {
+                        const block = collectDisplayMathBlock(lineNumber, range.end);
+                        if (block) {
+                            rendered = renderLatexLine(block.text);
+                            skipUntilLine = block.endLine;
+                        } else {
+                            rendered = '';
+                        }
+                    } else if (state.mode === 'markdown' && /^\|.+\|$/.test(line.trim())) {
+                        const tr = renderMarkdownLine(line, prevLine);
+                        if (tr === null) {
+                            continue;
+                        }
+                        const isSep = line.split('|').filter(c => c.trim()).every(c => /^[-:| ]+$/.test(c.trim()));
+                        if (isSep) {
+                            inTable = true;
+                            tableRows = [];
+                            continue;
+                        }
+                        if (inTable || (prevLine && /^\|[-:| ]+\|$/.test(prevLine.trim()))) {
+                            inTable = true;
+                            tableRows.push(tr);
+                            const nextLine = state.cache.get(lineNumber + 1);
+                            const isLastTableRow = !nextLine || !/^\|.+\|$/.test(nextLine.trim());
+                            if (isLastTableRow) {
+                                rendered = `<table><thead>${tableRows[0]}</thead><tbody>${tableRows.slice(1).join('')}</tbody></table>`;
+                                inTable = false;
+                                tableRows = [];
+                            } else {
+                                rendered = '';
+                            }
+                        } else {
+                            rendered = tr;
+                        }
+                    } else {
+                        rendered = renderLine(line);
+                    }
+                    if (rendered !== undefined && rendered !== null) {
+                        rows.push(`<div class="preview-row${rendered === '' ? ' empty' : ''}">${rendered}</div>`);
+                    }
                 }
-                rows.push(`<div class="preview-row${rendered ? '' : ' empty'}">${rendered}</div>`);
-            }
 
             viewport.innerHTML = rows.join('');
             measureRenderedRows();

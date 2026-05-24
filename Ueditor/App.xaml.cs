@@ -1,51 +1,86 @@
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using Microsoft.UI.Xaml.Shapes;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.ApplicationModel;
+using System.Threading;
 using Windows.ApplicationModel.Activation;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
 
 namespace Ueditor
 {
-    /// <summary>
-    /// Provides application-specific behavior to supplement the default Application class.
-    /// </summary>
     public partial class App : Application
     {
+        private const string SingleInstanceMutexName = "UeditorSingleInstanceMutex";
+        private static readonly string IpcDir = Path.Combine(Path.GetTempPath(), "Ueditor", "IPC");
         private Window? _window;
+        private static Mutex? _singleInstanceMutex;
+        private FileSystemWatcher? _ipcWatcher;
 
-        /// <summary>
-        /// Initializes the singleton application object.  This is the first line of authored code
-        /// executed, and as such is the logical equivalent of main() or WinMain().
-        /// </summary>
         public App()
         {
             ApplyLanguageSettings();
             InitializeComponent();
         }
 
-        /// <summary>
-        /// Invoked when the application is launched.
-        /// </summary>
-        /// <param name="args">Details about the launch request and process.</param>
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
+            bool createdNew;
+            _singleInstanceMutex = new Mutex(true, SingleInstanceMutexName, out createdNew);
+
+            if (!createdNew)
+            {
+                var cmdArgs = Environment.GetCommandLineArgs();
+                if (cmdArgs.Length > 1)
+                {
+                    Directory.CreateDirectory(IpcDir);
+                    var ipcFile = Path.Combine(IpcDir, $"ipc_{Guid.NewGuid():N}.txt");
+                    File.WriteAllLines(ipcFile, cmdArgs.Skip(1));
+                }
+                return;
+            }
+
+            StartIpcWatcher();
+
             _window = new MainWindow();
             _window.Activate();
+        }
+
+        private void StartIpcWatcher()
+        {
+            try
+            {
+                Directory.CreateDirectory(IpcDir);
+                _ipcWatcher = new FileSystemWatcher(IpcDir, "ipc_*.txt")
+                {
+                    NotifyFilter = NotifyFilters.CreationTime | NotifyFilters.FileName,
+                    EnableRaisingEvents = true
+                };
+                _ipcWatcher.Created += OnIpcFileCreated;
+            }
+            catch { }
+        }
+
+        private void OnIpcFileCreated(object sender, FileSystemEventArgs e)
+        {
+            try
+            {
+                string[] lines = File.ReadAllLines(e.FullPath);
+                foreach (var line in lines)
+                {
+                    string path = line.Trim().Trim('"', '\'');
+                    if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+                    {
+                        if (_window is MainWindow mainWindow)
+                        {
+                            mainWindow.DispatcherQueue.TryEnqueue(() =>
+                            {
+                                _ = mainWindow.LoadFileIntoTabAsync(path);
+                            });
+                        }
+                    }
+                }
+                try { File.Delete(e.FullPath); } catch { }
+            }
+            catch { }
         }
 
         private void ApplyLanguageSettings()

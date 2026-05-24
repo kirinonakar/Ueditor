@@ -211,6 +211,24 @@
             display: none;
         }
 
+        #loading-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg);
+            color: var(--gutter-fg);
+            font-family: system-ui, sans-serif;
+            font-size: 15px;
+            transition: opacity 0.3s;
+        }
+        #loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
         #find-input {
             width: 220px;
             height: 28px;
@@ -264,6 +282,7 @@
 </head>
 <body>
     <div id="editor-host">
+        <div id="loading-overlay">로딩 중...</div>
         <div id="scroll-container">
             <div id="virtual-spacer"></div>
             <div id="viewport"></div>
@@ -891,8 +910,31 @@
         }
 
         function positionFromPointer(event) {
-            const element = lineElementFromEvent(event) ||
-                document.elementFromPoint(event.clientX, event.clientY)?.closest?.('.line-text');
+            let element = lineElementFromEvent(event);
+            if (!element) {
+                const hit = document.elementFromPoint(event.clientX, event.clientY);
+                const row = hit?.closest?.('.line-row');
+                if (row) {
+                    element = row.querySelector('.line-text');
+                }
+                if (!element) {
+                    const rows = viewport.querySelectorAll('.line-row');
+                    if (rows.length === 0) return null;
+                    const y = event.clientY + scrollContainer.scrollTop - (viewport.getBoundingClientRect().top + scrollContainer.scrollTop - scrollContainer.scrollTop);
+                    let bestRow = rows[0];
+                    let bestDist = Infinity;
+                    for (const r of rows) {
+                        const rect = r.getBoundingClientRect();
+                        const mid = rect.top + rect.height / 2;
+                        const dist = Math.abs(event.clientY - mid);
+                        if (dist < bestDist) {
+                            bestDist = dist;
+                            bestRow = r;
+                        }
+                    }
+                    element = bestRow.querySelector('.line-text');
+                }
+            }
             if (!element) return null;
             const line = Number(element.dataset.line || 1);
             const textLength = lineTextFromElement(element).length;
@@ -1045,6 +1087,13 @@
         }
 
         function insertTextAtCaret(text) {
+            if (hasCustomSelection()) {
+                const sel = normalizeSelection();
+                if (sel) {
+                    replaceSelectionWith(sel, text || '');
+                    return;
+                }
+            }
             const element = document.activeElement?.closest?.('.line-text');
             if (!element || element.getAttribute('contenteditable') !== 'true') return;
             const normalized = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
@@ -1310,6 +1359,7 @@
                     state.language = msg.language || 'plaintext';
                     applyOptions(msg);
                     setupModel(msg.lineCount || 1);
+                    document.getElementById('loading-overlay')?.classList.add('hidden');
                     break;
                 case 'setText':
                     {
@@ -1443,9 +1493,9 @@
         viewport.addEventListener('pointerdown', event => {
             if (event.button !== 0 || findPanel.contains(event.target)) return;
             const position = positionFromPointer(event);
-            if (!position || position.element.getAttribute('contenteditable') !== 'true') return;
+            if (!position) return;
 
-            // event.preventDefault(); // Commented out to allow natural focus on click
+            const isEditable = position.element.getAttribute('contenteditable') === 'true';
             viewport.setPointerCapture?.(event.pointerId);
 
             const hadSelection = hasCustomSelection();
@@ -1460,7 +1510,9 @@
             document.body.classList.add('selecting');
             state.currentLine = position.line;
             state.currentColumn = position.column + 1;
-            setCaret(position.element, position.column);
+            if (isEditable) {
+                setCaret(position.element, position.column);
+            }
             if (event.shiftKey || hadSelection) {
                 queueRender(true);
                 setTimeout(() => focusLine(state.currentLine, Math.max(0, state.currentColumn - 1)), 0);
@@ -1635,12 +1687,52 @@
                     return;
                 }
                 const text = lineTextFromElement(element);
-                if (text === '') {
+                const caret = getCaretOffset(element);
+                if (text === '' && caret === 0) {
                     event.preventDefault();
                     deleteCurrentLine(element);
                     return;
                 }
+                if (caret >= text.length) {
+                    event.preventDefault();
+                    const lineNumber = Number(element.dataset.line || 1);
+                    const nextText = state.cache.get(lineNumber + 1);
+                    if (nextText !== undefined) {
+                        state.cache.set(lineNumber, text + nextText);
+                        shiftCachedLines(lineNumber + 1, -1);
+                        state.lineCount = Math.max(1, state.lineCount - 1);
+                        setupVirtualHeight();
+                        post({ type: 'lineChanged', lineNumber, text: text + nextText });
+                        post({ type: 'mergeLineWithPrevious', lineNumber: lineNumber + 1 });
+                        post({ type: 'contentChanged' });
+                        queueRender(true);
+                        setTimeout(() => focusLine(lineNumber, text.length), 0);
+                    }
+                    return;
+                }
                 return;
+            }
+        });
+
+        viewport.addEventListener('beforeinput', event => {
+            if (!hasCustomSelection()) return;
+            const sel = normalizeSelection();
+            if (!sel) return;
+
+            if (event.inputType === 'insertText') {
+                event.preventDefault();
+                replaceSelectionWith(sel, event.data || '');
+            } else if (event.inputType === 'deleteContentBackward' || event.inputType === 'deleteContentForward') {
+                event.preventDefault();
+                replaceSelectionWith(sel, '');
+            } else if (event.inputType === 'insertLineBreak' || event.inputType === 'insertParagraph') {
+                event.preventDefault();
+                replaceSelectionWith(sel, '\n');
+            } else if (event.inputType === 'insertFromPaste' || event.inputType === 'insertFromDrop') {
+                event.preventDefault();
+            } else if (event.inputType && event.inputType.startsWith('insert')) {
+                event.preventDefault();
+                replaceSelectionWith(sel, event.data || '');
             }
         });
 
