@@ -140,4 +140,313 @@
   <data name="LanguageJapanese" xml:space="preserve">
     <value>日本語</value>
   </data>
+  <data name="Print" xml:space="preserve">
+    <value>印刷</value>
+  </data>
+  <data name="Explorer" xml:space="preserve">
+    <value>エクスプローラー</value>
+  </data>
+  <data name="Favorites" xml:space="preserve">
+    <value>お気に入り</value>
+  </data>
+  <data name="Git" xml:space="preserve">
+    <value>Git</value>
+  </data>
+  <data name="Snippets" xml:space="preserve">
+    <value>스니펫</value>
+  </data>
+  <data name="RecentFiles" xml:space="preserve">
+    <value>最近のファイル</value>
+  </data>
+  <data name="Heading" xml:space="preserve">
+    <value>見出し</value>
+  </data>
+  <data name="Bold" xml:space="preserve">
+    <value>太字 (Ctrl+B)</value>
+  </data>
+  <data name="Italic" xml:space="preserve">
+    <value>斜体 (Ctrl+I)</value>
+  </data>
+  <data name="Underline" xml:space="preserve">
+    <value>下線 (Ctrl+U)</value>
+  </data>
+  <data name="Highlight" xml:space="preserve">
+    <value>蛍光ペン</value>
+  </data>
+  <data name="UnorderedList" xml:space="preserve">
+    <value>箇条書き</value>
+  </data>
+  <data name="CutLine" xml:space="preserve">
+    <value>現在の行を切り取り</value>
+  </data>
+  <data name="Quote" xml:space="preserve">
+    <value>引用</value>
+  </data>
+  <data name="Arrow" xml:space="preserve">
+    <value>矢印</value>
+  </data>
+  <data name="InlineCode" xml:space="preserve">
+    <value>インラインコード</value>
+  </data>
+  <data name="Tasklist" xml:space="preserve">
+    <value>チェックリスト</value>
+  </data>
+  <data name="Table" xml:space="preserve">
+    <value>表</value>
+  </data>
+  <data name="FontIncrease" xml:space="preserve">
+    <value>フォントサイズ拡大</value>
+  </data>
+  <data name="FontDecrease" xml:space="preserve">
+    <value>フォントサイズ縮小</value>
+  </data>
+  <data name="TextColor" xml:space="preserve">
+    <value>文字色 (右クリック: 色選択)</value>
+  </data>
+  <data name="Link" xml:space="preserve">
+    <value>リンク</value>
+  </data>
+  <data name="SettingsTitle" xml:space="preserve">
+    <value>Ueditor 設定</value>
+  </data>
+  <data name="SettingsSave" xml:space="preserve">
+    <value>適用して保存</value>
+  </data>
+  <data name="SettingsCancel" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="SettingsAppearance" xml:space="preserve">
+    <value>外観</value>
+  </data>
+  <data name="SettingsEditing" xml:space="preserve">
+    <value>編集</value>
+  </data>
+  <data name="SettingsLLM" xml:space="preserve">
+    <value>LLM</value>
+  </data>
+  <data name="SettingsLanguage" xml:space="preserve">
+    <value>アプリケーションの言語</value>
+  </data>
+  <data name="SettingsTheme" xml:space="preserve">
+    <value>アプリとエディタのテーマ</value>
+  </data>
+  <data name="SettingsFontSize" xml:space="preserve">
+    <value>エディタの文字サイズ</value>
+  </data>
+  <data name="SettingsFontFamily" xml:space="preserve">
+    <value>エディタのフォント</value>
+  </data>
+  <data name="SettingsUiFontFamily" xml:space="preserve">
+    <value>UI シェルのフォント</value>
+  </data>
+  <data name="SettingsUseCustomBg" xml:space="preserve">
+    <value>カスタム背景色を使用する</value>
+  </data>
+  <data name="SettingsUseCustomFg" xml:space="preserve">
+    <value>カスタム文字色を使用する</value>
+  </data>
+  <data name="SettingsWordWrap" xml:space="preserve">
+    <value>デフォルトで右端折り返しを有効にする</value>
+  </data>
+  <data name="SettingsMinimap" xml:space="preserve">
+    <value>ミニマップを表示する</value>
+  </data>
+  <data name="SettingsBracketPair" xml:space="preserve">
+    <value>ブラケットペアのカラー表示</value>
+  </data>
+  <data name="SettingsAutoSave" xml:space="preserve">
+    <value>自動保存を使用する</value>
+  </data>
+  <data name="SettingsLivePreview" xml:space="preserve">
+    <value>デフォルトでライブプレビューを有効にする</value>
+  </data>
+  <data name="SettingsMarkdownToolbar" xml:space="preserve">
+    <value>デフォルトでMarkdownツールバーを表示する</value>
+  </data>
+  <data name="SettingsToolbar" xml:space="preserve">
+    <value>ツールバー</value>
+  </data>
+  <data name="SettingsToolbarShowLabels" xml:space="preserve">
+    <value>ツールバーボタンのラベルを表示</value>
+  </data>
+  <data name="SettingsToolbarOrderHint" xml:space="preserve">
+    <value>ドラッグしてボタンの順序を変更（設定ボタンは固定）</value>
+  </data>
+  <data name="SettingsTabSize" xml:space="preserve">
+    <value>タブサイズ</value>
+  </data>
+  <data name="SettingsLargeFileThreshold" xml:space="preserve">
+    <value>大容量ファイル検出の閾値 (MB)</value>
+  </data>
+  <data name="SettingsLlmProvider" xml:space="preserve">
+    <value>LLM プロバイダー</value>
+  </data>
+  <data name="SettingsLlmEndpoint" xml:space="preserve">
+    <value>LLM API エンドポイント</value>
+  </data>
+  <data name="SettingsLlmModel" xml:space="preserve">
+    <value>LLM モデル名</value>
+  </data>
+  <data name="SettingsLlmApiKey" xml:space="preserve">
+    <value>LLM API キー</value>
+  </data>
+  <data name="SettingsLlmLoadModels" xml:space="preserve">
+    <value>LM Studioモデルを取得</value>
+  </data>
+  <data name="SettingsLlmInfo" xml:space="preserve">
+    <value>LM Studioは、サーバーが起動しているときに http://localhost:1234/v1/models からモデルリストを取得します。</value>
+  </data>
+  <data name="SettingsLlmApiKeyInfo" xml:space="preserve">
+    <value>APIキーは設定ファイルではなく、Windowsの資格情報マネージャーに保存されます。空欄で保存すると、既存のキーが維持されます。LM Studioはデフォルトのローカルサーバー設定でAPIキーなしで動作します。</value>
+  </data>
+  <data name="SelectionNoneBlocked" xml:space="preserve">
+    <value>選択範囲: なし (ファイル全体の送信はブロックされています)</value>
+  </data>
+  <data name="SelectionStats" xml:space="preserve">
+    <value>選択範囲: {0} 文字 (約 {1} トークン)</value>
+  </data>
+  <data name="SearchHeader" xml:space="preserve">
+    <value>フォルダ内検索と置換</value>
+  </data>
+  <data name="SearchPlaceholder" xml:space="preserve">
+    <value>検索語を入力...</value>
+  </data>
+  <data name="ReplacePlaceholder" xml:space="preserve">
+    <value>置換する文字列を入力...</value>
+  </data>
+  <data name="SearchMatchCaseTooltip" xml:space="preserve">
+    <value>大文字小文字を区別</value>
+  </data>
+  <data name="SearchWholeWordTooltip" xml:space="preserve">
+    <value>単語単位</value>
+  </data>
+  <data name="SearchRegexTooltip" xml:space="preserve">
+    <value>正規表現</value>
+  </data>
+  <data name="SearchAllFiles" xml:space="preserve">
+    <value>すべて検索</value>
+  </data>
+  <data name="ReplaceAllFiles" xml:space="preserve">
+    <value>すべて置換</value>
+  </data>
+  <data name="RecentFilesHeader" xml:space="preserve">
+    <value>最近のファイル (ダブルクリックで開く)</value>
+  </data>
+  <data name="GitRepoHeader" xml:space="preserve">
+    <value>Git リポジトリ</value>
+  </data>
+  <data name="GitBranchPlaceholder" xml:space="preserve">
+    <value>ブランチ一覧</value>
+  </data>
+  <data name="GitCommitPlaceholder" xml:space="preserve">
+    <value>コミットメッセージを入力...</value>
+  </data>
+  <data name="GitCommit" xml:space="preserve">
+    <value>コミット</value>
+  </data>
+  <data name="GitStageAll" xml:space="preserve">
+    <value>すべてステージ</value>
+  </data>
+  <data name="GitRestoreAll" xml:space="preserve">
+    <value>すべて復元</value>
+  </data>
+  <data name="GitPush" xml:space="preserve">
+    <value>Push</value>
+  </data>
+  <data name="GitRefresh" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="GitHistory" xml:space="preserve">
+    <value>履歴</value>
+  </data>
+  <data name="GitRestoreFile" xml:space="preserve">
+    <value>ファイル復元</value>
+  </data>
+  <data name="ExplorerUpTooltip" xml:space="preserve">
+    <value>親フォルダ</value>
+  </data>
+  <data name="ExplorerSelectFolder" xml:space="preserve">
+    <value>フォルダ選択...</value>
+  </data>
+  <data name="ExplorerOpenTerminalTooltip" xml:space="preserve">
+    <value>このフォルダでターミナルを開く</value>
+  </data>
+  <data name="ExplorerAddToFavorites" xml:space="preserve">
+    <value>お気に入りに追加</value>
+  </data>
+  <data name="ExplorerAddFolderToFavorites" xml:space="preserve">
+    <value>フォルダをお気に入りに追加</value>
+  </data>
+  <data name="FavoritesFileTab" xml:space="preserve">
+    <value>ファイル</value>
+  </data>
+  <data name="FavoritesFolderTab" xml:space="preserve">
+    <value>フォルダ</value>
+  </data>
+  <data name="FavoritesPinTooltip" xml:space="preserve">
+    <value>固定</value>
+  </data>
+  <data name="GitNotDetected" xml:space="preserve">
+    <value>Git: 検出されていません</value>
+  </data>
+  <data name="TerminalTitle" xml:space="preserve">
+    <value>ターミナル</value>
+  </data>
+  <data name="NewTerminal" xml:space="preserve">
+    <value>新規ターミナル</value>
+  </data>
+  <data name="CloseTerminal" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
+  <data name="TerminalPrompt" xml:space="preserve">
+    <value>コマンドを入力してEnter</value>
+  </data>
+  <data name="SettingsToolbarCustomize" xml:space="preserve">
+    <value>ボタン表示設定</value>
+  </data>
+  <data name="SettingsToolbarButtonVisibility" xml:space="preserve">
+    <value>ツールバーボタンの表示/非表示</value>
+  </data>
+  <data name="SettingsToolbarDragHint" xml:space="preserve">
+    <value>ドラッグして順序変更 (設定ボタンは固定)</value>
+  </data>
+  <data name="SettingsToolbarSettingsPinned" xml:space="preserve">
+    <value>設定ボタンは常に表示されます。</value>
+  </data>
+  <data name="SettingsToolbarCustomization" xml:space="preserve">
+    <value>ツールバーアイコン</value>
+  </data>
+  <data name="StatusModeNormal" xml:space="preserve">
+    <value>通常モード</value>
+  </data>
+  <data name="StatusRightPanelTooltip" xml:space="preserve">
+    <value>右パネル</value>
+  </data>
+  <data name="StatusColumnLabel" xml:space="preserve">
+    <value>列</value>
+  </data>
+  <data name="StatusModeLargeFile" xml:space="preserve">
+    <value>大容量モード</value>
+  </data>
+  <data name="StatusLeftPanelTooltip" xml:space="preserve">
+    <value>左パネル</value>
+  </data>
+  <data name="StatusModeLimited" xml:space="preserve">
+    <value>通常モード (制限)</value>
+  </data>
+  <data name="StatusLineEndingTooltip" xml:space="preserve">
+    <value>クリックして改行コードを変更</value>
+  </data>
+  <data name="StatusGoToLineTooltip" xml:space="preserve">
+    <value>クリックして行へ移動</value>
+  </data>
+  <data name="StatusFileSizeFormat" xml:space="preserve">
+    <value>サイズ: {0:N0} bytes</value>
+  </data>
+  <data name="StatusLineLabel" xml:space="preserve">
+    <value>行</value>
+  </data>
+  <data name="StatusEncodingTooltip" xml:space="preserve">
+    <value>ファイルエンコーディングを選択</value>
+  </data>
 </root>

@@ -11,7 +11,6 @@
             --gutter-bg: #252526;
             --gutter-fg: #858585;
             --selection: rgba(0, 120, 212, 0.38);
-            --selection-fg: #ffffff;
             --tok-keyword: #569cd6;
             --tok-type: #4ec9b0;
             --tok-string: #ce9178;
@@ -101,6 +100,7 @@
             font-size: var(--font-size);
             line-height: var(--line-height);
             white-space: var(--wrap);
+            scrollbar-gutter: stable;
             tab-size: 4;
         }
 
@@ -176,13 +176,13 @@
 
         #editor::selection {
             background: var(--selection);
-            color: var(--selection-fg);
-            -webkit-text-fill-color: var(--selection-fg);
+            color: transparent;
+            -webkit-text-fill-color: transparent;
         }
 
         #editor::-moz-selection {
             background: var(--selection);
-            color: var(--selection-fg);
+            color: transparent;
         }
 
         .tok-keyword { color: var(--tok-keyword); }
@@ -434,7 +434,6 @@
                 document.documentElement.style.setProperty('--tok-diff-removed-bg', 'rgba(248, 81, 73, 0.15)');
             }
 
-            document.documentElement.style.setProperty('--selection-fg', foreground);
         }
 
         function post(msg) {
@@ -596,9 +595,23 @@
         }
 
         function syncHighlightScroll() {
+            syncOverlayMetrics();
             gutter.scrollTop = editor.scrollTop;
             highlightContent.style.transform = `translate(${-editor.scrollLeft}px, ${-editor.scrollTop}px)`;
             searchHighlightsContent.style.transform = `translate(${-editor.scrollLeft}px, ${-editor.scrollTop}px)`;
+        }
+
+        function syncOverlayMetrics() {
+            const width = `${editor.clientWidth}px`;
+            const height = `${editor.clientHeight}px`;
+            if (highlight.style.width !== width) {
+                highlight.style.width = width;
+                searchHighlights.style.width = width;
+            }
+            if (highlight.style.height !== height) {
+                highlight.style.height = height;
+                searchHighlights.style.height = height;
+            }
         }
 
         let globalSearchQuery = "";
@@ -1337,6 +1350,18 @@
         editor.addEventListener('keyup', reportCursorAndSelection);
         editor.addEventListener('click', reportCursorAndSelection);
         editor.addEventListener('select', reportCursorAndSelection);
+        window.addEventListener('resize', () => {
+            syncOverlayMetrics();
+            updateHighlight();
+            updateSearchHighlights();
+        });
+        if (window.ResizeObserver) {
+            new ResizeObserver(() => {
+                syncOverlayMetrics();
+                updateHighlight();
+                updateSearchHighlights();
+            }).observe(editor);
+        }
         editor.addEventListener('keydown', event => {
             const key = event.key.toLowerCase();
             const ctrl = event.ctrlKey || event.metaKey;

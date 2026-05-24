@@ -1,4 +1,5 @@
 using System;
+using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -14,6 +15,8 @@ namespace Ueditor.Core.Services
 {
     public sealed class SettingsDialogService : ISettingsDialogService
     {
+        private sealed record ToolbarOrderItem(string Id, string Label);
+
         private static IReadOnlyList<string>? _installedFontFamiliesCache;
         private readonly ILLMService _llmService;
 
@@ -304,7 +307,6 @@ namespace Ueditor.Core.Services
             var showLabelsCheck = new CheckBox { Content = getString("SettingsToolbarShowLabels", "툴바 버튼 글자 표시"), IsChecked = settings.ToolbarShowLabels };
             toolbarSection.Children.Add(showLabelsCheck);
 
-            // Button visibility section
             var visibilityHeader = new TextBlock
             {
                 Text = getString("SettingsToolbarButtonVisibility", "툴바 버튼 표시/숨기기"),
@@ -313,15 +315,21 @@ namespace Ueditor.Core.Services
                 Margin = new Thickness(0, 8, 0, 2)
             };
             toolbarSection.Children.Add(visibilityHeader);
-            string[] allButtonNames = { "파일 열기", "저장", "비교", "터미널", "인쇄", "항상위", "스티커", "WordWrap", "검색", "Markdown", "테마" };
-            var hiddenSet = new HashSet<string>(settings.ToolbarHiddenButtons ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+
+            var toolbarOptions = ToolbarButtonCatalog.All.ToList();
+            var hiddenSet = new HashSet<string>(
+                (settings.ToolbarHiddenButtons ?? new List<string>())
+                    .Select(ToolbarButtonCatalog.NormalizeId),
+                StringComparer.OrdinalIgnoreCase);
             var visibilityChecks = new List<CheckBox>();
-            foreach (var btnName in allButtonNames)
+            foreach (var option in toolbarOptions.Where(option => !option.IsRequired))
             {
+                string label = getString(option.ResourceKey, option.Id);
                 var chk = new CheckBox
                 {
-                    Content = btnName,
-                    IsChecked = !hiddenSet.Contains(btnName),
+                    Content = label,
+                    Tag = option.Id,
+                    IsChecked = !hiddenSet.Contains(option.Id),
                     Margin = new Thickness(12, 0, 0, 0)
                 };
                 visibilityChecks.Add(chk);
@@ -329,7 +337,7 @@ namespace Ueditor.Core.Services
             }
             var settingsNote = new TextBlock
             {
-                Text = "설정",
+                Text = getString("SettingsToolbarSettingsPinned", "설정 버튼은 항상 표시됩니다."),
                 FontSize = 11,
                 Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray),
                 Margin = new Thickness(12, 0, 0, 4)
@@ -344,21 +352,24 @@ namespace Ueditor.Core.Services
                 Margin = new Thickness(0, 8, 0, 4)
             };
             toolbarSection.Children.Add(reorderDesc);
-            var buttonNames = new[] { "파일 열기", "저장", "비교", "터미널", "인쇄", "항상위", "스티커", "WordWrap", "검색", "Markdown", "테마" };
-            var defaultOrder = settings.ToolbarButtonOrder?.Count > 0 ? settings.ToolbarButtonOrder : new List<string>(buttonNames);
+            var defaultOrder = NormalizeToolbarOrder(settings.ToolbarButtonOrder);
+            var orderItems = new ObservableCollection<ToolbarOrderItem>(defaultOrder
+                .Select(id => toolbarOptions.First(option => option.Id.Equals(id, StringComparison.OrdinalIgnoreCase)))
+                .Select(option => new ToolbarOrderItem(option.Id, getString(option.ResourceKey, option.Id))));
             var orderList = new ListView
             {
                 Height = 140,
                 SelectionMode = ListViewSelectionMode.None,
                 AllowDrop = true,
                 CanReorderItems = true,
-                ItemsSource = new List<string>(defaultOrder)
+                DisplayMemberPath = nameof(ToolbarOrderItem.Label),
+                ItemsSource = orderItems
             };
             toolbarSection.Children.Add(orderList);
 
             settingsPivot.Items.Add(new PivotItem { Header = getString("SettingsAppearance", "모양"), Content = new ScrollViewer { Content = appearanceSection } });
             settingsPivot.Items.Add(new PivotItem { Header = getString("SettingsEditing", "편집"), Content = new ScrollViewer { Content = editorSection } });
-            settingsPivot.Items.Add(new PivotItem { Header = getString("SettingsToolbar", "툴바"), Content = new ScrollViewer { Content = toolbarSection } });
+            settingsPivot.Items.Add(new PivotItem { Header = getString("SettingsToolbarCustomization", "툴바 아이콘"), Content = new ScrollViewer { Content = toolbarSection } });
             settingsPivot.Items.Add(new PivotItem { Header = getString("SettingsLLM", "LLM"), Content = new ScrollViewer { Content = llmSection } });
 
             var dialog = new ContentDialog
@@ -425,9 +436,14 @@ namespace Ueditor.Core.Services
             settings.DefaultMarkdownToolbarEnabled = defaultMarkdownToolbarCheck.IsChecked == true;
 
             settings.ToolbarShowLabels = showLabelsCheck.IsChecked == true;
-            settings.ToolbarButtonOrder = (orderList.ItemsSource as List<string>)?.ToList() ?? new List<string>();
-            settings.ToolbarHiddenButtons = allButtonNames
-                .Where((name, idx) => visibilityChecks[idx].IsChecked == false)
+            settings.ToolbarButtonOrder = (orderList.ItemsSource as ObservableCollection<ToolbarOrderItem>)?
+                .Select(item => item.Id)
+                .ToList()
+                ?? ToolbarButtonCatalog.DefaultOrder.ToList();
+            settings.ToolbarHiddenButtons = visibilityChecks
+                .Where(check => check.IsChecked == false)
+                .Select(check => check.Tag as string ?? string.Empty)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
                 .ToList();
 
             string newApiKey = llmApiKeyBox.Password.Trim();
@@ -446,6 +462,33 @@ namespace Ueditor.Core.Services
         private static StackPanel CreateSection()
         {
             return new StackPanel { Spacing = 10, Width = 460, Padding = new Thickness(2, 8, 2, 2) };
+        }
+
+        private static List<string> NormalizeToolbarOrder(IReadOnlyList<string>? savedOrder)
+        {
+            var validIds = new HashSet<string>(
+                ToolbarButtonCatalog.DefaultOrder,
+                StringComparer.OrdinalIgnoreCase);
+            var orderedIds = new List<string>();
+
+            foreach (string rawId in savedOrder ?? Array.Empty<string>())
+            {
+                string id = ToolbarButtonCatalog.NormalizeId(rawId);
+                if (validIds.Contains(id) && !orderedIds.Contains(id, StringComparer.OrdinalIgnoreCase))
+                {
+                    orderedIds.Add(id);
+                }
+            }
+
+            foreach (string id in ToolbarButtonCatalog.DefaultOrder)
+            {
+                if (!orderedIds.Contains(id, StringComparer.OrdinalIgnoreCase))
+                {
+                    orderedIds.Add(id);
+                }
+            }
+
+            return orderedIds;
         }
 
         private static void AddLabel(StackPanel target, string text)

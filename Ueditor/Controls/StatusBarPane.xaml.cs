@@ -20,7 +20,9 @@ namespace Ueditor.Controls
         public ToggleButton LeftPanelToggleButton => LeftPanelToggle;
         public ToggleButton RightPanelToggleButton => RightPanelToggle;
         public TextBlock LineText => StatusLine;
+        public TextBlock LineLabelText => StatusLineLabel;
         public TextBlock ColumnText => StatusCol;
+        public TextBlock ColumnLabelText => StatusColumnLabel;
         public TextBlock FileStatsText => StatusFileStats;
         public TextBlock GitBranchText => StatusGitBranch;
         public TextBlock ModeText => StatusMode;

@@ -140,4 +140,313 @@
   <data name="LanguageJapanese" xml:space="preserve">
     <value>日本語</value>
   </data>
+  <data name="Print" xml:space="preserve">
+    <value>인쇄</value>
+  </data>
+  <data name="Explorer" xml:space="preserve">
+    <value>탐색기</value>
+  </data>
+  <data name="Favorites" xml:space="preserve">
+    <value>즐겨찾기</value>
+  </data>
+  <data name="Git" xml:space="preserve">
+    <value>Git</value>
+  </data>
+  <data name="Snippets" xml:space="preserve">
+    <value>스니펫</value>
+  </data>
+  <data name="RecentFiles" xml:space="preserve">
+    <value>최근 파일</value>
+  </data>
+  <data name="Heading" xml:space="preserve">
+    <value>제목</value>
+  </data>
+  <data name="Bold" xml:space="preserve">
+    <value>굵게 (Ctrl+B)</value>
+  </data>
+  <data name="Italic" xml:space="preserve">
+    <value>기울임 (Ctrl+I)</value>
+  </data>
+  <data name="Underline" xml:space="preserve">
+    <value>밑줄 (Ctrl+U)</value>
+  </data>
+  <data name="Highlight" xml:space="preserve">
+    <value>형광펜</value>
+  </data>
+  <data name="UnorderedList" xml:space="preserve">
+    <value>글머리 목록</value>
+  </data>
+  <data name="CutLine" xml:space="preserve">
+    <value>현재 줄 자르기</value>
+  </data>
+  <data name="Quote" xml:space="preserve">
+    <value>인용문</value>
+  </data>
+  <data name="Arrow" xml:space="preserve">
+    <value>화살표</value>
+  </data>
+  <data name="InlineCode" xml:space="preserve">
+    <value>인라인 코드</value>
+  </data>
+  <data name="Tasklist" xml:space="preserve">
+    <value>체크리스트</value>
+  </data>
+  <data name="Table" xml:space="preserve">
+    <value>표</value>
+  </data>
+  <data name="FontIncrease" xml:space="preserve">
+    <value>글자 크게</value>
+  </data>
+  <data name="FontDecrease" xml:space="preserve">
+    <value>글자 작게</value>
+  </data>
+  <data name="TextColor" xml:space="preserve">
+    <value>글자색 (우클릭: 색상 선택)</value>
+  </data>
+  <data name="Link" xml:space="preserve">
+    <value>링크</value>
+  </data>
+  <data name="SettingsTitle" xml:space="preserve">
+    <value>Ueditor 설정</value>
+  </data>
+  <data name="SettingsSave" xml:space="preserve">
+    <value>적용 및 저장</value>
+  </data>
+  <data name="SettingsCancel" xml:space="preserve">
+    <value>취소</value>
+  </data>
+  <data name="SettingsAppearance" xml:space="preserve">
+    <value>모양</value>
+  </data>
+  <data name="SettingsEditing" xml:space="preserve">
+    <value>편집</value>
+  </data>
+  <data name="SettingsLLM" xml:space="preserve">
+    <value>LLM</value>
+  </data>
+  <data name="SettingsLanguage" xml:space="preserve">
+    <value>애플리케이션 언어 (Language)</value>
+  </data>
+  <data name="SettingsTheme" xml:space="preserve">
+    <value>앱/에디터 테마</value>
+  </data>
+  <data name="SettingsFontSize" xml:space="preserve">
+    <value>에디터 글자 크기</value>
+  </data>
+  <data name="SettingsFontFamily" xml:space="preserve">
+    <value>에디터 폰트</value>
+  </data>
+  <data name="SettingsUiFontFamily" xml:space="preserve">
+    <value>UI 쉘 폰트</value>
+  </data>
+  <data name="SettingsUseCustomBg" xml:space="preserve">
+    <value>커스텀 에디터 배경색 사용</value>
+  </data>
+  <data name="SettingsUseCustomFg" xml:space="preserve">
+    <value>커스텀 에디터 글자색 사용</value>
+  </data>
+  <data name="SettingsWordWrap" xml:space="preserve">
+    <value>기본 Word Wrap 켜기</value>
+  </data>
+  <data name="SettingsMinimap" xml:space="preserve">
+    <value>미니맵 표시 (로컬 Monaco 번들 사용 시)</value>
+  </data>
+  <data name="SettingsBracketPair" xml:space="preserve">
+    <value>Bracket pair colorization (로컬 Monaco 번들 사용 시)</value>
+  </data>
+  <data name="SettingsAutoSave" xml:space="preserve">
+    <value>Autosave 사용</value>
+  </data>
+  <data name="SettingsLivePreview" xml:space="preserve">
+    <value>실시간 미리보기 기본 활성화</value>
+  </data>
+  <data name="SettingsMarkdownToolbar" xml:space="preserve">
+    <value>기본 마크다운 툴바 활성화</value>
+  </data>
+  <data name="SettingsToolbar" xml:space="preserve">
+    <value>툴바</value>
+  </data>
+  <data name="SettingsToolbarShowLabels" xml:space="preserve">
+    <value>툴바 버튼 글자 표시</value>
+  </data>
+  <data name="SettingsToolbarOrderHint" xml:space="preserve">
+    <value>드래그하여 버튼 순서 변경 (설정 버튼은 고정)</value>
+  </data>
+  <data name="SettingsTabSize" xml:space="preserve">
+    <value>Tab size</value>
+  </data>
+  <data name="SettingsLargeFileThreshold" xml:space="preserve">
+    <value>Large File Mode 제안 기준 (MB)</value>
+  </data>
+  <data name="SettingsLlmProvider" xml:space="preserve">
+    <value>LLM 공급자</value>
+  </data>
+  <data name="SettingsLlmEndpoint" xml:space="preserve">
+    <value>LLM API Endpoint</value>
+  </data>
+  <data name="SettingsLlmModel" xml:space="preserve">
+    <value>LLM 모델명</value>
+  </data>
+  <data name="SettingsLlmApiKey" xml:space="preserve">
+    <value>LLM API Key</value>
+  </data>
+  <data name="SettingsLlmLoadModels" xml:space="preserve">
+    <value>LM Studio 모델 불러오기</value>
+  </data>
+  <data name="SettingsLlmInfo" xml:space="preserve">
+    <value>LM Studio는 서버가 켜져 있을 때 http://localhost:1234/v1/models 에서 모델 목록을 불러옵니다.</value>
+  </data>
+  <data name="SettingsLlmApiKeyInfo" xml:space="preserve">
+    <value>API Key는 설정 파일에 저장하지 않고 Windows 자격 증명 관리자에 저장합니다. 비워두고 저장하면 기존 Key를 유지합니다. LM Studio는 기본 로컬 서버 설정에서 API Key 없이 사용할 수 있습니다.</value>
+  </data>
+  <data name="SelectionNoneBlocked" xml:space="preserve">
+    <value>선택 영역: 없음 (전체 전송 차단 활성화)</value>
+  </data>
+  <data name="SelectionStats" xml:space="preserve">
+    <value>선택 영역: {0} 글자 수 (약 {1} 토큰)</value>
+  </data>
+  <data name="SearchHeader" xml:space="preserve">
+    <value>폴더 전체 검색 및 치환</value>
+  </data>
+  <data name="SearchPlaceholder" xml:space="preserve">
+    <value>검색어 입력...</value>
+  </data>
+  <data name="ReplacePlaceholder" xml:space="preserve">
+    <value>치환할 단어 입력...</value>
+  </data>
+  <data name="SearchMatchCaseTooltip" xml:space="preserve">
+    <value>대소문자 구분</value>
+  </data>
+  <data name="SearchWholeWordTooltip" xml:space="preserve">
+    <value>단어 단위</value>
+  </data>
+  <data name="SearchRegexTooltip" xml:space="preserve">
+    <value>정규식 검색</value>
+  </data>
+  <data name="SearchAllFiles" xml:space="preserve">
+    <value>전체 검색</value>
+  </data>
+  <data name="ReplaceAllFiles" xml:space="preserve">
+    <value>모두 치환</value>
+  </data>
+  <data name="RecentFilesHeader" xml:space="preserve">
+    <value>최근 열린 파일 (더블클릭하여 열기)</value>
+  </data>
+  <data name="GitRepoHeader" xml:space="preserve">
+    <value>Git 저장소 관리</value>
+  </data>
+  <data name="GitBranchPlaceholder" xml:space="preserve">
+    <value>브랜치 목록</value>
+  </data>
+  <data name="GitCommitPlaceholder" xml:space="preserve">
+    <value>커밋 메시지 입력...</value>
+  </data>
+  <data name="GitCommit" xml:space="preserve">
+    <value>커밋 (Commit)</value>
+  </data>
+  <data name="GitStageAll" xml:space="preserve">
+    <value>전체 Stage</value>
+  </data>
+  <data name="GitRestoreAll" xml:space="preserve">
+    <value>전체 Restore</value>
+  </data>
+  <data name="GitPush" xml:space="preserve">
+    <value>Push</value>
+  </data>
+  <data name="GitRefresh" xml:space="preserve">
+    <value>새로고침</value>
+  </data>
+  <data name="GitHistory" xml:space="preserve">
+    <value>과거 기록</value>
+  </data>
+  <data name="GitRestoreFile" xml:space="preserve">
+    <value>파일 복원</value>
+  </data>
+  <data name="ExplorerUpTooltip" xml:space="preserve">
+    <value>상위 폴더</value>
+  </data>
+  <data name="ExplorerSelectFolder" xml:space="preserve">
+    <value>폴더 선택...</value>
+  </data>
+  <data name="ExplorerOpenTerminalTooltip" xml:space="preserve">
+    <value>현재 폴더에서 터미널 열기</value>
+  </data>
+  <data name="ExplorerAddToFavorites" xml:space="preserve">
+    <value>즐겨찾기에 추가</value>
+  </data>
+  <data name="ExplorerAddFolderToFavorites" xml:space="preserve">
+    <value>폴더를 즐겨찾기에 추가</value>
+  </data>
+  <data name="FavoritesFileTab" xml:space="preserve">
+    <value>파일</value>
+  </data>
+  <data name="FavoritesFolderTab" xml:space="preserve">
+    <value>폴더</value>
+  </data>
+  <data name="FavoritesPinTooltip" xml:space="preserve">
+    <value>고정</value>
+  </data>
+  <data name="GitNotDetected" xml:space="preserve">
+    <value>Git: 감지 안됨</value>
+  </data>
+  <data name="TerminalTitle" xml:space="preserve">
+    <value>터미널</value>
+  </data>
+  <data name="NewTerminal" xml:space="preserve">
+    <value>새 터미널</value>
+  </data>
+  <data name="CloseTerminal" xml:space="preserve">
+    <value>닫기</value>
+  </data>
+  <data name="TerminalPrompt" xml:space="preserve">
+    <value>명령 입력 후 Enter</value>
+  </data>
+  <data name="SettingsToolbarCustomize" xml:space="preserve">
+    <value>버튼 표시 설정</value>
+  </data>
+  <data name="SettingsToolbarButtonVisibility" xml:space="preserve">
+    <value>툴바 버튼 표시/숨기기</value>
+  </data>
+  <data name="SettingsToolbarDragHint" xml:space="preserve">
+    <value>드래그하여 버튼 순서 변경 (설정 버튼은 고정)</value>
+  </data>
+  <data name="SettingsToolbarSettingsPinned" xml:space="preserve">
+    <value>설정 버튼은 항상 표시됩니다.</value>
+  </data>
+  <data name="SettingsToolbarCustomization" xml:space="preserve">
+    <value>툴바 아이콘</value>
+  </data>
+  <data name="StatusModeNormal" xml:space="preserve">
+    <value>일반 모드</value>
+  </data>
+  <data name="StatusRightPanelTooltip" xml:space="preserve">
+    <value>우측 패널</value>
+  </data>
+  <data name="StatusColumnLabel" xml:space="preserve">
+    <value>열</value>
+  </data>
+  <data name="StatusModeLargeFile" xml:space="preserve">
+    <value>대용량 모드</value>
+  </data>
+  <data name="StatusLeftPanelTooltip" xml:space="preserve">
+    <value>좌측 패널</value>
+  </data>
+  <data name="StatusModeLimited" xml:space="preserve">
+    <value>일반 모드 (제한)</value>
+  </data>
+  <data name="StatusLineEndingTooltip" xml:space="preserve">
+    <value>클릭하여 줄 끝 방식 변경</value>
+  </data>
+  <data name="StatusGoToLineTooltip" xml:space="preserve">
+    <value>클릭하여 줄 이동</value>
+  </data>
+  <data name="StatusFileSizeFormat" xml:space="preserve">
+    <value>크기: {0:N0} bytes</value>
+  </data>
+  <data name="StatusLineLabel" xml:space="preserve">
+    <value>줄</value>
+  </data>
+  <data name="StatusEncodingTooltip" xml:space="preserve">
+    <value>파일 인코딩 선택</value>
+  </data>
 </root>

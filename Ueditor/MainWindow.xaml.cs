@@ -1,16 +1,18 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Windows.ApplicationModel.Resources;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.Web.WebView2.Core;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Globalization;
 using Windows.Graphics;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
@@ -38,6 +40,7 @@ namespace Ueditor
         private readonly ISettingsDialogService _settingsDialogService;
         private readonly IUiPersonalizationService _uiPersonalizationService;
         private readonly MainWindowViewModel _viewModel = new MainWindowViewModel();
+        private ResourceLoader _resourceLoader = new ResourceLoader();
         private string _lastSelectionText = string.Empty;
         private string _lastSearchQuery = string.Empty;
         private string _currentFolderPath = string.Empty;
@@ -91,7 +94,9 @@ namespace Ueditor
         private ToggleButton LeftPanelToggle => StatusBarPane.LeftPanelToggleButton;
         private ToggleButton RightPanelToggle => StatusBarPane.RightPanelToggleButton;
         private TextBlock StatusLine => StatusBarPane.LineText;
+        private TextBlock StatusLineLabel => StatusBarPane.LineLabelText;
         private TextBlock StatusCol => StatusBarPane.ColumnText;
+        private TextBlock StatusColumnLabel => StatusBarPane.ColumnLabelText;
         private TextBlock StatusFileStats => StatusBarPane.FileStatsText;
         private TextBlock StatusGitBranch => StatusBarPane.GitBranchText;
         private TextBlock StatusMode => StatusBarPane.ModeText;
@@ -1033,7 +1038,7 @@ namespace Ueditor
                     };
                     await dialog.ShowAsync();
 
-                    StatusMode.Text = "대용량 모드";
+                    StatusMode.Text = GetLocalizedString("StatusModeLargeFile", "대용량 모드");
                     OpenNewTab(filePath, "", isLargeFileMode: true);
                     return;
                 }
@@ -1053,13 +1058,13 @@ namespace Ueditor
                     var result = await dialog.ShowAsync();
                     if (result == ContentDialogResult.Primary)
                     {
-                        StatusMode.Text = "대용량 모드";
+                        StatusMode.Text = GetLocalizedString("StatusModeLargeFile", "대용량 모드");
                         OpenNewTab(filePath, "", isLargeFileMode: true);
                         return;
                     }
                     else if (result == ContentDialogResult.Secondary)
                     {
-                        StatusMode.Text = "일반 모드 (제한)";
+                        StatusMode.Text = GetLocalizedString("StatusModeLimited", "일반 모드 (제한)");
                         var readResult = await _fileService.ReadTextFileAsync(filePath, "Auto");
                         OpenNewTab(filePath, readResult.Content, isLargeFileMode: false, isMonacoLimitedMode: true, encodingName: readResult.EncodingName, encodingWasAutoDetected: readResult.WasAutoDetected);
                         return;
@@ -1070,7 +1075,7 @@ namespace Ueditor
                     }
                 }
 
-                StatusMode.Text = "일반 모드";
+                StatusMode.Text = GetLocalizedString("StatusModeNormal", "일반 모드");
                 var normalReadResult = await _fileService.ReadTextFileAsync(filePath, "Auto");
                 OpenNewTab(filePath, normalReadResult.Content, encodingName: normalReadResult.EncodingName, encodingWasAutoDetected: normalReadResult.WasAutoDetected);
             }
@@ -1381,393 +1386,18 @@ namespace Ueditor
             }
         }
 
-        private static readonly Dictionary<string, Dictionary<string, string>> LocalizedStrings = new Dictionary<string, Dictionary<string, string>>
-        {
-            {
-                "ko-KR", new Dictionary<string, string>
-                {
-                    { "AppTitle", "Ueditor" },
-                    { "OpenFile", "파일 열기" },
-                    { "SaveFile", "저장" },
-                    { "Compare", "비교" },
-                    { "Terminal", "터미널" },
-                    { "TopMost", "항상위" },
-                    { "StickyNote", "스티커" },
-                    { "WordWrap", "Word Wrap" },
-                    { "Search", "검색" },
-                    { "Markdown", "Markdown" },
-                    { "Theme", "테마" },
-                    { "Split", "분할" },
-                    { "Print", "인쇄" },
-                    { "Settings", "설정" },
-                    { "FolderSelect", "폴더 선택..." },
-                    { "NoFolderSelected", "폴더를 선택하세요." },
-                    { "FavoritesHeader", "즐겨찾기 목록 (더블클릭하여 열기)" },
-                    { "SnippetsHeader", "코드 및 수식 템플릿 (더블클릭하여 삽입)" },
-                    { "AddSnippet", "스니펫 추가..." },
-                    { "SplitNone", "분할 없음 (단일)" },
-                    { "SplitVertical", "좌우 분할" },
-                    { "SplitHorizontal", "상하 분할" },
-                    { "LanguageChangedTitle", "언어 변경" },
-                    { "LanguageChangedMessage", "언어 설정을 적용하려면 애플리케이션을 다시 시작해야 합니다. 다시 시작하시겠습니까?" },
-                    { "Yes", "예" },
-                    { "No", "아니오" },
-                    { "Restart", "다시 시작" },
-                    { "LanguageDefault", "기본값 (OS 설정)" },
-                    { "LanguageKorean", "한국어" },
-                    { "LanguageEnglish", "English" },
-                    { "LanguageJapanese", "日本語" },
-                    { "Explorer", "탐색기" },
-                    { "Favorites", "즐겨찾기" },
-                    { "Git", "Git" },
-                    { "Snippets", "스니펫" },
-                    { "RecentFiles", "최근 파일" },
-                    { "Heading", "제목" },
-                    { "Bold", "굵게 (Ctrl+B)" },
-                    { "Italic", "기울임 (Ctrl+I)" },
-                    { "Underline", "밑줄 (Ctrl+U)" },
-                    { "Highlight", "형광펜" },
-                    { "UnorderedList", "글머리 목록" },
-                    { "CutLine", "현재 줄 자르기" },
-                    { "Quote", "인용문" },
-                    { "Arrow", "화살표" },
-                    { "InlineCode", "인라인 코드" },
-                    { "Tasklist", "체크리스트" },
-                    { "Table", "표" },
-                    { "FontIncrease", "글자 크게" },
-                    { "FontDecrease", "글자 작게" },
-                    { "TextColor", "글자색 (우클릭: 색상 선택)" },
-                    { "Link", "링크" },
-                    { "SettingsTitle", "Ueditor 설정" },
-                    { "SettingsSave", "적용 및 저장" },
-                    { "SettingsCancel", "취소" },
-                    { "SettingsAppearance", "모양" },
-                    { "SettingsEditing", "편집" },
-                    { "SettingsLLM", "LLM" },
-                    { "SettingsLanguage", "애플리케이션 언어 (Language)" },
-                    { "SettingsTheme", "앱/에디터 테마" },
-                    { "SettingsFontSize", "에디터 글자 크기" },
-                    { "SettingsFontFamily", "에디터 폰트" },
-                    { "SettingsUiFontFamily", "UI 쉘 폰트" },
-                    { "SettingsUseCustomBg", "커스텀 에디터 배경색 사용" },
-                    { "SettingsUseCustomFg", "커스텀 에디터 글자색 사용" },
-                    { "SettingsWordWrap", "기본 Word Wrap 켜기" },
-                    { "SettingsMinimap", "미니맵 표시 (로컬 Monaco 번들 사용 시)" },
-                    { "SettingsBracketPair", "Bracket pair colorization (로컬 Monaco 번들 사용 시)" },
-                    { "SettingsAutoSave", "Autosave 사용" },
-                    { "SettingsLivePreview", "실시간 미리보기 기본 활성화" },
-                    { "SettingsMarkdownToolbar", "기본 마크다운 툴바 활성화" },
-                    { "SettingsToolbar", "툴바" },
-                    { "SettingsToolbarShowLabels", "툴바 버튼 글자 표시" },
-                    { "SettingsToolbarOrderHint", "드래그하여 버튼 순서 변경 (설정 버튼은 고정)" },
-                    { "SettingsTabSize", "Tab size" },
-                    { "SettingsLargeFileThreshold", "Large File Mode 제안 기준 (MB)" },
-                    { "SettingsLlmProvider", "LLM 공급자" },
-                    { "SettingsLlmEndpoint", "LLM API Endpoint" },
-                    { "SettingsLlmModel", "LLM 모델명" },
-                    { "SettingsLlmApiKey", "LLM API Key" },
-                    { "SettingsLlmLoadModels", "LM Studio 모델 불러오기" },
-                    { "SettingsLlmInfo", "LM Studio는 서버가 켜져 있을 때 http://localhost:1234/v1/models 에서 모델 목록을 불러옵니다." },
-                    { "SettingsLlmApiKeyInfo", "API Key는 설정 파일에 저장하지 않고 Windows 자격 증명 관리자에 저장합니다. 비워두고 저장하면 기존 Key를 유지합니다. LM Studio는 기본 로컬 서버 설정에서 API Key 없이 사용할 수 있습니다." },
-                    { "SelectionNoneBlocked", "선택 영역: 없음 (전체 전송 차단 활성화)" },
-                    { "SelectionStats", "선택 영역: {0} 글자 수 (약 {1} 토큰)" },
-                    { "SearchHeader", "폴더 전체 검색 및 치환" },
-                    { "SearchPlaceholder", "검색어 입력..." },
-                    { "ReplacePlaceholder", "치환할 단어 입력..." },
-                    { "SearchMatchCaseTooltip", "대소문자 구분" },
-                    { "SearchWholeWordTooltip", "단어 단위" },
-                    { "SearchRegexTooltip", "정규식 검색" },
-                    { "SearchAllFiles", "전체 검색" },
-                    { "ReplaceAllFiles", "모두 치환" },
-                    { "RecentFilesHeader", "최근 열린 파일 (더블클릭하여 열기)" },
-                    { "GitRepoHeader", "Git 저장소 관리" },
-                    { "GitBranchPlaceholder", "브랜치 목록" },
-                    { "GitCommitPlaceholder", "커밋 메시지 입력..." },
-                    { "GitCommit", "커밋 (Commit)" },
-                    { "GitStageAll", "전체 Stage" },
-                    { "GitRestoreAll", "전체 Restore" },
-                    { "GitPush", "Push" },
-                    { "GitRefresh", "새로고침" },
-                    { "GitHistory", "과거 기록" },
-                    { "GitRestoreFile", "파일 복원" },
-                    { "ExplorerUpTooltip", "상위 폴더" },
-                    { "ExplorerSelectFolder", "폴더 선택..." },
-                    { "ExplorerOpenTerminalTooltip", "현재 폴더에서 터미널 열기" },
-                    { "ExplorerAddToFavorites", "즐겨찾기에 추가" },
-                    { "ExplorerAddFolderToFavorites", "폴더를 즐겨찾기에 추가" },
-                    { "FavoritesFileTab", "파일" },
-                    { "FavoritesFolderTab", "폴더" },
-                    { "FavoritesPinTooltip", "고정" },
-                    { "GitNotDetected", "Git: 감지 안됨" },
-                    { "TerminalTitle", "터미널" },
-                    { "NewTerminal", "새 터미널" },
-                    { "CloseTerminal", "닫기" },
-                    { "TerminalPrompt", "명령 입력 후 Enter" },
-                    { "SettingsToolbarCustomize", "버튼 표시 설정" },
-                    { "SettingsToolbarButtonVisibility", "툴바 버튼 표시/숨기기" },
-                    { "SettingsToolbarDragHint", "드래그하여 버튼 순서 변경 (설정 버튼은 고정)" }
-                }
-            },
-            {
-                "en-US", new Dictionary<string, string>
-                {
-                    { "AppTitle", "Ueditor" },
-                    { "OpenFile", "Open File" },
-                    { "SaveFile", "Save" },
-                    { "Compare", "Compare" },
-                    { "Terminal", "Terminal" },
-                    { "TopMost", "TopMost" },
-                    { "StickyNote", "Sticky" },
-                    { "WordWrap", "Word Wrap" },
-                    { "Search", "Search" },
-                    { "Markdown", "Markdown" },
-                    { "Theme", "Theme" },
-                    { "Split", "Split" },
-                    { "Print", "Print" },
-                    { "Settings", "Settings" },
-                    { "FolderSelect", "Select Folder..." },
-                    { "NoFolderSelected", "Please select a folder." },
-                    { "FavoritesHeader", "Favorites List (Double-click to open)" },
-                    { "SnippetsHeader", "Code & Formula Templates (Double-click to insert)" },
-                    { "AddSnippet", "Add Snippet..." },
-                    { "SplitNone", "No Split (Single)" },
-                    { "SplitVertical", "Split Vertically" },
-                    { "SplitHorizontal", "Split Horizontally" },
-                    { "LanguageChangedTitle", "Language Change" },
-                    { "LanguageChangedMessage", "You must restart the application to apply the language settings. Would you like to restart now?" },
-                    { "Yes", "Yes" },
-                    { "No", "No" },
-                    { "Restart", "Restart" },
-                    { "LanguageDefault", "Default (OS Language)" },
-                    { "LanguageKorean", "Korean" },
-                    { "LanguageEnglish", "English" },
-                    { "LanguageJapanese", "Japanese" },
-                    { "Explorer", "Explorer" },
-                    { "Favorites", "Favorites" },
-                    { "Git", "Git" },
-                    { "Snippets", "Snippets" },
-                    { "RecentFiles", "Recent Files" },
-                    { "Heading", "Heading" },
-                    { "Bold", "Bold (Ctrl+B)" },
-                    { "Italic", "Italic (Ctrl+I)" },
-                    { "Underline", "Underline (Ctrl+U)" },
-                    { "Highlight", "Highlight" },
-                    { "UnorderedList", "Unordered List" },
-                    { "CutLine", "Cut Line" },
-                    { "Quote", "Quote" },
-                    { "Arrow", "Arrow" },
-                    { "InlineCode", "Inline Code" },
-                    { "Tasklist", "Tasklist" },
-                    { "Table", "Table" },
-                    { "FontIncrease", "Font Increase" },
-                    { "FontDecrease", "Font Decrease" },
-                    { "TextColor", "Text Color (Right-click: Select Color)" },
-                    { "Link", "Link" },
-                    { "SettingsTitle", "Ueditor Settings" },
-                    { "SettingsSave", "Save & Apply" },
-                    { "SettingsCancel", "Cancel" },
-                    { "SettingsAppearance", "Appearance" },
-                    { "SettingsEditing", "Editing" },
-                    { "SettingsLLM", "LLM" },
-                    { "SettingsLanguage", "Application Language" },
-                    { "SettingsTheme", "App & Editor Theme" },
-                    { "SettingsFontSize", "Editor Font Size" },
-                    { "SettingsFontFamily", "Editor Font Family" },
-                    { "SettingsUiFontFamily", "UI Shell Font Family" },
-                    { "SettingsUseCustomBg", "Use Custom Editor Background Color" },
-                    { "SettingsUseCustomFg", "Use Custom Editor Foreground Color" },
-                    { "SettingsWordWrap", "Enable Word Wrap by Default" },
-                    { "SettingsMinimap", "Show Minimap" },
-                    { "SettingsBracketPair", "Bracket Pair Colorization" },
-                    { "SettingsAutoSave", "Use Autosave" },
-                    { "SettingsLivePreview", "Enable Live Preview by Default" },
-                    { "SettingsMarkdownToolbar", "Enable Markdown Toolbar by Default" },
-                    { "SettingsToolbar", "Toolbar" },
-                    { "SettingsToolbarShowLabels", "Show Toolbar Button Labels" },
-                    { "SettingsToolbarOrderHint", "Drag to reorder buttons (Settings button is fixed)" },
-                    { "SettingsTabSize", "Tab Size" },
-                    { "SettingsLargeFileThreshold", "Large File Mode Threshold (MB)" },
-                    { "SettingsLlmProvider", "LLM Provider" },
-                    { "SettingsLlmEndpoint", "LLM API Endpoint" },
-                    { "SettingsLlmModel", "LLM Model" },
-                    { "SettingsLlmApiKey", "LLM API Key" },
-                    { "SettingsLlmLoadModels", "Load LM Studio Models" },
-                    { "SettingsLlmInfo", "LM Studio loads the list of models from http://localhost:1234/v1/models when the server is running." },
-                    { "SettingsLlmApiKeyInfo", "API Keys are stored in the Windows Credential Manager, not in settings files. Leaving it empty preserves the existing Key. LM Studio does not require an API Key under default configurations." },
-                    { "SelectionNoneBlocked", "Selection: None (Full file transfer blocked)" },
-                    { "SelectionStats", "Selection: {0} chars (approx {1} tokens)" },
-                    { "SearchHeader", "Search & Replace in Folder" },
-                    { "SearchPlaceholder", "Enter search term..." },
-                    { "ReplacePlaceholder", "Enter replacement..." },
-                    { "SearchMatchCaseTooltip", "Match Case" },
-                    { "SearchWholeWordTooltip", "Whole Word" },
-                    { "SearchRegexTooltip", "Regex" },
-                    { "SearchAllFiles", "Search All" },
-                    { "ReplaceAllFiles", "Replace All" },
-                    { "RecentFilesHeader", "Recent Files (Double-click to open)" },
-                    { "GitRepoHeader", "Git Repository" },
-                    { "GitBranchPlaceholder", "Branch List" },
-                    { "GitCommitPlaceholder", "Enter commit message..." },
-                    { "GitCommit", "Commit" },
-                    { "GitStageAll", "Stage All" },
-                    { "GitRestoreAll", "Restore All" },
-                    { "GitPush", "Push" },
-                    { "GitRefresh", "Refresh" },
-                    { "GitHistory", "History" },
-                    { "GitRestoreFile", "Restore File" },
-                    { "ExplorerUpTooltip", "Parent Folder" },
-                    { "ExplorerSelectFolder", "Select Folder..." },
-                    { "ExplorerOpenTerminalTooltip", "Open Terminal Here" },
-                    { "ExplorerAddToFavorites", "Add to Favorites" },
-                    { "ExplorerAddFolderToFavorites", "Add Folder to Favorites" },
-                    { "FavoritesFileTab", "Files" },
-                    { "FavoritesFolderTab", "Folders" },
-                    { "FavoritesPinTooltip", "Pin" },
-                    { "GitNotDetected", "Git: Not Detected" },
-                    { "TerminalTitle", "Terminal" },
-                    { "NewTerminal", "New Terminal" },
-                    { "CloseTerminal", "Close" },
-                    { "TerminalPrompt", "Type command and press Enter" },
-                    { "SettingsToolbarCustomize", "Button Display" },
-                    { "SettingsToolbarButtonVisibility", "Show/Hide Toolbar Buttons" },
-                    { "SettingsToolbarDragHint", "Drag to reorder (Settings button is fixed)" }
-                }
-            },
-            {
-                "ja-JP", new Dictionary<string, string>
-                {
-                    { "AppTitle", "Ueditor" },
-                    { "OpenFile", "ファイルを開く" },
-                    { "SaveFile", "保存" },
-                    { "Compare", "比較" },
-                    { "Terminal", "ターミナル" },
-                    { "TopMost", "常に手前" },
-                    { "StickyNote", "付箋" },
-                    { "WordWrap", "右端で折り返す" },
-                    { "Search", "検索" },
-                    { "Markdown", "Markdown" },
-                    { "Theme", "テーマ" },
-                    { "Split", "分割" },
-                    { "Print", "印刷" },
-                    { "Settings", "設定" },
-                    { "FolderSelect", "フォルダ選択..." },
-                    { "NoFolderSelected", "フォルダを選択してください。" },
-                    { "FavoritesHeader", "お気に入りリスト (ダブルクリックで開く)" },
-                    { "SnippetsHeader", "コードと数式テンプレート (ダブルクリックで挿入)" },
-                    { "AddSnippet", "スニペット追加..." },
-                    { "SplitNone", "分割なし (単一)" },
-                    { "SplitVertical", "左右に分割" },
-                    { "SplitHorizontal", "上下に分割" },
-                    { "LanguageChangedTitle", "言語の変更" },
-                    { "LanguageChangedMessage", "言語設定を適用するにはアプリケーションを再起動する必要があります。今すぐ再起動しますか？" },
-                    { "Yes", "はい" },
-                    { "No", "いいえ" },
-                    { "Restart", "再起動" },
-                    { "LanguageDefault", "デフォルト (OS設定)" },
-                    { "LanguageKorean", "韓国語" },
-                    { "LanguageEnglish", "English" },
-                    { "LanguageJapanese", "日本語" },
-                    { "Explorer", "エクスプローラー" },
-                    { "Favorites", "お気に入り" },
-                    { "Git", "Git" },
-                    { "Snippets", "스니펫" },
-                    { "RecentFiles", "最近のファイル" },
-                    { "Heading", "見出し" },
-                    { "Bold", "太字 (Ctrl+B)" },
-                    { "Italic", "斜体 (Ctrl+I)" },
-                    { "Underline", "下線 (Ctrl+U)" },
-                    { "Highlight", "蛍光ペン" },
-                    { "UnorderedList", "箇条書き" },
-                    { "CutLine", "現在の行を切り取り" },
-                    { "Quote", "引用" },
-                    { "Arrow", "矢印" },
-                    { "InlineCode", "インラインコード" },
-                    { "Tasklist", "チェックリスト" },
-                    { "Table", "表" },
-                    { "FontIncrease", "フォントサイズ拡大" },
-                    { "FontDecrease", "フォントサイズ縮小" },
-                    { "TextColor", "文字色 (右クリック: 色選択)" },
-                    { "Link", "リンク" },
-                    { "SettingsTitle", "Ueditor 設定" },
-                    { "SettingsSave", "適用して保存" },
-                    { "SettingsCancel", "キャンセル" },
-                    { "SettingsAppearance", "外観" },
-                    { "SettingsEditing", "編集" },
-                    { "SettingsLLM", "LLM" },
-                    { "SettingsLanguage", "アプリケーションの言語" },
-                    { "SettingsTheme", "アプリとエディタのテーマ" },
-                    { "SettingsFontSize", "エディタの文字サイズ" },
-                    { "SettingsFontFamily", "エディタのフォント" },
-                    { "SettingsUiFontFamily", "UI シェルのフォント" },
-                    { "SettingsUseCustomBg", "カスタム背景色を使用する" },
-                    { "SettingsUseCustomFg", "カスタム文字色を使用する" },
-                    { "SettingsWordWrap", "デフォルトで右端折り返しを有効にする" },
-                    { "SettingsMinimap", "ミニマップを表示する" },
-                    { "SettingsBracketPair", "ブラケットペアのカラー表示" },
-                    { "SettingsAutoSave", "自動保存を使用する" },
-                    { "SettingsLivePreview", "デフォルトでライブプレビューを有効にする" },
-                    { "SettingsMarkdownToolbar", "デフォルトでMarkdownツールバーを表示する" },
-                    { "SettingsToolbar", "ツールバー" },
-                    { "SettingsToolbarShowLabels", "ツールバーボタンのラベルを表示" },
-                    { "SettingsToolbarOrderHint", "ドラッグしてボタンの順序を変更（設定ボタンは固定）" },
-                    { "SettingsTabSize", "タブサイズ" },
-                    { "SettingsLargeFileThreshold", "大容量ファイル検出の閾値 (MB)" },
-                    { "SettingsLlmProvider", "LLM プロバイダー" },
-                    { "SettingsLlmEndpoint", "LLM API エンドポイント" },
-                    { "SettingsLlmModel", "LLM モデル名" },
-                    { "SettingsLlmApiKey", "LLM API キー" },
-                    { "SettingsLlmLoadModels", "LM Studioモデルを取得" },
-                    { "SettingsLlmInfo", "LM Studioは、サーバーが起動しているときに http://localhost:1234/v1/models からモデルリストを取得します。" },
-                    { "SettingsLlmApiKeyInfo", "APIキーは設定ファイルではなく、Windowsの資格情報マネージャーに保存されます。空欄で保存すると、既存のキーが維持されます。LM Studioはデフォルトのローカルサーバー設定でAPIキーなしで動作します。" },
-                    { "SelectionNoneBlocked", "選択範囲: なし (ファイル全体の送信はブロックされています)" },
-                    { "SelectionStats", "選択範囲: {0} 文字 (約 {1} トークン)" },
-                    { "SearchHeader", "フォルダ内検索と置換" },
-                    { "SearchPlaceholder", "検索語を入力..." },
-                    { "ReplacePlaceholder", "置換する文字列を入力..." },
-                    { "SearchMatchCaseTooltip", "大文字小文字を区別" },
-                    { "SearchWholeWordTooltip", "単語単位" },
-                    { "SearchRegexTooltip", "正規表現" },
-                    { "SearchAllFiles", "すべて検索" },
-                    { "ReplaceAllFiles", "すべて置換" },
-                    { "RecentFilesHeader", "最近のファイル (ダブルクリックで開く)" },
-                    { "GitRepoHeader", "Git リポジトリ" },
-                    { "GitBranchPlaceholder", "ブランチ一覧" },
-                    { "GitCommitPlaceholder", "コミットメッセージを入力..." },
-                    { "GitCommit", "コミット" },
-                    { "GitStageAll", "すべてステージ" },
-                    { "GitRestoreAll", "すべて復元" },
-                    { "GitPush", "Push" },
-                    { "GitRefresh", "更新" },
-                    { "GitHistory", "履歴" },
-                    { "GitRestoreFile", "ファイル復元" },
-                    { "ExplorerUpTooltip", "親フォルダ" },
-                    { "ExplorerSelectFolder", "フォルダ選択..." },
-                    { "ExplorerOpenTerminalTooltip", "このフォルダでターミナルを開く" },
-                    { "ExplorerAddToFavorites", "お気に入りに追加" },
-                    { "ExplorerAddFolderToFavorites", "フォルダをお気に入りに追加" },
-                    { "FavoritesFileTab", "ファイル" },
-                    { "FavoritesFolderTab", "フォルダ" },
-                    { "FavoritesPinTooltip", "固定" },
-                    { "GitNotDetected", "Git: 検出されていません" },
-                    { "TerminalTitle", "ターミナル" },
-                    { "NewTerminal", "新規ターミナル" },
-                    { "CloseTerminal", "閉じる" },
-                    { "TerminalPrompt", "コマンドを入力してEnter" },
-                    { "SettingsToolbarCustomize", "ボタン表示設定" },
-                    { "SettingsToolbarButtonVisibility", "ツールバーボタンの表示/非表示" },
-                    { "SettingsToolbarDragHint", "ドラッグして順序変更 (設定ボタンは固定)" }
-                }
-            }
-        };
-
         private string GetLocalizedString(string key, string fallback)
         {
-            string lang = GetActiveLanguage();
-            if (LocalizedStrings.TryGetValue(lang, out var langDict) && langDict.TryGetValue(key, out var val))
+            try
             {
-                return val;
+                string value = _resourceLoader.GetString(key);
+                return string.IsNullOrEmpty(value) ? fallback : value;
             }
-            return fallback;
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Missing localized string '{key}': {ex.Message}");
+                return fallback;
+            }
         }
 
         private string GetActiveLanguage()
@@ -1793,19 +1423,27 @@ namespace Ueditor
             return "en-US";
         }
 
+        private void ApplyResourceLanguage()
+        {
+            try
+            {
+                string configuredLanguage = _settingsService?.CurrentSettings?.Language ?? "Default";
+                ApplicationLanguages.PrimaryLanguageOverride = configuredLanguage.Equals("Default", StringComparison.OrdinalIgnoreCase)
+                    ? string.Empty
+                    : GetActiveLanguage();
+                _resourceLoader = new ResourceLoader();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to apply resource language: {ex.Message}");
+            }
+        }
         private void LocalizeUi()
         {
             try
             {
-                string GetString(string key, string fallback)
-                {
-                    string lang = GetActiveLanguage();
-                    if (LocalizedStrings.TryGetValue(lang, out var langDict) && langDict.TryGetValue(key, out var val))
-                    {
-                        return val;
-                    }
-                    return fallback;
-                }
+                ApplyResourceLanguage();
+                string GetString(string key, string fallback) => GetLocalizedString(key, fallback);
 
                 // 1. Top Toolbar Buttons
                 if (OpenFileButton != null)
@@ -1931,11 +1569,36 @@ namespace Ueditor
 
                 // 6f. Markdown Toolbar Buttons
                 MarkdownToolbar.LocalizeTooltips(GetString);
+
+                if (StatusLineLabel != null) StatusLineLabel.Text = GetString("StatusLineLabel", "줄");
+                if (StatusColumnLabel != null) StatusColumnLabel.Text = GetString("StatusColumnLabel", "열");
+                if (StatusMode != null && IsNormalModeText(StatusMode.Text)) StatusMode.Text = GetString("StatusModeNormal", "일반 모드");
+                if (StatusGitBranch != null && IsGitNotDetectedText(StatusGitBranch.Text)) StatusGitBranch.Text = GetString("GitNotDetected", "Git: 감지 안됨");
+                if (GitPanelBranchText != null && IsGitNotDetectedText(GitPanelBranchText.Text)) GitPanelBranchText.Text = GetString("GitNotDetected", "Git: 감지 안됨");
+                ToolTipService.SetToolTip(LeftPanelToggle, GetString("StatusLeftPanelTooltip", "좌측 패널"));
+                ToolTipService.SetToolTip(RightPanelToggle, GetString("StatusRightPanelTooltip", "우측 패널"));
+                ToolTipService.SetToolTip(StatusBarPane.LineNumberButtonControl, GetString("StatusGoToLineTooltip", "클릭하여 줄 이동"));
+                ToolTipService.SetToolTip(StatusBarPane.LineEndingButtonControl, GetString("StatusLineEndingTooltip", "클릭하여 줄 끝 방식 변경"));
+                ToolTipService.SetToolTip(StatusEncodingCombo, GetString("StatusEncodingTooltip", "파일 인코딩 선택"));
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to localize UI: {ex.Message}");
             }
+        }
+
+        private static bool IsGitNotDetectedText(string text)
+        {
+            return text.Equals("Git: 감지 안됨", StringComparison.OrdinalIgnoreCase) ||
+                   text.Equals("Git: Not Detected", StringComparison.OrdinalIgnoreCase) ||
+                   text.Equals("Git: 検出されていません", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsNormalModeText(string text)
+        {
+            return text.Equals("일반 모드", StringComparison.OrdinalIgnoreCase) ||
+                   text.Equals("Normal Mode", StringComparison.OrdinalIgnoreCase) ||
+                   text.Equals("通常モード", StringComparison.OrdinalIgnoreCase);
         }
 
         private async void OnSettingsClick(object sender, RoutedEventArgs e)
@@ -1948,15 +1611,7 @@ namespace Ueditor
             var settings = _settingsService.CurrentSettings;
             string oldLanguage = settings.Language;
 
-            string GetSettingsString(string key, string fallback)
-            {
-                string lang = GetActiveLanguage();
-                if (LocalizedStrings.TryGetValue(lang, out var langDict) && langDict.TryGetValue(key, out var val))
-                {
-                    return val;
-                }
-                return fallback;
-            }
+            string GetSettingsString(string key, string fallback) => GetLocalizedString(key, fallback);
 
             var result = await _settingsDialogService.ShowAsync(settings, this.Content.XamlRoot, GetSettingsString);
             if (terminalWasVisible)
@@ -1972,6 +1627,7 @@ namespace Ueditor
             }
 
             await _settingsService.SaveSettingsAsync(settings);
+            ApplyResourceLanguage();
             ApplyPreviewVisibility(settings.DefaultMarkdownEnabled);
             MarkdownToolbarToggle.IsChecked = settings.DefaultMarkdownToolbarEnabled;
             MarkdownToolbar.Visibility = settings.DefaultMarkdownToolbarEnabled ? Visibility.Visible : Visibility.Collapsed;
@@ -2869,11 +2525,13 @@ namespace Ueditor
             if (!string.IsNullOrEmpty(tab.FilePath) && File.Exists(tab.FilePath))
             {
                 long bytes = new FileInfo(tab.FilePath).Length;
-                StatusFileStats.Text = $"크기: {bytes:N0} bytes";
+                string format = GetLocalizedString("StatusFileSizeFormat", "크기: {0:N0} bytes");
+                StatusFileStats.Text = string.Format(format, bytes);
             }
             else
             {
-                StatusFileStats.Text = "크기: 0 bytes";
+                string format = GetLocalizedString("StatusFileSizeFormat", "크기: {0:N0} bytes");
+                StatusFileStats.Text = string.Format(format, 0);
             }
         }
 
@@ -3222,7 +2880,7 @@ namespace Ueditor
         {
             if (string.IsNullOrEmpty(path)) return;
             string branch = await _gitService.GetCurrentBranchAsync(path);
-            StatusGitBranch.Text = branch == "Git: 감지 안됨" ? GetLocalizedString("GitNotDetected", "Git: 감지 안됨") : branch;
+            StatusGitBranch.Text = IsGitNotDetectedText(branch) ? GetLocalizedString("GitNotDetected", "Git: 감지 안됨") : branch;
         }
 
         private static string? FindGitRepositoryRoot(string? startPath)
@@ -3436,31 +3094,79 @@ namespace Ueditor
         private void ApplyToolbarSettings(EditorSettings settings)
         {
             bool showLabels = settings.ToolbarShowLabels;
-            var hiddenSet = new HashSet<string>(settings.ToolbarHiddenButtons ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
-            var buttons = new (FrameworkElement btn, string label)[]
+            var hiddenSet = new HashSet<string>(
+                (settings.ToolbarHiddenButtons ?? new List<string>()).Select(ToolbarButtonCatalog.NormalizeId),
+                StringComparer.OrdinalIgnoreCase);
+            var buttonsById = GetToolbarButtonsById();
+            var orderedIds = NormalizeToolbarOrder(settings.ToolbarButtonOrder);
+
+            TopCommandBar.PrimaryCommands.Clear();
+            foreach (string id in orderedIds)
             {
-                (OpenFileButton, "파일 열기"),
-                (SaveFileButton, "저장"),
-                (CompareButton, "비교"),
-                (TerminalToggleButton, "터미널"),
-                (PrintButton, "인쇄"),
-                (TopMostToggleButton, "항상위"),
-                (StickyNoteButton, "스티커"),
-                (WordWrapToggle, "Word Wrap"),
-                (SearchButton, "검색"),
-                (MarkdownToolbarToggle, "Markdown"),
-                (ThemeButton, "테마"),
-                (SettingsButton, "설정")
-            };
-            foreach (var (btn, label) in buttons)
-            {
-                if (btn == null) continue;
-                bool isSettings = btn.Name == "SettingsButton";
-                btn.Visibility = isSettings || !hiddenSet.Contains(label) ? Visibility.Visible : Visibility.Collapsed;
-                string labelText = showLabels || isSettings ? label : "";
-                if (btn is AppBarButton abb) abb.Label = labelText;
-                else if (btn is AppBarToggleButton atb) atb.Label = labelText;
+                if (buttonsById.TryGetValue(id, out var entry) && !hiddenSet.Contains(id))
+                {
+                    TopCommandBar.PrimaryCommands.Add((ICommandBarElement)entry.Button);
+                }
             }
+
+            TopCommandBar.PrimaryCommands.Add(SettingsButton);
+
+            foreach (var (id, entry) in buttonsById)
+            {
+                bool isSettings = id.Equals("settings", StringComparison.OrdinalIgnoreCase);
+                entry.Button.Visibility = isSettings || !hiddenSet.Contains(id) ? Visibility.Visible : Visibility.Collapsed;
+                string label = GetLocalizedString(entry.ResourceKey, id);
+                string labelText = showLabels ? label : string.Empty;
+                if (entry.Button is AppBarButton abb) abb.Label = labelText;
+                else if (entry.Button is AppBarToggleButton atb) atb.Label = labelText;
+            }
+        }
+
+        private Dictionary<string, (FrameworkElement Button, string ResourceKey)> GetToolbarButtonsById()
+        {
+            return new Dictionary<string, (FrameworkElement Button, string ResourceKey)>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["openFile"] = (OpenFileButton, "OpenFile"),
+                ["saveFile"] = (SaveFileButton, "SaveFile"),
+                ["compare"] = (CompareButton, "Compare"),
+                ["terminal"] = (TerminalToggleButton, "Terminal"),
+                ["print"] = (PrintButton, "Print"),
+                ["topMost"] = (TopMostToggleButton, "TopMost"),
+                ["stickyNote"] = (StickyNoteButton, "StickyNote"),
+                ["wordWrap"] = (WordWrapToggle, "WordWrap"),
+                ["search"] = (SearchButton, "Search"),
+                ["markdown"] = (MarkdownToolbarToggle, "Markdown"),
+                ["theme"] = (ThemeButton, "Theme"),
+                ["split"] = (SplitButton, "Split"),
+                ["settings"] = (SettingsButton, "Settings")
+            };
+        }
+
+        private static List<string> NormalizeToolbarOrder(IReadOnlyList<string>? savedOrder)
+        {
+            var validIds = new HashSet<string>(
+                ToolbarButtonCatalog.DefaultOrder,
+                StringComparer.OrdinalIgnoreCase);
+            var orderedIds = new List<string>();
+
+            foreach (string rawId in savedOrder ?? Array.Empty<string>())
+            {
+                string id = ToolbarButtonCatalog.NormalizeId(rawId);
+                if (validIds.Contains(id) && !orderedIds.Contains(id, StringComparer.OrdinalIgnoreCase))
+                {
+                    orderedIds.Add(id);
+                }
+            }
+
+            foreach (string id in ToolbarButtonCatalog.DefaultOrder)
+            {
+                if (!orderedIds.Contains(id, StringComparer.OrdinalIgnoreCase))
+                {
+                    orderedIds.Add(id);
+                }
+            }
+
+            return orderedIds;
         }
         #endregion
 
@@ -3479,8 +3185,9 @@ namespace Ueditor
             }
 
             string branch = await _gitService.GetCurrentBranchAsync(_currentRepoPath);
-            GitPanelBranchText.Text = branch;
-            StatusGitBranch.Text = branch;
+            string localizedBranch = IsGitNotDetectedText(branch) ? GetLocalizedString("GitNotDetected", "Git: 감지 안됨") : branch;
+            GitPanelBranchText.Text = localizedBranch;
+            StatusGitBranch.Text = localizedBranch;
             _gitAutoRefreshTimer.Start();
 
             _viewModel.GitFiles.Clear();

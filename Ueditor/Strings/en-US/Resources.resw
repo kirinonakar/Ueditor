@@ -132,12 +132,321 @@
     <value>Default (OS Language)</value>
   </data>
   <data name="LanguageKorean" xml:space="preserve">
-    <value>한국어</value>
+    <value>Korean</value>
   </data>
   <data name="LanguageEnglish" xml:space="preserve">
     <value>English</value>
   </data>
   <data name="LanguageJapanese" xml:space="preserve">
-    <value>日本語</value>
+    <value>Japanese</value>
+  </data>
+  <data name="Print" xml:space="preserve">
+    <value>Print</value>
+  </data>
+  <data name="Explorer" xml:space="preserve">
+    <value>Explorer</value>
+  </data>
+  <data name="Favorites" xml:space="preserve">
+    <value>Favorites</value>
+  </data>
+  <data name="Git" xml:space="preserve">
+    <value>Git</value>
+  </data>
+  <data name="Snippets" xml:space="preserve">
+    <value>Snippets</value>
+  </data>
+  <data name="RecentFiles" xml:space="preserve">
+    <value>Recent Files</value>
+  </data>
+  <data name="Heading" xml:space="preserve">
+    <value>Heading</value>
+  </data>
+  <data name="Bold" xml:space="preserve">
+    <value>Bold (Ctrl+B)</value>
+  </data>
+  <data name="Italic" xml:space="preserve">
+    <value>Italic (Ctrl+I)</value>
+  </data>
+  <data name="Underline" xml:space="preserve">
+    <value>Underline (Ctrl+U)</value>
+  </data>
+  <data name="Highlight" xml:space="preserve">
+    <value>Highlight</value>
+  </data>
+  <data name="UnorderedList" xml:space="preserve">
+    <value>Unordered List</value>
+  </data>
+  <data name="CutLine" xml:space="preserve">
+    <value>Cut Line</value>
+  </data>
+  <data name="Quote" xml:space="preserve">
+    <value>Quote</value>
+  </data>
+  <data name="Arrow" xml:space="preserve">
+    <value>Arrow</value>
+  </data>
+  <data name="InlineCode" xml:space="preserve">
+    <value>Inline Code</value>
+  </data>
+  <data name="Tasklist" xml:space="preserve">
+    <value>Tasklist</value>
+  </data>
+  <data name="Table" xml:space="preserve">
+    <value>Table</value>
+  </data>
+  <data name="FontIncrease" xml:space="preserve">
+    <value>Font Increase</value>
+  </data>
+  <data name="FontDecrease" xml:space="preserve">
+    <value>Font Decrease</value>
+  </data>
+  <data name="TextColor" xml:space="preserve">
+    <value>Text Color (Right-click: Select Color)</value>
+  </data>
+  <data name="Link" xml:space="preserve">
+    <value>Link</value>
+  </data>
+  <data name="SettingsTitle" xml:space="preserve">
+    <value>Ueditor Settings</value>
+  </data>
+  <data name="SettingsSave" xml:space="preserve">
+    <value>Save &amp; Apply</value>
+  </data>
+  <data name="SettingsCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="SettingsAppearance" xml:space="preserve">
+    <value>Appearance</value>
+  </data>
+  <data name="SettingsEditing" xml:space="preserve">
+    <value>Editing</value>
+  </data>
+  <data name="SettingsLLM" xml:space="preserve">
+    <value>LLM</value>
+  </data>
+  <data name="SettingsLanguage" xml:space="preserve">
+    <value>Application Language</value>
+  </data>
+  <data name="SettingsTheme" xml:space="preserve">
+    <value>App &amp; Editor Theme</value>
+  </data>
+  <data name="SettingsFontSize" xml:space="preserve">
+    <value>Editor Font Size</value>
+  </data>
+  <data name="SettingsFontFamily" xml:space="preserve">
+    <value>Editor Font Family</value>
+  </data>
+  <data name="SettingsUiFontFamily" xml:space="preserve">
+    <value>UI Shell Font Family</value>
+  </data>
+  <data name="SettingsUseCustomBg" xml:space="preserve">
+    <value>Use Custom Editor Background Color</value>
+  </data>
+  <data name="SettingsUseCustomFg" xml:space="preserve">
+    <value>Use Custom Editor Foreground Color</value>
+  </data>
+  <data name="SettingsWordWrap" xml:space="preserve">
+    <value>Enable Word Wrap by Default</value>
+  </data>
+  <data name="SettingsMinimap" xml:space="preserve">
+    <value>Show Minimap</value>
+  </data>
+  <data name="SettingsBracketPair" xml:space="preserve">
+    <value>Bracket Pair Colorization</value>
+  </data>
+  <data name="SettingsAutoSave" xml:space="preserve">
+    <value>Use Autosave</value>
+  </data>
+  <data name="SettingsLivePreview" xml:space="preserve">
+    <value>Enable Live Preview by Default</value>
+  </data>
+  <data name="SettingsMarkdownToolbar" xml:space="preserve">
+    <value>Enable Markdown Toolbar by Default</value>
+  </data>
+  <data name="SettingsToolbar" xml:space="preserve">
+    <value>Toolbar</value>
+  </data>
+  <data name="SettingsToolbarShowLabels" xml:space="preserve">
+    <value>Show Toolbar Button Labels</value>
+  </data>
+  <data name="SettingsToolbarOrderHint" xml:space="preserve">
+    <value>Drag to reorder buttons (Settings button is fixed)</value>
+  </data>
+  <data name="SettingsTabSize" xml:space="preserve">
+    <value>Tab Size</value>
+  </data>
+  <data name="SettingsLargeFileThreshold" xml:space="preserve">
+    <value>Large File Mode Threshold (MB)</value>
+  </data>
+  <data name="SettingsLlmProvider" xml:space="preserve">
+    <value>LLM Provider</value>
+  </data>
+  <data name="SettingsLlmEndpoint" xml:space="preserve">
+    <value>LLM API Endpoint</value>
+  </data>
+  <data name="SettingsLlmModel" xml:space="preserve">
+    <value>LLM Model</value>
+  </data>
+  <data name="SettingsLlmApiKey" xml:space="preserve">
+    <value>LLM API Key</value>
+  </data>
+  <data name="SettingsLlmLoadModels" xml:space="preserve">
+    <value>Load LM Studio Models</value>
+  </data>
+  <data name="SettingsLlmInfo" xml:space="preserve">
+    <value>LM Studio loads the list of models from http://localhost:1234/v1/models when the server is running.</value>
+  </data>
+  <data name="SettingsLlmApiKeyInfo" xml:space="preserve">
+    <value>API Keys are stored in the Windows Credential Manager, not in settings files. Leaving it empty preserves the existing Key. LM Studio does not require an API Key under default configurations.</value>
+  </data>
+  <data name="SelectionNoneBlocked" xml:space="preserve">
+    <value>Selection: None (Full file transfer blocked)</value>
+  </data>
+  <data name="SelectionStats" xml:space="preserve">
+    <value>Selection: {0} chars (approx {1} tokens)</value>
+  </data>
+  <data name="SearchHeader" xml:space="preserve">
+    <value>Search &amp; Replace in Folder</value>
+  </data>
+  <data name="SearchPlaceholder" xml:space="preserve">
+    <value>Enter search term...</value>
+  </data>
+  <data name="ReplacePlaceholder" xml:space="preserve">
+    <value>Enter replacement...</value>
+  </data>
+  <data name="SearchMatchCaseTooltip" xml:space="preserve">
+    <value>Match Case</value>
+  </data>
+  <data name="SearchWholeWordTooltip" xml:space="preserve">
+    <value>Whole Word</value>
+  </data>
+  <data name="SearchRegexTooltip" xml:space="preserve">
+    <value>Regex</value>
+  </data>
+  <data name="SearchAllFiles" xml:space="preserve">
+    <value>Search All</value>
+  </data>
+  <data name="ReplaceAllFiles" xml:space="preserve">
+    <value>Replace All</value>
+  </data>
+  <data name="RecentFilesHeader" xml:space="preserve">
+    <value>Recent Files (Double-click to open)</value>
+  </data>
+  <data name="GitRepoHeader" xml:space="preserve">
+    <value>Git Repository</value>
+  </data>
+  <data name="GitBranchPlaceholder" xml:space="preserve">
+    <value>Branch List</value>
+  </data>
+  <data name="GitCommitPlaceholder" xml:space="preserve">
+    <value>Enter commit message...</value>
+  </data>
+  <data name="GitCommit" xml:space="preserve">
+    <value>Commit</value>
+  </data>
+  <data name="GitStageAll" xml:space="preserve">
+    <value>Stage All</value>
+  </data>
+  <data name="GitRestoreAll" xml:space="preserve">
+    <value>Restore All</value>
+  </data>
+  <data name="GitPush" xml:space="preserve">
+    <value>Push</value>
+  </data>
+  <data name="GitRefresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="GitHistory" xml:space="preserve">
+    <value>History</value>
+  </data>
+  <data name="GitRestoreFile" xml:space="preserve">
+    <value>Restore File</value>
+  </data>
+  <data name="ExplorerUpTooltip" xml:space="preserve">
+    <value>Parent Folder</value>
+  </data>
+  <data name="ExplorerSelectFolder" xml:space="preserve">
+    <value>Select Folder...</value>
+  </data>
+  <data name="ExplorerOpenTerminalTooltip" xml:space="preserve">
+    <value>Open Terminal Here</value>
+  </data>
+  <data name="ExplorerAddToFavorites" xml:space="preserve">
+    <value>Add to Favorites</value>
+  </data>
+  <data name="ExplorerAddFolderToFavorites" xml:space="preserve">
+    <value>Add Folder to Favorites</value>
+  </data>
+  <data name="FavoritesFileTab" xml:space="preserve">
+    <value>Files</value>
+  </data>
+  <data name="FavoritesFolderTab" xml:space="preserve">
+    <value>Folders</value>
+  </data>
+  <data name="FavoritesPinTooltip" xml:space="preserve">
+    <value>Pin</value>
+  </data>
+  <data name="GitNotDetected" xml:space="preserve">
+    <value>Git: Not Detected</value>
+  </data>
+  <data name="TerminalTitle" xml:space="preserve">
+    <value>Terminal</value>
+  </data>
+  <data name="NewTerminal" xml:space="preserve">
+    <value>New Terminal</value>
+  </data>
+  <data name="CloseTerminal" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="TerminalPrompt" xml:space="preserve">
+    <value>Type command and press Enter</value>
+  </data>
+  <data name="SettingsToolbarCustomize" xml:space="preserve">
+    <value>Button Display</value>
+  </data>
+  <data name="SettingsToolbarButtonVisibility" xml:space="preserve">
+    <value>Show/Hide Toolbar Buttons</value>
+  </data>
+  <data name="SettingsToolbarDragHint" xml:space="preserve">
+    <value>Drag to reorder (Settings button is fixed)</value>
+  </data>
+  <data name="SettingsToolbarSettingsPinned" xml:space="preserve">
+    <value>The Settings button is always shown.</value>
+  </data>
+  <data name="SettingsToolbarCustomization" xml:space="preserve">
+    <value>Toolbar Icons</value>
+  </data>
+  <data name="StatusModeNormal" xml:space="preserve">
+    <value>Normal Mode</value>
+  </data>
+  <data name="StatusRightPanelTooltip" xml:space="preserve">
+    <value>Right Panel</value>
+  </data>
+  <data name="StatusColumnLabel" xml:space="preserve">
+    <value>Col</value>
+  </data>
+  <data name="StatusModeLargeFile" xml:space="preserve">
+    <value>Large File Mode</value>
+  </data>
+  <data name="StatusLeftPanelTooltip" xml:space="preserve">
+    <value>Left Panel</value>
+  </data>
+  <data name="StatusModeLimited" xml:space="preserve">
+    <value>Normal Mode (Limited)</value>
+  </data>
+  <data name="StatusLineEndingTooltip" xml:space="preserve">
+    <value>Click to change line ending</value>
+  </data>
+  <data name="StatusGoToLineTooltip" xml:space="preserve">
+    <value>Click to go to line</value>
+  </data>
+  <data name="StatusFileSizeFormat" xml:space="preserve">
+    <value>Size: {0:N0} bytes</value>
+  </data>
+  <data name="StatusLineLabel" xml:space="preserve">
+    <value>Ln</value>
+  </data>
+  <data name="StatusEncodingTooltip" xml:space="preserve">
+    <value>Select file encoding</value>
   </data>
 </root>
