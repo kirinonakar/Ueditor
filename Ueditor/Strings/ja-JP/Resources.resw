@@ -59,6 +59,9 @@
   <data name="SaveFile" xml:space="preserve">
     <value>保存</value>
   </data>
+  <data name="SaveAsFile" xml:space="preserve">
+    <value>名前を付けて保存</value>
+  </data>
   <data name="Compare" xml:space="preserve">
     <value>比較</value>
   </data>

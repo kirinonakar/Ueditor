@@ -12,6 +12,7 @@ namespace Ueditor.Core.Models
         {
             new ToolbarButtonOption("openFile", "OpenFile"),
             new ToolbarButtonOption("saveFile", "SaveFile"),
+            new ToolbarButtonOption("saveAsFile", "SaveAsFile"),
             new ToolbarButtonOption("compare", "Compare"),
             new ToolbarButtonOption("terminal", "Terminal"),
             new ToolbarButtonOption("print", "Print"),
@@ -32,7 +33,7 @@ namespace Ueditor.Core.Models
 
         public static IReadOnlyList<IReadOnlyList<string>> DefaultGroups { get; } = new[]
         {
-            new[] { "openFile", "saveFile", "compare" },
+            new[] { "openFile", "saveFile", "saveAsFile", "compare" },
             new[] { "terminal", "print", "topMost", "stickyNote" },
             new[] { "wordWrap", "search" },
             new[] { "markdown" },
@@ -47,6 +48,7 @@ namespace Ueditor.Core.Models
             {
                 "파일 열기" or "Open File" or "ファイルを開く" or "OpenFileButton" => "openFile",
                 "저장" or "Save" or "保存" or "SaveFileButton" => "saveFile",
+                "다른 이름으로 저장" or "Save As" or "名前を付けて保存" or "SaveAsFileButton" => "saveAsFile",
                 "비교" or "Compare" or "比較" or "CompareButton" => "compare",
                 "터미널" or "Terminal" or "ターミナル" or "TerminalToggleButton" => "terminal",
                 "인쇄" or "Print" or "印刷" or "PrintButton" => "print",

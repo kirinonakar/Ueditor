@@ -493,6 +493,10 @@ namespace Ueditor.Editor
 
     public sealed class EditorDocumentSession
     {
+        private readonly List<string> _undoStack = new();
+        private readonly List<string> _redoStack = new();
+        private const int MaxUndoDepth = 200;
+
         public EditorDocumentSession(OpenedTab tab, ITextModel model)
         {
             Tab = tab;
@@ -502,7 +506,7 @@ namespace Ueditor.Editor
 
         public OpenedTab Tab { get; }
 
-        public ITextModel Model { get; }
+        public ITextModel Model { get; private set; }
 
         public IReadOnlyList<string> GetLines(int startLine, int count) => Model.GetLines(startLine, count);
 
@@ -510,12 +514,14 @@ namespace Ueditor.Editor
 
         public void ReplaceLine(int lineNumber, string text)
         {
+            PushUndo();
             Model.ReplaceLine(lineNumber, text);
             RefreshTabContentPreview();
         }
 
         public int SplitLine(int lineNumber, string before, string after)
         {
+            PushUndo();
             Model.SplitLine(lineNumber, before, after);
             RefreshTabContentPreview();
             return Model.LineCount;
@@ -523,6 +529,7 @@ namespace Ueditor.Editor
 
         public int InsertLine(int lineNumber, string text)
         {
+            PushUndo();
             Model.InsertLine(lineNumber, text);
             RefreshTabContentPreview();
             return Model.LineCount;
@@ -530,6 +537,7 @@ namespace Ueditor.Editor
 
         public int MergeLineWithPrevious(int lineNumber)
         {
+            PushUndo();
             Model.MergeLineWithPrevious(lineNumber);
             RefreshTabContentPreview();
             return Model.LineCount;
@@ -537,9 +545,32 @@ namespace Ueditor.Editor
 
         public int DeleteLine(int lineNumber)
         {
+            PushUndo();
             Model.DeleteLine(lineNumber);
             RefreshTabContentPreview();
             return Model.LineCount;
+        }
+
+        public string? Undo()
+        {
+            if (_undoStack.Count == 0) return null;
+            _redoStack.Add(Model.GetText());
+            var text = _undoStack[^1];
+            _undoStack.RemoveAt(_undoStack.Count - 1);
+            Model = LineArrayTextModel.FromText(text);
+            RefreshTabContentPreview();
+            return text;
+        }
+
+        public string? Redo()
+        {
+            if (_redoStack.Count == 0) return null;
+            _undoStack.Add(Model.GetText());
+            var text = _redoStack[^1];
+            _redoStack.RemoveAt(_redoStack.Count - 1);
+            Model = LineArrayTextModel.FromText(text);
+            RefreshTabContentPreview();
+            return text;
         }
 
         public TextSearchResult? Find(string query, int startLine, int startColumn, bool reverse, bool matchCase)
@@ -550,6 +581,16 @@ namespace Ueditor.Editor
         public Task SaveAsync(string filePath, string encodingName, CancellationToken cancellationToken = default)
         {
             return Model.SaveAsync(filePath, encodingName, cancellationToken);
+        }
+
+        private void PushUndo()
+        {
+            _redoStack.Clear();
+            _undoStack.Add(Model.GetText());
+            if (_undoStack.Count > MaxUndoDepth)
+            {
+                _undoStack.RemoveAt(0);
+            }
         }
 
         private void RefreshTabContentPreview()

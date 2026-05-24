@@ -793,6 +793,28 @@ namespace Ueditor
                                 SearchQueryInput.Focus(FocusState.Keyboard);
                             });
                             break;
+                        case "undo":
+                            {
+                                var text = session.Undo();
+                                if (text != null)
+                                {
+                                    MarkTabDirty(tab, tabItem);
+                                    SchedulePreview(tab);
+                                    _ = bridge.SetTextAsync(text);
+                                }
+                            }
+                            break;
+                        case "redo":
+                            {
+                                var text = session.Redo();
+                                if (text != null)
+                                {
+                                    MarkTabDirty(tab, tabItem);
+                                    SchedulePreview(tab);
+                                    _ = bridge.SetTextAsync(text);
+                                }
+                            }
+                            break;
                     }
                 });
             };
@@ -1182,6 +1204,19 @@ namespace Ueditor
             }
         }
 
+        private async void OnSaveAsFileClick(object sender, RoutedEventArgs e)
+        {
+            if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
+                activeTabItem.Tag is string tabId)
+            {
+                var tab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
+                if (tab != null)
+                {
+                    await SaveAsTabAsync(tab);
+                }
+            }
+        }
+
         private async void OnWordWrapToggleClick(object sender, RoutedEventArgs e)
         {
             var settings = _settingsService.CurrentSettings;
@@ -1541,6 +1576,11 @@ namespace Ueditor
                 {
                     SaveFileButton.Label = GetString("SaveFile", "저장");
                     ToolTipService.SetToolTip(SaveFileButton, GetString("SaveFile", "저장") + " (Ctrl+S)");
+                }
+                if (SaveAsFileButton != null)
+                {
+                    SaveAsFileButton.Label = GetString("SaveAsFile", "다른 이름으로 저장");
+                    ToolTipService.SetToolTip(SaveAsFileButton, GetString("SaveAsFile", "다른 이름으로 저장") + " (Ctrl+Shift+S)");
                 }
                 if (CompareButton != null)
                 {
@@ -3426,6 +3466,7 @@ namespace Ueditor
             {
                 ["openFile"] = (OpenFileButton, "OpenFile"),
                 ["saveFile"] = (SaveFileButton, "SaveFile"),
+                ["saveAsFile"] = (SaveAsFileButton, "SaveAsFile"),
                 ["compare"] = (CompareButton, "Compare"),
                 ["terminal"] = (TerminalToggleButton, "Terminal"),
                 ["print"] = (PrintButton, "Print"),
@@ -3941,6 +3982,61 @@ namespace Ueditor
             catch (Exception ex)
             {
                 ShowErrorMessage("저장 실패", ex.Message);
+                return false;
+            }
+        }
+
+        private async Task<bool> SaveAsTabAsync(OpenedTab tab)
+        {
+            var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id)
+                       ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id);
+            if (tabItem == null) return false;
+
+            var picker = new FileSavePicker();
+            InitializePickerWindow(picker);
+            picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+            picker.FileTypeChoices.Add("텍스트 파일", new List<string>() { ".txt" });
+            picker.FileTypeChoices.Add("마크다운 파일", new List<string>() { ".md", ".markdown" });
+            picker.FileTypeChoices.Add("HTML 파일", new List<string>() { ".html" });
+            picker.FileTypeChoices.Add("LaTeX 파일", new List<string>() { ".tex" });
+            picker.SuggestedFileName = System.IO.Path.GetFileNameWithoutExtension(tab.FilePath) ?? tab.Title;
+
+            var file = await picker.PickSaveFileAsync();
+            if (file == null) return false;
+
+            var oldFilePath = tab.FilePath;
+            tab.FilePath = file.Path;
+            tab.Title = file.Name;
+            tab.Language = _languageDetectionService.GetMonacoLanguageName(file.Path);
+            if (string.IsNullOrWhiteSpace(tab.EncodingName))
+            {
+                tab.EncodingName = "UTF-8";
+            }
+
+            try
+            {
+                if (_editorSessions.TryGetValue(tab.Id, out var session))
+                {
+                    await session.SaveAsync(tab.FilePath, tab.EncodingName);
+                    tab.Content = session.GetText(120_000);
+                }
+                else
+                {
+                    await _fileService.SaveTextFileAsync(tab.FilePath, tab.Content, tab.EncodingName);
+                }
+
+                tab.IsDirty = false;
+                tabItem.Header = tab.DisplayTitle;
+                UpdateStatusFileStats(tab);
+                UpdateLanguageUI(tab);
+                SyncEncodingCombo(tab);
+                await RefreshGitStatusUIAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                tab.FilePath = oldFilePath;
+                ShowErrorMessage(GetLocalizedString("SaveFile", "저장") + " - " + GetLocalizedString("SaveAsFile", "다른 이름으로 저장"), ex.Message);
                 return false;
             }
         }

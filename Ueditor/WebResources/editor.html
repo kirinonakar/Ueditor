@@ -803,6 +803,19 @@
                  normalized.start.column !== normalized.end.column);
         }
 
+        function selectAll() {
+            const lastLine = state.lineCount;
+            const lastText = state.cache.get(lastLine) || '';
+            const endColumn = lastText.length;
+            state.selectionAnchor = { line: 1, column: 0 };
+            state.selection = { start: { line: 1, column: 0 }, end: { line: lastLine, column: endColumn } };
+            state.currentLine = lastLine;
+            state.currentColumn = endColumn + 1;
+            queueRender(true);
+            setTimeout(() => focusLine(lastLine, endColumn), 0);
+            reportCursorAndSelection();
+        }
+
         function selectionBoundsForLine(lineNumber, textLength) {
             const selection = normalizeSelection();
             if (!selection || lineNumber < selection.start.line || lineNumber > selection.end.line) {
@@ -1429,6 +1442,21 @@
                 if (event.code === 'Backquote' || event.key === '`' || event.key === '~' || event.key === 'Dead') {
                     event.preventDefault();
                     post({ type: 'shortcut', name: 'terminal' });
+                    return;
+                }
+                if (key === 'a') {
+                    event.preventDefault();
+                    selectAll();
+                    return;
+                }
+                if (key === 'z') {
+                    event.preventDefault();
+                    post({ type: 'shortcut', name: 'undo' });
+                    return;
+                }
+                if (key === 'y') {
+                    event.preventDefault();
+                    post({ type: 'shortcut', name: 'redo' });
                     return;
                 }
             }

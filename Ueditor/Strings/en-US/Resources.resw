@@ -59,6 +59,9 @@
   <data name="SaveFile" xml:space="preserve">
     <value>Save</value>
   </data>
+  <data name="SaveAsFile" xml:space="preserve">
+    <value>Save As</value>
+  </data>
   <data name="Compare" xml:space="preserve">
     <value>Compare</value>
   </data>
