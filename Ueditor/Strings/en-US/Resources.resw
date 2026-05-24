@@ -449,4 +449,64 @@
   <data name="StatusEncodingTooltip" xml:space="preserve">
     <value>Select file encoding</value>
   </data>
+  <data name="LivePreviewTabHeader" xml:space="preserve">
+    <value>Live Preview</value>
+  </data>
+  <data name="AiAssistantTabHeader" xml:space="preserve">
+    <value>AI Assistant</value>
+  </data>
+  <data name="ComboItemMarkdown" xml:space="preserve">
+    <value>Markdown</value>
+  </data>
+  <data name="ComboItemHtml" xml:space="preserve">
+    <value>HTML Source</value>
+  </data>
+  <data name="ComboItemLatex" xml:space="preserve">
+    <value>LaTeX Block</value>
+  </data>
+  <data name="ComboItemAozora" xml:space="preserve">
+    <value>Aozora</value>
+  </data>
+  <data name="OpenInBrowserButtonText" xml:space="preserve">
+    <value>Browser</value>
+  </data>
+  <data name="OpenInBrowserTooltip" xml:space="preserve">
+    <value>Open HTML preview in browser</value>
+  </data>
+  <data name="LlmOutputPlaceholder" xml:space="preserve">
+    <value>Waiting... Select a range in the editor, then use the AI tools below.</value>
+  </data>
+  <data name="SelectionStatsPlaceholder" xml:space="preserve">
+    <value>Selection: None (Entire transmission block enabled)</value>
+  </data>
+  <data name="LlmFileContextPlaceholder" xml:space="preserve">
+    <value>No file context</value>
+  </data>
+  <data name="LlmAddFileContextButtonText" xml:space="preserve">
+    <value>Add File Context</value>
+  </data>
+  <data name="LlmExplainButtonText" xml:space="preserve">
+    <value>Explain Selection</value>
+  </data>
+  <data name="LlmSummarizeButtonText" xml:space="preserve">
+    <value>Summarize Selection</value>
+  </data>
+  <data name="LlmTranslateButtonText" xml:space="preserve">
+    <value>Translate Selection</value>
+  </data>
+  <data name="LlmImproveButtonText" xml:space="preserve">
+    <value>Improve Math/MD</value>
+  </data>
+  <data name="LlmCustomPromptPlaceholder" xml:space="preserve">
+    <value>Enter questions or custom instructions...</value>
+  </data>
+  <data name="LlmCustomRunButtonText" xml:space="preserve">
+    <value>Run</value>
+  </data>
+  <data name="LlmInsertOutputButtonText" xml:space="preserve">
+    <value>Insert</value>
+  </data>
+  <data name="LlmInsertOutputTooltip" xml:space="preserve">
+    <value>Insert AI response at current cursor</value>
+  </data>
 </root>

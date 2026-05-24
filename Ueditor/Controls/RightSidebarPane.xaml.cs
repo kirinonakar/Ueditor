@@ -28,6 +28,23 @@ namespace Ueditor.Controls
         public TextBox LlmFileContext => LlmFileContextInput;
         public TextBox LlmCustomPrompt => LlmCustomPromptInput;
 
+        // Named controls exposed for localization
+        public TabViewItem LivePreviewTabItem => LivePreviewTab;
+        public ComboBoxItem ComboMarkdown => ComboItemMarkdown;
+        public ComboBoxItem ComboHtml => ComboItemHtml;
+        public ComboBoxItem ComboLatex => ComboItemLatex;
+        public ComboBoxItem ComboAozora => ComboItemAozora;
+        public Button OpenBrowserBtn => OpenBrowserButton;
+        public TextBlock OpenBrowserBtnText => OpenBrowserButtonText;
+        public TabViewItem AiAssistantTabItem => AiAssistantTab;
+        public Button LlmAddFileCtxButton => LlmAddFileContextButton;
+        public Button LlmExplainBtn => LlmExplainButton;
+        public Button LlmSummarizeBtn => LlmSummarizeButton;
+        public Button LlmTranslateBtn => LlmTranslateButton;
+        public Button LlmImproveBtn => LlmImproveButton;
+        public Button LlmCustomRunBtn => LlmCustomRunButton;
+        public Button LlmInsertOutputBtn => LlmInsertOutputButton;
+
         private void OnPreviewModeComboSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             PreviewModeSelectionChanged?.Invoke(sender, e);

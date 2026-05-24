@@ -326,7 +326,8 @@ namespace Ueditor.Core.Services
             if (string.IsNullOrEmpty(repoPath))
                 return Array.Empty<string>();
 
-            string output = await RunGitCommandAsync(repoPath, $"log --oneline --decorate -n {Math.Max(1, maxCount)}");
+            // Use --graph flag for rendering the text-based git graph
+            string output = await RunGitCommandAsync(repoPath, $"log --graph --oneline --decorate -n {Math.Max(1, maxCount)}");
             if (string.IsNullOrEmpty(output) || output.StartsWith("fatal:", StringComparison.OrdinalIgnoreCase))
                 return Array.Empty<string>();
 
@@ -343,6 +344,60 @@ namespace Ueditor.Core.Services
                 return Array.Empty<string>();
 
             return output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+        }
+
+        public async Task<IReadOnlyList<(string Status, string Path)>> GetCommitChangedFilesAsync(string repoPath, string commitHash)
+        {
+            var list = new List<(string, string)>();
+            if (string.IsNullOrEmpty(repoPath) || string.IsNullOrEmpty(commitHash))
+                return list;
+
+            try
+            {
+                string output = await RunGitCommandAsync(repoPath, $"diff-tree --no-commit-id --name-status -r {commitHash}");
+                if (string.IsNullOrEmpty(output) || output.StartsWith("fatal:"))
+                    return list;
+
+                var lines = output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var line in lines)
+                {
+                    var parts = line.Split(new[] { '\t', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length >= 2)
+                    {
+                        list.Add((parts[0].Trim(), parts[1].Trim().Replace('/', '\\')));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to get commit changed files: {ex.Message}");
+            }
+
+            return list;
+        }
+
+        public async Task<string> GetCommitFileContentAsync(string repoPath, string commitHash, string filePath)
+        {
+            if (string.IsNullOrEmpty(repoPath) || string.IsNullOrEmpty(commitHash) || string.IsNullOrEmpty(filePath))
+                return string.Empty;
+
+            try
+            {
+                string relativePath = Path.IsPathRooted(filePath) ? Path.GetRelativePath(repoPath, filePath) : filePath;
+                string quotedRelativePath = QuotePath(relativePath).Replace('\\', '/');
+
+                string content = await RunGitCommandAsync(repoPath, $"show {commitHash}:\"{quotedRelativePath}\"");
+                if (content.StartsWith("fatal:"))
+                {
+                    return string.Empty;
+                }
+
+                return content;
+            }
+            catch
+            {
+                return string.Empty;
+            }
         }
     }
 }

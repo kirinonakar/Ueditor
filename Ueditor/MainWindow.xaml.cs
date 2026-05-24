@@ -511,6 +511,7 @@ namespace Ueditor
             {
                 "HTML" => 1,
                 "LaTeX" => 2,
+                "Aozora" => 3,
                 _ => 0
             };
             ApplyUiPersonalization(_settingsService.CurrentSettings);
@@ -933,17 +934,14 @@ namespace Ueditor
             {
                 if (PreviewWebView.CoreWebView2 == null) return;
 
-                // Sync current combo mode selection or choose intelligent defaults
-                string mode = "markdown";
-                if (PreviewModeCombo.SelectedItem is ComboBoxItem item)
+                // Sync current combo mode selection based on index (index 0=Markdown, 1=HTML, 2=LaTeX, 3=Aozora)
+                string mode = PreviewModeCombo.SelectedIndex switch
                 {
-                    mode = item.Content.ToString() switch
-                    {
-                        "HTML Source" => "html",
-                        "LaTeX Block" => "latex",
-                        _ => "markdown"
-                    };
-                }
+                    1 => "html",
+                    2 => "latex",
+                    3 => "aozora",
+                    _ => "markdown"
+                };
 
                 var renderMsg = new
                 {
@@ -1678,6 +1676,54 @@ namespace Ueditor
                 ToolTipService.SetToolTip(StatusBarPane.LineNumberButtonControl, GetString("StatusGoToLineTooltip", "클릭하여 줄 이동"));
                 ToolTipService.SetToolTip(StatusBarPane.LineEndingButtonControl, GetString("StatusLineEndingTooltip", "클릭하여 줄 끝 방식 변경"));
                 ToolTipService.SetToolTip(StatusEncodingCombo, GetString("StatusEncodingTooltip", "파일 인코딩 선택"));
+
+                // 7. Right Panel (RightSidebarPane / PreviewGrid) Localization
+                if (PreviewGrid != null)
+                {
+                    if (PreviewGrid.LivePreviewTabItem != null) PreviewGrid.LivePreviewTabItem.Header = GetString("LivePreviewTabHeader", "실시간 프리뷰");
+                    if (PreviewGrid.ComboMarkdown != null) PreviewGrid.ComboMarkdown.Content = GetString("ComboItemMarkdown", "Markdown");
+                    if (PreviewGrid.ComboHtml != null) PreviewGrid.ComboHtml.Content = GetString("ComboItemHtml", "HTML Source");
+                    if (PreviewGrid.ComboLatex != null) PreviewGrid.ComboLatex.Content = GetString("ComboItemLatex", "LaTeX Block");
+                    if (PreviewGrid.ComboAozora != null) PreviewGrid.ComboAozora.Content = GetString("ComboItemAozora", "Aozora");
+                    if (PreviewGrid.OpenBrowserBtnText != null) PreviewGrid.OpenBrowserBtnText.Text = GetString("OpenInBrowserButtonText", "브라우저");
+                    if (PreviewGrid.OpenBrowserBtn != null) ToolTipService.SetToolTip(PreviewGrid.OpenBrowserBtn, GetString("OpenInBrowserTooltip", "HTML 미리보기를 브라우저로 열기"));
+                    
+                    if (PreviewGrid.AiAssistantTabItem != null) PreviewGrid.AiAssistantTabItem.Header = GetString("AiAssistantTabHeader", "AI Assistant");
+                    
+                    if (LlmOutputText != null)
+                    {
+                        string currentLlmText = LlmOutputText.Text;
+                        if (currentLlmText.Contains("대기 중...") || currentLlmText.Contains("待機中...") || currentLlmText.Contains("Waiting..."))
+                        {
+                            LlmOutputText.Text = GetString("LlmOutputPlaceholder", "대기 중... 에디터에서 영역을 선택한 후 하단의 AI 분석 도구를 사용해 보세요.");
+                        }
+                    }
+
+                    if (SelectionStatsText != null)
+                    {
+                        string currentStatsText = SelectionStatsText.Text;
+                        if (currentStatsText.Contains("선택 영역: 없음") || currentStatsText.Contains("選択範囲: なし") || currentStatsText.Contains("Selection: None") || currentStatsText.Contains("선택 영역: 없음"))
+                        {
+                            SelectionStatsText.Text = GetString("SelectionStatsPlaceholder", "선택 영역: 없음 (전체 전송 차단 활성화)");
+                        }
+                    }
+
+                    if (LlmFileContextInput != null) LlmFileContextInput.PlaceholderText = GetString("LlmFileContextPlaceholder", "파일 맥락 없음");
+                    if (PreviewGrid.LlmAddFileCtxButton != null) PreviewGrid.LlmAddFileCtxButton.Content = GetString("LlmAddFileContextButtonText", "파일 맥락 추가");
+                    
+                    if (PreviewGrid.LlmExplainBtn != null) PreviewGrid.LlmExplainBtn.Content = GetString("LlmExplainButtonText", "선택 영역 설명 (Explain)");
+                    if (PreviewGrid.LlmSummarizeBtn != null) PreviewGrid.LlmSummarizeBtn.Content = GetString("LlmSummarizeButtonText", "선택 영역 요약");
+                    if (PreviewGrid.LlmTranslateBtn != null) PreviewGrid.LlmTranslateBtn.Content = GetString("LlmTranslateButtonText", "선택 영역 번역");
+                    if (PreviewGrid.LlmImproveBtn != null) PreviewGrid.LlmImproveBtn.Content = GetString("LlmImproveButtonText", "수식/마크다운 개선");
+                    
+                    if (LlmCustomPromptInput != null) LlmCustomPromptInput.PlaceholderText = GetString("LlmCustomPromptPlaceholder", "질문이나 커스텀 지시사항 입력...");
+                    if (PreviewGrid.LlmCustomRunBtn != null) PreviewGrid.LlmCustomRunBtn.Content = GetString("LlmCustomRunButtonText", "실행");
+                    if (PreviewGrid.LlmInsertOutputBtn != null)
+                    {
+                        PreviewGrid.LlmInsertOutputBtn.Content = GetString("LlmInsertOutputButtonText", "입력");
+                        ToolTipService.SetToolTip(PreviewGrid.LlmInsertOutputBtn, GetString("LlmInsertOutputTooltip", "AI 응답을 현재 커서에 입력"));
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -2515,6 +2561,7 @@ namespace Ueditor
                 {
                     1 => "HTML",
                     2 => "LaTeX",
+                    3 => "Aozora",
                     _ => "Markdown"
                 };
                 await _settingsService.SaveSettingsAsync(settings);
@@ -4322,21 +4369,154 @@ namespace Ueditor
         {
             if (GitHistoryList.SelectedItem is string historyItem && !string.IsNullOrEmpty(_currentRepoPath))
             {
-                string hash = historyItem.Split(' ')[0];
-                string output = await _gitService.RunGitCommandAsync(_currentRepoPath, $"show --stat --format=fuller {hash}");
-                var dialog = new ContentDialog
+                // Parse the hash robustly using regex to bypass any preceding graph characters (*, |, \, /)
+                string? hash = null;
+                var match = System.Text.RegularExpressions.Regex.Match(historyItem, @"\b[0-9a-fA-F]{7,40}\b");
+                if (match.Success)
                 {
-                    Title = $"커밋: {hash}",
-                    Content = new ScrollViewer
+                    hash = match.Value;
+                }
+
+                if (string.IsNullOrEmpty(hash))
+                {
+                    return;
+                }
+
+                try
+                {
+                    // Fetch full commit metadata
+                    string commitInfo = await _gitService.RunGitCommandAsync(_currentRepoPath, $"show --quiet --format=fuller {hash}");
+                    // Fetch list of changed files
+                    var changedFiles = await _gitService.GetCommitChangedFilesAsync(_currentRepoPath, hash);
+
+                    var dialog = new ContentDialog
                     {
-                        Content = new TextBlock { Text = output, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"), FontSize = 12, TextWrapping = TextWrapping.Wrap },
-                        MaxHeight = 500,
-                        VerticalScrollBarVisibility = ScrollBarVisibility.Auto
-                    },
-                    CloseButtonText = "닫기",
-                    XamlRoot = this.Content.XamlRoot
-                };
-                await dialog.ShowAsync();
+                        Title = string.Format(GetLocalizedString("GitHistoryItemDialogTitle", "커밋 정보 [{0}]"), hash.Substring(0, 7)),
+                        CloseButtonText = GetLocalizedString("GitHistoryItemClose", "닫기"),
+                        XamlRoot = this.Content.XamlRoot
+                    };
+
+                    var infoScroll = new ScrollViewer
+                    {
+                        MaxHeight = 130,
+                        VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                        Margin = new Thickness(0, 0, 0, 8),
+                        Content = new TextBlock
+                        {
+                            Text = commitInfo,
+                            FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
+                            FontSize = 11,
+                            TextWrapping = TextWrapping.Wrap
+                        }
+                    };
+
+                    var fileListView = new ListView
+                    {
+                        Height = 220,
+                        SelectionMode = ListViewSelectionMode.Single,
+                        Margin = new Thickness(0, 5, 0, 0)
+                    };
+
+                    foreach (var file in changedFiles)
+                    {
+                        // Color coding status badges: Green for Added, Red for Deleted, Blue/Gray for Modified
+                        var statusColor = file.Status.StartsWith("A", StringComparison.OrdinalIgnoreCase) ? Windows.UI.Color.FromArgb(255, 46, 160, 67) :
+                                          file.Status.StartsWith("D", StringComparison.OrdinalIgnoreCase) ? Windows.UI.Color.FromArgb(255, 248, 81, 73) :
+                                          Windows.UI.Color.FromArgb(255, 0, 95, 184);
+
+                        var grid = new Grid { Padding = new Thickness(0, 2, 0, 2) };
+                        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                        var border = new Border
+                        {
+                            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(statusColor),
+                            CornerRadius = new CornerRadius(3),
+                            Padding = new Thickness(5, 1, 5, 1),
+                            Margin = new Thickness(0, 0, 8, 0),
+                            VerticalAlignment = VerticalAlignment.Center,
+                            Child = new TextBlock
+                            {
+                                Text = file.Status,
+                                FontSize = 9,
+                                FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+                                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White)
+                            }
+                        };
+
+                        var pathText = new TextBlock
+                        {
+                            Text = file.Path,
+                            FontSize = 11,
+                            TextTrimming = TextTrimming.CharacterEllipsis,
+                            VerticalAlignment = VerticalAlignment.Center
+                        };
+
+                        Grid.SetColumn(border, 0);
+                        Grid.SetColumn(pathText, 1);
+                        grid.Children.Add(border);
+                        grid.Children.Add(pathText);
+
+                        fileListView.Items.Add(new ListViewItem
+                        {
+                            Content = grid,
+                            Tag = file
+                        });
+                    }
+
+                    string currentHash = hash;
+                    fileListView.DoubleTapped += async (s, args) =>
+                    {
+                        if (fileListView.SelectedItem is ListViewItem clickedItem && clickedItem.Tag is ValueTuple<string, string> fileTuple)
+                        {
+                            string status = fileTuple.Item1;
+                            string relPath = fileTuple.Item2;
+
+                            dialog.Hide(); // Close commit info explorer
+
+                            string fullPath = Path.Combine(_currentRepoPath, relPath);
+                            string parentHash = $"{currentHash}^";
+
+                            string contentA = "";
+                            string contentB = "";
+
+                            if (!status.StartsWith("A", StringComparison.OrdinalIgnoreCase)) // exists in parent
+                            {
+                                contentA = await _gitService.GetCommitFileContentAsync(_currentRepoPath, parentHash, relPath);
+                            }
+                            if (!status.StartsWith("D", StringComparison.OrdinalIgnoreCase)) // exists in current
+                            {
+                                contentB = await _gitService.GetCommitFileContentAsync(_currentRepoPath, currentHash, relPath);
+                            }
+
+                            string fileName = Path.GetFileName(relPath);
+                            string shortHash = currentHash.Substring(0, 7);
+                            string customTitle = $"비교 [{shortHash}]: {fileName}";
+                            string labelA = $"{fileName} (이전 커밋)";
+                            string labelB = $"{fileName} (커밋 {shortHash})";
+
+                            await OpenCompareTabAsync(fullPath, fullPath, contentA, contentB, customTitle, labelA, labelB);
+                        }
+                    };
+
+                    var stack = new StackPanel { Spacing = 2 };
+                    stack.Children.Add(infoScroll);
+                    stack.Children.Add(new TextBlock
+                    {
+                        Text = GetLocalizedString("GitHistoryItemDialogHeader", "변경된 파일 목록 (더블클릭 시 비교 뷰어 열림):"),
+                        FontSize = 11,
+                        FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                        Margin = new Thickness(0, 5, 0, 5)
+                    });
+                    stack.Children.Add(fileListView);
+
+                    dialog.Content = stack;
+                    await dialog.ShowAsync();
+                }
+                catch (Exception ex)
+                {
+                    ShowErrorMessage("커밋 상세 조회 실패", ex.Message);
+                }
             }
         }
 

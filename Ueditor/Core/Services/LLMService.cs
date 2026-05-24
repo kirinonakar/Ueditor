@@ -16,31 +16,106 @@ namespace Ueditor.Core.Services
             _credentialService = credentialService;
         }
 
+        private string GetActiveLanguage()
+        {
+            var lang = _settingsService?.CurrentSettings?.Language;
+            if (string.IsNullOrEmpty(lang) || lang.Equals("Default", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    lang = System.Globalization.CultureInfo.CurrentUICulture.Name;
+                }
+                catch
+                {
+                    lang = "en-US";
+                }
+            }
+
+            if (lang != null)
+            {
+                if (lang.StartsWith("ko", StringComparison.OrdinalIgnoreCase)) return "ko-KR";
+                if (lang.StartsWith("ja", StringComparison.OrdinalIgnoreCase)) return "ja-JP";
+            }
+            return "en-US";
+        }
+
         public async Task<string> ExplainCodeAsync(string code, string language)
         {
-            string systemPrompt = "당신은 정확한 개발 문서 해설자입니다. 사용자가 제공한 선택 영역만 근거로 삼아 한글로 설명합니다. 선택 영역이 코드이면 동작 흐름, 주요 식별자/함수, 입력과 출력, 부작용, 주의할 버그 가능성을 설명합니다. 선택 영역이 마크다운/일반 텍스트/설정 파일이면 구조와 의미를 설명합니다. 존재하지 않는 주변 코드나 프로젝트 의도를 추측하지 말고, 불확실한 부분은 '선택 영역만으로는 확인할 수 없음'이라고 명시합니다. 원문을 통째로 반복하지 말고 핵심을 정리합니다.";
-            string userContent = $"[선택 영역 언어 또는 파일 유형]\n{language}\n\n[선택 영역]\n{code}";
+            string langCode = GetActiveLanguage();
+            string systemPrompt = langCode switch
+            {
+                "ja-JP" => "あなたは正確な開発ドキュメント解説者です。ユーザーが提供した選択範囲のみを根拠に、日本語で説明します。選択範囲がコードの場合、動作フロー、主要な識別子・関数、入力と出力、副作用、潜在的なバグの可能性について説明します。選択範囲がMarkdown、一般テキスト、設定ファイルなどの場合は、その構造と意味を説明します。存在しない周辺コードやプロジェクトの意図を推測せず、不確実な部分は『選択範囲だけでは確認不可』と明記してください。原文をそのまま繰り返すのではなく、要点を整理します。",
+                "en-US" => "You are an accurate developer documentation explainer. Explain in English, strictly grounding your explanations in the provided text selection. If the selection is code, explain the execution flow, primary identifiers/functions, input and output, side effects, and potential bugs. If the selection is Markdown, plain text, or configuration, explain its structure and meaning. Do not speculate about surrounding code or project intent that is absent, and explicitly write 'cannot be verified from the selection alone' for any uncertainties. Keep it concise without repeating the source text verbatim.",
+                _ => "당신은 정확한 개발 문서 해설자입니다. 사용자가 제공한 선택 영역만 근거로 삼아 한글로 설명합니다. 선택 영역이 코드이면 동작 흐름, 주요 식별자/함수, 입력과 출력, 부작용, 주의할 버그 가능성을 설명합니다. 선택 영역이 마크다운/일반 텍스트/설정 파일이면 구조와 의미를 설명합니다. 존재하지 않는 주변 코드나 프로젝트 의도를 추측하지 말고, 불확실한 부분은 '선택 영역만으로는 확인할 수 없음'이라고 명시합니다. 원문을 통째로 반복하지 말고 핵심을 정리합니다."
+            };
+
+            string userContent = langCode switch
+            {
+                "ja-JP" => $"[選択範囲の言語またはファイルタイプ]\n{language}\n\n[選択範囲]\n{code}",
+                "en-US" => $"[Selection Language or File Type]\n{language}\n\n[Selection]\n{code}",
+                _ => $"[선택 영역 언어 또는 파일 유형]\n{language}\n\n[선택 영역]\n{code}"
+            };
+
             return await ExecuteLlmAsync(systemPrompt, userContent);
         }
 
         public async Task<string> SummarizeTextAsync(string text)
         {
-            string systemPrompt = "당신은 정확한 요약 전문가입니다. 사용자가 제공한 선택 영역만 요약합니다. 번역, 해설, 개선, 재작성은 하지 않습니다. 핵심 주장/목적/결론/할 일을 한글로 간결하게 정리하고, 코드인 경우에는 구현 의도와 주요 처리 단계만 요약합니다. 원문에 없는 내용은 추가하지 않습니다.";
-            string userContent = $"[요약할 선택 영역]\n{text}";
+            string langCode = GetActiveLanguage();
+            string systemPrompt = langCode switch
+            {
+                "ja-JP" => "あなたは正確な要約のスペシャリストです。ユーザーが提供した選択範囲のみを要約します。翻訳、解説、改善、書き換えは行いません。主要な主張、目的、結論、ToDoリストを日本語で簡潔に整理し、コードの場合は実装の意図と主要な処理ステップのみを要約します。原文にない内容は絶対に追加しないでください。",
+                "en-US" => "You are an accurate summarization expert. Summarize only the provided selection in English. Do not translate, explain, improve, or rewrite. Summarize the key arguments, purposes, conclusions, and action items concisely. If the selection is code, summarize only the implementation intent and major steps. Do not introduce any details not explicitly mentioned in the source.",
+                _ => "당신은 정확한 요약 전문가입니다. 사용자가 제공한 선택 영역만 요약합니다. 번역, 해설, 개선, 재작성은 하지 않습니다. 핵심 주장/목적/결론/할 일을 한글로 간결하게 정리하고, 코드인 경우에는 구현 의도와 주요 처리 단계만 요약합니다. 원문에 없는 내용은 추가하지 않습니다."
+            };
+
+            string userContent = langCode switch
+            {
+                "ja-JP" => $"[要約する選択範囲]\n{text}",
+                "en-US" => $"[Selection to Summarize]\n{text}",
+                _ => $"[요약할 선택 영역]\n{text}"
+            };
+
             return await ExecuteLlmAsync(systemPrompt, userContent);
         }
 
         public async Task<string> TranslateTextAsync(string text)
         {
-            string systemPrompt = "당신은 전문 번역가입니다. 사용자가 제공한 선택 영역만 번역합니다. 한국어가 주된 텍스트이면 자연스러운 영어로 번역하고, 그 외 언어가 주된 텍스트이면 자연스러운 한국어로 번역합니다. 코드 블록, 마크다운 문법, URL, 파일 경로, 변수명, 함수명, 명령어는 보존하고 주석과 일반 문장만 번역합니다. 설명이나 요약을 덧붙이지 말고 번역문만 출력합니다.";
-            string userContent = $"[번역할 선택 영역]\n{text}";
+            string langCode = GetActiveLanguage();
+            string systemPrompt = langCode switch
+            {
+                "ja-JP" => "あなたはプロの翻訳家です。ユーザーが提供した選択範囲のみを翻訳します。日本語が主体のテキストであれば自然な英語に翻訳し、それ以外の言語が主体のテキストであれば自然な日本語に翻訳します。コードブロック、Markdown構文、URL、ファイルパス、変数名、関数名、コマンドなどはそのまま保持し、コメントや一般の文のみを翻訳します。解説や要約を付け加えずに、翻訳結果のみを出力してください。",
+                "en-US" => "You are a professional translator. Translate only the provided text selection. If the primary language is English, translate it to natural Korean. If the primary language is anything else, translate it to natural English. Preserve code blocks, Markdown syntax, URLs, file paths, variable names, function names, and commands intact, translating only comments and prose. Output only the translated text without adding any explanations or summaries.",
+                _ => "당신은 전문 번역가입니다. 사용자가 제공한 선택 영역만 번역합니다. 한국어가 주된 텍스트이면 자연스러운 영어로 번역하고, 그 외 언어가 주된 텍스트이면 자연스러운 한국어로 번역합니다. 코드 블록, 마크다운 문법, URL, 파일 경로, 변수명, 함수명, 명령어는 보존하고 주석과 일반 문장만 번역합니다. 설명이나 요약을 덧붙이지 말고 번역문만 출력합니다."
+            };
+
+            string userContent = langCode switch
+            {
+                "ja-JP" => $"[翻訳する選択範囲]\n{text}",
+                "en-US" => $"[Selection to Translate]\n{text}",
+                _ => $"[번역할 선택 영역]\n{text}"
+            };
+
             return await ExecuteLlmAsync(systemPrompt, userContent);
         }
 
         public async Task<string> CustomPromptAsync(string prompt, string context)
         {
-            string systemPrompt = "당신은 정확한 개발 보조자입니다. 제공된 선택 영역을 근거로 사용자의 지시사항에 답합니다. 선택 영역에 없는 사실을 단정하지 말고, 필요한 경우 불확실성을 명시합니다.";
-            string userContent = $"[컨텍스트 텍스트]\n{context}\n\n[사용자 지시사항]\n{prompt}";
+            string langCode = GetActiveLanguage();
+            string systemPrompt = langCode switch
+            {
+                "ja-JP" => "あなたは正確な開発アシスタントです。提供された選択範囲を根拠に、ユーザーの指示に回答します。選択範囲にない事実を断定せず、必要に応じて不確実性を明記してください。日本語で回答してください。",
+                "en-US" => "You are an accurate developer assistant. Answer the user's instructions based strictly on the provided text selection. Do not assume facts outside the selection, and state any uncertainty clearly. Write your response in English.",
+                _ => "당신은 정확한 개발 보조자입니다. 제공된 선택 영역을 근거로 사용자의 지시사항에 답합니다. 선택 영역에 없는 사실을 단정하지 말고, 필요한 경우 불확실성을 명시합니다. 답변은 한국어로 작성합니다."
+            };
+
+            string userContent = langCode switch
+            {
+                "ja-JP" => $"[コンテキストテキスト]\n{context}\n\n[ユーザーの指示]\n{prompt}",
+                "en-US" => $"[Context Text]\n{context}\n\n[User Instructions]\n{prompt}",
+                _ => $"[컨텍스트 텍스트]\n{context}\n\n[사용자 지시사항]\n{prompt}"
+            };
+
             return await ExecuteLlmAsync(systemPrompt, userContent);
         }
 
@@ -90,11 +165,17 @@ namespace Ueditor.Core.Services
             string providerName = settings.LlmProvider;
             string apiKey = await GetApiKeyAsync(providerName);
             bool requiresApiKey = !providerName.Equals("LM Studio", StringComparison.OrdinalIgnoreCase) &&
-                                  !providerName.Equals("LMStudio", StringComparison.OrdinalIgnoreCase);
+                                   !providerName.Equals("LMStudio", StringComparison.OrdinalIgnoreCase);
 
+            string langCode = GetActiveLanguage();
             if (requiresApiKey && string.IsNullOrEmpty(apiKey))
             {
-                return "에러: 해당 LLM API Key가 자격 증명 관리자에 등록되어 있지 않습니다. 설정을 열어 API Key를 먼저 저장해 주십시오.";
+                return langCode switch
+                {
+                    "ja-JP" => "エラー: 該当する LLM API Key が資格情報マネージャーに登録されていません。設定を開いて先に API Key を保存してください。",
+                    "en-US" => "Error: The corresponding LLM API Key is not registered in the Credential Manager. Please open Settings and save your API Key first.",
+                    _ => "에러: 해당 LLM API Key가 자격 증명 관리자에 등록되어 있지 않습니다. 설정을 열어 API Key를 먼저 저장해 주십시오."
+                };
             }
 
             ILLMProvider provider = providerName.ToLower() switch
@@ -117,7 +198,13 @@ namespace Ueditor.Core.Services
             }
             catch (Exception ex)
             {
-                return $"AI 통신 오류가 발생했습니다: {ex.Message}";
+                string errorPrefix = langCode switch
+                {
+                    "ja-JP" => "AI通信エラーが発生しました: ",
+                    "en-US" => "An AI communication error occurred: ",
+                    _ => "AI 통신 오류가 발생했습니다: "
+                };
+                return $"{errorPrefix}{ex.Message}";
             }
         }
     }

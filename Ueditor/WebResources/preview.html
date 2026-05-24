@@ -212,6 +212,26 @@
         ::-webkit-scrollbar-thumb:hover {
             background: color-mix(in srgb, var(--fg) 35%, transparent);
         }
+
+        /* Aozora Bunko Reader Mode Typography & Layout */
+        .aozora-mode {
+            font-family: "Yu Mincho", "MS Mincho", "Hiragino Mincho ProN", "BIZ UDPMincho", serif;
+            max-width: 720px;
+            margin: 0 auto;
+            line-height: 1.85;
+            font-size: 16px;
+            letter-spacing: 0.06em;
+            padding: 30px 24px 50px;
+        }
+        .aozora-mode p {
+            margin: 0 0 1.25em 0;
+            text-indent: 1em;
+            text-align: justify;
+        }
+        .aozora-bouten {
+            text-emphasis: sesame;
+            -webkit-text-emphasis: sesame;
+        }
     </style>
 </head>
 <body>
@@ -578,6 +598,46 @@
             document.documentElement.style.setProperty('--font', message.uiFontFamily || '"Segoe UI", "Malgun Gothic", Arial, sans-serif');
         }
 
+        function renderAozora(text) {
+            if (!text || !text.trim()) {
+                container.innerHTML = '<p class="empty">青空文庫の内容가 없습니다.</p>';
+                container.className = '';
+                return;
+            }
+            container.className = 'aozora-mode';
+
+            // 1. Sesame Bouten: 《《傍点》》 -> <span class="aozora-bouten">傍点</span>
+            let html = text.replace(/《《([\s\S]+?)》》/g, '<span class="aozora-bouten">$1</span>');
+
+            // 2. Explicit ruby separator: ｜漢字《かんじ》 or |漢字《かんじ》 -> <ruby>漢字<rt>かんじ</rt></ruby>
+            html = html.replace(/[｜|]([^《\n\r]+?)《([^》\n\r]+?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
+
+            // 3. Implicit ruby (standard Kanji preceding 《...》): CJK Unified Ideographs range
+            html = html.replace(/([\u4e00-\u9faf\u3400-\u4dbf\uF900-\uFAFF]+?)《([^》\n\r]+?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
+
+            // 4. Bold annotations: ［＃太字］...［＃太字終わり］ -> <strong>...</strong>
+            html = html.replace(/［＃太字］([\s\S]*?)［＃太字終わり］/g, '<strong>$1</strong>');
+
+            // 5. Italic annotations: ［＃斜体］...［＃斜体終わり］ -> <em>...</em>
+            html = html.replace(/［＃斜体］([\s\S]*?)［＃斜体終わり］/g, '<em>$1</em>');
+
+            // 6. Strip other common Aozora annotations like ［＃...］
+            html = html.replace(/［＃[\s\S]*?］/g, '');
+
+            // 7. Split into paragraphs and respect novel indentation rules
+            const lines = html.replace(/\r\n/g, '\n').split('\n');
+            const paragraphs = lines.map(line => {
+                const trimmed = line.trim();
+                if (!trimmed) {
+                    return '<br>';
+                }
+                const hasIndent = /^[「『（【(]/.test(trimmed) ? '' : 'style="text-indent: 1em;"';
+                return `<p ${hasIndent}>${line}</p>`;
+            });
+
+            container.innerHTML = sanitizeHtml(paragraphs.join('\n'));
+        }
+
         // Prevent duplicate window launching on drag-and-drop
         window.addEventListener('dragover', e => e.preventDefault(), false);
         window.addEventListener('drop', e => e.preventDefault(), false);
@@ -590,10 +650,15 @@
                 applyTheme(message);
                 if (message.mode === 'html') {
                     container.innerHTML = sanitizeHtml(message.text || '');
+                    container.className = '';
                 } else if (message.mode === 'latex') {
                     renderLatex(message.text || '');
+                    container.className = '';
+                } else if (message.mode === 'aozora') {
+                    renderAozora(message.text || '');
                 } else {
                     renderMarkdown(message.text || '');
+                    container.className = '';
                 }
             });
         }

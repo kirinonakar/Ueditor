@@ -449,4 +449,64 @@
   <data name="StatusEncodingTooltip" xml:space="preserve">
     <value>ファイルエンコーディングを選択</value>
   </data>
+  <data name="LivePreviewTabHeader" xml:space="preserve">
+    <value>リアルタイムプレビュー</value>
+  </data>
+  <data name="AiAssistantTabHeader" xml:space="preserve">
+    <value>AI アシスタント</value>
+  </data>
+  <data name="ComboItemMarkdown" xml:space="preserve">
+    <value>Markdown</value>
+  </data>
+  <data name="ComboItemHtml" xml:space="preserve">
+    <value>HTML Source</value>
+  </data>
+  <data name="ComboItemLatex" xml:space="preserve">
+    <value>LaTeX Block</value>
+  </data>
+  <data name="ComboItemAozora" xml:space="preserve">
+    <value>Aozora</value>
+  </data>
+  <data name="OpenInBrowserButtonText" xml:space="preserve">
+    <value>ブラウザ</value>
+  </data>
+  <data name="OpenInBrowserTooltip" xml:space="preserve">
+    <value>HTMLプレビューをブラウザで開く</value>
+  </data>
+  <data name="LlmOutputPlaceholder" xml:space="preserve">
+    <value>待機中... エディタで範囲を選択し、下部のAI分析ツールを使用してください。</value>
+  </data>
+  <data name="SelectionStatsPlaceholder" xml:space="preserve">
+    <value>選択範囲: なし (全選択転送遮断有効)</value>
+  </data>
+  <data name="LlmFileContextPlaceholder" xml:space="preserve">
+    <value>ファイルのコンテキストなし</value>
+  </data>
+  <data name="LlmAddFileContextButtonText" xml:space="preserve">
+    <value>ファイル追加</value>
+  </data>
+  <data name="LlmExplainButtonText" xml:space="preserve">
+    <value>選択範囲の解説 (Explain)</value>
+  </data>
+  <data name="LlmSummarizeButtonText" xml:space="preserve">
+    <value>選択範囲の要約</value>
+  </data>
+  <data name="LlmTranslateButtonText" xml:space="preserve">
+    <value>選択範囲の翻訳</value>
+  </data>
+  <data name="LlmImproveButtonText" xml:space="preserve">
+    <value>数式・Markdown改善</value>
+  </data>
+  <data name="LlmCustomPromptPlaceholder" xml:space="preserve">
+    <value>質問やカスタム指示を入力...</value>
+  </data>
+  <data name="LlmCustomRunButtonText" xml:space="preserve">
+    <value>実行</value>
+  </data>
+  <data name="LlmInsertOutputButtonText" xml:space="preserve">
+    <value>入力</value>
+  </data>
+  <data name="LlmInsertOutputTooltip" xml:space="preserve">
+    <value>AIの応答を現在のカーソルに入力</value>
+  </data>
 </root>

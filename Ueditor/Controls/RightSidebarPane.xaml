@@ -13,7 +13,7 @@
                              IsAddTabButtonVisible="False" AllowDropTabs="False">
                         
                         <!-- Tab 1: Live Preview -->
-                        <TabViewItem Header="실시간 프리뷰" IsClosable="False">
+                        <TabViewItem x:Name="LivePreviewTab" Header="실시간 프리뷰" IsClosable="False">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -25,15 +25,15 @@
                                     <CommandBar.Content>
                                         <StackPanel Orientation="Horizontal" Margin="10,8,0,0" Spacing="10">
                                             <ComboBox x:Name="PreviewModeCombo" SelectedIndex="0" Height="24" Padding="5,0,5,0" Width="120" FontSize="11" SelectionChanged="OnPreviewModeComboSelectionChanged">
-                                                <ComboBoxItem Content="Markdown"/>
-                                                <ComboBoxItem Content="HTML Source"/>
-                                                <ComboBoxItem Content="LaTeX Block"/>
-                                                <ComboBoxItem Content="Aozora"/>
+                                                <ComboBoxItem x:Name="ComboItemMarkdown" Content="Markdown"/>
+                                                <ComboBoxItem x:Name="ComboItemHtml" Content="HTML Source"/>
+                                                <ComboBoxItem x:Name="ComboItemLatex" Content="LaTeX Block"/>
+                                                <ComboBoxItem x:Name="ComboItemAozora" Content="Aozora"/>
                                             </ComboBox>
-                                            <Button Click="OnOpenPreviewInBrowserClick" Height="24" Padding="8,0,8,0" ToolTipService.ToolTip="HTML 미리보기를 브라우저로 열기">
+                                            <Button x:Name="OpenBrowserButton" Click="OnOpenPreviewInBrowserClick" Height="24" Padding="8,0,8,0" ToolTipService.ToolTip="HTML 미리보기를 브라우저로 열기">
                                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                                     <FontIcon Glyph="&#xE774;" FontSize="12"/>
-                                                    <TextBlock Text="브라우저" FontSize="11" VerticalAlignment="Center"/>
+                                                    <TextBlock x:Name="OpenBrowserButtonText" Text="브라우저" FontSize="11" VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </Button>
                                         </StackPanel>
@@ -45,7 +45,7 @@
                         </TabViewItem>
     
                         <!-- Tab 2: AI Assistant -->
-                        <TabViewItem Header="AI Assistant" IsClosable="False">
+                        <TabViewItem x:Name="AiAssistantTab" Header="AI Assistant" IsClosable="False">
                             <Grid Padding="15" RowSpacing="15">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="*"/>    <!-- AI Chat Logs Area -->
@@ -71,28 +71,28 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBox x:Name="LlmFileContextInput" PlaceholderText="파일 맥락 없음" IsReadOnly="True" Height="30" FontSize="11"/>
-                                            <Button Grid.Column="1" Content="파일 맥락 추가" Click="OnLlmAddFileContextClick" Padding="10,4,10,4"/>
+                                            <Button x:Name="LlmAddFileContextButton" Grid.Column="1" Content="파일 맥락 추가" Click="OnLlmAddFileContextClick" Padding="10,4,10,4"/>
                                         </Grid>
                                     </StackPanel>
                                 </Border>
     
                                 <!-- Row 2: Quick Action Buttons -->
                                 <StackPanel Grid.Row="2" Spacing="8">
-                                    <Button Content="선택 영역 설명 (Explain)" HorizontalAlignment="Stretch" Click="OnLlmExplainClick" Style="{StaticResource AccentButtonStyle}"/>
+                                    <Button x:Name="LlmExplainButton" Content="선택 영역 설명 (Explain)" HorizontalAlignment="Stretch" Click="OnLlmExplainClick" Style="{StaticResource AccentButtonStyle}"/>
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <Button Content="선택 영역 요약" Grid.Column="0" HorizontalAlignment="Stretch" Click="OnLlmSummarizeClick"/>
-                                        <Button Content="선택 영역 번역" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnLlmTranslateClick"/>
+                                        <Button x:Name="LlmSummarizeButton" Content="선택 영역 요약" Grid.Column="0" HorizontalAlignment="Stretch" Click="OnLlmSummarizeClick"/>
+                                        <Button x:Name="LlmTranslateButton" Content="선택 영역 번역" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnLlmTranslateClick"/>
                                     </Grid>
     
                                     <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <Button Content="수식/마크다운 개선" HorizontalAlignment="Stretch" Click="OnLlmImproveClick"/>
+                                        <Button x:Name="LlmImproveButton" Content="수식/마크다운 개선" HorizontalAlignment="Stretch" Click="OnLlmImproveClick"/>
                                     </Grid>
                                     
                                     <Grid ColumnSpacing="8" Margin="0,5,0,0">
@@ -102,8 +102,8 @@
                                         </Grid.ColumnDefinitions>
                                         <TextBox x:Name="LlmCustomPromptInput" Grid.Column="0" PlaceholderText="질문이나 커스텀 지시사항 입력..." Height="32"/>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
-                                            <Button Content="실행" Click="OnLlmCustomClick" Style="{StaticResource AccentButtonStyle}"/>
-                                            <Button Content="입력" Click="OnLlmInsertOutputClick" ToolTipService.ToolTip="AI 응답을 현재 커서에 입력"/>
+                                            <Button x:Name="LlmCustomRunButton" Content="실행" Click="OnLlmCustomClick" Style="{StaticResource AccentButtonStyle}"/>
+                                            <Button x:Name="LlmInsertOutputButton" Content="입력" Click="OnLlmInsertOutputClick" ToolTipService.ToolTip="AI 응답을 현재 커서에 입력"/>
                                         </StackPanel>
                                     </Grid>
                                 </StackPanel>
