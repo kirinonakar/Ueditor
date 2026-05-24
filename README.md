@@ -47,7 +47,7 @@ Designed for developers, writers, and power users, Ueditor provides a fluid, dis
 *   **External View:** Open your rendered preview in an external default web browser with a single tap.
 
 ### ⚡ High-Performance Large File Mode
-*   **Virtual Viewport Scrolling:** When large files (above the threshold, or 200MB+ by default) are detected, Ueditor switches into a read-only virtual scrolling view (`large-viewer.html`).
+*   **Virtual Viewport Scrolling & Editing:** When large files (above the threshold) are detected, Ueditor switches into a virtual scrolling view (`large-viewer.html`). **You can edit any line by simply double-clicking it.**
 *   **Line-Offset Indexing:** Scans files to map line positions instantly, rendering only the lines visible in the viewport, which keeps the WinUI thread completely responsive.
 *   **Streaming Search:** Search inside massive files efficiently without loading the entire contents into memory.
 
