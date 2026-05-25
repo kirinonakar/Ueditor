@@ -211,6 +211,46 @@
             display: none;
         }
 
+        #context-menu {
+            position: fixed;
+            z-index: 50;
+            min-width: 156px;
+            padding: 4px;
+            border: 1px solid rgba(127, 127, 127, 0.35);
+            border-radius: 4px;
+            background: var(--gutter-bg);
+            color: var(--fg);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+            font-family: system-ui, "Segoe UI", sans-serif;
+            font-size: 13px;
+        }
+
+        #context-menu[hidden] {
+            display: none;
+        }
+
+        .context-menu-button {
+            display: block;
+            width: 100%;
+            height: 28px;
+            padding: 0 10px;
+            border: 0;
+            border-radius: 3px;
+            background: transparent;
+            color: inherit;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .context-menu-button:hover:not(:disabled) {
+            background: rgba(127, 127, 127, 0.16);
+        }
+
+        .context-menu-button:disabled {
+            opacity: 0.45;
+            cursor: default;
+        }
+
         #loading-overlay {
             position: absolute;
             inset: 0;
@@ -293,6 +333,14 @@
             <button id="find-next" class="find-button" type="button" title="다음">↓</button>
             <button id="find-close" class="find-button" type="button" title="닫기">×</button>
         </div>
+        <div id="context-menu" hidden>
+            <button class="context-menu-button" type="button" data-action="cut" data-requires-edit="true">잘라내기</button>
+            <button class="context-menu-button" type="button" data-action="copy">복사</button>
+            <button class="context-menu-button" type="button" data-action="paste" data-requires-edit="true">붙여넣기</button>
+            <button class="context-menu-button" type="button" data-action="delete" data-requires-edit="true">삭제</button>
+            <button class="context-menu-button" type="button" data-action="selectAll">모두 선택</button>
+            <button class="context-menu-button" type="button" data-action="toggleComment" data-requires-edit="true">주석 토글</button>
+        </div>
     </div>
 
     <script>
@@ -304,6 +352,7 @@
         const findPrev = document.getElementById('find-prev');
         const findNextButton = document.getElementById('find-next');
         const findClose = document.getElementById('find-close');
+        const contextMenu = document.getElementById('context-menu');
 
         const MAX_RENDER_CHARS = 20000;
         const state = {
@@ -328,7 +377,9 @@
             selectionAnchor: null,
             isSelecting: false,
             lastRangeKey: '',
-            renderQueued: false
+            renderQueued: false,
+            clipboardRequests: new Map(),
+            pendingLineActions: []
         };
 
         function post(msg) {
@@ -1029,18 +1080,11 @@
             const current = lineTextFromElement(element);
             const previous = state.cache.get(lineNumber - 1);
             if (previous === undefined) {
-                requestLines(lineNumber - 1, 2);
+                queueLineAction({ kind: 'mergeBackward', lineNumber, currentText: current });
                 return;
             }
 
-            state.cache.set(lineNumber - 1, previous + current);
-            shiftCachedLines(lineNumber, -1);
-            state.lineCount = Math.max(1, state.lineCount - 1);
-            setupVirtualHeight();
-            post({ type: 'mergeLineWithPrevious', lineNumber });
-            post({ type: 'contentChanged' });
-            queueRender(true);
-            setTimeout(() => focusLine(lineNumber - 1, previous.length), 0);
+            applyMergeLineBackward(lineNumber, previous, current);
         }
 
         function focusLine(lineNumber, columnZeroBased = 0) {
@@ -1131,6 +1175,160 @@
             commitLine(element);
         }
 
+        function activeEditableElement() {
+            const active = document.activeElement?.closest?.('.line-text');
+            if (active && active.getAttribute('contenteditable') === 'true') return active;
+            const current = viewport.querySelector(`.line-text[data-line="${state.currentLine}"]`);
+            return current && current.getAttribute('contenteditable') === 'true' ? current : null;
+        }
+
+        function updateSingleLine(element, text, caretColumn) {
+            const lineNumber = Number(element.dataset.line || 1);
+            const nextText = String(text ?? '');
+            state.cache.set(lineNumber, nextText);
+            element.textContent = nextText;
+            state.selection = null;
+            state.selectionAnchor = { line: lineNumber, column: Math.max(0, Math.min(caretColumn, nextText.length)) };
+            state.currentLine = lineNumber;
+            state.currentColumn = state.selectionAnchor.column + 1;
+            post({ type: 'lineChanged', lineNumber, text: nextText });
+            post({ type: 'contentChanged' });
+            queueRender(true);
+            setTimeout(() => focusLine(lineNumber, state.selectionAnchor.column), 0);
+        }
+
+        function applyMergeLineForward(lineNumber, text, nextText) {
+            if (state.cache.get(lineNumber) !== text) {
+                post({ type: 'lineChanged', lineNumber, text });
+            }
+
+            shiftCachedLines(lineNumber + 1, -1);
+            state.cache.set(lineNumber, text + nextText);
+            state.lineCount = Math.max(1, state.lineCount - 1);
+            setupVirtualHeight();
+            post({ type: 'mergeLineWithPrevious', lineNumber: lineNumber + 1 });
+            post({ type: 'contentChanged' });
+            state.selection = null;
+            queueRender(true);
+            setTimeout(() => focusLine(lineNumber, text.length), 0);
+        }
+
+        function applyMergeLineBackward(lineNumber, previous, current) {
+            if (state.cache.get(lineNumber) !== current) {
+                post({ type: 'lineChanged', lineNumber, text: current });
+            }
+
+            shiftCachedLines(lineNumber, -1);
+            state.cache.set(lineNumber - 1, previous + current);
+            state.lineCount = Math.max(1, state.lineCount - 1);
+            setupVirtualHeight();
+            post({ type: 'mergeLineWithPrevious', lineNumber });
+            post({ type: 'contentChanged' });
+            state.selection = null;
+            queueRender(true);
+            setTimeout(() => focusLine(lineNumber - 1, previous.length), 0);
+        }
+
+        function queueLineAction(action) {
+            state.pendingLineActions = state.pendingLineActions.filter(existing =>
+                existing.kind !== action.kind || existing.lineNumber !== action.lineNumber);
+            state.pendingLineActions.push(action);
+            if (action.kind === 'mergeBackward') {
+                requestLines(Math.max(1, action.lineNumber - 1), 2);
+            } else if (action.kind === 'mergeForward') {
+                requestLines(action.lineNumber + 1, 1);
+            }
+        }
+
+        function runPendingLineActions() {
+            if (state.pendingLineActions.length === 0) return;
+
+            const remaining = [];
+            for (const action of state.pendingLineActions) {
+                if (action.kind === 'mergeBackward') {
+                    const previous = state.cache.get(action.lineNumber - 1);
+                    if (previous !== undefined) {
+                        applyMergeLineBackward(action.lineNumber, previous, action.currentText);
+                        continue;
+                    }
+                } else if (action.kind === 'mergeForward') {
+                    const nextText = state.cache.get(action.lineNumber + 1);
+                    if (nextText !== undefined) {
+                        applyMergeLineForward(action.lineNumber, action.currentText, nextText);
+                        continue;
+                    }
+                }
+
+                remaining.push(action);
+            }
+
+            state.pendingLineActions = remaining;
+        }
+
+        function mergeLineForward(element) {
+            const lineNumber = Number(element.dataset.line || 1);
+            if (lineNumber >= state.lineCount) return;
+
+            const text = lineTextFromElement(element);
+            const nextText = state.cache.get(lineNumber + 1);
+            if (nextText === undefined) {
+                queueLineAction({ kind: 'mergeForward', lineNumber, currentText: text });
+                return;
+            }
+
+            applyMergeLineForward(lineNumber, text, nextText);
+        }
+
+        function mergeLineBackward(element) {
+            const lineNumber = Number(element.dataset.line || 1);
+            if (lineNumber <= 1) return;
+
+            const current = lineTextFromElement(element);
+            const previous = state.cache.get(lineNumber - 1);
+            if (previous === undefined) {
+                queueLineAction({ kind: 'mergeBackward', lineNumber, currentText: current });
+                return;
+            }
+
+            applyMergeLineBackward(lineNumber, previous, current);
+        }
+
+        function deleteForwardAtCaret(element = activeEditableElement()) {
+            if (!element) return;
+            if (hasCustomSelection()) {
+                const sel = normalizeSelection();
+                if (sel) replaceSelectionWith(sel, '');
+                return;
+            }
+
+            const text = lineTextFromElement(element);
+            const caret = getCaretOffset(element);
+            if (caret < text.length) {
+                updateSingleLine(element, text.slice(0, caret) + text.slice(caret + 1), caret);
+                return;
+            }
+
+            mergeLineForward(element);
+        }
+
+        function deleteBackwardAtCaret(element = activeEditableElement()) {
+            if (!element) return;
+            if (hasCustomSelection()) {
+                const sel = normalizeSelection();
+                if (sel) replaceSelectionWith(sel, '');
+                return;
+            }
+
+            const text = lineTextFromElement(element);
+            const caret = getCaretOffset(element);
+            if (caret > 0) {
+                updateSingleLine(element, text.slice(0, caret - 1) + text.slice(caret), caret - 1);
+                return;
+            }
+
+            mergeLineBackward(element);
+        }
+
         function replaceSelectionWith(selection, text) {
             const { start, end } = selection;
             const prefix = (state.cache.get(start.line) || '').slice(0, start.column);
@@ -1184,23 +1382,20 @@
 
             const nextText = state.cache.get(lineNumber + 1);
             if (nextText !== undefined) {
-                state.cache.set(lineNumber, nextText);
+                const current = lineTextFromElement(element);
+                if (state.cache.get(lineNumber) !== current) {
+                    post({ type: 'lineChanged', lineNumber, text: current });
+                }
                 shiftCachedLines(lineNumber + 1, -1);
+                state.cache.set(lineNumber, current + nextText);
                 state.lineCount = Math.max(1, state.lineCount - 1);
                 setupVirtualHeight();
-                post({ type: 'lineChanged', lineNumber, text: nextText });
                 post({ type: 'mergeLineWithPrevious', lineNumber: lineNumber + 1 });
                 post({ type: 'contentChanged' });
                 queueRender(true);
-                setTimeout(() => focusLine(lineNumber, 0), 0);
+                setTimeout(() => focusLine(lineNumber, current.length), 0);
             } else if (lineNumber > 1) {
-                shiftCachedLines(lineNumber, -1);
-                state.lineCount = Math.max(1, state.lineCount - 1);
-                setupVirtualHeight();
-                post({ type: 'mergeLineWithPrevious', lineNumber });
-                post({ type: 'contentChanged' });
-                queueRender(true);
-                setTimeout(() => focusLine(lineNumber - 1, 0), 0);
+                mergeLineBackward(element);
             }
         }
 
@@ -1265,6 +1460,234 @@
                     insertTextAtCaret('| Header | Value |\n| --- | --- |\n|  |  |');
                     break;
             }
+        }
+
+        async function writeClipboardText(text) {
+            const value = String(text ?? '');
+            if (navigator.clipboard?.writeText) {
+                try {
+                    await navigator.clipboard.writeText(value);
+                    return true;
+                } catch {
+                    // Fall back to execCommand below for WebView environments without clipboard permission.
+                }
+            }
+
+            const textarea = document.createElement('textarea');
+            textarea.value = value;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            const ok = document.execCommand('copy');
+            textarea.remove();
+            if (ok) return true;
+
+            post({ type: 'clipboardWrite', text: value });
+            return true;
+        }
+
+        async function readClipboardText() {
+            if (navigator.clipboard?.readText) {
+                try {
+                    return (await navigator.clipboard.readText()).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                } catch {
+                    return '';
+                }
+            }
+
+            return await new Promise(resolve => {
+                const requestId = state.requestSeq++;
+                const timer = setTimeout(() => {
+                    state.clipboardRequests.delete(requestId);
+                    resolve('');
+                }, 1200);
+                state.clipboardRequests.set(requestId, { resolve, timer });
+                post({ type: 'clipboardRead', requestId });
+            });
+        }
+
+        function selectedLineRange() {
+            const selection = normalizeSelection();
+            if (!selection || !hasCustomSelection()) {
+                return { startLine: state.currentLine, endLine: state.currentLine };
+            }
+
+            const endLine = selection.end.column === 0 && selection.end.line > selection.start.line
+                ? selection.end.line - 1
+                : selection.end.line;
+            return {
+                startLine: Math.max(1, selection.start.line),
+                endLine: Math.max(selection.start.line, endLine)
+            };
+        }
+
+        function lineCommentSyntax() {
+            switch (state.language) {
+                case 'python':
+                case 'ruby':
+                case 'shell':
+                case 'powershell':
+                case 'yaml':
+                case 'toml':
+                case 'ini':
+                    return { prefix: '# ' };
+                case 'sql':
+                case 'lua':
+                    return { prefix: '-- ' };
+                case 'html':
+                case 'xml':
+                case 'markdown':
+                    return { blockStart: '<!-- ', blockEnd: ' -->' };
+                case 'css':
+                case 'scss':
+                case 'less':
+                    return { blockStart: '/* ', blockEnd: ' */' };
+                default:
+                    return { prefix: '// ' };
+            }
+        }
+
+        function toggleCommentForLine(lineNumber, syntax, shouldUncomment) {
+            const original = state.cache.get(lineNumber) ?? '';
+            const indent = original.match(/^\s*/)?.[0] || '';
+            const body = original.slice(indent.length);
+            let next = original;
+
+            if (shouldUncomment && body.trim().length === 0) {
+                return;
+            }
+
+            if (syntax.prefix) {
+                next = shouldUncomment && body.startsWith(syntax.prefix)
+                    ? indent + body.slice(syntax.prefix.length)
+                    : indent + syntax.prefix + body;
+            } else {
+                const { blockStart, blockEnd } = syntax;
+                const trimmed = body.trim();
+                if (shouldUncomment && trimmed.startsWith(blockStart) && trimmed.endsWith(blockEnd)) {
+                    const leading = body.slice(0, body.indexOf(trimmed));
+                    const inner = trimmed.slice(blockStart.length, trimmed.length - blockEnd.length);
+                    next = indent + leading + inner;
+                } else {
+                    next = indent + blockStart + body + blockEnd;
+                }
+            }
+
+            state.cache.set(lineNumber, next);
+            post({ type: 'lineChanged', lineNumber, text: next });
+        }
+
+        function toggleComment() {
+            if (state.readOnly) return;
+            const { startLine, endLine } = selectedLineRange();
+            const syntax = lineCommentSyntax();
+            const shouldUncomment = (() => {
+                for (let line = startLine; line <= endLine; line++) {
+                    const text = state.cache.get(line) ?? '';
+                    const body = text.slice((text.match(/^\s*/)?.[0] || '').length);
+                    if (syntax.prefix && body.length > 0 && !body.startsWith(syntax.prefix)) return false;
+                    if (!syntax.prefix) {
+                        const trimmed = body.trim();
+                        if (trimmed.length > 0 && !(trimmed.startsWith(syntax.blockStart) && trimmed.endsWith(syntax.blockEnd))) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            })();
+
+            for (let line = startLine; line <= endLine; line++) {
+                toggleCommentForLine(line, syntax, shouldUncomment);
+            }
+
+            post({ type: 'contentChanged' });
+            queueRender(true);
+            setTimeout(() => focusLine(startLine, 0), 0);
+        }
+
+        function deleteSelectionOrForward() {
+            if (state.readOnly) return;
+            if (hasCustomSelection()) {
+                const sel = normalizeSelection();
+                if (sel) replaceSelectionWith(sel, '');
+                return;
+            }
+
+            const selection = window.getSelection();
+            const element = activeEditableElement();
+            if (element && selection?.rangeCount && element.contains(selection.anchorNode)) {
+                const selected = selection.toString();
+                if (selected) {
+                    document.execCommand('delete');
+                    commitLine(element);
+                    return;
+                }
+            }
+
+            deleteForwardAtCaret(element);
+        }
+
+        async function copySelectionToClipboard() {
+            const text = selectedText();
+            if (!text) return false;
+            return await writeClipboardText(text);
+        }
+
+        async function cutSelectionToClipboard() {
+            const text = selectedText();
+            if (!text) return false;
+            const copied = await writeClipboardText(text);
+            if (!copied || state.readOnly) return copied;
+
+            if (hasCustomSelection()) {
+                const sel = normalizeSelection();
+                if (sel) replaceSelectionWith(sel, '');
+                return true;
+            }
+
+            const element = activeEditableElement();
+            const selection = window.getSelection();
+            if (element && selection?.rangeCount && element.contains(selection.anchorNode)) {
+                document.execCommand('delete');
+                commitLine(element);
+            }
+
+            return true;
+        }
+
+        async function pasteFromClipboard() {
+            if (state.readOnly) return;
+            const text = await readClipboardText();
+            if (text) insertTextAtCaret(text);
+        }
+
+        function isPositionInsideSelection(position) {
+            const selection = normalizeSelection();
+            if (!selection || !position) return false;
+            if (position.line < selection.start.line || position.line > selection.end.line) return false;
+            if (position.line === selection.start.line && position.column < selection.start.column) return false;
+            if (position.line === selection.end.line && position.column > selection.end.column) return false;
+            return true;
+        }
+
+        function showContextMenu(clientX, clientY) {
+            for (const button of contextMenu.querySelectorAll('.context-menu-button')) {
+                const requiresEdit = button.dataset.requiresEdit === 'true';
+                button.disabled = requiresEdit && state.readOnly;
+            }
+
+            contextMenu.hidden = false;
+            const menuRect = contextMenu.getBoundingClientRect();
+            const left = Math.min(clientX, window.innerWidth - menuRect.width - 4);
+            const top = Math.min(clientY, window.innerHeight - menuRect.height - 4);
+            contextMenu.style.left = `${Math.max(4, left)}px`;
+            contextMenu.style.top = `${Math.max(4, top)}px`;
+        }
+
+        function hideContextMenu() {
+            contextMenu.hidden = true;
         }
 
         function openFindPanel() {
@@ -1387,6 +1810,7 @@
                                 state.pending.delete(key);
                             }
                         }
+                        runPendingLineActions();
                         queueRender(true);
                     }
                     break;
@@ -1441,6 +1865,17 @@
                     break;
                 case 'focus':
                     focusLine(state.currentLine, Math.max(0, state.currentColumn - 1));
+                    break;
+                case 'clipboardReadResult':
+                    {
+                        const requestId = Number(msg.requestId || 0);
+                        const pending = state.clipboardRequests.get(requestId);
+                        if (pending) {
+                            clearTimeout(pending.timer);
+                            state.clipboardRequests.delete(requestId);
+                            pending.resolve(String(msg.text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n'));
+                        }
+                    }
                     break;
             }
         }
@@ -1667,49 +2102,15 @@
                 return;
             }
 
-            if (event.key === 'Backspace' && getCaretOffset(element) === 0) {
+            if (event.key === 'Backspace') {
                 event.preventDefault();
-                const lineNumber = Number(element.dataset.line || 1);
-                if (lineNumber > 1) {
-                    const prevText = state.cache.get(lineNumber - 1) || '';
-                    focusLine(lineNumber - 1, prevText.length);
-                }
+                deleteBackwardAtCaret(element);
                 return;
             }
 
             if (event.key === 'Delete') {
-                if (hasCustomSelection()) {
-                    event.preventDefault();
-                    const sel = normalizeSelection();
-                    if (sel) {
-                        replaceSelectionWith(sel, '');
-                    }
-                    return;
-                }
-                const text = lineTextFromElement(element);
-                const caret = getCaretOffset(element);
-                if (text === '' && caret === 0) {
-                    event.preventDefault();
-                    deleteCurrentLine(element);
-                    return;
-                }
-                if (caret >= text.length) {
-                    event.preventDefault();
-                    const lineNumber = Number(element.dataset.line || 1);
-                    const nextText = state.cache.get(lineNumber + 1);
-                    if (nextText !== undefined) {
-                        state.cache.set(lineNumber, text + nextText);
-                        shiftCachedLines(lineNumber + 1, -1);
-                        state.lineCount = Math.max(1, state.lineCount - 1);
-                        setupVirtualHeight();
-                        post({ type: 'lineChanged', lineNumber, text: text + nextText });
-                        post({ type: 'mergeLineWithPrevious', lineNumber: lineNumber + 1 });
-                        post({ type: 'contentChanged' });
-                        queueRender(true);
-                        setTimeout(() => focusLine(lineNumber, text.length), 0);
-                    }
-                    return;
-                }
+                event.preventDefault();
+                deleteForwardAtCaret(element);
                 return;
             }
         });
@@ -1746,11 +2147,54 @@
             reportCursorAndSelection(element || document.activeElement);
         });
 
+        viewport.addEventListener('contextmenu', event => {
+            if (findPanel.contains(event.target)) return;
+            event.preventDefault();
+
+            const position = positionFromPointer(event);
+            const keepSelection = hasCustomSelection() && isPositionInsideSelection(position);
+            if (position && !keepSelection) {
+                const hadSelection = hasCustomSelection();
+                state.selection = null;
+                state.selectionAnchor = { line: position.line, column: position.column };
+                state.currentLine = position.line;
+                state.currentColumn = position.column + 1;
+                if (position.element.getAttribute('contenteditable') === 'true') {
+                    setCaret(position.element, position.column);
+                }
+                if (hadSelection) queueRender(true);
+            }
+
+            showContextMenu(event.clientX, event.clientY);
+        });
+
         document.addEventListener('copy', event => {
             const text = selectedText();
             if (text) {
                 event.clipboardData?.setData('text/plain', text);
                 event.preventDefault();
+            }
+        });
+
+        document.addEventListener('cut', event => {
+            const text = selectedText();
+            if (!text) return;
+
+            event.clipboardData?.setData('text/plain', text);
+            event.preventDefault();
+            if (state.readOnly) return;
+
+            if (hasCustomSelection()) {
+                const sel = normalizeSelection();
+                if (sel) replaceSelectionWith(sel, '');
+                return;
+            }
+
+            const element = activeEditableElement();
+            const selection = window.getSelection();
+            if (element && selection?.rangeCount && element.contains(selection.anchorNode)) {
+                document.execCommand('delete');
+                commitLine(element);
             }
         });
 
@@ -1771,7 +2215,49 @@
             insertTextAtCaret(clipboardText);
         });
 
-        scrollContainer.addEventListener('scroll', () => queueRender());
+        contextMenu.addEventListener('click', async event => {
+            const button = event.target.closest('.context-menu-button');
+            if (!button || button.disabled) return;
+            hideContextMenu();
+
+            switch (button.dataset.action) {
+                case 'cut':
+                    await cutSelectionToClipboard();
+                    break;
+                case 'copy':
+                    await copySelectionToClipboard();
+                    break;
+                case 'paste':
+                    await pasteFromClipboard();
+                    break;
+                case 'delete':
+                    deleteSelectionOrForward();
+                    break;
+                case 'selectAll':
+                    selectAll();
+                    break;
+                case 'toggleComment':
+                    toggleComment();
+                    break;
+            }
+        });
+
+        document.addEventListener('pointerdown', event => {
+            if (!contextMenu.hidden && !contextMenu.contains(event.target)) {
+                hideContextMenu();
+            }
+        });
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                hideContextMenu();
+            }
+        });
+
+        scrollContainer.addEventListener('scroll', () => {
+            hideContextMenu();
+            queueRender();
+        });
         window.addEventListener('resize', () => queueRender(true));
         window.addEventListener('dragover', event => event.preventDefault(), false);
         window.addEventListener('drop', event => event.preventDefault(), false);

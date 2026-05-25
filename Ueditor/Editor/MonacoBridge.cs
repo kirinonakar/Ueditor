@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
 using Ueditor.Core.Models;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace Ueditor.Editor
 {
@@ -443,6 +444,22 @@ namespace Ueditor.Editor
                                 ShortcutPressed?.Invoke(nameProp.GetString() ?? string.Empty);
                             }
                             break;
+
+                        case "clipboardWrite":
+                            if (root.TryGetProperty("text", out JsonElement clipboardTextProp))
+                            {
+                                WriteClipboardText(clipboardTextProp.GetString() ?? string.Empty);
+                            }
+                            break;
+
+                        case "clipboardRead":
+                            {
+                                int clipboardRequestId = root.TryGetProperty("requestId", out JsonElement clipboardRequestIdProp)
+                                    ? clipboardRequestIdProp.GetInt32()
+                                    : 0;
+                                _ = SendClipboardReadResultAsync(clipboardRequestId);
+                            }
+                            break;
                     }
                 }
             }
@@ -473,6 +490,46 @@ namespace Ueditor.Editor
             }
 
             return json;
+        }
+
+        private static void WriteClipboardText(string text)
+        {
+            try
+            {
+                var package = new DataPackage();
+                package.SetText(text ?? string.Empty);
+                Clipboard.SetContent(package);
+                Clipboard.Flush();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to write clipboard text: {ex.Message}");
+            }
+        }
+
+        private async Task SendClipboardReadResultAsync(int requestId)
+        {
+            string text = string.Empty;
+
+            try
+            {
+                var content = Clipboard.GetContent();
+                if (content.Contains(StandardDataFormats.Text))
+                {
+                    text = await content.GetTextAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to read clipboard text: {ex.Message}");
+            }
+
+            await SendMessageAsync(new
+            {
+                action = "clipboardReadResult",
+                requestId = requestId,
+                text = text
+            });
         }
     }
 }
