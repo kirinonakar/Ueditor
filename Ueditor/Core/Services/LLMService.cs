@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using Ueditor.Core.Interfaces;
 using Ueditor.Core.Services.LLM;
@@ -64,16 +64,16 @@ namespace Ueditor.Core.Services
             string langCode = GetActiveLanguage();
             string systemPrompt = langCode switch
             {
-                "ja-JP" => "あなたは正確な要約のスペシャリストです。ユーザーが提供した選択範囲のみを要約します。翻訳、解説、改善、書き換えは行いません。主要な主張、目的、結論、ToDoリストを日本語で簡潔に整理し、コードの場合は実装の意図と主要な処理ステップのみを要約します。原文にない内容は絶対に追加しないでください。挨拶、導入説明、要約の結果を示すラベル（例：『以下は要約結果です』）などの余計なテキストを一切含めず、純粋な要約コンテンツだけを直接出力してください。",
-                "en-US" => "You are an accurate summarization expert. Summarize only the provided selection in English. Do not translate, explain, improve, or rewrite. Summarize the key arguments, purposes, conclusions, and action items concisely. If the selection is code, summarize only the implementation intent and major steps. Do not introduce any details not explicitly mentioned in the source. Do not include any greetings, introductory phrases, meta-commentary, or surrounding labels (e.g., 'Here is the summary:'). Output ONLY the final summarized text directly.",
-                _ => "당신은 정확한 요약 전문가입니다. 사용자가 제공한 선택 영역만 요약합니다. 번역, 해설, 개선, 재작성은 하지 않습니다. 핵심 주장/목적/결론/할 일을 한글로 간결하게 정리하고, 코드인 경우에는 구현 의도와 주요 처리 단계만 요약합니다. 원문에 없는 내용은 절대 추가하지 마십시오. 인사말, 도입부, 부가 설명, 혹은 '요약 결과입니다:'와 같은 불필요한 메타 안내 문구를 단 한 자도 출력하지 마십시오. 오직 정제된 핵심 요약 본문만 직접적으로 출력해 주십시오."
+                "ja-JP" => "あなたは正確な要約のスペシャリストです。ユーザーが提供した選択範囲のみを要約します。絶対に他の言語に翻訳しないでください。入力テキストが英語（English）なら必ず英語で要約し、日本語（Japanese）なら必ず日本語で、韓国語（Korean）なら必ず韓国語で要約してください。要約の出力言語は、入力テキストの元の言語と100%同一である必要があります。主要な主張、目的、結論、ToDoリストを簡潔に整理し、コードの場合は実装の意図と主要な処理ステップのみを要約します。原文にない内容は絶対に追加しないでください。挨拶、導入説明、要約の結果を示すラベル（例：『以下は要約結果です』）などの余計なテキストを一切含めず、純粋な要約コンテンツだけを直接出力してください。",
+                "en-US" => "You are an accurate summarization expert. Summarize only the provided selection. Do NOT translate to any other language. If the input text is in English, you must summarize in English. If it is in Japanese, summarize in Japanese. If it is in Korean, summarize in Korean. The summary's output language must be 100% identical to the original language of the input selection. Summarize the key arguments, purposes, conclusions, and action items concisely. If the selection is code, summarize only the implementation intent and major steps. Do not introduce any details not explicitly mentioned in the source. Do not include any greetings, introductory phrases, meta-commentary, or surrounding labels (e.g., 'Here is the summary:'). Output ONLY the final summarized text directly.",
+                _ => "당신은 정확한 요약 전문가입니다. 사용자가 제공한 선택 영역만 요약합니다. 절대로 다른 언어로 번역하지 마십시오. 만약 입력 텍스트가 영어(English)라면 반드시 영어로 요약하고, 일본어(日本語)라면 일본어로 요약하며, 한국어(Korean)라면 한국어로 요약해야 합니다. 즉, 요약 결과는 반드시 입력 텍스트의 원래 언어와 100% 동일한 언어여야 합니다. 핵심 주장/목적/결론/할 일을 간결하게 정리하고, 코드인 경우에는 구현 의도와 주요 처리 단계만 요약합니다. 원문에 없는 내용은 절대 추가하지 마십시오. 인사말, 도입부, 부가 설명, 혹은 '요약 결과입니다:'와 같은 불필요한 메타 안내 문구를 단 한 자도 출력하지 마십시오. 오직 정제된 핵심 요약 본문만 직접적으로 출력해 주십시오."
             };
 
             string userContent = langCode switch
             {
-                "ja-JP" => $"[要約する選択範囲]\n{text}",
-                "en-US" => $"[Selection to Summarize]\n{text}",
-                _ => $"[요약할 선택 영역]\n{text}"
+                "ja-JP" => $"[重要指示: 必ず以下の『要約する選択範囲』のテキストが書かれている実際の言語と『同一の言語』でのみ要約を出力してください。絶対に他の言語に翻訳しないでください。]\n\n[要約する選択範囲]\n{text}",
+                "en-US" => $"[CRITICAL INSTRUCTION: You MUST output the summary in the EXACT SAME LANGUAGE as the 'Selection to Summarize' text below. Do NOT translate it under any circumstances.]\n\n[Selection to Summarize]\n{text}",
+                _ => $"[중요 지침: 반드시 아래의 '요약할 선택 영역'의 텍스트가 작성된 실제 언어와 '동일한 언어'로만 요약 결과를 출력하십시오. 절대 다른 언어로 번역하지 마십시오.]\n\n[요약할 선택 영역]\n{text}"
             };
 
             return await ExecuteLlmAsync(systemPrompt, userContent);
@@ -131,16 +131,16 @@ namespace Ueditor.Core.Services
             string langCode = GetActiveLanguage();
             string systemPrompt = langCode switch
             {
-                "ja-JP" => "あなたはドキュメント改善のスペシャリストです。提供されたテキストの可読性、Markdownの書式、LaTeXの数式（数式の文法や標準的な表現など）を正確に検証・改善し、洗練された日本語に修正してください。挨拶、余計な説明や『修正しました』などの補足テキスト、コードブロックでの強制的なラッピング（```）を一切行わず、改善・修正されたドキュメントのテキストのみを直接出力してください。",
-                "en-US" => "You are a document improvement specialist. Inspect and improve the readability, Markdown formatting, or LaTeX mathematical formulas of the provided text, and refine it beautifully in English. Do not include any greetings, explanations, conversational filler, introductory words, or wrap the response in markdown code blocks (e.g., ```). Output ONLY the refined text directly.",
-                _ => "당신은 문서 및 수식 정제 전문가입니다. 제공된 텍스트의 가독성, 마크다운(Markdown) 형식, 또는 LaTeX 수학 공식을 표준 문법과 예쁜 형식에 맞게 개선하여 가장 자연스럽고 깔끔한 한국어/한글로 정제해 주십시오. 인사말, 수정 내역 설명, '개선 완료된 결과입니다:'와 같은 부가 설명이나 메타 코멘트를 단 한 단어도 포함하지 마십시오. 백틱 기호(```)를 사용해 결과물 전체를 마크다운 코드 블록으로 래핑하지 마십시오(원래 원문이 코드 블록이었던 경우 제외). 오직 정제 및 개선된 결과물 본문만 순수하게 직접 출력하십시오."
+                "ja-JP" => "あなたはドキュメント改善のスペシャリストです。提供されたテキストの可読性、Markdownの書式、LaTeXの数式（数式の文法や標準的な表現など）を正確に検証・改善し、入力テキストと同じ言語の洗練された表現に修正してください。絶対に他の言語に翻訳しないでください。入力テキストが英語（English）なら必ず英語のままで、日本語（Japanese）なら必ず日本語で、韓国語（Korean）なら必ず韓国語で改善・精査してください。挨拶、余計な説明や『修正しました』などの補足テキスト、コードブロックでの強制的なラッピング（```）を一切行わず、改善・修正されたドキュメントのテキストのみを直接出力してください。",
+                "en-US" => "You are a document improvement specialist. Inspect and improve the readability, Markdown formatting, or LaTeX mathematical formulas of the provided text, and refine it beautifully in the exact same language as the input text. Do NOT translate it to any other language. If the input is in English, refine it in English. If it is in Japanese, refine it in Japanese. If it is in Korean, refine it in Korean. Do not include any greetings, explanations, conversational filler, introductory words, or wrap the response in markdown code blocks (e.g., ```). Output ONLY the refined text directly.",
+                _ => "당신은 문서 및 수식 정제 전문가입니다. 제공된 텍스트의 가독성, 마크다운(Markdown) 형식, 또는 LaTeX 수학 공식을 표준 문법과 예쁜 형식에 맞게 개선하여 입력 텍스트와 동일한 언어로 가장 자연스럽고 깔끔하게 정제해 주십시오. 절대로 다른 언어로 번역하지 마십시오. 만약 입력 텍스트가 영어라면 반드시 영어 그대로 개선하고, 한국어라면 한국어 그대로 개선해야 하며, 일본어라면 일본어 그대로 개선해야 합니다. 즉, 정제된 결과물은 반드시 입력 텍스트의 원래 언어와 100% 동일한 언어여야 합니다. 인사말, 수정 내역 설명, '개선 완료된 결과입니다:'와 같은 부가 설명이나 메타 코멘트를 단 한 단어도 포함하지 마십시오. 백틱 기호(```)를 사용해 결과물 전체를 마크다운 코드 블록으로 래핑하지 마십시오(원래 원문이 코드 블록이었던 경우 제외). 오직 정제 및 개선된 결과물 본문만 순수하게 직접 출력하십시오."
             };
 
             string userContent = langCode switch
             {
-                "ja-JP" => $"[改善する選択範囲]\n{text}",
-                "en-US" => $"[Selection to Improve]\n{text}",
-                _ => $"[개선할 선택 영역]\n{text}"
+                "ja-JP" => $"[重要指示: 必ず以下の『改善する選択範囲』のテキストが書かれている実際の言語と『同一の言語』でのみ結果を出力してください。絶対に他の言語に翻訳しないでください。]\n\n[改善する選択範囲]\n{text}",
+                "en-US" => $"[CRITICAL INSTRUCTION: You MUST output the refined result in the EXACT SAME LANGUAGE as the 'Selection to Improve' text below. Do NOT translate it under any circumstances.]\n\n[Selection to Improve]\n{text}",
+                _ => $"[중요 지침: 반드시 아래의 '개선할 선택 영역'의 텍스트가 작성된 실제 언어와 '동일한 언어'로만 정제된 결과물을 출력하십시오. 절대 다른 언어로 번역하지 마십시오.]\n\n[개선할 선택 영역]\n{text}"
             };
 
             return await ExecuteLlmAsync(systemPrompt, userContent);
