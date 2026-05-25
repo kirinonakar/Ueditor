@@ -699,7 +699,7 @@ namespace Ueditor
             var bridge = new MonacoBridge(editorWebView);
             _tabBridges[tab.Id] = (editorWebView, bridge);
 
-            WireEditorBridge(bridge, tab, tabItem, session, isReadOnly);
+            WireEditorBridge(bridge, editorWebView, tab, tabItem, session, isReadOnly);
 
             // Initialize editor inside WebView2 using virtual host mappings
             InitializeEditorWebView(editorWebView, bridge);
@@ -713,6 +713,7 @@ namespace Ueditor
 
         private void WireEditorBridge(
             MonacoBridge bridge,
+            WebView2 editorWebView,
             OpenedTab tab,
             TabViewItem tabItem,
             EditorDocumentSession session,
@@ -780,6 +781,16 @@ namespace Ueditor
                     isReadOnly,
                     session.GetLines(1, InitialEditorLineWarmupCount));
                 await bridge.UpdateSnippetsAsync(_snippetService.GetSnippets());
+
+                this.DispatcherQueue.TryEnqueue(async () =>
+                {
+                    await Task.Delay(150);
+                    if (GetActiveTab() == tab)
+                    {
+                        editorWebView.Focus(Microsoft.UI.Xaml.FocusState.Programmatic);
+                        _ = bridge.FocusAsync();
+                    }
+                });
             };
 
             bridge.LinesRequested += async (requestId, startLine, count) =>
