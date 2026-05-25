@@ -99,6 +99,7 @@ namespace Ueditor.Editor
                 tabSize = settings.TabSize,
                 customBackgroundColor = settings.CustomBackgroundColor,
                 customForegroundColor = settings.CustomForegroundColor,
+                autocompleteEnabled = settings.AutocompleteEnabled,
                 readOnly = isReadOnly
             };
             await SendMessageAsync(msg);
@@ -249,6 +250,7 @@ namespace Ueditor.Editor
                 tabSize = settings.TabSize,
                 customBackgroundColor = settings.CustomBackgroundColor,
                 customForegroundColor = settings.CustomForegroundColor,
+                autocompleteEnabled = settings.AutocompleteEnabled,
                 readOnly = isReadOnly
             };
             await SendMessageAsync(msg);

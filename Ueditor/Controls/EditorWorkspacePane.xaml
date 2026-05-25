@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="using:Ueditor"
     mc:Ignorable="d">
 
     <Grid Background="{ThemeResource SystemControlBackgroundAltHighBrush}">
@@ -57,7 +58,7 @@
                 </StackPanel>
             </Grid>
 
-            <Grid x:Name="EditorSplitter"
+            <local:CustomSplitter x:Name="EditorSplitter"
                   Grid.Row="0" Grid.Column="1"
                   Width="4"
                   HorizontalAlignment="Stretch"
@@ -100,7 +101,7 @@
                 </StackPanel>
             </Grid>
         </Grid>
-        <Grid x:Name="TerminalSplitter"
+        <local:CustomSplitter x:Name="TerminalSplitter"
               Grid.Row="1"
               Height="4"
               HorizontalAlignment="Stretch"

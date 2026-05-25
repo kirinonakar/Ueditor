@@ -271,6 +271,54 @@
             pointer-events: none;
         }
 
+        .autocomplete-popup {
+            position: fixed;
+            z-index: 60;
+            min-width: 180px;
+            max-width: 300px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 4px;
+            border: 1px solid rgba(127, 127, 127, 0.35);
+            border-radius: 6px;
+            background: color-mix(in srgb, var(--gutter-bg) 85%, transparent);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            color: var(--fg);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+            font-family: var(--font-family);
+            font-size: 13px;
+        }
+
+        .autocomplete-popup[hidden] {
+            display: none;
+        }
+
+        .autocomplete-item {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            height: 26px;
+            padding: 0 10px;
+            border: 0;
+            border-radius: 4px;
+            background: transparent;
+            color: inherit;
+            text-align: left;
+            cursor: pointer;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            transition: background 0.1s, transform 0.1s;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.active {
+            background: var(--selection);
+            color: #ffffff;
+            transform: translateX(2px);
+        }
+
         #find-input {
             width: 220px;
             height: 28px;
@@ -343,6 +391,7 @@
             <button class="context-menu-button" type="button" data-action="selectAll">모두 선택</button>
             <button class="context-menu-button" type="button" data-action="toggleComment" data-requires-edit="true">주석 토글</button>
         </div>
+        <div id="autocomplete-popup" class="autocomplete-popup" hidden></div>
     </div>
 
     <script>
@@ -378,12 +427,14 @@
             selection: null,
             selectionAnchor: null,
             isSelecting: false,
+            isLineSelecting: false,
             initialized: false,
             lastRangeKey: '',
             cacheVersion: 0,
             renderQueued: false,
             clipboardRequests: new Map(),
-            pendingLineActions: []
+            pendingLineActions: [],
+            autocompleteEnabled: true
         };
 
         function post(msg) {
@@ -459,6 +510,10 @@
             state.tabSize = Number(msg.tabSize || 4);
             state.readOnly = !!msg.readOnly;
             state.wordWrap = !!msg.wordWrap;
+            state.autocompleteEnabled = msg.hasOwnProperty('autocompleteEnabled') ? !!msg.autocompleteEnabled : true;
+            if (!state.autocompleteEnabled) {
+                hideAutocomplete();
+            }
 
             document.documentElement.style.setProperty('--bg', bg);
             document.documentElement.style.setProperty('--fg', fg);
@@ -1723,6 +1778,150 @@
             contextMenu.hidden = true;
         }
 
+        const autocompleteState = {
+            isOpen: false,
+            candidates: [],
+            activeIndex: 0,
+            element: null,
+            wordStart: 0,
+            word: ''
+        };
+
+        function getWordUnderCaret(text, caretOffset) {
+            let start = caretOffset;
+            while (start > 0 && /[\w\-가-힣]/.test(text[start - 1])) {
+                start--;
+            }
+            const word = text.slice(start, caretOffset);
+            return { word, start };
+        }
+
+        function getAutocompleteCandidates(currentWord) {
+            if (!currentWord || currentWord.length < 1) return [];
+            const candidates = new Set();
+            const lowerCurrent = currentWord.toLowerCase();
+
+            for (const text of state.cache.values()) {
+                if (!text) continue;
+                const words = text.match(/[\w\-가-힣]+/g);
+                if (!words) continue;
+                for (const word of words) {
+                    if (word.length <= currentWord.length) continue;
+                    if (word === currentWord) continue;
+                    if (word.toLowerCase().startsWith(lowerCurrent)) {
+                        candidates.add(word);
+                    }
+                }
+            }
+
+            return Array.from(candidates)
+                .sort((a, b) => a.localeCompare(b))
+                .slice(0, 10);
+        }
+
+        function getCaretCoordinates() {
+            const sel = window.getSelection();
+            if (!sel || sel.rangeCount === 0) return null;
+            const range = sel.getRangeAt(0).cloneRange();
+            range.collapse(false);
+            const rects = range.getClientRects();
+            if (rects.length > 0) {
+                return rects[0];
+            }
+            return null;
+        }
+
+        function triggerAutocomplete(element) {
+            if (!state.autocompleteEnabled) return;
+            if (hasCustomSelection()) {
+                hideAutocomplete();
+                return;
+            }
+            const text = lineTextFromElement(element);
+            const caret = getCaretOffset(element);
+            const { word, start } = getWordUnderCaret(text, caret);
+
+            if (!word || word.length < 1) {
+                hideAutocomplete();
+                return;
+            }
+
+            const candidates = getAutocompleteCandidates(word);
+            if (candidates.length === 0) {
+                hideAutocomplete();
+                return;
+            }
+
+            autocompleteState.isOpen = true;
+            autocompleteState.candidates = candidates;
+            autocompleteState.activeIndex = 0;
+            autocompleteState.element = element;
+            autocompleteState.wordStart = start;
+            autocompleteState.word = word;
+
+            renderAutocomplete();
+        }
+
+        function renderAutocomplete() {
+            const popup = document.getElementById('autocomplete-popup');
+            if (!popup) return;
+            const caretRect = getCaretCoordinates();
+            if (!caretRect) {
+                hideAutocomplete();
+                return;
+            }
+
+            const itemsHtml = autocompleteState.candidates.map((candidate, idx) => {
+                const isActive = idx === autocompleteState.activeIndex ? ' active' : '';
+                return `<button class="autocomplete-item${isActive}" type="button" data-index="${idx}">${escapeHtml(candidate)}</button>`;
+            }).join('');
+
+            popup.innerHTML = itemsHtml;
+            popup.hidden = false;
+
+            const popupRect = popup.getBoundingClientRect();
+            let left = caretRect.left;
+            let top = caretRect.bottom + 4;
+
+            if (left + popupRect.width > window.innerWidth) {
+                left = window.innerWidth - popupRect.width - 10;
+            }
+            if (top + popupRect.height > window.innerHeight) {
+                top = caretRect.top - popupRect.height - 4;
+            }
+
+            popup.style.left = `${Math.max(10, left)}px`;
+            popup.style.top = `${Math.max(10, top)}px`;
+        }
+
+        function hideAutocomplete() {
+            autocompleteState.isOpen = false;
+            autocompleteState.candidates = [];
+            autocompleteState.activeIndex = 0;
+            autocompleteState.element = null;
+            const popup = document.getElementById('autocomplete-popup');
+            if (popup) popup.hidden = true;
+        }
+
+        function insertSelectedCandidate() {
+            const candidate = autocompleteState.candidates[autocompleteState.activeIndex];
+            const element = autocompleteState.element;
+            if (!candidate || !element) {
+                hideAutocomplete();
+                return;
+            }
+
+            const text = lineTextFromElement(element);
+            const wordStart = autocompleteState.wordStart;
+            const caret = getCaretOffset(element);
+
+            const nextText = text.slice(0, wordStart) + candidate + text.slice(caret);
+            const nextCaret = wordStart + candidate.length;
+
+            updateSingleLine(element, nextText, nextCaret);
+            hideAutocomplete();
+        }
+
         function openFindPanel() {
             findPanel.hidden = false;
             const selected = selectedText();
@@ -1955,6 +2154,39 @@
 
         scrollContainer.addEventListener('pointerdown', event => {
             if (event.button !== 0 || findPanel.contains(event.target)) return;
+
+            // Check if clicked on a line number to select the entire line
+            const lineNumEl = event.target.closest('.line-number');
+            if (lineNumEl) {
+                const row = lineNumEl.closest('.line-row');
+                if (row) {
+                    const line = Number(row.dataset.line || 1);
+                    const text = state.cache.get(line) || '';
+                    const lineLength = text.length;
+
+                    event.preventDefault();
+                    scrollContainer.setPointerCapture?.(event.pointerId);
+
+                    state.selectionAnchor = { line: line, column: 0 };
+                    state.selection = { start: { line: line, column: 0 }, end: { line: line, column: lineLength } };
+                    state.isSelecting = true;
+                    state.isLineSelecting = true;
+                    document.body.classList.add('selecting');
+                    state.currentLine = line;
+                    state.currentColumn = lineLength + 1;
+
+                    queueRender(true);
+                    setTimeout(() => {
+                        const element = viewport.querySelector(`.line-text[data-line="${line}"]`);
+                        if (element && element.getAttribute('contenteditable') === 'true') {
+                            setCaret(element, lineLength);
+                        }
+                    }, 0);
+                    reportCursorAndSelection(row.querySelector('.line-text'));
+                    return;
+                }
+            }
+
             const position = positionFromPointer(event);
             if (!position) return;
 
@@ -1971,6 +2203,7 @@
                 ? { start: anchor, end: { line: position.line, column: position.column } }
                 : null;
             state.isSelecting = true;
+            state.isLineSelecting = false;
             document.body.classList.add('selecting');
             state.currentLine = position.line;
             state.currentColumn = position.column + 1;
@@ -1990,10 +2223,30 @@
             if (!position) return;
 
             event.preventDefault();
-            const newSelection = {
-                start: state.selectionAnchor || { line: position.line, column: position.column },
-                end: { line: position.line, column: position.column }
-            };
+
+            let newSelection;
+            if (state.isLineSelecting) {
+                const startLine = state.selectionAnchor.line;
+                const endLine = position.line;
+                if (startLine <= endLine) {
+                    const endText = state.cache.get(endLine) || '';
+                    newSelection = {
+                        start: { line: startLine, column: 0 },
+                        end: { line: endLine, column: endText.length }
+                    };
+                } else {
+                    const startText = state.cache.get(startLine) || '';
+                    newSelection = {
+                        start: { line: startLine, column: startText.length },
+                        end: { line: endLine, column: 0 }
+                    };
+                }
+            } else {
+                newSelection = {
+                    start: state.selectionAnchor || { line: position.line, column: position.column },
+                    end: { line: position.line, column: position.column }
+                };
+            }
 
             const selectionChanged = !state.selection ||
                 state.selection.start.line !== newSelection.start.line ||
@@ -2021,6 +2274,7 @@
         scrollContainer.addEventListener('pointerup', event => {
             if (!state.isSelecting) return;
             state.isSelecting = false;
+            state.isLineSelecting = false;
             document.body.classList.remove('selecting');
             scrollContainer.releasePointerCapture?.(event.pointerId);
             const hadSelection = hasCustomSelection();
@@ -2039,15 +2293,40 @@
         scrollContainer.addEventListener('pointercancel', event => {
             if (!state.isSelecting) return;
             state.isSelecting = false;
+            state.isLineSelecting = false;
             document.body.classList.remove('selecting');
-            scrollContainer.releasePointerCapture?.(event.pointerId);
             queueRender(true);
+            reportCursorAndSelection(document.activeElement);
         });
 
-        viewport.addEventListener('keydown', event => {
-            const element = lineElementFromEvent(event);
+        document.addEventListener('keydown', event => {
+            if (autocompleteState.isOpen) {
+                if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    autocompleteState.activeIndex = (autocompleteState.activeIndex + 1) % autocompleteState.candidates.length;
+                    renderAutocomplete();
+                    return;
+                }
+                if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    autocompleteState.activeIndex = (autocompleteState.activeIndex - 1 + autocompleteState.candidates.length) % autocompleteState.candidates.length;
+                    renderAutocomplete();
+                    return;
+                }
+                if (event.key === 'Enter' || event.key === 'Tab') {
+                    event.preventDefault();
+                    insertSelectedCandidate();
+                    return;
+                }
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    hideAutocomplete();
+                    return;
+                }
+            }
+
             const ctrl = event.ctrlKey || event.metaKey;
-            const key = event.key.toLowerCase();
+            const key = event.key ? event.key.toLowerCase() : '';
 
             if (ctrl) {
                 if (key === 's') {
@@ -2093,6 +2372,7 @@
                 }
             }
 
+            const element = activeEditableElement();
             if (!element || element.getAttribute('contenteditable') !== 'true') return;
 
             if (event.key === 'ArrowUp') {
@@ -2169,6 +2449,17 @@
         viewport.addEventListener('keyup', event => {
             const element = lineElementFromEvent(event);
             reportCursorAndSelection(element || document.activeElement);
+
+            if (state.autocompleteEnabled && element && element.getAttribute('contenteditable') === 'true') {
+                const ignoredKeys = [
+                    'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+                    'Enter', 'Escape', 'Tab', 'Shift', 'Control', 'Alt', 'Meta',
+                    'CapsLock', 'Home', 'End', 'PageUp', 'PageDown'
+                ];
+                if (!ignoredKeys.includes(event.key)) {
+                    triggerAutocomplete(element);
+                }
+            }
         });
 
         viewport.addEventListener('click', event => {
@@ -2275,11 +2566,29 @@
             if (!contextMenu.hidden && !contextMenu.contains(event.target)) {
                 hideContextMenu();
             }
+            const popup = document.getElementById('autocomplete-popup');
+            if (autocompleteState.isOpen && popup && !popup.contains(event.target)) {
+                hideAutocomplete();
+            }
         });
+
+        const autocompletePopup = document.getElementById('autocomplete-popup');
+        if (autocompletePopup) {
+            autocompletePopup.addEventListener('pointerdown', event => {
+                event.preventDefault();
+                const button = event.target.closest('.autocomplete-item');
+                if (button) {
+                    const index = Number(button.dataset.index);
+                    autocompleteState.activeIndex = index;
+                    insertSelectedCandidate();
+                }
+            });
+        }
 
         document.addEventListener('keydown', event => {
             if (event.key === 'Escape') {
                 hideContextMenu();
+                hideAutocomplete();
             }
         });
 

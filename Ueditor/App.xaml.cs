@@ -15,6 +15,14 @@ namespace Ueditor
         private static Mutex? _singleInstanceMutex;
         private FileSystemWatcher? _ipcWatcher;
 
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        private const int SW_RESTORE = 9;
+
         public App()
         {
             ApplyLanguageSettings();
@@ -23,18 +31,54 @@ namespace Ueditor
 
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
+            // Kill any windowless background Ueditor processes from previous runs
+            try
+            {
+                var currentProc = System.Diagnostics.Process.GetCurrentProcess();
+                var existingProcs = System.Diagnostics.Process.GetProcessesByName("Ueditor");
+                foreach (var p in existingProcs)
+                {
+                    if (p.Id != currentProc.Id)
+                    {
+                        if (p.MainWindowHandle == IntPtr.Zero)
+                        {
+                            try
+                            {
+                                // If it has no window and has been running for more than 2 seconds, it's a zombie
+                                if ((DateTime.Now - p.StartTime).TotalSeconds > 2)
+                                {
+                                    p.Kill();
+                                    p.WaitForExit(1000);
+                                }
+                            }
+                            catch { }
+                        }
+                    }
+                }
+            }
+            catch { }
+
             bool createdNew;
             _singleInstanceMutex = new Mutex(true, SingleInstanceMutexName, out createdNew);
 
             if (!createdNew)
             {
                 var cmdArgs = Environment.GetCommandLineArgs();
-                if (cmdArgs.Length > 1)
+                try
                 {
                     Directory.CreateDirectory(IpcDir);
                     var ipcFile = Path.Combine(IpcDir, $"ipc_{Guid.NewGuid():N}.txt");
-                    File.WriteAllLines(ipcFile, cmdArgs.Skip(1));
+                    if (cmdArgs.Length > 1)
+                    {
+                        File.WriteAllLines(ipcFile, cmdArgs.Skip(1));
+                    }
+                    else
+                    {
+                        File.WriteAllText(ipcFile, "ACTIVATE");
+                    }
                 }
+                catch { }
+                Environment.Exit(0);
                 return;
             }
 
@@ -60,6 +104,9 @@ namespace Ueditor
                 _singleInstanceMutex.Dispose();
                 _singleInstanceMutex = null;
             }
+
+            // Force terminate the process to ensure no background processes are left running
+            Environment.Exit(0);
         }
 
         private void StartIpcWatcher()
@@ -81,20 +128,28 @@ namespace Ueditor
         {
             try
             {
+                // Wait briefly for file write to complete
+                Thread.Sleep(100);
                 string[] lines = File.ReadAllLines(e.FullPath);
-                foreach (var line in lines)
+                if (_window is MainWindow mainWindow)
                 {
-                    string path = line.Trim().Trim('"', '\'');
-                    if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+                    mainWindow.DispatcherQueue.TryEnqueue(() =>
                     {
-                        if (_window is MainWindow mainWindow)
+                        // Bring window to foreground
+                        var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(mainWindow);
+                        ShowWindow(hWnd, SW_RESTORE);
+                        SetForegroundWindow(hWnd);
+
+                        foreach (var line in lines)
                         {
-                            mainWindow.DispatcherQueue.TryEnqueue(() =>
+                            if (line == "ACTIVATE") continue;
+                            string path = line.Trim().Trim('"', '\'');
+                            if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
                             {
                                 _ = mainWindow.LoadFileIntoTabAsync(path);
-                            });
+                            }
                         }
-                    }
+                    });
                 }
                 try { File.Delete(e.FullPath); } catch { }
             }

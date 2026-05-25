@@ -51,9 +51,13 @@ namespace Ueditor
 
         private void ApplyBackground(string resourceKey)
         {
-            if (Application.Current.Resources.TryGetValue(resourceKey, out var value) && value is Brush brush)
+            if (Application.Current.Resources.TryGetValue(resourceKey, out object resource) && resource is Brush brush)
             {
                 this.Background = brush;
+            }
+            else if (this.Resources.TryGetValue(resourceKey, out object localResource) && localResource is Brush localBrush)
+            {
+                this.Background = localBrush;
             }
         }
     }
