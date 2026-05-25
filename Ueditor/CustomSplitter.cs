@@ -19,6 +19,12 @@ namespace Ueditor
             this.PointerEntered += CustomSplitter_PointerEntered;
             this.PointerExited += CustomSplitter_PointerExited;
             this.Loaded += CustomSplitter_Loaded;
+            this.ActualThemeChanged += CustomSplitter_ActualThemeChanged;
+        }
+
+        private void CustomSplitter_ActualThemeChanged(FrameworkElement sender, object args)
+        {
+            RefreshTheme();
         }
 
         public void RefreshTheme()
@@ -51,6 +57,16 @@ namespace Ueditor
 
         private void ApplyBackground(string resourceKey)
         {
+            string themeKey = this.ActualTheme == ElementTheme.Dark ? "Dark" : "Light";
+            if (Application.Current.Resources.ThemeDictionaries.TryGetValue(themeKey, out var dictObj) &&
+                dictObj is ResourceDictionary themeDict &&
+                themeDict.TryGetValue(resourceKey, out var brushObj) &&
+                brushObj is Brush themeBrush)
+            {
+                this.Background = themeBrush;
+                return;
+            }
+
             if (Application.Current.Resources.TryGetValue(resourceKey, out object resource) && resource is Brush brush)
             {
                 this.Background = brush;

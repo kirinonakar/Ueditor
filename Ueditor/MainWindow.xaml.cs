@@ -300,13 +300,25 @@ namespace Ueditor
 
         private void OnWindowClosed(object sender, WindowEventArgs args)
         {
-            _terminalShortcutService.Stop();
+            try
+            {
+                _terminalShortcutService.Stop();
+            }
+            catch { }
 
-            _previewDebounceTimer.Stop();
-            _autoSaveTimer.Stop();
-            _gitAutoRefreshTimer.Stop();
+            try
+            {
+                _previewDebounceTimer.Stop();
+                _autoSaveTimer.Stop();
+                _gitAutoRefreshTimer.Stop();
+            }
+            catch { }
 
-            EditorWorkspace.StopAllTerminalSessions();
+            try
+            {
+                EditorWorkspace.StopAllTerminalSessions();
+            }
+            catch { }
 
             foreach (var bridge in _tabBridges.Values)
             {
@@ -317,6 +329,22 @@ namespace Ueditor
 
             try { PreviewWebView.Close(); }
             catch { }
+
+            try
+            {
+                if (Application.Current is App app)
+                {
+                    app.CleanupAppResources();
+                }
+                else
+                {
+                    Environment.Exit(0);
+                }
+            }
+            catch
+            {
+                Environment.Exit(0);
+            }
         }
 
         private void CleanupBeforeRestart()

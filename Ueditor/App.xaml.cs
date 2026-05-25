@@ -89,7 +89,7 @@ namespace Ueditor
             _window.Activate();
         }
 
-        private void CleanupAppResources()
+        public void CleanupAppResources()
         {
             if (_ipcWatcher != null)
             {

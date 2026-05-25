@@ -366,10 +366,10 @@ namespace Ueditor.Core.Services
             };
             toolbarSection.Children.Add(orderList);
 
-            settingsPivot.Items.Add(new PivotItem { Header = getString("SettingsAppearance", "모양"), Content = new ScrollViewer { Content = appearanceSection } });
-            settingsPivot.Items.Add(new PivotItem { Header = getString("SettingsEditing", "편집"), Content = new ScrollViewer { Content = editorSection } });
-            settingsPivot.Items.Add(new PivotItem { Header = getString("SettingsToolbarCustomization", "툴바"), Content = new ScrollViewer { Content = toolbarSection } });
-            settingsPivot.Items.Add(new PivotItem { Header = getString("SettingsLLM", "LLM"), Content = new ScrollViewer { Content = llmSection } });
+            settingsPivot.Items.Add(new PivotItem { Header = new TextBlock { Text = getString("SettingsAppearance", "모양"), FontSize = 13 }, Content = new ScrollViewer { Content = appearanceSection } });
+            settingsPivot.Items.Add(new PivotItem { Header = new TextBlock { Text = getString("SettingsEditing", "편집"), FontSize = 13 }, Content = new ScrollViewer { Content = editorSection } });
+            settingsPivot.Items.Add(new PivotItem { Header = new TextBlock { Text = getString("SettingsToolbarCustomization", "툴바"), FontSize = 13 }, Content = new ScrollViewer { Content = toolbarSection } });
+            settingsPivot.Items.Add(new PivotItem { Header = new TextBlock { Text = getString("SettingsLLM", "LLM"), FontSize = 13 }, Content = new ScrollViewer { Content = llmSection } });
 
             var dialog = new ContentDialog
             {
