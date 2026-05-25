@@ -1125,7 +1125,21 @@ namespace Ueditor.Core.Services
             {
                 // Fallback
             }
-            return "1.0.0.0";
+
+            try
+            {
+                var assemblyVersion = typeof(SettingsDialogService).Assembly.GetName().Version;
+                if (assemblyVersion != null)
+                {
+                    return $"{assemblyVersion.Major}.{assemblyVersion.Minor}.{assemblyVersion.Build}.{assemblyVersion.Revision}";
+                }
+            }
+            catch
+            {
+                // Fallback
+            }
+
+            return "1.0.1.0";
         }
     }
 }

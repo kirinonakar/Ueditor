@@ -63,4 +63,16 @@
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
     <PublishTrimmed>False</PublishTrimmed>
   </PropertyGroup>
+
+  <!-- Dynamically read the version from Package.appxmanifest so there is only one source of truth -->
+  <Target Name="ReadVersionFromManifest" BeforeTargets="InitializeSourceControlInformation;PrepareForBuild;GetAssemblyVersion;GenerateAssemblyInfo">
+    <XmlPeek XmlInputPath="Package.appxmanifest" Query="/f:Package/f:Identity/@Version" Namespaces="&lt;Namespace Prefix='f' Uri='http://schemas.microsoft.com/appx/manifest/foundation/windows10' /&gt;">
+      <Output TaskParameter="Result" PropertyName="AppxVersion" />
+    </XmlPeek>
+    <PropertyGroup Condition="'$(AppxVersion)' != ''">
+      <Version>$(AppxVersion)</Version>
+      <AssemblyVersion>$(AppxVersion)</AssemblyVersion>
+      <FileVersion>$(AppxVersion)</FileVersion>
+    </PropertyGroup>
+  </Target>
 </Project>
