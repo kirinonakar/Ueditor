@@ -41,7 +41,25 @@ namespace Ueditor
             StartIpcWatcher();
 
             _window = new MainWindow();
+            _window.Closed += (_, _) => CleanupAppResources();
             _window.Activate();
+        }
+
+        private void CleanupAppResources()
+        {
+            if (_ipcWatcher != null)
+            {
+                _ipcWatcher.EnableRaisingEvents = false;
+                _ipcWatcher.Dispose();
+                _ipcWatcher = null;
+            }
+
+            if (_singleInstanceMutex != null)
+            {
+                try { _singleInstanceMutex.ReleaseMutex(); } catch { }
+                _singleInstanceMutex.Dispose();
+                _singleInstanceMutex = null;
+            }
         }
 
         private void StartIpcWatcher()

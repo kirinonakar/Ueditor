@@ -299,7 +299,43 @@ namespace Ueditor
         private void OnWindowClosed(object sender, WindowEventArgs args)
         {
             _terminalShortcutService.Stop();
+
+            _previewDebounceTimer.Stop();
+            _autoSaveTimer.Stop();
+            _gitAutoRefreshTimer.Stop();
+
             EditorWorkspace.StopAllTerminalSessions();
+
+            foreach (var bridge in _tabBridges.Values)
+            {
+                try { bridge.WebView.Close(); }
+                catch { }
+            }
+            _tabBridges.Clear();
+
+            try { PreviewWebView.Close(); }
+            catch { }
+        }
+
+        private void CleanupBeforeRestart()
+        {
+            _terminalShortcutService.Stop();
+
+            _previewDebounceTimer.Stop();
+            _autoSaveTimer.Stop();
+            _gitAutoRefreshTimer.Stop();
+
+            EditorWorkspace.StopAllTerminalSessions();
+
+            foreach (var bridge in _tabBridges.Values)
+            {
+                try { bridge.WebView.Close(); }
+                catch { }
+            }
+            _tabBridges.Clear();
+
+            try { PreviewWebView.Close(); }
+            catch { }
         }
 
         private async Task SaveUiLayoutSettingsAsync()
@@ -1339,6 +1375,7 @@ namespace Ueditor
 
             if (oldLanguage != settings.Language && await ConfirmRestartForLanguageChangeAsync(GetSettingsString))
             {
+                CleanupBeforeRestart();
                 Microsoft.Windows.AppLifecycle.AppInstance.Restart("");
                 return;
             }
@@ -1831,7 +1868,7 @@ namespace Ueditor
 
             if (_tabBridges.TryGetValue(tab.Id, out var bridgeGroup))
             {
-                bridgeGroup.WebView.Close(); // Dispose webview resource
+                bridgeGroup.WebView.Close();
                 _tabBridges.Remove(tab.Id);
             }
             _editorSessions.Remove(tab.Id);

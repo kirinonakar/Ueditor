@@ -31,6 +31,10 @@ namespace Ueditor.Controls
         {
             InitializeComponent();
             TerminalPaneHost.Content = _terminalPane;
+            _terminalPane.HorizontalAlignment = HorizontalAlignment.Stretch;
+            _terminalPane.VerticalAlignment = VerticalAlignment.Stretch;
+            _terminalPane.Visibility = Visibility.Collapsed;
+            SizeChanged += OnWorkspaceSizeChanged;
             ActiveTabView = EditorTabView;
         }
 
@@ -194,7 +198,7 @@ namespace Ueditor.Controls
 
         public bool ToggleTerminal(Func<string> workingDirectoryProvider)
         {
-            if (TerminalPane.Visibility == Visibility.Visible)
+            if (IsTerminalVisible)
             {
                 HideTerminalPanel();
                 return false;
@@ -204,7 +208,7 @@ namespace Ueditor.Controls
             if (TerminalPane.HasSessions)
             {
                 TerminalPane.ResumeNativeWindows();
-                TerminalPane.ResizeEmbeddedTerminal();
+                TerminalPane.QueueEmbeddedTerminalResize();
             }
             else
             {
@@ -266,7 +270,9 @@ namespace Ueditor.Controls
             TerminalPaneHost.Visibility = Visibility.Visible;
             TerminalSplitter.Visibility = Visibility.Visible;
             TerminalSplitterRow.Height = new GridLength(4);
-            TerminalPanelRow.Height = new GridLength(Math.Clamp(LastTerminalHeight, 120, Math.Max(160, ActualHeight - 180)));
+            LastTerminalHeight = Math.Clamp(LastTerminalHeight, 120, GetMaxTerminalPanelHeight());
+            TerminalPanelRow.Height = new GridLength(LastTerminalHeight);
+            TerminalPane.QueueEmbeddedTerminalResize();
         }
 
         private void HideTerminalPanel()
@@ -286,6 +292,25 @@ namespace Ueditor.Controls
             TerminalSplitter.Visibility = Visibility.Collapsed;
             TerminalSplitterRow.Height = new GridLength(0);
             TerminalPanelRow.Height = new GridLength(0);
+        }
+
+        private double GetMaxTerminalPanelHeight()
+        {
+            double availableHeight = ActualHeight;
+            if (double.IsNaN(availableHeight) || availableHeight <= 0)
+            {
+                availableHeight = 600;
+            }
+
+            return Math.Max(160, availableHeight - 180);
+        }
+
+        private void OnWorkspaceSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (IsTerminalVisible)
+            {
+                TerminalPane.QueueEmbeddedTerminalResize();
+            }
         }
 
         private void OnEditorSplitterPointerPressed(object sender, PointerRoutedEventArgs e)
@@ -360,11 +385,10 @@ namespace Ueditor.Controls
             {
                 var pt = e.GetCurrentPoint(this).Position;
                 double deltaY = pt.Y - _terminalSplitterStartPointerY;
-                double maxHeight = Math.Max(160, ActualHeight * 0.6);
-                double newHeight = Math.Clamp(_terminalSplitterStartHeight + deltaY, 120, maxHeight);
+                double newHeight = Math.Clamp(_terminalSplitterStartHeight - deltaY, 120, GetMaxTerminalPanelHeight());
                 LastTerminalHeight = newHeight;
                 TerminalPanelRow.Height = new GridLength(newHeight);
-                TerminalPane.ResizeEmbeddedTerminal();
+                TerminalPane.QueueEmbeddedTerminalResize();
                 e.Handled = true;
             }
         }
@@ -375,6 +399,7 @@ namespace Ueditor.Controls
             {
                 _isDraggingTerminalSplitter = false;
                 splitter.ReleasePointerCapture(e.Pointer);
+                TerminalPane.QueueEmbeddedTerminalResize();
                 TerminalPanelHeightChanged?.Invoke(this, EventArgs.Empty);
                 e.Handled = true;
             }

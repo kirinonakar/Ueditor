@@ -19,6 +19,7 @@ namespace Ueditor.Controls
         private Window? _ownerWindow;
         private IntPtr _parentHwnd = IntPtr.Zero;
         private SubclassProc? _subclassCallback;
+        private bool _resizeQueued = false;
 
         public TerminalPane()
         {
@@ -86,6 +87,7 @@ namespace Ueditor.Controls
                     ShowWindow(session.WindowHandle, SW_SHOW);
                 }
             }
+            QueueEmbeddedTerminalResize();
         }
 
         public void StopAllSessions()
@@ -224,6 +226,8 @@ namespace Ueditor.Controls
         private const int WS_CHILD = 0x40000000;
 
         private const uint SWP_NOACTIVATE = 0x0010;
+        private const uint SWP_NOSIZE = 0x0001;
+        private const uint SWP_NOMOVE = 0x0002;
         private const uint SWP_NOOWNERZORDER = 0x0200;
         private const uint SWP_NOZORDER = 0x0004;
         private const uint SWP_FRAMECHANGED = 0x0020;
@@ -298,11 +302,14 @@ namespace Ueditor.Controls
                 int style = GetWindowLong(session.WindowHandle, GWL_STYLE);
                 style = (style | WS_CHILD) & ~WS_CAPTION & ~WS_THICKFRAME & ~WS_MINIMIZEBOX & ~WS_MAXIMIZEBOX & ~WS_SYSMENU;
                 SetWindowLong(session.WindowHandle, GWL_STYLE, style);
-                SetWindowPos(session.WindowHandle, IntPtr.Zero, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOOWNERZORDER);
+                SetWindowPos(session.WindowHandle, IntPtr.Zero, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOOWNERZORDER);
 
                 SetActiveTerminalSession(session);
                 await WaitForTerminalHostLayoutAsync();
                 ResizeEmbeddedTerminal();
+                QueueEmbeddedTerminalResize();
+                QueueEmbeddedTerminalResizeAfterDelay(75);
+                QueueEmbeddedTerminalResizeAfterDelay(200);
 
                 if (_activeTerminalSession == session)
                 {
@@ -310,6 +317,8 @@ namespace Ueditor.Controls
                     FocusTerminalSession(session);
                 }
                 ResizeEmbeddedTerminal();
+                QueueEmbeddedTerminalResize();
+                QueueEmbeddedTerminalResizeAfterDelay(350);
             }
             catch (Exception ex)
             {
@@ -405,9 +414,23 @@ namespace Ueditor.Controls
                     if (!session.Process.HasExited)
                     {
                         try { session.Process.StandardInput.WriteLine("exit"); } catch { }
-                        if (!session.Process.WaitForExit(300))
+
+                        if (!session.Process.WaitForExit(1000))
                         {
-                            session.Process.Kill();
+                            try
+                            {
+                                using var killer = new Process
+                                {
+                                    StartInfo = new ProcessStartInfo("taskkill", $"/T /F /PID {session.Process.Id}")
+                                    {
+                                        CreateNoWindow = true,
+                                        UseShellExecute = false
+                                    }
+                                };
+                                killer.Start();
+                                killer.WaitForExit(3000);
+                            }
+                            catch { }
                         }
                     }
 
@@ -435,8 +458,21 @@ namespace Ueditor.Controls
 
             try
             {
+                UpdateLayout();
+
+                double hostWidth = TerminalHostBorder.ActualWidth;
+                double hostHeight = TerminalHostBorder.ActualHeight;
+                if (hostWidth < 40 && TerminalRootGrid.ActualWidth > 80)
+                {
+                    hostWidth = Math.Max(0, TerminalRootGrid.ActualWidth - TerminalSessionsList.ActualWidth);
+                }
+                if (hostHeight < 40 && TerminalRootGrid.ActualHeight > TerminalHeaderGrid.ActualHeight)
+                {
+                    hostHeight = Math.Max(0, TerminalRootGrid.ActualHeight - TerminalHeaderGrid.ActualHeight);
+                }
+
                 var transform = TerminalHostBorder.TransformToVisual(ownerContent);
-                var bounds = transform.TransformBounds(new Windows.Foundation.Rect(0, 0, TerminalHostBorder.ActualWidth, TerminalHostBorder.ActualHeight));
+                var bounds = transform.TransformBounds(new Windows.Foundation.Rect(0, 0, hostWidth, hostHeight));
 
                 double scale = ownerContent.XamlRoot?.RasterizationScale ?? 1.0;
                 int x = (int)Math.Round(bounds.X * scale);
@@ -446,8 +482,8 @@ namespace Ueditor.Controls
 
                 if (width > 0 && height > 0)
                 {
-                    MoveWindow(_activeTerminalSession.WindowHandle, x, y, width, height, true);
                     SetWindowPos(_activeTerminalSession.WindowHandle, IntPtr.Zero, x, y, width, height, SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOOWNERZORDER);
+                    MoveWindow(_activeTerminalSession.WindowHandle, x, y, width, height, true);
                 }
             }
             catch (Exception ex)
@@ -456,9 +492,51 @@ namespace Ueditor.Controls
             }
         }
 
+        public void QueueEmbeddedTerminalResize()
+        {
+            if (_resizeQueued)
+            {
+                return;
+            }
+
+            _resizeQueued = true;
+            bool queued = DispatcherQueue.TryEnqueue(() =>
+            {
+                try
+                {
+                    UpdateLayout();
+                    ResizeEmbeddedTerminal();
+                }
+                finally
+                {
+                    _resizeQueued = false;
+                }
+            });
+
+            if (!queued)
+            {
+                _resizeQueued = false;
+            }
+        }
+
+        private void QueueEmbeddedTerminalResizeAfterDelay(int delayMilliseconds)
+        {
+            _ = ResizeEmbeddedTerminalAfterDelayAsync(delayMilliseconds);
+        }
+
+        private async Task ResizeEmbeddedTerminalAfterDelayAsync(int delayMilliseconds)
+        {
+            await Task.Delay(delayMilliseconds);
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                UpdateLayout();
+                ResizeEmbeddedTerminal();
+            });
+        }
+
         private void OnTerminalHostBorderSizeChanged(object sender, SizeChangedEventArgs e)
         {
-            ResizeEmbeddedTerminal();
+            QueueEmbeddedTerminalResize();
         }
 
         private void OnTerminalHostBorderPointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
@@ -620,13 +698,16 @@ namespace Ueditor.Controls
                 TerminalOutputTextBox.Visibility = Visibility.Collapsed;
                 TerminalInputAreaGrid.Visibility = Visibility.Collapsed;
                 ShowWindow(session.WindowHandle, SW_SHOW);
-                ResizeEmbeddedTerminal();
+                QueueEmbeddedTerminalResize();
+                QueueEmbeddedTerminalResizeAfterDelay(75);
                 FocusTerminalSession(session);
                 DispatcherQueue.TryEnqueue(async () =>
                 {
                     await Task.Delay(50);
                     if (_activeTerminalSession == session)
                     {
+                        ResizeEmbeddedTerminal();
+                        QueueEmbeddedTerminalResizeAfterDelay(150);
                         FocusTerminalSession(session);
                     }
                 });

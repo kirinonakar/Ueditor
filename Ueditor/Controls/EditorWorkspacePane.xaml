@@ -109,6 +109,12 @@
               PointerPressed="OnTerminalSplitterPointerPressed"
               PointerMoved="OnTerminalSplitterPointerMoved"
               PointerReleased="OnTerminalSplitterPointerReleased"/>
-        <ContentControl x:Name="TerminalPaneHost" Grid.Row="2" Visibility="Collapsed"/>
+        <ContentControl x:Name="TerminalPaneHost"
+                        Grid.Row="2"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch"
+                        HorizontalContentAlignment="Stretch"
+                        VerticalContentAlignment="Stretch"
+                        Visibility="Collapsed"/>
     </Grid>
 </UserControl>
