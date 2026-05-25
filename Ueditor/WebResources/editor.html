@@ -1447,7 +1447,13 @@
                     return;
                 }
             }
-            const element = document.activeElement?.closest?.('.line-text');
+            let element = document.activeElement?.closest?.('.line-text');
+            if (!element || element.getAttribute('contenteditable') !== 'true') {
+                element = activeEditableElement();
+                if (element) {
+                    setCaret(element, Math.max(0, state.currentColumn - 1));
+                }
+            }
             if (!element || element.getAttribute('contenteditable') !== 'true') return;
             const normalized = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
             if (normalized.includes('\n')) {
@@ -1604,6 +1610,9 @@
 
         function deleteForwardAtCaret(element = activeEditableElement()) {
             if (!element) return;
+            if (document.activeElement !== element) {
+                setCaret(element, Math.max(0, state.currentColumn - 1));
+            }
             if (hasCustomSelection()) {
                 const sel = normalizeSelection();
                 if (sel) replaceSelectionWith(sel, '');
@@ -1622,6 +1631,9 @@
 
         function deleteBackwardAtCaret(element = activeEditableElement()) {
             if (!element) return;
+            if (document.activeElement !== element) {
+                setCaret(element, Math.max(0, state.currentColumn - 1));
+            }
             if (hasCustomSelection()) {
                 const sel = normalizeSelection();
                 if (sel) replaceSelectionWith(sel, '');
@@ -2300,6 +2312,11 @@
 
         async function writeClipboardText(text) {
             const value = String(text ?? '');
+            if (window.chrome && window.chrome.webview) {
+                post({ type: 'clipboardWrite', text: value });
+                return true;
+            }
+
             if (navigator.clipboard?.writeText) {
                 try {
                     await navigator.clipboard.writeText(value);
@@ -2325,11 +2342,23 @@
         }
 
         async function readClipboardText() {
+            if (window.chrome && window.chrome.webview) {
+                return await new Promise(resolve => {
+                    const requestId = state.requestSeq++;
+                    const timer = setTimeout(() => {
+                        state.clipboardRequests.delete(requestId);
+                        resolve('');
+                    }, 1200);
+                    state.clipboardRequests.set(requestId, { resolve, timer });
+                    post({ type: 'clipboardRead', requestId });
+                });
+            }
+
             if (navigator.clipboard?.readText) {
                 try {
                     return (await navigator.clipboard.readText()).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
                 } catch {
-                    return '';
+                    // Fall back below if clipboard read fails
                 }
             }
 
