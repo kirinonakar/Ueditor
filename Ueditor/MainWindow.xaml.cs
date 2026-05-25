@@ -451,6 +451,11 @@ namespace Ueditor
             WindowPlacementService.ApplySavedWindowPlacement(AppWindow, _settingsService.CurrentSettings);
             EditorWorkspace.LastTerminalHeight = Math.Clamp(_settingsService.CurrentSettings.TerminalPanelHeight, 120, 600);
 
+            // Load Snippets, Favorites and Recent Files FIRST so opening files can safely update them
+            await _snippetsController.LoadAsync();
+            _favoritesRecentController.RefreshFavorites();
+            _favoritesRecentController.LoadRecentFiles();
+
             if (filesToOpen.Count > 0)
             {
                 foreach (var filePath in filesToOpen)
@@ -492,11 +497,6 @@ namespace Ueditor
             }
 
             await InitializePreviewWebViewAsync();
-
-            // 3. Load Snippets, Favorites and Recent Files
-            await _snippetsController.LoadAsync();
-            _favoritesRecentController.RefreshFavorites();
-            _favoritesRecentController.LoadRecentFiles();
         }
 
         #region WebView2 Host Resource Mapping & Preview Init
@@ -2415,6 +2415,12 @@ namespace Ueditor
                 UpdateLanguageUI(tab);
                 SyncEncodingCombo(tab);
                 await RefreshGitStatusUIAsync();
+
+                if (!string.IsNullOrEmpty(tab.FilePath) && File.Exists(tab.FilePath))
+                {
+                    _favoritesRecentController.AddRecentFile(tab.FilePath);
+                }
+
                 return true;
             }
             catch (Exception ex)
@@ -2459,6 +2465,12 @@ namespace Ueditor
                 UpdateLanguageUI(tab);
                 SyncEncodingCombo(tab);
                 await RefreshGitStatusUIAsync();
+
+                if (!string.IsNullOrEmpty(tab.FilePath) && File.Exists(tab.FilePath))
+                {
+                    _favoritesRecentController.AddRecentFile(tab.FilePath);
+                }
+
                 return true;
             }
             catch (Exception ex)

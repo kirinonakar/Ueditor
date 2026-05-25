@@ -46,13 +46,11 @@ namespace Ueditor.Core.Services
                 recentFiles.Clear();
                 foreach (var item in items)
                 {
-                    if (!string.IsNullOrWhiteSpace(item.Path) && File.Exists(item.Path))
+                    if (!string.IsNullOrWhiteSpace(item.Path))
                     {
                         recentFiles.Add(item);
                     }
                 }
-
-                Save(recentFiles);
             }
             catch (Exception ex)
             {
