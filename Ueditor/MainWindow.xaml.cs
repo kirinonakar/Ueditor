@@ -2155,6 +2155,7 @@ namespace Ueditor
 
         private async void WarnUnsavedAndClose(OpenedTab tab, TabViewItem tabItem)
         {
+            var dialogTheme = GetCurrentElementTheme();
             var dialog = new ContentDialog
             {
                 Title = "변경 내용 저장",
@@ -2162,8 +2163,13 @@ namespace Ueditor
                 PrimaryButtonText = "저장하지 않고 닫기",
                 SecondaryButtonText = "저장",
                 CloseButtonText = "취소",
+                DefaultButton = ContentDialogButton.Secondary,
+                RequestedTheme = dialogTheme,
+                PrimaryButtonStyle = CreateDestructiveDialogButtonStyle(dialogTheme),
                 XamlRoot = this.Content.XamlRoot
             };
+
+            ConfigureDestructiveDialogButton(dialog, "저장하지 않고 닫기");
 
             var result = await dialog.ShowAsync();
             if (result == ContentDialogResult.Primary)
@@ -2752,18 +2758,29 @@ namespace Ueditor
             await SaveUiLayoutSettingsAsync();
             if (dirtyTabs.Count == 0) return;
 
+            var dialogTheme = GetCurrentElementTheme();
             var dialog = new ContentDialog
             {
                 Title = "저장되지 않은 변경 사항",
                 Content = $"저장되지 않은 탭이 {dirtyTabs.Count}개 있습니다. 종료하기 전에 저장하시겠습니까?",
-                PrimaryButtonText = "저장하고 종료",
-                SecondaryButtonText = "저장하지 않고 종료",
+                PrimaryButtonText = "저장하지 않고 종료",
+                SecondaryButtonText = "저장하고 종료",
                 CloseButtonText = "취소",
+                DefaultButton = ContentDialogButton.Secondary,
+                RequestedTheme = dialogTheme,
+                PrimaryButtonStyle = CreateDestructiveDialogButtonStyle(dialogTheme),
                 XamlRoot = this.Content.XamlRoot
             };
 
+            ConfigureDestructiveDialogButton(dialog, "저장하지 않고 종료");
+
             var result = await dialog.ShowAsync();
             if (result == ContentDialogResult.Primary)
+            {
+                _isClosingConfirmed = true;
+                this.Close();
+            }
+            else if (result == ContentDialogResult.Secondary)
             {
                 foreach (var tab in dirtyTabs)
                 {
@@ -2773,11 +2790,92 @@ namespace Ueditor
                 _isClosingConfirmed = true;
                 this.Close();
             }
-            else if (result == ContentDialogResult.Secondary)
+        }
+
+        private ElementTheme GetCurrentElementTheme()
+        {
+            if (string.Equals(_settingsService.CurrentSettings.Theme, "Light", StringComparison.OrdinalIgnoreCase))
             {
-                _isClosingConfirmed = true;
-                this.Close();
+                return ElementTheme.Light;
             }
+
+            if (string.Equals(_settingsService.CurrentSettings.Theme, "Dark", StringComparison.OrdinalIgnoreCase))
+            {
+                return ElementTheme.Dark;
+            }
+
+            return this.Content is FrameworkElement element
+                ? element.ActualTheme
+                : ElementTheme.Default;
+        }
+
+        private static Style CreateDestructiveDialogButtonStyle(ElementTheme theme)
+        {
+            bool dark = theme == ElementTheme.Dark;
+            var normalColor = dark
+                ? Windows.UI.Color.FromArgb(255, 179, 38, 30)
+                : Windows.UI.Color.FromArgb(255, 196, 43, 28);
+            var normalBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(normalColor);
+
+            var style = new Style { TargetType = typeof(Button) };
+            style.Setters.Add(new Setter(Control.BackgroundProperty, normalBrush));
+            style.Setters.Add(new Setter(Control.ForegroundProperty, new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White)));
+            style.Setters.Add(new Setter(Control.BorderBrushProperty, normalBrush));
+            style.Setters.Add(new Setter(Control.CornerRadiusProperty, new CornerRadius(4)));
+            return style;
+        }
+
+        private static void ConfigureDestructiveDialogButton(ContentDialog dialog, string buttonText)
+        {
+            dialog.Opened += (_, __) =>
+            {
+                var button = FindDescendant<Button>(dialog, candidate =>
+                    string.Equals(candidate.Content?.ToString(), buttonText, StringComparison.Ordinal));
+                if (button == null) return;
+
+                bool dark = button.ActualTheme == ElementTheme.Dark;
+                var normalColor = dark
+                    ? Windows.UI.Color.FromArgb(255, 179, 38, 30)
+                    : Windows.UI.Color.FromArgb(255, 196, 43, 28);
+                var hoverColor = Windows.UI.Color.FromArgb(255, 209, 52, 56);
+                var pressedColor = dark
+                    ? Windows.UI.Color.FromArgb(255, 143, 29, 24)
+                    : Windows.UI.Color.FromArgb(255, 168, 0, 0);
+
+                var normalBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(normalColor);
+                button.Background = normalBrush;
+                button.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
+                button.BorderBrush = normalBrush;
+                button.CornerRadius = new CornerRadius(4);
+                button.Resources["ButtonBackgroundPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(hoverColor);
+                button.Resources["ButtonForegroundPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
+                button.Resources["ButtonBorderBrushPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(hoverColor);
+                button.Resources["ButtonBackgroundPressed"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(pressedColor);
+                button.Resources["ButtonForegroundPressed"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
+                button.Resources["ButtonBorderBrushPressed"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(pressedColor);
+            };
+        }
+
+        private static T? FindDescendant<T>(DependencyObject root, Func<T, bool> predicate)
+            where T : DependencyObject
+        {
+            int count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root);
+            for (int i = 0; i < count; i++)
+            {
+                var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, i);
+                if (child is T match && predicate(match))
+                {
+                    return match;
+                }
+
+                var descendant = FindDescendant(child, predicate);
+                if (descendant != null)
+                {
+                    return descendant;
+                }
+            }
+
+            return null;
         }
 
         private void UpdateLanguageUI(OpenedTab tab)
