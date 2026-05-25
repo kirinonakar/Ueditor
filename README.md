@@ -71,6 +71,7 @@ Ueditor is designed for speed and productivity, packing standard IDE shortcuts a
 
 | Shortcut | Description |
 | :--- | :--- |
+| `Ctrl + N` | **New Tab** - Opens a brand new blank editing tab. |
 | `Ctrl + S` | **Save File** - Instantly saves the active file. |
 | `Ctrl + O` | **Open File** - Opens the native file picker to select documents. |
 | `Ctrl + F` | **Find/Search** - Opens the inline search bar within the editor. |

@@ -3220,6 +3220,11 @@
             const key = event.key ? event.key.toLowerCase() : '';
 
             if (ctrl) {
+                if (key === 'n') {
+                    event.preventDefault();
+                    post({ type: 'shortcut', name: 'newTab' });
+                    return;
+                }
                 if (key === 's') {
                     event.preventDefault();
                     post({ type: 'shortcut', name: 'save' });

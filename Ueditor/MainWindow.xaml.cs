@@ -725,6 +725,9 @@ namespace Ueditor
                 {
                     switch (shortcutName)
                     {
+                        case "newTab":
+                            OpenNewTab();
+                            break;
                         case "save":
                             OnSaveFileClick(this, new RoutedEventArgs());
                             break;
@@ -3349,7 +3352,12 @@ namespace Ueditor
             var shift = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift) & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
             if (ctrl)
             {
-                if (shift && e.Key == Windows.System.VirtualKey.F)
+                if (e.Key == Windows.System.VirtualKey.N)
+                {
+                    e.Handled = true;
+                    OpenNewTab();
+                }
+                else if (shift && e.Key == Windows.System.VirtualKey.F)
                 {
                     e.Handled = true;
                     EnsureLeftPanelVisible();
