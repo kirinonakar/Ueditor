@@ -538,6 +538,12 @@ namespace Ueditor.Editor
 
         public ITextModel Model { get; private set; }
 
+        public void UpdateContentFromSync(string text)
+        {
+            Model = LineArrayTextModel.FromText(text);
+            RefreshTabContentPreview();
+        }
+
         public IReadOnlyList<string> GetLines(int startLine, int count) => Model.GetLines(startLine, count);
 
         public string GetText(int? maxChars = null) => Model.GetText(maxChars);

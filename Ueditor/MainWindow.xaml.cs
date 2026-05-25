@@ -169,6 +169,7 @@ namespace Ueditor
                 ShowErrorMessage,
                 () => _gitAutoRefreshTimer.Start(),
                 OpenCompareTabAsync);
+            _gitPanelController.FileRestored += OnGitFileRestored;
             _favoritesRecentController = new FavoritesRecentController(
                 _settingsService,
                 _recentFilesService,
@@ -763,6 +764,7 @@ namespace Ueditor
                                     MarkTabDirty(tab, tabItem);
                                     SchedulePreview(tab);
                                     _ = bridge.SetTextAsync(text);
+                                    _ = SyncEditsToOtherTabsAsync(tab);
                                 }
                             }
                             break;
@@ -774,6 +776,7 @@ namespace Ueditor
                                     MarkTabDirty(tab, tabItem);
                                     SchedulePreview(tab);
                                     _ = bridge.SetTextAsync(text);
+                                    _ = SyncEditsToOtherTabsAsync(tab);
                                 }
                             }
                             break;
@@ -820,6 +823,7 @@ namespace Ueditor
                 session.ReplaceLine(lineNumber, text);
                 MarkTabDirty(tab, tabItem);
                 SchedulePreview(tab);
+                _ = SyncEditsToOtherTabsAsync(tab);
             };
 
             bridge.LineInsertRequested += async (lineNumber, text) =>
@@ -828,6 +832,7 @@ namespace Ueditor
                 MarkTabDirty(tab, tabItem);
                 await bridge.UpdateLineCountAsync(lineCount);
                 SchedulePreview(tab);
+                await SyncEditsToOtherTabsAsync(tab);
             };
 
             bridge.LineSplitRequested += async (lineNumber, before, after) =>
@@ -836,6 +841,7 @@ namespace Ueditor
                 MarkTabDirty(tab, tabItem);
                 await bridge.UpdateLineCountAsync(lineCount);
                 SchedulePreview(tab);
+                await SyncEditsToOtherTabsAsync(tab);
             };
 
             bridge.MergeLineWithPreviousRequested += async (lineNumber) =>
@@ -844,6 +850,7 @@ namespace Ueditor
                 MarkTabDirty(tab, tabItem);
                 await bridge.UpdateLineCountAsync(lineCount);
                 SchedulePreview(tab);
+                await SyncEditsToOtherTabsAsync(tab);
             };
 
             bridge.DeleteLineRequested += async (lineNumber) =>
@@ -852,6 +859,7 @@ namespace Ueditor
                 MarkTabDirty(tab, tabItem);
                 await bridge.UpdateLineCountAsync(lineCount);
                 SchedulePreview(tab);
+                await SyncEditsToOtherTabsAsync(tab);
             };
 
             bridge.FindRequested += async (query, startLine, startColumn, reverse, matchCase) =>
@@ -2510,6 +2518,71 @@ namespace Ueditor
             }
         }
 
+        private void OnGitFileRestored(object? sender, string filePath)
+        {
+            this.DispatcherQueue.TryEnqueue(async () =>
+            {
+                var tabsToReload = _viewModel.Tabs.Where(t =>
+                    !string.IsNullOrEmpty(t.FilePath) &&
+                    (string.IsNullOrEmpty(filePath) || t.FilePath.Equals(filePath, StringComparison.OrdinalIgnoreCase))
+                ).ToList();
+
+                foreach (var tab in tabsToReload)
+                {
+                    await ReloadTabWithEncodingAsync(tab, tab.EncodingName);
+                }
+            });
+        }
+
+        private async Task SyncEditsToOtherTabsAsync(OpenedTab sourceTab)
+        {
+            if (string.IsNullOrEmpty(sourceTab.FilePath)) return;
+
+            if (!_editorSessions.TryGetValue(sourceTab.Id, out var sourceSession)) return;
+            string updatedText = sourceSession.GetText();
+
+            var otherTabs = _viewModel.Tabs.Where(t =>
+                t.Id != sourceTab.Id &&
+                !string.IsNullOrEmpty(t.FilePath) &&
+                t.FilePath.Equals(sourceTab.FilePath, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+
+            foreach (var otherTab in otherTabs)
+            {
+                if (_editorSessions.TryGetValue(otherTab.Id, out var otherSession))
+                {
+                    otherSession.UpdateContentFromSync(updatedText);
+                }
+                otherTab.Content = updatedText;
+
+                var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == otherTab.Id)
+                           ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == otherTab.Id);
+
+                if (sourceTab.IsDirty)
+                {
+                    if (tabItem != null)
+                    {
+                        MarkTabDirty(otherTab, tabItem);
+                    }
+                }
+                else
+                {
+                    otherTab.IsDirty = false;
+                    if (tabItem != null)
+                    {
+                        tabItem.Header = otherTab.DisplayTitle;
+                    }
+                }
+
+                if (_tabBridges.TryGetValue(otherTab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
+                {
+                    await bridgeGroup.Bridge.SetTextAsync(updatedText);
+                }
+
+                SchedulePreview(otherTab);
+            }
+        }
+
         private void InitializePickerWindow(object picker)
         {
             // WinUI 3 Window association wrapper for file pickers (required in WinAppSDK)
@@ -2709,6 +2782,24 @@ namespace Ueditor
 
                 tab.IsDirty = false;
                 tabItem.Header = tab.DisplayTitle;
+
+                var otherTabs = _viewModel.Tabs.Where(t =>
+                    t.Id != tab.Id &&
+                    !string.IsNullOrEmpty(t.FilePath) &&
+                    t.FilePath.Equals(tab.FilePath, StringComparison.OrdinalIgnoreCase)
+                ).ToList();
+
+                foreach (var otherTab in otherTabs)
+                {
+                    otherTab.IsDirty = false;
+                    var otherTabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == otherTab.Id)
+                                    ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == otherTab.Id);
+                    if (otherTabItem != null)
+                    {
+                        otherTabItem.Header = otherTab.DisplayTitle;
+                    }
+                }
+
                 UpdateStatusFileStats(tab);
                 UpdateLanguageUI(tab);
                 SyncEncodingCombo(tab);

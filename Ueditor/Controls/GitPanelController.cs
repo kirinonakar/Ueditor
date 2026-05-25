@@ -16,6 +16,8 @@ namespace Ueditor.Controls
 {
     public sealed class GitPanelController
     {
+        public event EventHandler<string>? FileRestored;
+
         private readonly IGitService _gitService;
         private readonly IFileService _fileService;
         private readonly MainWindowViewModel _viewModel;
@@ -192,6 +194,7 @@ namespace Ueditor.Controls
             if (success)
             {
                 await RefreshAsync(repoPath);
+                FileRestored?.Invoke(this, filePath);
             }
             else
             {
@@ -255,6 +258,7 @@ namespace Ueditor.Controls
             if (success)
             {
                 await RefreshAsync(repoPath);
+                FileRestored?.Invoke(this, string.Empty);
             }
             else
             {
