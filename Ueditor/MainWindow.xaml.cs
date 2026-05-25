@@ -58,6 +58,32 @@ namespace Ueditor
         private string _currentRepoPath = string.Empty;
         private bool _isSyncingEncodingCombo = false;
 
+        private string CurrentRepoPath
+        {
+            get => _currentRepoPath;
+            set
+            {
+                if (_currentRepoPath != value)
+                {
+                    _currentRepoPath = value;
+                    UpdateAutoSaveStatus();
+                }
+            }
+        }
+
+        private void UpdateAutoSaveStatus()
+        {
+            var settings = _settingsService?.CurrentSettings;
+            if (settings == null) return;
+
+            _autoSaveEnabled = settings.AutoSave && !string.IsNullOrEmpty(_currentRepoPath);
+            if (_autoSaveTimer != null)
+            {
+                if (_autoSaveEnabled) _autoSaveTimer.Start();
+                else _autoSaveTimer.Stop();
+            }
+        }
+
         private bool _isStickyNoteMode = false;
         private bool _wasLeftSidebarVisible = false;
         private bool _wasRightSidebarVisible = false;
@@ -507,6 +533,8 @@ namespace Ueditor
                 _ = RefreshGitStatusUIAsync();
                 _gitAutoRefreshTimer.Start();
             }
+
+            UpdateAutoSaveStatus();
 
             await InitializePreviewWebViewAsync();
         }
@@ -1257,7 +1285,7 @@ namespace Ueditor
                 string? repoRoot = _gitService.FindRepositoryRoot(Path.GetDirectoryName(filePath));
                 if (!string.IsNullOrEmpty(repoRoot))
                 {
-                    _currentRepoPath = repoRoot;
+                    CurrentRepoPath = repoRoot;
                     await RefreshGitStatusUIAsync();
                 }
 
@@ -1723,9 +1751,7 @@ namespace Ueditor
             MarkdownToolbar.Visibility = settings.DefaultMarkdownToolbarEnabled ? Visibility.Visible : Visibility.Collapsed;
 
             // Enable auto-save if setting is on and git is available
-            _autoSaveEnabled = settings.AutoSave && !string.IsNullOrEmpty(_currentRepoPath);
-            if (_autoSaveEnabled) _autoSaveTimer.Start();
-            else _autoSaveTimer.Stop();
+            UpdateAutoSaveStatus();
             TopToolbar.WordWrapIsChecked = settings.WordWrap;
             ApplyUiPersonalization(settings);
             LocalizeUi();
@@ -1857,7 +1883,7 @@ namespace Ueditor
             if (folder != null)
             {
                 _currentFolderPath = folder.Path;
-                _currentRepoPath = _gitService.FindRepositoryRoot(folder.Path) ?? string.Empty;
+                CurrentRepoPath = _gitService.FindRepositoryRoot(folder.Path) ?? string.Empty;
                 LoadDirectoryRoot(folder.Path);
 
                 // Trigger Git branch detection & status update
@@ -1883,7 +1909,7 @@ namespace Ueditor
             if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath)) return;
 
             _currentFolderPath = folderPath;
-            _currentRepoPath = _gitService.FindRepositoryRoot(folderPath) ?? string.Empty;
+            CurrentRepoPath = _gitService.FindRepositoryRoot(folderPath) ?? string.Empty;
             LoadDirectoryRoot(folderPath);
 
             // Ensure the left panel is visible and switch to Explorer page (index 0)
@@ -2171,7 +2197,7 @@ namespace Ueditor
             var parent = Directory.GetParent(_currentFolderPath);
             if (parent == null) return;
 
-            _currentRepoPath = _gitService.FindRepositoryRoot(parent.FullName) ?? string.Empty;
+            CurrentRepoPath = _gitService.FindRepositoryRoot(parent.FullName) ?? string.Empty;
             LoadDirectoryRoot(parent.FullName);
         }
 
@@ -2182,7 +2208,7 @@ namespace Ueditor
 
             if (item.IsFolder)
             {
-                _currentRepoPath = _gitService.FindRepositoryRoot(item.Path) ?? string.Empty;
+                CurrentRepoPath = _gitService.FindRepositoryRoot(item.Path) ?? string.Empty;
                 LoadDirectoryRoot(item.Path);
             }
             else
