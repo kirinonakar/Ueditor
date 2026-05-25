@@ -138,10 +138,13 @@
         }
 
         h1,
-        h2,
-        h3 {
+        h2 {
             line-height: 1.25;
             border-bottom: 1px solid var(--border);
+        }
+
+        h3 {
+            line-height: 1.25;
         }
 
         h1 { font-size: 1.35em; }
@@ -309,7 +312,8 @@
             requestSeq: 1,
             renderQueued: false,
             lastRangeKey: '',
-            cacheVersion: 0
+            cacheVersion: 0,
+            blockContextLines: 120
         };
 
         function post(msg) {
@@ -489,7 +493,7 @@
 
             let out = String(text ?? '');
 
-            out = out.replace(/`([^`]+)`/g, (_, code) => stash(`<code>${escapeHtml(code)}</code>`));
+            out = stashCodeSpans(out, stash);
             out = out.replace(/!\[([^\]]*)\]\(([^)]*)\)/g, (_, alt, target) => stash(renderMarkdownImage(alt, target)));
             out = stashInlineMath(out, stash);
             out = stashHtmlTags(out, stash);
@@ -508,6 +512,48 @@
             });
 
             return sanitizeHtml(out);
+        }
+
+        function normalizeCodeSpanText(value) {
+            const normalized = String(value ?? '').replace(/\s*\n\s*/g, ' ');
+            if (normalized.length >= 2 &&
+                normalized.startsWith(' ') &&
+                normalized.endsWith(' ') &&
+                /[^ ]/.test(normalized.slice(1, -1))) {
+                return normalized.slice(1, -1);
+            }
+            return normalized;
+        }
+
+        function stashCodeSpans(value, stash) {
+            const source = String(value ?? '');
+            let result = '';
+            let index = 0;
+
+            while (index < source.length) {
+                if (source[index] !== '`') {
+                    result += source[index++];
+                    continue;
+                }
+
+                const openerStart = index;
+                while (index < source.length && source[index] === '`') {
+                    index++;
+                }
+
+                const delimiter = source.slice(openerStart, index);
+                const closeIndex = source.indexOf(delimiter, index);
+                if (closeIndex < 0) {
+                    result += delimiter;
+                    continue;
+                }
+
+                const code = normalizeCodeSpanText(source.slice(index, closeIndex));
+                result += stash(`<code>${escapeHtml(code)}</code>`);
+                index = closeIndex + delimiter.length;
+            }
+
+            return result;
         }
 
         function stashInlineMath(value, stash) {
@@ -572,27 +618,220 @@
             return `<pre><code${langClass}>${escapeHtml(block.code)}</code></pre>`;
         }
 
-        function renderMarkdownLine(line, prevLine, accumulated) {
+        function splitMarkdownTableRow(line) {
+            const trimmed = String(line || '').trim();
+            if (!trimmed.startsWith('|') || !trimmed.endsWith('|')) return null;
+
+            const body = trimmed.slice(1, -1);
+            const cells = [];
+            let current = '';
+            for (let i = 0; i < body.length; i++) {
+                const ch = body[i];
+                if (ch === '\\' && body[i + 1] === '|') {
+                    current += '|';
+                    i++;
+                } else if (ch === '|') {
+                    cells.push(current.trim());
+                    current = '';
+                } else {
+                    current += ch;
+                }
+            }
+            cells.push(current.trim());
+            return cells;
+        }
+
+        function isMarkdownTableSeparator(line) {
+            const cells = splitMarkdownTableRow(line);
+            return !!cells?.length && cells.every(cell => /^:?-{3,}:?$/.test(cell.replace(/\s+/g, '')));
+        }
+
+        function tableAlignment(separatorCell) {
+            const cell = separatorCell.replace(/\s+/g, '');
+            if (cell.startsWith(':') && cell.endsWith(':')) return 'center';
+            if (cell.endsWith(':')) return 'right';
+            return '';
+        }
+
+        function isMarkdownTableStart(lineNumber) {
+            if (!state.cache.has(lineNumber) || !state.cache.has(lineNumber + 1)) return false;
+            return !!splitMarkdownTableRow(state.cache.get(lineNumber)) &&
+                isMarkdownTableSeparator(state.cache.get(lineNumber + 1));
+        }
+
+        function collectMarkdownTableBlock(startLine, maxLine) {
+            const headerCells = splitMarkdownTableRow(state.cache.get(startLine));
+            const separatorCells = splitMarkdownTableRow(state.cache.get(startLine + 1));
+            if (!headerCells || !separatorCells || !isMarkdownTableSeparator(state.cache.get(startLine + 1))) {
+                return null;
+            }
+
+            const bodyRows = [];
+            let endLine = startLine + 1;
+            for (let line = startLine + 2; line <= maxLine; line++) {
+                if (!state.cache.has(line)) break;
+                const cells = splitMarkdownTableRow(state.cache.get(line));
+                if (!cells || isMarkdownTableSeparator(state.cache.get(line))) break;
+                bodyRows.push(cells);
+                endLine = line;
+            }
+
+            return {
+                headerCells,
+                alignments: separatorCells.map(tableAlignment),
+                bodyRows,
+                endLine
+            };
+        }
+
+        function renderMarkdownTableCell(content, tag, align) {
+            const style = align ? ` style="text-align:${align}"` : '';
+            return `<${tag}${style}>${inlineMarkdown(content)}</${tag}>`;
+        }
+
+        function renderMarkdownTableRow(cells, tag, alignments) {
+            const maxColumns = Math.max(cells.length, alignments.length);
+            const renderedCells = [];
+            for (let index = 0; index < maxColumns; index++) {
+                renderedCells.push(renderMarkdownTableCell(cells[index] || '', tag, alignments[index] || ''));
+            }
+            return `<tr>${renderedCells.join('')}</tr>`;
+        }
+
+        function renderMarkdownTableBlock(block) {
+            const head = renderMarkdownTableRow(block.headerCells, 'th', block.alignments);
+            const body = block.bodyRows
+                .map(row => renderMarkdownTableRow(row, 'td', block.alignments))
+                .join('');
+            return `<table><thead>${head}</thead><tbody>${body}</tbody></table>`;
+        }
+
+        function orderedListItemInfo(line) {
+            const match = /^(\s*)(\d+)\.\s+(.+)$/.exec(line || '');
+            if (!match) return null;
+            return {
+                indent: match[1].length,
+                number: Number.parseInt(match[2], 10),
+                content: match[3]
+            };
+        }
+
+        function leadingWhitespaceLength(line) {
+            const match = /^(\s*)/.exec(line || '');
+            return match ? match[1].length : 0;
+        }
+
+        function isMarkdownOrderedListStart(lineNumber) {
+            if (!state.cache.has(lineNumber)) return false;
+            const current = orderedListItemInfo(state.cache.get(lineNumber));
+            if (!current) return false;
+
+            const previous = state.cache.get(lineNumber - 1);
+            const previousItem = orderedListItemInfo(previous);
+            return !previousItem || previousItem.indent !== current.indent;
+        }
+
+        function collectMarkdownOrderedListBlock(startLine, maxLine) {
+            const first = orderedListItemInfo(state.cache.get(startLine));
+            if (!first) return null;
+
+            const items = [];
+            let currentItem = null;
+            let endLine = startLine;
+
+            for (let lineNumber = startLine; lineNumber <= maxLine; lineNumber++) {
+                if (!state.cache.has(lineNumber)) break;
+
+                const line = state.cache.get(lineNumber) || '';
+                const item = orderedListItemInfo(line);
+                if (item && item.indent === first.indent) {
+                    if (currentItem) items.push(currentItem);
+                    currentItem = {
+                        number: item.number,
+                        lines: [item.content],
+                        baseIndent: item.indent
+                    };
+                    endLine = lineNumber;
+                    continue;
+                }
+
+                if (!currentItem) break;
+                if (!line.trim() || leadingWhitespaceLength(line) > first.indent) {
+                    currentItem.lines.push(line);
+                    endLine = lineNumber;
+                    continue;
+                }
+
+                break;
+            }
+
+            if (currentItem) items.push(currentItem);
+            return items.length ? { startNumber: first.number, items, endLine } : null;
+        }
+
+        function stripListContinuationIndent(line, baseIndent) {
+            const maxStrip = baseIndent + 4;
+            let index = 0;
+            while (index < line.length && index < maxStrip && line[index] === ' ') {
+                index++;
+            }
+            return line.slice(index);
+        }
+
+        function renderListItemContinuation(lines, startIndex, item) {
+            const text = stripListContinuationIndent(lines[startIndex], item.baseIndent);
+            const fence = fencedCodeInfo(text);
+            if (!fence) {
+                return {
+                    html: text.trim() ? `<p>${inlineMarkdown(text)}</p>` : '',
+                    nextIndex: startIndex + 1
+                };
+            }
+
+            const code = [];
+            let index = startIndex + 1;
+            for (; index < lines.length; index++) {
+                const codeLine = stripListContinuationIndent(lines[index], item.baseIndent);
+                if (isFencedCodeClose(codeLine, fence)) {
+                    return {
+                        html: renderFencedCodeBlock({
+                            code: code.join('\n'),
+                            language: fence.language
+                        }),
+                        nextIndex: index + 1
+                    };
+                }
+                code.push(codeLine);
+            }
+
+            return {
+                html: renderFencedCodeBlock({
+                    code: code.join('\n'),
+                    language: fence.language
+                }),
+                nextIndex: index
+            };
+        }
+
+        function renderMarkdownOrderedListItem(item) {
+            const chunks = [`<p>${inlineMarkdown(item.lines[0])}</p>`];
+            for (let index = 1; index < item.lines.length;) {
+                const rendered = renderListItemContinuation(item.lines, index, item);
+                if (rendered.html) chunks.push(rendered.html);
+                index = rendered.nextIndex;
+            }
+            return `<li>${chunks.join('')}</li>`;
+        }
+
+        function renderMarkdownOrderedListBlock(block) {
+            const start = block.startNumber !== 1 ? ` start="${block.startNumber}"` : '';
+            return `<ol${start}>${block.items.map(renderMarkdownOrderedListItem).join('')}</ol>`;
+        }
+
+        function renderMarkdownLine(line) {
             const trimmed = line.trim();
             if (!trimmed) return '';
             if (isSingleLineHtmlBlock(trimmed)) return sanitizeHtml(line);
-
-            // Table row
-            if (/^\|.+\|$/.test(trimmed) && /\|/.test(trimmed.replace(/^\|/, '').replace(/\|$/, ''))) {
-                const isHeader = prevLine && /^\|[-:| ]+\|$/.test(prevLine.trim());
-                if (isHeader) return null;
-                const cells = trimmed.split(/(?<!\\)\|/).filter(c => c !== '' || trimmed.startsWith('|'));
-                const isSep = cells.every(c => /^[-:| ]+$/.test(c.trim()));
-                if (isSep) return null;
-                const cols = cells.map(c => {
-                    const content = c.trim();
-                    const isAlignedRight = /^:?-+:?$/.test(content);
-                    const align = isAlignedRight ? (content.endsWith(':') && content.startsWith(':') ? 'center' : content.endsWith(':') ? 'right' : 'left') : '';
-                    return align ? { content: inlineMarkdown(c), align } : inlineMarkdown(c);
-                });
-                const cellHtml = cols.map(c => typeof c === 'string' ? `<td>${c}</td>` : `<td style="text-align:${c.align}">${c.content}</td>`).join('');
-                return `<tr>${cellHtml}</tr>`;
-            }
 
             const heading = /^(#{1,6})\s+(.+)$/.exec(line);
             if (heading) {
@@ -707,6 +946,138 @@
             return { start, end, count: Math.max(0, end - start + 1) };
         }
 
+        function contiguousCachedScanStart(lineNumber, maxBacktrack = 800) {
+            let start = Math.max(1, lineNumber);
+            const floor = Math.max(1, lineNumber - maxBacktrack);
+            while (start > floor && state.cache.has(start - 1)) {
+                start--;
+            }
+            return start;
+        }
+
+        function findOpenFencedBlockStart(lineNumber) {
+            let active = null;
+            const scanStart = contiguousCachedScanStart(lineNumber);
+            for (let line = scanStart; line < lineNumber; line++) {
+                const text = state.cache.get(line) || '';
+                if (active) {
+                    if (isFencedCodeClose(text, active.fence)) {
+                        active = null;
+                    }
+                    continue;
+                }
+
+                const fence = fencedCodeInfo(text);
+                if (fence) {
+                    active = { startLine: line, fence };
+                }
+            }
+            return active?.startLine || 0;
+        }
+
+        function findOpenHtmlBlockStart(lineNumber) {
+            const scanStart = contiguousCachedScanStart(lineNumber);
+            let active = null;
+            for (let line = scanStart; line < lineNumber; line++) {
+                const text = state.cache.get(line) || '';
+                if (active) {
+                    const closePattern = new RegExp(`</${active.tag}\\s*>`, 'i');
+                    if (closePattern.test(text)) {
+                        active = null;
+                    }
+                    continue;
+                }
+
+                const tag = htmlBlockTagName(text);
+                if (tag) {
+                    const closePattern = new RegExp(`</${tag}\\s*>`, 'i');
+                    active = closePattern.test(text) ? null : { startLine: line, tag };
+                }
+            }
+            return active?.startLine || 0;
+        }
+
+        function findOpenDisplayMathBlockStart(lineNumber) {
+            const scanStart = contiguousCachedScanStart(lineNumber);
+            let opener = '';
+            let startLine = 0;
+            for (let line = scanStart; line < lineNumber; line++) {
+                const text = state.cache.get(line) || '';
+                if (opener) {
+                    if (isDisplayMathClose(text, opener)) {
+                        opener = '';
+                        startLine = 0;
+                    }
+                    continue;
+                }
+
+                if (isDisplayMathFence(text)) {
+                    opener = text.trim();
+                    startLine = line;
+                }
+            }
+            return startLine;
+        }
+
+        function findMarkdownTableBlockStart(lineNumber) {
+            if (!splitMarkdownTableRow(state.cache.get(lineNumber))) return 0;
+
+            let firstRow = lineNumber;
+            while (firstRow > 1 && splitMarkdownTableRow(state.cache.get(firstRow - 1))) {
+                firstRow--;
+            }
+
+            for (let line = firstRow; line < lineNumber; line++) {
+                if (isMarkdownTableStart(line)) {
+                    return line;
+                }
+            }
+            return 0;
+        }
+
+        function findMarkdownOrderedListBlockStart(lineNumber) {
+            const scanStart = contiguousCachedScanStart(lineNumber);
+            let currentStart = 0;
+            let currentIndent = 0;
+
+            for (let line = scanStart; line <= lineNumber; line++) {
+                const text = state.cache.get(line) || '';
+                const item = orderedListItemInfo(text);
+                if (item) {
+                    if (!currentStart || item.indent < currentIndent) {
+                        currentStart = line;
+                        currentIndent = item.indent;
+                    }
+                    continue;
+                }
+
+                if (!text.trim()) {
+                    continue;
+                }
+
+                if (currentStart && leadingWhitespaceLength(text) > currentIndent) {
+                    continue;
+                }
+
+                currentStart = 0;
+                currentIndent = 0;
+            }
+
+            return currentStart && currentStart < lineNumber ? currentStart : 0;
+        }
+
+        function expandedMarkdownRangeStart(startLine) {
+            if (state.mode !== 'markdown') return startLine;
+            return Math.min(
+                startLine,
+                findOpenFencedBlockStart(startLine) || startLine,
+                findOpenHtmlBlockStart(startLine) || startLine,
+                findOpenDisplayMathBlockStart(startLine) || startLine,
+                findMarkdownTableBlockStart(startLine) || startLine,
+                findMarkdownOrderedListBlockStart(startLine) || startLine
+            );
+        }
+
         function requestLines(start, count) {
             if (count <= 0) return;
             const key = `${start}:${count}`;
@@ -751,17 +1122,23 @@
         }
 
         function render() {
-            const range = visibleRange();
+            const visible = visibleRange();
+            const contextStart = state.mode === 'markdown'
+                ? Math.max(1, visible.start - state.blockContextLines)
+                : visible.start;
+            requestMissingLines(contextStart, visible.end);
+            const range = {
+                start: expandedMarkdownRangeStart(visible.start),
+                end: visible.end
+            };
             requestMissingLines(range.start, range.end);
-            const key = `${range.start}:${range.end}:${state.lineCount}:${state.mode}:${scroll.clientWidth}:${totalVirtualHeight()}:${state.cacheVersion}`;
+            const key = `${visible.start}:${visible.end}:${range.start}:${range.end}:${state.lineCount}:${state.mode}:${scroll.clientWidth}:${totalVirtualHeight()}:${state.cacheVersion}`;
             if (key === state.lastRangeKey) return;
             state.lastRangeKey = key;
             viewport.style.transform = `translateY(${rowTop(range.start)}px)`;
 
             const rows = [];
                 let skipUntilLine = 0;
-                let inTable = false;
-                let tableRows = [];
                 for (let lineNumber = range.start; lineNumber <= range.end; lineNumber++) {
                     if (!state.cache.has(lineNumber)) {
                         rows.push(renderPreviewRow(lineNumber, '로딩 중...', 'loading'));
@@ -769,7 +1146,6 @@
                     }
 
                     const line = state.cache.get(lineNumber) || '';
-                    const prevLine = state.cache.get(lineNumber - 1);
                     let rendered;
                     if (lineNumber <= skipUntilLine) {
                         rows.push(renderPreviewRow(lineNumber, '', 'skipped'));
@@ -798,31 +1174,21 @@
                         } else {
                             rendered = '';
                         }
-                    } else if (state.mode === 'markdown' && /^\|.+\|$/.test(line.trim())) {
-                        const tr = renderMarkdownLine(line, prevLine);
-                        if (tr === null) {
-                            continue;
-                        }
-                        const isSep = line.split('|').filter(c => c.trim()).every(c => /^[-:| ]+$/.test(c.trim()));
-                        if (isSep) {
-                            inTable = true;
-                            tableRows = [];
-                            continue;
-                        }
-                        if (inTable || (prevLine && /^\|[-:| ]+\|$/.test(prevLine.trim()))) {
-                            inTable = true;
-                            tableRows.push(tr);
-                            const nextLine = state.cache.get(lineNumber + 1);
-                            const isLastTableRow = !nextLine || !/^\|.+\|$/.test(nextLine.trim());
-                            if (isLastTableRow) {
-                                rendered = `<table><thead>${tableRows[0]}</thead><tbody>${tableRows.slice(1).join('')}</tbody></table>`;
-                                inTable = false;
-                                tableRows = [];
-                            } else {
-                                rendered = '';
-                            }
+                    } else if (state.mode === 'markdown' && isMarkdownOrderedListStart(lineNumber)) {
+                        const block = collectMarkdownOrderedListBlock(lineNumber, range.end);
+                        if (block) {
+                            rendered = renderMarkdownOrderedListBlock(block);
+                            skipUntilLine = block.endLine;
                         } else {
-                            rendered = tr;
+                            rendered = '';
+                        }
+                    } else if (state.mode === 'markdown' && isMarkdownTableStart(lineNumber)) {
+                        const block = collectMarkdownTableBlock(lineNumber, range.end);
+                        if (block) {
+                            rendered = renderMarkdownTableBlock(block);
+                            skipUntilLine = block.endLine;
+                        } else {
+                            rendered = '';
                         }
                     } else {
                         rendered = renderLine(line);
@@ -924,7 +1290,11 @@
             if (!match) return false;
 
             const tag = match[1].toLowerCase();
-            return ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'span', 'strong', 'em', 'b', 'i', 'u', 'small', 'center'].includes(tag);
+            return [
+                'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                'p', 'div', 'span', 'strong', 'em', 'b', 'i', 'u', 'small', 'center',
+                'ol', 'ul', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'pre', 'code'
+            ].includes(tag);
         }
 
         function htmlBlockTagName(line) {
@@ -933,7 +1303,11 @@
             if (!match || /\/>\s*$/.test(trimmed)) return '';
 
             const tag = match[1].toLowerCase();
-            return ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'center', 'figure', 'figcaption'].includes(tag) ? tag : '';
+            return [
+                'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                'p', 'div', 'center', 'figure', 'figcaption',
+                'ol', 'ul', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'pre', 'code'
+            ].includes(tag) ? tag : '';
         }
 
         function isHtmlBlockStart(line) {
@@ -984,6 +1358,8 @@
 
         function measureRenderedRows() {
             let changed = false;
+            let heightDeltaBeforeAnchor = 0;
+            const anchorLine = lineAt(scroll.scrollTop);
             const rows = viewport.querySelectorAll('.preview-row');
             rows.forEach(row => {
                 const lineNumber = Number(row.dataset.line || 0);
@@ -992,14 +1368,21 @@
                 const measured = row.classList.contains('skipped')
                     ? 0
                     : Math.max(0, Math.ceil(row.getBoundingClientRect().height || row.scrollHeight || 0));
-                if (rowHeightFor(lineNumber) !== measured) {
+                const previous = rowHeightFor(lineNumber);
+                if (Math.abs(previous - measured) > 1) {
                     state.rowHeights.set(lineNumber, measured);
+                    if (lineNumber < anchorLine) {
+                        heightDeltaBeforeAnchor += measured - previous;
+                    }
                     changed = true;
                 }
             });
 
             if (changed) {
                 setupVirtualHeight();
+                if (heightDeltaBeforeAnchor) {
+                    scroll.scrollTop += heightDeltaBeforeAnchor;
+                }
                 state.lastRangeKey = '';
                 requestAnimationFrame(() => render());
             }
