@@ -148,6 +148,18 @@
         h2 { font-size: 1.2em; }
         h3 { font-size: 1.08em; }
 
+        [align="center" i] {
+            text-align: center;
+        }
+
+        [align="right" i] {
+            text-align: right;
+        }
+
+        [align="left" i] {
+            text-align: left;
+        }
+
         a {
             color: var(--link);
         }
@@ -563,6 +575,7 @@
         function renderMarkdownLine(line, prevLine, accumulated) {
             const trimmed = line.trim();
             if (!trimmed) return '';
+            if (isSingleLineHtmlBlock(trimmed)) return sanitizeHtml(line);
 
             // Table row
             if (/^\|.+\|$/.test(trimmed) && /\|/.test(trimmed.replace(/^\|/, '').replace(/\|$/, ''))) {
@@ -905,13 +918,22 @@
             return trimmed === '$$' || trimmed === '\\[';
         }
 
+        function isSingleLineHtmlBlock(line) {
+            const trimmed = (line || '').trim();
+            const match = /^<([A-Za-z][A-Za-z0-9:-]*)(?:\s[^<>]*?)?>[\s\S]*<\/\1\s*>$/.exec(trimmed);
+            if (!match) return false;
+
+            const tag = match[1].toLowerCase();
+            return ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'span', 'strong', 'em', 'b', 'i', 'u', 'small', 'center'].includes(tag);
+        }
+
         function htmlBlockTagName(line) {
             const trimmed = (line || '').trim();
             const match = /^<([A-Za-z][A-Za-z0-9:-]*)(?:\s[^<>]*?)?>\s*$/.exec(trimmed);
             if (!match || /\/>\s*$/.test(trimmed)) return '';
 
             const tag = match[1].toLowerCase();
-            return ['p', 'div', 'center', 'figure', 'figcaption'].includes(tag) ? tag : '';
+            return ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'center', 'figure', 'figcaption'].includes(tag) ? tag : '';
         }
 
         function isHtmlBlockStart(line) {
