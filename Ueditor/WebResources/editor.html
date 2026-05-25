@@ -296,10 +296,12 @@
 
         .autocomplete-item {
             display: flex;
-            align-items: center;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
             width: 100%;
-            height: 26px;
-            padding: 0 10px;
+            min-height: 30px;
+            padding: 4px 10px;
             border: 0;
             border-radius: 4px;
             background: transparent;
@@ -312,11 +314,36 @@
             transition: background 0.1s, transform 0.1s;
         }
 
+        .autocomplete-label {
+            display: block;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+
+        .autocomplete-detail {
+            display: block;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: color-mix(in srgb, var(--fg) 72%, transparent);
+            font-family: system-ui, "Segoe UI", sans-serif;
+            font-size: 11px;
+        }
+
         .autocomplete-item:hover,
         .autocomplete-item.active {
             background: var(--selection);
             color: #ffffff;
             transform: translateX(2px);
+        }
+
+        .autocomplete-item:hover .autocomplete-detail,
+        .autocomplete-item.active .autocomplete-detail {
+            color: rgba(255, 255, 255, 0.82);
         }
 
         #find-input {
@@ -434,7 +461,8 @@
             renderQueued: false,
             clipboardRequests: new Map(),
             pendingLineActions: [],
-            autocompleteEnabled: true
+            autocompleteEnabled: true,
+            snippets: []
         };
 
         function post(msg) {
@@ -1798,8 +1826,30 @@
 
         function getAutocompleteCandidates(currentWord) {
             if (!currentWord || currentWord.length < 1) return [];
-            const candidates = new Set();
+            const candidates = [];
+            const seen = new Set();
             const lowerCurrent = currentWord.toLowerCase();
+
+            for (const snippet of state.snippets) {
+                const keyword = String(snippet.keyword || '').trim();
+                const title = String(snippet.title || '').trim();
+                const content = String(snippet.content || '');
+                if (!keyword || !content) continue;
+
+                const lowerKeyword = keyword.toLowerCase();
+                const lowerTitle = title.toLowerCase();
+                if (!lowerKeyword.startsWith(lowerCurrent) && !lowerTitle.startsWith(lowerCurrent)) continue;
+
+                const key = `snippet:${lowerKeyword}`;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                candidates.push({
+                    kind: 'snippet',
+                    label: keyword,
+                    insertText: content,
+                    detail: title ? `스니펫: ${title}` : '스니펫'
+                });
+            }
 
             for (const text of state.cache.values()) {
                 if (!text) continue;
@@ -1809,13 +1859,26 @@
                     if (word.length <= currentWord.length) continue;
                     if (word === currentWord) continue;
                     if (word.toLowerCase().startsWith(lowerCurrent)) {
-                        candidates.add(word);
+                        const key = `word:${word.toLowerCase()}`;
+                        if (seen.has(key)) continue;
+                        seen.add(key);
+                        candidates.push({
+                            kind: 'word',
+                            label: word,
+                            insertText: word,
+                            detail: ''
+                        });
                     }
                 }
             }
 
-            return Array.from(candidates)
-                .sort((a, b) => a.localeCompare(b))
+            return candidates
+                .sort((a, b) => {
+                    if (a.kind !== b.kind) return a.kind === 'snippet' ? -1 : 1;
+                    if (a.label.toLowerCase() === lowerCurrent) return -1;
+                    if (b.label.toLowerCase() === lowerCurrent) return 1;
+                    return a.label.localeCompare(b.label);
+                })
                 .slice(0, 10);
         }
 
@@ -1873,7 +1936,10 @@
 
             const itemsHtml = autocompleteState.candidates.map((candidate, idx) => {
                 const isActive = idx === autocompleteState.activeIndex ? ' active' : '';
-                return `<button class="autocomplete-item${isActive}" type="button" data-index="${idx}">${escapeHtml(candidate)}</button>`;
+                const detail = candidate.detail
+                    ? `<span class="autocomplete-detail">${escapeHtml(candidate.detail)}</span>`
+                    : '';
+                return `<button class="autocomplete-item${isActive}" type="button" data-index="${idx}"><span class="autocomplete-label">${escapeHtml(candidate.label)}</span>${detail}</button>`;
             }).join('');
 
             popup.innerHTML = itemsHtml;
@@ -1915,11 +1981,43 @@
             const wordStart = autocompleteState.wordStart;
             const caret = getCaretOffset(element);
 
-            const nextText = text.slice(0, wordStart) + candidate + text.slice(caret);
-            const nextCaret = wordStart + candidate.length;
-
-            updateSingleLine(element, nextText, nextCaret);
+            replaceWordWithAutocompleteText(element, wordStart, caret, candidate.insertText || candidate.label || '');
             hideAutocomplete();
+        }
+
+        function replaceWordWithAutocompleteText(element, wordStart, caret, insertText) {
+            const text = lineTextFromElement(element);
+            const normalized = String(insertText || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            if (!normalized.includes('\n')) {
+                const nextText = text.slice(0, wordStart) + normalized + text.slice(caret);
+                updateSingleLine(element, nextText, wordStart + normalized.length);
+                return;
+            }
+
+            const lineNumber = Number(element.dataset.line || 1);
+            const before = text.slice(0, wordStart);
+            const after = text.slice(caret);
+            const parts = normalized.split('\n');
+            const insertedCount = parts.length - 1;
+            const firstLine = before + parts[0];
+            const lastLineNumber = lineNumber + insertedCount;
+
+            state.cache.set(lineNumber, firstLine);
+            shiftCachedLines(lineNumber + 1, insertedCount);
+            post({ type: 'lineChanged', lineNumber, text: firstLine });
+
+            for (let i = 1; i < parts.length; i++) {
+                const nextText = i === parts.length - 1 ? parts[i] + after : parts[i];
+                const nextLineNumber = lineNumber + i;
+                state.cache.set(nextLineNumber, nextText);
+                post({ type: 'insertLine', lineNumber: nextLineNumber, text: nextText });
+            }
+
+            state.lineCount += insertedCount;
+            setupVirtualHeight();
+            post({ type: 'contentChanged' });
+            queueRender(true);
+            setTimeout(() => focusLine(lastLineNumber, parts[parts.length - 1]?.length || 0), 0);
         }
 
         function openFindPanel() {
@@ -2052,6 +2150,13 @@
                     break;
                 case 'updateOptions':
                     applyOptions(msg);
+                    break;
+                case 'updateSnippets':
+                    state.snippets = Array.isArray(msg.snippets) ? msg.snippets : [];
+                    if (autocompleteState.isOpen) {
+                        const element = autocompleteState.element;
+                        if (element) triggerAutocomplete(element);
+                    }
                     break;
                 case 'triggerFind':
                     openFindPanel();

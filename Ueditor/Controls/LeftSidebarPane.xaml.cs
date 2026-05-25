@@ -27,6 +27,7 @@ namespace Ueditor.Controls
         public event RoutedEventHandler? FavoritesTabClick;
         public event DoubleTappedEventHandler? SnippetItemDoubleTapped;
         public event RoutedEventHandler? DeleteSnippetClick;
+        public event RoutedEventHandler? EditSnippetClick;
         public event RoutedEventHandler? AddSnippetClick;
         public event DoubleTappedEventHandler? GitFileDoubleTapped;
         public event RoutedEventHandler? GitStageToggleClick;
@@ -199,6 +200,7 @@ namespace Ueditor.Controls
         private void OnFavoritesTabClick(object sender, RoutedEventArgs e) => FavoritesTabClick?.Invoke(sender, e);
         private void OnSnippetItemDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => SnippetItemDoubleTapped?.Invoke(sender, e);
         private void OnDeleteSnippetClick(object sender, RoutedEventArgs e) => DeleteSnippetClick?.Invoke(sender, e);
+        private void OnEditSnippetClick(object sender, RoutedEventArgs e) => EditSnippetClick?.Invoke(sender, e);
         private void OnAddSnippetClick(object sender, RoutedEventArgs e) => AddSnippetClick?.Invoke(sender, e);
         private void OnGitFileDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => GitFileDoubleTapped?.Invoke(sender, e);
         private void OnGitStageToggleClick(object sender, RoutedEventArgs e) => GitStageToggleClick?.Invoke(sender, e);

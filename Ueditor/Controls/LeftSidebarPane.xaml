@@ -381,9 +381,13 @@
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                                     <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Keyword}" FontSize="9" Foreground="{ThemeResource SystemControlForegroundAccentBrush}" TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Text="{Binding Description}" FontSize="9" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" TextTrimming="CharacterEllipsis"/>
                                                 </StackPanel>
-                                                <Button Grid.Column="1" Content="&#xE74D;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnDeleteSnippetClick" Tag="{Binding Title}" Padding="3" VerticalAlignment="Center" FontSize="10"/>
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                                                    <Button Content="&#xE70F;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnEditSnippetClick" Padding="3" FontSize="10" ToolTipService.ToolTip="수정"/>
+                                                    <Button Content="&#xE74D;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnDeleteSnippetClick" Tag="{Binding Title}" Padding="3" FontSize="10" ToolTipService.ToolTip="삭제"/>
+                                                </StackPanel>
                                             </Grid>
                                         </DataTemplate>
                                     </ListView.ItemTemplate>

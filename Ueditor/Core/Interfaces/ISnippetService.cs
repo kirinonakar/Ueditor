@@ -6,6 +6,7 @@ namespace Ueditor.Core.Interfaces
     public class SnippetItem
     {
         public string Title { get; set; } = string.Empty;
+        public string Keyword { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
     }
@@ -16,6 +17,7 @@ namespace Ueditor.Core.Interfaces
         Task SaveSnippetsAsync();
         List<SnippetItem> GetSnippets();
         Task AddSnippetAsync(SnippetItem item);
+        Task UpdateSnippetAsync(string originalTitle, SnippetItem item);
         Task DeleteSnippetAsync(string title);
     }
 }

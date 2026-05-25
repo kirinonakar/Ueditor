@@ -238,6 +238,7 @@ namespace Ueditor.Controls
         {
             var session = new TerminalSession(workingDirectory);
             _terminalSessions.Add(session);
+            string shellExecutable = ResolvePowerShellExecutable();
 
             bool useNativeTerminalHost = true;
             if (!useNativeTerminalHost)
@@ -252,7 +253,7 @@ namespace Ueditor.Controls
             {
                 var startInfo = new ProcessStartInfo
                 {
-                    FileName = "powershell.exe",
+                    FileName = shellExecutable,
                     Arguments = $"-NoExit -Command \"$Host.UI.RawUI.WindowTitle = '{session.WindowTitle}'\"",
                     WorkingDirectory = workingDirectory,
                     UseShellExecute = true,
@@ -340,7 +341,7 @@ namespace Ueditor.Controls
                 TerminalOutputTextBox.Visibility = Visibility.Visible;
                 TerminalInputAreaGrid.Visibility = Visibility.Visible;
 
-                StartRedirectedTerminal(session);
+                StartRedirectedTerminal(session, shellExecutable);
                 SetActiveTerminalSession(session);
             }
         }
@@ -358,7 +359,7 @@ namespace Ueditor.Controls
             }
         }
 
-        private void StartRedirectedTerminal(TerminalSession session)
+        private void StartRedirectedTerminal(TerminalSession session, string? shellExecutable = null)
         {
             session.IsNative = false;
             session.WindowHandle = IntPtr.Zero;
@@ -368,7 +369,7 @@ namespace Ueditor.Controls
             {
                 var startInfo = new ProcessStartInfo
                 {
-                    FileName = "powershell.exe",
+                    FileName = shellExecutable ?? ResolvePowerShellExecutable(),
                     Arguments = "-NoLogo -NoProfile -NoExit -ExecutionPolicy Bypass -Command \"[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; [Console]::InputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8\"",
                     WorkingDirectory = session.WorkingDirectory,
                     UseShellExecute = false,
@@ -490,6 +491,63 @@ namespace Ueditor.Controls
             {
                 Debug.WriteLine($"Failed to resize native terminal child window: {ex.Message}");
             }
+        }
+
+        private static string ResolvePowerShellExecutable()
+        {
+            string[] candidates =
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "PowerShell", "7", "pwsh.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "PowerShell", "7", "pwsh.exe"),
+                FindExecutableOnPath("pwsh.exe"),
+                "powershell.exe"
+            };
+
+            foreach (string candidate in candidates)
+            {
+                if (string.IsNullOrWhiteSpace(candidate))
+                {
+                    continue;
+                }
+
+                if (candidate.Equals("powershell.exe", StringComparison.OrdinalIgnoreCase) || File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            return "powershell.exe";
+        }
+
+        private static string FindExecutableOnPath(string fileName)
+        {
+            try
+            {
+                string? pathValue = Environment.GetEnvironmentVariable("PATH");
+                if (string.IsNullOrWhiteSpace(pathValue))
+                {
+                    return string.Empty;
+                }
+
+                foreach (string directory in pathValue.Split(Path.PathSeparator))
+                {
+                    if (string.IsNullOrWhiteSpace(directory))
+                    {
+                        continue;
+                    }
+
+                    string candidate = Path.Combine(directory.Trim(), fileName);
+                    if (File.Exists(candidate))
+                    {
+                        return candidate;
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return string.Empty;
         }
 
         public void QueueEmbeddedTerminalResize()

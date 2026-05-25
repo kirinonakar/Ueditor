@@ -179,6 +179,7 @@ namespace Ueditor
                 LeftSidebarTabView,
                 () => this.Content.XamlRoot,
                 InsertTextIntoActiveEditorAsync,
+                SyncSnippetsToOpenEditorsAsync,
                 ShowErrorMessage);
             _llmAssistantController = new LlmAssistantController(
                 _llmService,
@@ -769,6 +770,7 @@ namespace Ueditor
                     _settingsService.CurrentSettings,
                     isReadOnly,
                     session.GetLines(1, InitialEditorLineWarmupCount));
+                await bridge.UpdateSnippetsAsync(_snippetService.GetSnippets());
             };
 
             bridge.LinesRequested += async (requestId, startLine, count) =>
@@ -1601,6 +1603,18 @@ namespace Ueditor
                     };
                     string updateJson = System.Text.Json.JsonSerializer.Serialize(updateMsg);
                     grp.WebView.CoreWebView2.PostWebMessageAsJson(updateJson);
+                }
+            }
+        }
+
+        private async Task SyncSnippetsToOpenEditorsAsync()
+        {
+            var snippets = _snippetService.GetSnippets();
+            foreach (var grp in _tabBridges.Values)
+            {
+                if (grp.Bridge != null)
+                {
+                    await grp.Bridge.UpdateSnippetsAsync(snippets);
                 }
             }
         }

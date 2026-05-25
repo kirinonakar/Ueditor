@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
+using Ueditor.Core.Interfaces;
 using Ueditor.Core.Models;
 using Windows.ApplicationModel.DataTransfer;
 
@@ -283,6 +284,22 @@ namespace Ueditor.Editor
         public async Task InsertTextAsync(string text)
         {
             var msg = new { action = "insertText", text = text };
+            await SendMessageAsync(msg);
+        }
+
+        public async Task UpdateSnippetsAsync(IReadOnlyList<SnippetItem> snippets)
+        {
+            var msg = new
+            {
+                action = "updateSnippets",
+                snippets = snippets.Select(s => new
+                {
+                    title = s.Title ?? string.Empty,
+                    keyword = s.Keyword ?? string.Empty,
+                    description = s.Description ?? string.Empty,
+                    content = s.Content ?? string.Empty
+                }).ToArray()
+            };
             await SendMessageAsync(msg);
         }
 
