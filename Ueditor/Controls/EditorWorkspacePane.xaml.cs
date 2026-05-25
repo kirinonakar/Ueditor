@@ -106,6 +106,9 @@ namespace Ueditor.Controls
                 EditorColumn2.Width = new GridLength(0);
                 EditorSplitterColumn.Width = new GridLength(0);
 
+                Grid.SetRow(EditorPane2, 0);
+                Grid.SetColumn(EditorPane2, 2);
+
                 EditorSplitter.Visibility = Visibility.Collapsed;
                 EditorTabView2.Visibility = Visibility.Collapsed;
 
@@ -130,15 +133,8 @@ namespace Ueditor.Controls
                 EditorRow2.Height = new GridLength(0);
                 EditorSplitterRow.Height = new GridLength(0);
 
-                double totalWidth = EditorSplitGrid.ActualWidth;
-                double halfWidth = (totalWidth - 4) / 2;
-                if (halfWidth < 100)
-                {
-                    halfWidth = 300;
-                }
-
-                EditorColumn1.Width = new GridLength(halfWidth);
-                EditorColumn2.Width = new GridLength(halfWidth);
+                EditorColumn1.Width = new GridLength(1, GridUnitType.Star);
+                EditorColumn2.Width = new GridLength(1, GridUnitType.Star);
                 EditorSplitterColumn.Width = new GridLength(4);
 
                 Grid.SetRow(EditorSplitter, 0);
@@ -150,8 +146,8 @@ namespace Ueditor.Controls
                 EditorSplitter.HorizontalAlignment = HorizontalAlignment.Stretch;
                 EditorSplitter.VerticalAlignment = VerticalAlignment.Stretch;
 
-                Grid.SetRow(EditorTabView2, 0);
-                Grid.SetColumn(EditorTabView2, 2);
+                Grid.SetRow(EditorPane2, 0);
+                Grid.SetColumn(EditorPane2, 2);
 
                 EditorSplitter.Visibility = Visibility.Visible;
                 EditorTabView2.Visibility = Visibility.Visible;
@@ -162,15 +158,8 @@ namespace Ueditor.Controls
             {
                 _isVerticalSplit = false;
 
-                double totalHeight = EditorSplitGrid.ActualHeight;
-                double halfHeight = (totalHeight - 4) / 2;
-                if (halfHeight < 100)
-                {
-                    halfHeight = 300;
-                }
-
-                EditorRow1.Height = new GridLength(halfHeight);
-                EditorRow2.Height = new GridLength(halfHeight);
+                EditorRow1.Height = new GridLength(1, GridUnitType.Star);
+                EditorRow2.Height = new GridLength(1, GridUnitType.Star);
                 EditorSplitterRow.Height = new GridLength(4);
 
                 EditorColumn1.Width = new GridLength(1, GridUnitType.Star);
@@ -186,8 +175,8 @@ namespace Ueditor.Controls
                 EditorSplitter.HorizontalAlignment = HorizontalAlignment.Stretch;
                 EditorSplitter.VerticalAlignment = VerticalAlignment.Stretch;
 
-                Grid.SetRow(EditorTabView2, 2);
-                Grid.SetColumn(EditorTabView2, 0);
+                Grid.SetRow(EditorPane2, 2);
+                Grid.SetColumn(EditorPane2, 0);
 
                 EditorSplitter.Visibility = Visibility.Visible;
                 EditorTabView2.Visibility = Visibility.Visible;
@@ -247,21 +236,8 @@ namespace Ueditor.Controls
                 return;
             }
 
-            if (EditorTabView.TabItems.Count > 1)
-            {
-                var activeItem = (TabViewItem)EditorTabView.SelectedItem;
-                if (activeItem != null)
-                {
-                    EditorTabView.TabItems.Remove(activeItem);
-                    EditorTabView2.TabItems.Add(activeItem);
-                    EditorTabView2.SelectedItem = activeItem;
-                }
-            }
-            else
-            {
-                ActiveTabView = EditorTabView2;
-                openNewTab();
-            }
+            ActiveTabView = EditorTabView2;
+            openNewTab();
         }
 
         private void EnsureTerminalPanelVisible()
@@ -318,8 +294,8 @@ namespace Ueditor.Controls
             if (sender is UIElement splitter)
             {
                 _isDraggingEditorSplitter = true;
-                _editorSplitterStartWidth = EditorColumn1.Width.Value;
-                _editorSplitterStartHeight = EditorRow1.Height.Value;
+                _editorSplitterStartWidth = EditorColumn1.ActualWidth;
+                _editorSplitterStartHeight = EditorRow1.ActualHeight;
                 var pt = e.GetCurrentPoint(EditorSplitGrid).Position;
                 _editorSplitterStartPointerX = pt.X;
                 _editorSplitterStartPointerY = pt.Y;
@@ -338,18 +314,22 @@ namespace Ueditor.Controls
                     double deltaX = pt.X - _editorSplitterStartPointerX;
                     double newWidth = _editorSplitterStartWidth + deltaX;
                     double totalWidth = EditorSplitGrid.ActualWidth;
-                    newWidth = Math.Clamp(newWidth, 100, totalWidth - 100);
-                    EditorColumn1.Width = new GridLength(newWidth);
-                    EditorColumn2.Width = new GridLength(totalWidth - newWidth - 4);
+                    newWidth = Math.Clamp(newWidth, 100, totalWidth - 104);
+                    double ratio = newWidth / (totalWidth - 4);
+                    ratio = Math.Clamp(ratio, 0.05, 0.95);
+                    EditorColumn1.Width = new GridLength(ratio, GridUnitType.Star);
+                    EditorColumn2.Width = new GridLength(1.0 - ratio, GridUnitType.Star);
                 }
                 else
                 {
                     double deltaY = pt.Y - _editorSplitterStartPointerY;
                     double newHeight = _editorSplitterStartHeight + deltaY;
                     double totalHeight = EditorSplitGrid.ActualHeight;
-                    newHeight = Math.Clamp(newHeight, 100, totalHeight - 100);
-                    EditorRow1.Height = new GridLength(newHeight);
-                    EditorRow2.Height = new GridLength(totalHeight - newHeight - 4);
+                    newHeight = Math.Clamp(newHeight, 100, totalHeight - 104);
+                    double ratio = newHeight / (totalHeight - 4);
+                    ratio = Math.Clamp(ratio, 0.05, 0.95);
+                    EditorRow1.Height = new GridLength(ratio, GridUnitType.Star);
+                    EditorRow2.Height = new GridLength(1.0 - ratio, GridUnitType.Star);
                 }
 
                 e.Handled = true;

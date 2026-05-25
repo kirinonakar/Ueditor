@@ -1930,9 +1930,45 @@ namespace Ueditor
             return EditorWorkspace.GetCurrentActiveTabView();
         }
 
+        private void OpenSplitNewTab()
+        {
+            var activeTabItem = EditorTabView.SelectedItem as TabViewItem;
+            OpenedTab? activeTab = null;
+            if (activeTabItem != null && activeTabItem.Tag is string tabId)
+            {
+                activeTab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
+            }
+
+            if (activeTab != null)
+            {
+                string? path = activeTab.FilePath;
+                string content = "";
+                if (_editorSessions.TryGetValue(activeTab.Id, out var session))
+                {
+                    content = session.GetText();
+                }
+                else
+                {
+                    content = activeTab.Content ?? "";
+                }
+
+                OpenNewTab(
+                    filePath: path,
+                    content: content,
+                    isReadOnly: false,
+                    encodingName: activeTab.EncodingName,
+                    encodingWasAutoDetected: activeTab.EncodingWasAutoDetected
+                );
+            }
+            else
+            {
+                OpenNewTab();
+            }
+        }
+
         private void OnSplitNoneClick(object sender, RoutedEventArgs e) => EditorWorkspace.SetSplitMode(EditorSplitMode.None, () => OpenNewTab());
-        private void OnSplitVerticalClick(object sender, RoutedEventArgs e) => EditorWorkspace.SetSplitMode(EditorSplitMode.Vertical, () => OpenNewTab());
-        private void OnSplitHorizontalClick(object sender, RoutedEventArgs e) => EditorWorkspace.SetSplitMode(EditorSplitMode.Horizontal, () => OpenNewTab());
+        private void OnSplitVerticalClick(object sender, RoutedEventArgs e) => EditorWorkspace.SetSplitMode(EditorSplitMode.Vertical, () => OpenSplitNewTab());
+        private void OnSplitHorizontalClick(object sender, RoutedEventArgs e) => EditorWorkspace.SetSplitMode(EditorSplitMode.Horizontal, () => OpenSplitNewTab());
 
         private void OnEditorTabView2AddTabClick(TabView sender, object args)
         {

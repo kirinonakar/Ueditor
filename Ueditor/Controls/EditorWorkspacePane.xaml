@@ -68,7 +68,7 @@
                   PointerMoved="OnEditorSplitterPointerMoved"
                   PointerReleased="OnEditorSplitterPointerReleased"/>
 
-            <Grid Grid.Row="0" Grid.Column="2" Visibility="{Binding ElementName=EditorTabView2, Path=Visibility}">
+            <Grid x:Name="EditorPane2" Grid.Row="0" Grid.Column="2" Visibility="{Binding ElementName=EditorTabView2, Path=Visibility}">
                 <TabView x:Name="EditorTabView2"
                          VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
                          Visibility="Collapsed"
