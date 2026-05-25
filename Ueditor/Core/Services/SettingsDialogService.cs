@@ -380,12 +380,93 @@ namespace Ueditor.Core.Services
 
             toolbarSection.Children.Add(orderList);
 
+            var aboutSection = CreateSection();
+            aboutSection.HorizontalAlignment = HorizontalAlignment.Stretch;
+            aboutSection.Spacing = 12;
+            aboutSection.Padding = new Thickness(16, 20, 16, 16);
+
+            var iconImage = new Image
+            {
+                Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri("ms-appx:///Assets/Ueditor.png")),
+                Width = 80,
+                Height = 80,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            aboutSection.Children.Add(iconImage);
+
+            string appVersion = GetAppVersion();
+            var titleText = new TextBlock
+            {
+                Text = $"Ueditor (v{appVersion})",
+                FontSize = 18,
+                FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 4)
+            };
+            aboutSection.Children.Add(titleText);
+
+            var descText = new TextBlock
+            {
+                Text = getString("SettingsAboutDescription", "강력하고 가벼운 텍스트 및 마크다운 에디터입니다.\n실시간 미리보기, 코드 및 수식 템플릿, 터미널 인터페이스, Git 통합, AI Assistant 등을 지원합니다."),
+                FontSize = 11.5,
+                TextWrapping = TextWrapping.Wrap,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextAlignment = TextAlignment.Center,
+                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray),
+                Margin = new Thickness(0, 4, 0, 16)
+            };
+            aboutSection.Children.Add(descText);
+
+            var separator = new Border
+            {
+                Height = 1,
+                Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(40, 128, 128, 128)),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Margin = new Thickness(20, 0, 20, 12)
+            };
+            aboutSection.Children.Add(separator);
+
+            var githubHeader = new TextBlock
+            {
+                Text = getString("SettingsAboutProjectGitHub", "Project GitHub"),
+                FontSize = 11,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            aboutSection.Children.Add(githubHeader);
+
+            var githubLink = new HyperlinkButton
+            {
+                Content = "https://github.com/kirinonakar/Ueditor",
+                NavigateUri = new Uri("https://github.com/kirinonakar/Ueditor"),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Padding = new Thickness(8, 4, 8, 4),
+                Margin = new Thickness(0, 0, 0, 12)
+            };
+            aboutSection.Children.Add(githubLink);
+
+            var copyrightText = new TextBlock
+            {
+                Text = "Copyright © 2026 kirinonakar. All rights reserved.",
+                FontSize = 10,
+                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            aboutSection.Children.Add(copyrightText);
+
             settingsPivot.Items.Add(new PivotItem { Header = new TextBlock { Text = getString("SettingsAppearance", "모양"), FontSize = 13 }, Content = new ScrollViewer { Content = appearanceSection } });
             settingsPivot.Items.Add(new PivotItem { Header = new TextBlock { Text = getString("SettingsEditing", "편집"), FontSize = 13 }, Content = new ScrollViewer { Content = editorSection } });
             settingsPivot.Items.Add(new PivotItem { Header = new TextBlock { Text = getString("SettingsToolbarCustomization", "툴바"), FontSize = 13 }, Content = new ScrollViewer { Content = toolbarSection } });
             settingsPivot.Items.Add(new PivotItem { Header = new TextBlock { Text = getString("SettingsLLM", "LLM"), FontSize = 13 }, Content = new ScrollViewer { Content = llmSection } });
+            settingsPivot.Items.Add(new PivotItem { Header = new TextBlock { Text = getString("SettingsAbout", "정보"), FontSize = 13 }, Content = new ScrollViewer { Content = aboutSection } });
 
             ApplyCompactStyleToLogicalTree(settingsPivot);
+
+            // Re-apply custom font sizes for About tab to prevent them being flattened by compact style
+            titleText.FontSize = 18;
+            descText.FontSize = 11;
+            copyrightText.FontSize = 9.5;
 
             var dialog = new ContentDialog
             {
@@ -823,6 +904,58 @@ namespace Ueditor.Core.Services
 
                 ApplyCompactStyleToVisualTree(child);
             }
+        }
+
+        private static string GetAppVersion()
+        {
+            try
+            {
+                // Try getting it from the packaged identity if running under package context
+                try
+                {
+                    var package = Windows.ApplicationModel.Package.Current;
+                    var version = package.Id.Version;
+                    return $"{version.Major}.{version.Minor}.{version.Build}.{version.Revision}";
+                }
+                catch (System.InvalidOperationException)
+                {
+                    // Not running in a packaged context
+                }
+
+                // Search for Package.appxmanifest in the directory tree starting from AppContext.BaseDirectory
+                string dir = AppContext.BaseDirectory;
+                while (!string.IsNullOrEmpty(dir))
+                {
+                    string manifestPath = System.IO.Path.Combine(dir, "Package.appxmanifest");
+                    if (System.IO.File.Exists(manifestPath))
+                    {
+                        var doc = new System.Xml.XmlDocument();
+                        doc.Load(manifestPath);
+                        var nsmgr = new System.Xml.XmlNamespaceManager(doc.NameTable);
+                        nsmgr.AddNamespace("f", "http://schemas.microsoft.com/appx/manifest/foundation/windows10");
+                        var identityNode = doc.SelectSingleNode("//f:Identity", nsmgr) ?? doc.SelectSingleNode("//Identity");
+                        if (identityNode is System.Xml.XmlElement element)
+                        {
+                            string version = element.GetAttribute("Version");
+                            if (!string.IsNullOrEmpty(version))
+                            {
+                                return version;
+                            }
+                        }
+                    }
+                    string? parent = System.IO.Path.GetDirectoryName(dir);
+                    if (parent == dir || string.IsNullOrEmpty(parent))
+                    {
+                        break;
+                    }
+                    dir = parent;
+                }
+            }
+            catch
+            {
+                // Fallback
+            }
+            return "1.0.0.0";
         }
     }
 }

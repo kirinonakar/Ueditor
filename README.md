@@ -63,55 +63,6 @@ Designed for developers, writers, and power users, Ueditor provides a fluid, dis
 *   **Global Lookup:** Folder-wide multi-file search with Match Case, Whole Word, and Regex filtering.
 *   **Jump-to-Source:** Double-click search results to open the file and focus the exact line.
 
----
-
-## 🛠️ Technical Architecture
-
-Ueditor is built with clean, modular separation of concerns. Below is a high-level overview of the module hierarchy:
-
-*   **App Shell (`MainWindow`):** Owns the main container grid, toolbar components, side tab views, editor canvas, previewer splitters, and status controls.
-*   **Editor Model Module (`VirtualTextModel`):** Owns the line-based text model, range/edit APIs, search, encoding-aware file loading, and streaming save. It keeps editor state separate from the UI.
-*   **Editor Bridge Module (`MonacoBridge`):** Interfaces C# with the local HTML5/JS editor (`editor.html`). Handles IPC communication, viewport syncing, and line editing.
-*   **Terminal Module (`TerminalPane`):** Manages native console host redirection and UI integration.
-*   **Core Services:**
-    *   `FileService`: Manages file loading, saving, and line-offset indexing.
-    *   `GitService`: Communicates with the local Git CLI to map states, staging, and history.
-    *   `LLMService`: Handles chat queries and handles providers (`GeminiProvider`, `OpenAIProvider`, `LMStudioProvider`).
-    *   `CredentialService`: Securely hooks into Windows Credential Manager to protect API secrets.
-    *   `SettingsService`: Persists workspace and app preferences in `%USERPROFILE%\.ueditor\settings.json`.
-
-For a more comprehensive breakdown, please refer to [Ueditor/ARCHITECTURE.md](file:///d:/ASUNA/Tools/Visual_studio/Ueditor/Ueditor/ARCHITECTURE.md).
-
----
-
-## 📁 Repository Structure
-
-```
-Ueditor/
-├── .vs/                       # Visual Studio state folders
-├── Ueditor.slnx               # Modern Visual Studio Solution configuration
-└── Ueditor/
-    ├── ARCHITECTURE.md        # Technical architecture documentation
-    ├── App.xaml               # Application initialization markup
-    ├── App.xaml.cs            # Custom application startup logic
-    ├── MainWindow.xaml        # Main shell interface layout
-    ├── MainWindow.xaml.cs     # Main shell event handlers and UI logic
-    ├── app.manifest           # Application security manifests
-    ├── Controls/
-    │   ├── TerminalPane.xaml  # Embedded Terminal control
-    │   └── TerminalPane.cs    # Native console redirection and terminal IPC
-    ├── Core/
-    │   ├── Interfaces/        # Interface contracts
-    │   ├── Models/            # Domain models (Settings, Tabs, Terminal sessions)
-    │   └── Services/          # Service layer (Git, File, LLM, Credentials)
-    ├── Editor/
-    │   ├── MonacoBridge.cs    # C# WebView2 Javascript bridge
-    │   └── VirtualTextModel.cs # Virtual text model
-    └── WebResources/          # Local offline editor, preview, and KaTeX assets
-```
-
----
-
 ## 🚀 Getting Started
 
 ### Prerequisites

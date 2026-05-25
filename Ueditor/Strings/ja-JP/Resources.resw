@@ -507,4 +507,14 @@
   <data name="MoveTabRightTooltip" xml:space="preserve">
     <value>右のタブへ移動 (Ctrl/Shiftキーを押しながらクリックでタブ位置を変更)</value>
   </data>
+  <data name="SettingsAbout" xml:space="preserve">
+    <value>情報</value>
+  </data>
+  <data name="SettingsAboutDescription" xml:space="preserve">
+    <value>強力で軽量なテキスト＆Markdownエディタです。
+リアルタイムプレビュー、コードと数式のテンプレート、ターミナル、Git、AIアシスタントなどの機能を備えています。</value>
+  </data>
+  <data name="SettingsAboutProjectGitHub" xml:space="preserve">
+    <value>Project GitHub</value>
+  </data>
 </root>

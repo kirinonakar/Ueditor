@@ -506,4 +506,14 @@
   <data name="MoveTabRightTooltip" xml:space="preserve">
     <value>오른쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)</value>
   </data>
+  <data name="SettingsAbout" xml:space="preserve">
+    <value>정보</value>
+  </data>
+  <data name="SettingsAboutDescription" xml:space="preserve">
+    <value>강력하고 가벼운 텍스트 및 마크다운 에디터입니다.
+실시간 미리보기, 코드 및 수식 템플릿, 터미널 인터페이스, Git 통합, AI Assistant 등을 지원합니다.</value>
+  </data>
+  <data name="SettingsAboutProjectGitHub" xml:space="preserve">
+    <value>Project GitHub</value>
+  </data>
 </root>

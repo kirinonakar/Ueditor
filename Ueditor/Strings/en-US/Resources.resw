@@ -506,4 +506,14 @@
   <data name="MoveTabRightTooltip" xml:space="preserve">
     <value>Move to right tab (Ctrl/Shift + Click to move tab position)</value>
   </data>
+  <data name="SettingsAbout" xml:space="preserve">
+    <value>About</value>
+  </data>
+  <data name="SettingsAboutDescription" xml:space="preserve">
+    <value>A powerful and lightweight text &amp; markdown editor.
+Supports live preview, code &amp; formula templates, terminal interface, Git integration, and AI Assistant.</value>
+  </data>
+  <data name="SettingsAboutProjectGitHub" xml:space="preserve">
+    <value>Project GitHub</value>
+  </data>
 </root>
