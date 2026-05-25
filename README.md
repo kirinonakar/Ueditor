@@ -23,7 +23,7 @@
 
 **Ueditor** is a high-performance, elegant, and modern desktop text editor shell built for Windows. It marries the robust, native desktop capabilities of **WinUI 3 (.NET 10.0)** with the rendering flexibility of a **WebView2-based hybrid core**. 
 
-Designed for developers, writers, and power users, Ueditor provides a fluid, distraction-free environment that operates fully offline, requiring no external CDNs. It features standard workspace tools like a **live Markdown/HTML/LaTeX previewer**, a **built-in terminal**, **comprehensive Git integration**, **multi-provider secure AI assistance**, and a **virtualized editor core** capable of opening and editing files from small snippets to 200MB+ logs seamlessly.
+Designed for developers, writers, and power users, Ueditor provides a fluid, distraction-free environment. It features standard workspace tools like a **live Markdown/HTML/LaTeX previewer**, a **built-in terminal**, **comprehensive Git integration**, **multi-provider secure AI assistance**, and a **virtualized editor core** capable of opening and editing files from small snippets to 200MB+ logs seamlessly.
 
 ---
 
@@ -31,20 +31,16 @@ Designed for developers, writers, and power users, Ueditor provides a fluid, dis
 
 ### 📝 Virtualized Editor Core
 *   **Massive File Support:** Instantly open and edit extremely large files (200MB+ logs or source code) with zero lag, keeping the editor highly responsive.
-*   **Virtual Scrolling:** Renders only visible viewport lines plus an overscan buffer (`editor.html`), keeping DOM elements minimal and rendering fast.
-*   **Inline Editing:** Smooth, direct text editing synchronized with the high-performance C# `VirtualTextModel` backend in real-time.
-*   **Streaming Search:** Search inside massive files efficiently without loading the entire contents into memory.
-*   **Monaco-Bridge IPC:** Inter-process communication automatically syncs selection, font styles, word wrap, and formatting.
-*   **Rich Toolbar:** Quick-apply styling (bold, italic, underline, list, color, tables) to selected text.
+*   **Virtual Scrolling:** Renders only visible viewport lines plus an overscan buffer, keeping DOM elements minimal and rendering fast.
+*   **Rich Markdown Toolbar:** Quick-apply styling (bold, italic, underline, list, color, tables) to selected text.
 
 ### 🖥️ Native Premium Windows UI
-*   **Mica Backdrop & Dark Mode:** Native Windows themes using a high-fidelity Mica backdrop (`MicaBackdrop` Base).
+*   **Mica Backdrop & Dark Mode:** Native Windows themes using a high-fidelity Mica backdrop.
 *   **Multi-Pane Splitters:** Easily adjust sidebars, preview sections, and terminal panes via interactive C# split-controls.
-*   **Always on Top & Sticky Notes:** Pin your editor window or launch quick sticky notes directly from the toolbar.
+*   **Always on Top & Sticky Notes:** Pin your editor window or transform to sticky notes directly from the toolbar.
 
 ### 👁️ Real-Time Preview
-*   **Live Renderer:** View Markdown, HTML, or LaTeX (powered by KaTeX) in a split view or an external browser.
-*   **Theme Sync:** Automatically inherits editor fonts, colors, and system theme.
+*   **Live Renderer:** View Markdown, HTML, Aozora or LaTeX (powered by KaTeX) in a split view or an external browser.
 
 ### 🤖 Secure AI Assistant
 *   **Multi-Provider:** Connect with Gemini, OpenAI, or local LM Studio endpoints.
@@ -52,7 +48,7 @@ Designed for developers, writers, and power users, Ueditor provides a fluid, dis
 *   **Context Actions:** Quick AI actions (Explain, Refactor, Summarize, Fix) on selected text.
 
 ### 💻 Embedded Native Terminal
-*   **PowerShell & CMD:** Launch terminal sessions directly beneath your editor canvas.
+*   **PowerShell:** Launch terminal sessions directly beneath your editor canvas.
 *   **Path Syncing:** Automatically matches the terminal's working directory with the active workspace.
 
 ### 🌿 Git Panel
