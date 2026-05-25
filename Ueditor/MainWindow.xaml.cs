@@ -2156,27 +2156,18 @@ namespace Ueditor
         private async void WarnUnsavedAndClose(OpenedTab tab, TabViewItem tabItem)
         {
             var dialogTheme = GetCurrentElementTheme();
-            var dialog = new ContentDialog
-            {
-                Title = "변경 내용 저장",
-                Content = $"파일 '{tab.Title}'의 변경 내용이 저장되지 않았습니다. 닫으시겠습니까?",
-                PrimaryButtonText = "저장하지 않고 닫기",
-                SecondaryButtonText = "저장",
-                CloseButtonText = "취소",
-                DefaultButton = ContentDialogButton.Secondary,
-                RequestedTheme = dialogTheme,
-                PrimaryButtonStyle = CreateDestructiveDialogButtonStyle(dialogTheme),
-                XamlRoot = this.Content.XamlRoot
-            };
+            var result = await ShowUnsavedChangesDialogAsync(
+                "변경 내용 저장",
+                $"파일 '{tab.Title}'의 변경 내용이 저장되지 않았습니다. 닫으시겠습니까?",
+                "저장하지 않고 닫기",
+                "저장",
+                dialogTheme);
 
-            ConfigureDestructiveDialogButton(dialog, "저장하지 않고 닫기");
-
-            var result = await dialog.ShowAsync();
-            if (result == ContentDialogResult.Primary)
+            if (result == UnsavedChangesDialogResult.Discard)
             {
                 CloseTabAndCleanup(tab, tabItem);
             }
-            else if (result == ContentDialogResult.Secondary)
+            else if (result == UnsavedChangesDialogResult.Save)
             {
                 bool saved = await SaveTabAsync(tab);
                 if (saved)
@@ -2759,28 +2750,19 @@ namespace Ueditor
             if (dirtyTabs.Count == 0) return;
 
             var dialogTheme = GetCurrentElementTheme();
-            var dialog = new ContentDialog
-            {
-                Title = "저장되지 않은 변경 사항",
-                Content = $"저장되지 않은 탭이 {dirtyTabs.Count}개 있습니다. 종료하기 전에 저장하시겠습니까?",
-                PrimaryButtonText = "저장하지 않고 종료",
-                SecondaryButtonText = "저장하고 종료",
-                CloseButtonText = "취소",
-                DefaultButton = ContentDialogButton.Secondary,
-                RequestedTheme = dialogTheme,
-                PrimaryButtonStyle = CreateDestructiveDialogButtonStyle(dialogTheme),
-                XamlRoot = this.Content.XamlRoot
-            };
+            var result = await ShowUnsavedChangesDialogAsync(
+                "저장되지 않은 변경 사항",
+                $"저장되지 않은 탭이 {dirtyTabs.Count}개 있습니다. 종료하기 전에 저장하시겠습니까?",
+                "저장하지 않고 종료",
+                "저장하고 종료",
+                dialogTheme);
 
-            ConfigureDestructiveDialogButton(dialog, "저장하지 않고 종료");
-
-            var result = await dialog.ShowAsync();
-            if (result == ContentDialogResult.Primary)
+            if (result == UnsavedChangesDialogResult.Discard)
             {
                 _isClosingConfirmed = true;
                 this.Close();
             }
-            else if (result == ContentDialogResult.Secondary)
+            else if (result == UnsavedChangesDialogResult.Save)
             {
                 foreach (var tab in dirtyTabs)
                 {
@@ -2790,6 +2772,55 @@ namespace Ueditor
                 _isClosingConfirmed = true;
                 this.Close();
             }
+        }
+
+        private async Task<UnsavedChangesDialogResult> ShowUnsavedChangesDialogAsync(
+            string title,
+            string message,
+            string discardButtonText,
+            string saveButtonText,
+            ElementTheme theme)
+        {
+            var result = UnsavedChangesDialogResult.Cancel;
+            var dialog = new ContentDialog
+            {
+                Title = title,
+                RequestedTheme = theme,
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            dialog.Content = CreateUnsavedChangesDialogContent(
+                message,
+                discardButtonText,
+                saveButtonText,
+                theme,
+                () =>
+                {
+                    result = UnsavedChangesDialogResult.Discard;
+                    dialog.Hide();
+                },
+                () =>
+                {
+                    result = UnsavedChangesDialogResult.Save;
+                    dialog.Hide();
+                },
+                () =>
+                {
+                    result = UnsavedChangesDialogResult.Cancel;
+                    dialog.Hide();
+                },
+                out var defaultButton);
+
+            dialog.Opened += (_, __) => defaultButton.Focus(FocusState.Programmatic);
+            await dialog.ShowAsync();
+            return result;
+        }
+
+        private enum UnsavedChangesDialogResult
+        {
+            Cancel,
+            Discard,
+            Save
         }
 
         private ElementTheme GetCurrentElementTheme()
@@ -2809,73 +2840,171 @@ namespace Ueditor
                 : ElementTheme.Default;
         }
 
-        private static Style CreateDestructiveDialogButtonStyle(ElementTheme theme)
+        private static FrameworkElement CreateUnsavedChangesDialogContent(
+            string message,
+            string discardButtonText,
+            string saveButtonText,
+            ElementTheme theme,
+            Action discardAction,
+            Action saveAction,
+            Action cancelAction,
+            out Button defaultButton)
+        {
+            var root = new StackPanel
+            {
+                Spacing = 22,
+                MinWidth = 360,
+                MaxWidth = 520
+            };
+
+            root.Children.Add(new TextBlock
+            {
+                Text = message,
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            var buttonRow = new Grid
+            {
+                ColumnSpacing = 12
+            };
+            buttonRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            buttonRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var discardButton = CreateSolidDialogButton(discardButtonText, DialogButtonVisual.Destructive, theme);
+            discardButton.HorizontalAlignment = HorizontalAlignment.Left;
+            discardButton.Click += (_, __) => discardAction();
+            Grid.SetColumn(discardButton, 0);
+            buttonRow.Children.Add(discardButton);
+
+            var rightButtons = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 8,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
+            var cancelButton = new Button
+            {
+                Content = "취소",
+                MinWidth = 90,
+                Height = 32,
+                Padding = new Thickness(12, 0, 12, 0),
+                CornerRadius = new CornerRadius(4),
+                RequestedTheme = theme
+            };
+            cancelButton.Click += (_, __) => cancelAction();
+
+            var saveButton = CreateSolidDialogButton(saveButtonText, DialogButtonVisual.Accent, theme);
+            saveButton.Click += (_, __) => saveAction();
+            defaultButton = saveButton;
+
+            rightButtons.Children.Add(cancelButton);
+            rightButtons.Children.Add(saveButton);
+            Grid.SetColumn(rightButtons, 1);
+            buttonRow.Children.Add(rightButtons);
+
+            root.Children.Add(buttonRow);
+            root.KeyDown += (_, e) =>
+            {
+                if (e.Key == Windows.System.VirtualKey.Escape)
+                {
+                    e.Handled = true;
+                    cancelAction();
+                }
+                else if (e.Key == Windows.System.VirtualKey.Enter)
+                {
+                    e.Handled = true;
+                    saveAction();
+                }
+            };
+
+            return root;
+        }
+
+        private enum DialogButtonVisual
+        {
+            Destructive,
+            Accent
+        }
+
+        private static Button CreateSolidDialogButton(string text, DialogButtonVisual visual, ElementTheme theme)
         {
             bool dark = theme == ElementTheme.Dark;
-            var normalColor = dark
-                ? Windows.UI.Color.FromArgb(255, 179, 38, 30)
-                : Windows.UI.Color.FromArgb(255, 196, 43, 28);
-            var normalBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(normalColor);
+            Windows.UI.Color normalColor;
+            Windows.UI.Color hoverColor;
+            Windows.UI.Color pressedColor;
 
-            var style = new Style { TargetType = typeof(Button) };
-            style.Setters.Add(new Setter(Control.BackgroundProperty, normalBrush));
-            style.Setters.Add(new Setter(Control.ForegroundProperty, new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White)));
-            style.Setters.Add(new Setter(Control.BorderBrushProperty, normalBrush));
-            style.Setters.Add(new Setter(Control.CornerRadiusProperty, new CornerRadius(4)));
-            return style;
-        }
-
-        private static void ConfigureDestructiveDialogButton(ContentDialog dialog, string buttonText)
-        {
-            dialog.Opened += (_, __) =>
+            if (visual == DialogButtonVisual.Destructive)
             {
-                var button = FindDescendant<Button>(dialog, candidate =>
-                    string.Equals(candidate.Content?.ToString(), buttonText, StringComparison.Ordinal));
-                if (button == null) return;
-
-                bool dark = button.ActualTheme == ElementTheme.Dark;
-                var normalColor = dark
+                normalColor = dark
                     ? Windows.UI.Color.FromArgb(255, 179, 38, 30)
                     : Windows.UI.Color.FromArgb(255, 196, 43, 28);
-                var hoverColor = Windows.UI.Color.FromArgb(255, 209, 52, 56);
-                var pressedColor = dark
+                hoverColor = Windows.UI.Color.FromArgb(255, 209, 52, 56);
+                pressedColor = dark
                     ? Windows.UI.Color.FromArgb(255, 143, 29, 24)
                     : Windows.UI.Color.FromArgb(255, 168, 0, 0);
-
-                var normalBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(normalColor);
-                button.Background = normalBrush;
-                button.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
-                button.BorderBrush = normalBrush;
-                button.CornerRadius = new CornerRadius(4);
-                button.Resources["ButtonBackgroundPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(hoverColor);
-                button.Resources["ButtonForegroundPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
-                button.Resources["ButtonBorderBrushPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(hoverColor);
-                button.Resources["ButtonBackgroundPressed"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(pressedColor);
-                button.Resources["ButtonForegroundPressed"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
-                button.Resources["ButtonBorderBrushPressed"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(pressedColor);
-            };
-        }
-
-        private static T? FindDescendant<T>(DependencyObject root, Func<T, bool> predicate)
-            where T : DependencyObject
-        {
-            int count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root);
-            for (int i = 0; i < count; i++)
+            }
+            else
             {
-                var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, i);
-                if (child is T match && predicate(match))
-                {
-                    return match;
-                }
-
-                var descendant = FindDescendant(child, predicate);
-                if (descendant != null)
-                {
-                    return descendant;
-                }
+                normalColor = dark
+                    ? Windows.UI.Color.FromArgb(255, 96, 178, 255)
+                    : Windows.UI.Color.FromArgb(255, 0, 95, 184);
+                hoverColor = dark
+                    ? Windows.UI.Color.FromArgb(255, 117, 188, 255)
+                    : Windows.UI.Color.FromArgb(255, 0, 103, 192);
+                pressedColor = dark
+                    ? Windows.UI.Color.FromArgb(255, 64, 152, 232)
+                    : Windows.UI.Color.FromArgb(255, 0, 74, 152);
             }
 
-            return null;
+            var button = new Button
+            {
+                Content = text,
+                MinWidth = 90,
+                Height = 32,
+                Padding = new Thickness(12, 0, 12, 0),
+                CornerRadius = new CornerRadius(4),
+                RequestedTheme = theme
+            };
+
+            SetSolidButtonResources(button, normalColor, hoverColor, pressedColor);
+            ApplySolidButtonColors(button, normalColor);
+            button.PointerEntered += (_, __) => ApplySolidButtonColors(button, hoverColor);
+            button.PointerExited += (_, __) => ApplySolidButtonColors(button, normalColor);
+            button.PointerPressed += (_, __) => ApplySolidButtonColors(button, pressedColor);
+            button.PointerReleased += (_, __) => ApplySolidButtonColors(button, hoverColor);
+            return button;
+        }
+
+        private static void SetSolidButtonResources(
+            Button button,
+            Windows.UI.Color normalColor,
+            Windows.UI.Color hoverColor,
+            Windows.UI.Color pressedColor)
+        {
+            button.Resources["ButtonBackground"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(normalColor);
+            button.Resources["ButtonForeground"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
+            button.Resources["ButtonBorderBrush"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(normalColor);
+            button.Resources["ButtonBackgroundPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(hoverColor);
+            button.Resources["ButtonForegroundPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
+            button.Resources["ButtonBorderBrushPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(hoverColor);
+            button.Resources["ButtonBackgroundPressed"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(pressedColor);
+            button.Resources["ButtonForegroundPressed"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
+            button.Resources["ButtonBorderBrushPressed"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(pressedColor);
+        }
+
+        private static void ApplySolidButtonColors(Button button, Windows.UI.Color color)
+        {
+            void Apply()
+            {
+                var brush = new Microsoft.UI.Xaml.Media.SolidColorBrush(color);
+                button.Background = brush;
+                button.BorderBrush = brush;
+                button.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
+            }
+
+            Apply();
+            button.DispatcherQueue.TryEnqueue(Apply);
         }
 
         private void UpdateLanguageUI(OpenedTab tab)
