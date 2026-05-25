@@ -144,7 +144,7 @@ namespace Ueditor.Controls
 
             string context = BuildLlmContext(_lastSelectionText);
             await PreflightCheckAndRunAsync("수식 및 마크다운 개선", context,
-                () => _llmService.CustomPromptAsync("제공된 텍스트의 가독성, 마크다운 형식, 또는 LaTeX 수학 공식을 표준 문법에 맞게 개선하여 한글로 정제해 주십시오.", context));
+                () => _llmService.ImproveTextAsync(context));
         }
 
         private async void OnLlmCustomClick(object sender, RoutedEventArgs e)

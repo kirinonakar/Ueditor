@@ -299,6 +299,36 @@
   <data name="SettingsLlmApiKeyInfo" xml:space="preserve">
     <value>APIキーは設定ファイルではなく、Windowsの資格情報マネージャーに保存されます。空欄で保存すると、既存のキーが維持されます。LM Studioはデフォルトのローカルサーバー設定でAPIキーなしで動作します。</value>
   </data>
+  <data name="SettingsLlmSourceLanguage" xml:space="preserve">
+    <value>翻訳元言語 (Source Language)</value>
+  </data>
+  <data name="SettingsLlmTargetLanguage" xml:space="preserve">
+    <value>翻訳先言語 (Target Language)</value>
+  </data>
+  <data name="LlmLangAutoDetect" xml:space="preserve">
+    <value>自動検出 (Auto Detect)</value>
+  </data>
+  <data name="LlmLangKorean" xml:space="preserve">
+    <value>韓国語 (Korean)</value>
+  </data>
+  <data name="LlmLangEnglish" xml:space="preserve">
+    <value>英語 (English)</value>
+  </data>
+  <data name="LlmLangJapanese" xml:space="preserve">
+    <value>日本語 (Japanese)</value>
+  </data>
+  <data name="LlmLangChinese" xml:space="preserve">
+    <value>中国語 (Chinese)</value>
+  </data>
+  <data name="LlmLangFrench" xml:space="preserve">
+    <value>フランス語 (French)</value>
+  </data>
+  <data name="LlmLangSpanish" xml:space="preserve">
+    <value>スペイン語 (Spanish)</value>
+  </data>
+  <data name="LlmLangGerman" xml:space="preserve">
+    <value>ドイツ語 (German)</value>
+  </data>
   <data name="SelectionNoneBlocked" xml:space="preserve">
     <value>選択範囲: なし (ファイル全体の送信はブロックされています)</value>
   </data>

@@ -299,6 +299,36 @@
   <data name="SettingsLlmApiKeyInfo" xml:space="preserve">
     <value>API Key는 설정 파일에 저장하지 않고 Windows 자격 증명 관리자에 저장합니다. 비워두고 저장하면 기존 Key를 유지합니다. LM Studio는 기본 로컬 서버 설정에서 API Key 없이 사용할 수 있습니다.</value>
   </data>
+  <data name="SettingsLlmSourceLanguage" xml:space="preserve">
+    <value>번역 원본 언어 (Source Language)</value>
+  </data>
+  <data name="SettingsLlmTargetLanguage" xml:space="preserve">
+    <value>번역 대상 언어 (Target Language)</value>
+  </data>
+  <data name="LlmLangAutoDetect" xml:space="preserve">
+    <value>자동 감지 (Auto Detect)</value>
+  </data>
+  <data name="LlmLangKorean" xml:space="preserve">
+    <value>한국어 (Korean)</value>
+  </data>
+  <data name="LlmLangEnglish" xml:space="preserve">
+    <value>영어 (English)</value>
+  </data>
+  <data name="LlmLangJapanese" xml:space="preserve">
+    <value>일본어 (Japanese)</value>
+  </data>
+  <data name="LlmLangChinese" xml:space="preserve">
+    <value>중국어 (Chinese)</value>
+  </data>
+  <data name="LlmLangFrench" xml:space="preserve">
+    <value>프랑스어 (French)</value>
+  </data>
+  <data name="LlmLangSpanish" xml:space="preserve">
+    <value>스페인어 (Spanish)</value>
+  </data>
+  <data name="LlmLangGerman" xml:space="preserve">
+    <value>독일어 (German)</value>
+  </data>
   <data name="SelectionNoneBlocked" xml:space="preserve">
     <value>선택 영역: 없음 (전체 전송 차단 활성화)</value>
   </data>

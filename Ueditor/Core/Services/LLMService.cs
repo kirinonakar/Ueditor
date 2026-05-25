@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading.Tasks;
 using Ueditor.Core.Interfaces;
 using Ueditor.Core.Services.LLM;
@@ -64,9 +64,9 @@ namespace Ueditor.Core.Services
             string langCode = GetActiveLanguage();
             string systemPrompt = langCode switch
             {
-                "ja-JP" => "あなたは正確な要約のスペシャリストです。ユーザーが提供した選択範囲のみを要約します。翻訳、解説、改善、書き換えは行いません。主要な主張、目的、結論、ToDoリストを日本語で簡潔に整理し、コードの場合は実装の意図と主要な処理ステップのみを要約します。原文にない内容は絶対に追加しないでください。",
-                "en-US" => "You are an accurate summarization expert. Summarize only the provided selection in English. Do not translate, explain, improve, or rewrite. Summarize the key arguments, purposes, conclusions, and action items concisely. If the selection is code, summarize only the implementation intent and major steps. Do not introduce any details not explicitly mentioned in the source.",
-                _ => "당신은 정확한 요약 전문가입니다. 사용자가 제공한 선택 영역만 요약합니다. 번역, 해설, 개선, 재작성은 하지 않습니다. 핵심 주장/목적/결론/할 일을 한글로 간결하게 정리하고, 코드인 경우에는 구현 의도와 주요 처리 단계만 요약합니다. 원문에 없는 내용은 추가하지 않습니다."
+                "ja-JP" => "あなたは正確な要約のスペシャリストです。ユーザーが提供した選択範囲のみを要約します。翻訳、解説、改善、書き換えは行いません。主要な主張、目的、結論、ToDoリストを日本語で簡潔に整理し、コードの場合は実装の意図と主要な処理ステップのみを要約します。原文にない内容は絶対に追加しないでください。挨拶、導入説明、要約の結果を示すラベル（例：『以下は要約結果です』）などの余計なテキストを一切含めず、純粋な要約コンテンツだけを直接出力してください。",
+                "en-US" => "You are an accurate summarization expert. Summarize only the provided selection in English. Do not translate, explain, improve, or rewrite. Summarize the key arguments, purposes, conclusions, and action items concisely. If the selection is code, summarize only the implementation intent and major steps. Do not introduce any details not explicitly mentioned in the source. Do not include any greetings, introductory phrases, meta-commentary, or surrounding labels (e.g., 'Here is the summary:'). Output ONLY the final summarized text directly.",
+                _ => "당신은 정확한 요약 전문가입니다. 사용자가 제공한 선택 영역만 요약합니다. 번역, 해설, 개선, 재작성은 하지 않습니다. 핵심 주장/목적/결론/할 일을 한글로 간결하게 정리하고, 코드인 경우에는 구현 의도와 주요 처리 단계만 요약합니다. 원문에 없는 내용은 절대 추가하지 마십시오. 인사말, 도입부, 부가 설명, 혹은 '요약 결과입니다:'와 같은 불필요한 메타 안내 문구를 단 한 자도 출력하지 마십시오. 오직 정제된 핵심 요약 본문만 직접적으로 출력해 주십시오."
             };
 
             string userContent = langCode switch
@@ -81,12 +81,39 @@ namespace Ueditor.Core.Services
 
         public async Task<string> TranslateTextAsync(string text)
         {
+            var settings = _settingsService.CurrentSettings;
+            string srcLang = settings.LlmSourceLanguage ?? "Auto";
+            string tgtLang = settings.LlmTargetLanguage ?? "Korean";
+
+            string srcLangDisplay = srcLang switch
+            {
+                "Korean" => "한국어 (Korean)",
+                "English" => "영어 (English)",
+                "Japanese" => "일본어 (Japanese)",
+                "Chinese" => "중국어 (Chinese)",
+                "French" => "프랑스어 (French)",
+                "Spanish" => "스페인어 (Spanish)",
+                "German" => "독일어 (German)",
+                _ => "자동 감지 (Auto Detect)"
+            };
+
+            string tgtLangDisplay = tgtLang switch
+            {
+                "English" => "영어 (English)",
+                "Japanese" => "일본어 (Japanese)",
+                "Chinese" => "중국어 (Chinese)",
+                "French" => "프랑스어 (French)",
+                "Spanish" => "스페인어 (Spanish)",
+                "German" => "독일어 (German)",
+                _ => "한국어 (Korean)"
+            };
+
             string langCode = GetActiveLanguage();
             string systemPrompt = langCode switch
             {
-                "ja-JP" => "あなたはプロの翻訳家です。ユーザーが提供した選択範囲のみを翻訳します。日本語が主体のテキストであれば自然な英語に翻訳し、それ以外の言語が主体のテキストであれば自然な日本語に翻訳します。コードブロック、Markdown構文、URL、ファイルパス、変数名、関数名、コマンドなどはそのまま保持し、コメントや一般の文のみを翻訳します。解説や要約を付け加えずに、翻訳結果のみを出力してください。",
-                "en-US" => "You are a professional translator. Translate only the provided text selection. If the primary language is English, translate it to natural Korean. If the primary language is anything else, translate it to natural English. Preserve code blocks, Markdown syntax, URLs, file paths, variable names, function names, and commands intact, translating only comments and prose. Output only the translated text without adding any explanations or summaries.",
-                _ => "당신은 전문 번역가입니다. 사용자가 제공한 선택 영역만 번역합니다. 한국어가 주된 텍스트이면 자연스러운 영어로 번역하고, 그 외 언어가 주된 텍스트이면 자연스러운 한국어로 번역합니다. 코드 블록, 마크다운 문법, URL, 파일 경로, 변수명, 함수명, 명령어는 보존하고 주석과 일반 문장만 번역합니다. 설명이나 요약을 덧붙이지 말고 번역문만 출력합니다."
+                "ja-JP" => $"あなたはプロの翻訳家です。ユーザーが提供した選択範囲のみを翻訳します。入力テキストの言語（{srcLangDisplay}）を翻訳対象言語（{tgtLangDisplay}）に正確に翻訳してください。コードブロック、Markdown構文、URL、ファイルパス、変数名、関数名、コマンドなどはそのまま保持し、コメントや一般の文のみを翻訳します。挨拶、導入説明、解説、要約、『以下は翻訳結果です』といったメタテキスト、および不要なマークダウンのコードブロック包み（```）などは一切追加せず、純粋な翻訳結果のテキストのみを出力してください。",
+                "en-US" => $"You are a professional translator. Translate only the provided text selection. Translate the input text (Source: {srcLangDisplay}) to the target language (Target: {tgtLangDisplay}). Preserve code blocks, Markdown syntax, URLs, file paths, variable names, function names, and commands intact, translating only comments and prose. Do not add any greetings, explanations, summaries, introductory phrases, meta-commentary, or markdown code block wrapper backticks (e.g. ```) unless the original text itself contained them. Output ONLY the raw translated text directly.",
+                _ => $"당신은 전문 번역가입니다. 사용자가 제공한 선택 영역만 번역합니다. 입력 텍스트(원본 언어: {srcLangDisplay})를 대상 언어({tgtLangDisplay})로 정확하고 자연스럽게 번역하십시오. 코드 블록, 마크다운 문법, URL, 파일 경로, 변수명, 함수명, 명령어는 그대로 유지하고 주석과 일반 문장만 번역합니다. 인사말, 도입부 설명, 역주(해설), 요약, 혹은 '번역 결과:' 같은 불필요한 부가 문구나 메타 텍스트를 절대 출력하지 마십시오. 번역 결과를 마크다운 코드 블록(```)으로 감싸지 말고(원문에 백틱이 포함된 경우 제외), 오직 순수한 번역 결과 텍스트 자체만 즉시 출력하십시오."
             };
 
             string userContent = langCode switch
@@ -94,6 +121,26 @@ namespace Ueditor.Core.Services
                 "ja-JP" => $"[翻訳する選択範囲]\n{text}",
                 "en-US" => $"[Selection to Translate]\n{text}",
                 _ => $"[번역할 선택 영역]\n{text}"
+            };
+
+            return await ExecuteLlmAsync(systemPrompt, userContent);
+        }
+
+        public async Task<string> ImproveTextAsync(string text)
+        {
+            string langCode = GetActiveLanguage();
+            string systemPrompt = langCode switch
+            {
+                "ja-JP" => "あなたはドキュメント改善のスペシャリストです。提供されたテキストの可読性、Markdownの書式、LaTeXの数式（数式の文法や標準的な表現など）を正確に検証・改善し、洗練された日本語に修正してください。挨拶、余計な説明や『修正しました』などの補足テキスト、コードブロックでの強制的なラッピング（```）を一切行わず、改善・修正されたドキュメントのテキストのみを直接出力してください。",
+                "en-US" => "You are a document improvement specialist. Inspect and improve the readability, Markdown formatting, or LaTeX mathematical formulas of the provided text, and refine it beautifully in English. Do not include any greetings, explanations, conversational filler, introductory words, or wrap the response in markdown code blocks (e.g., ```). Output ONLY the refined text directly.",
+                _ => "당신은 문서 및 수식 정제 전문가입니다. 제공된 텍스트의 가독성, 마크다운(Markdown) 형식, 또는 LaTeX 수학 공식을 표준 문법과 예쁜 형식에 맞게 개선하여 가장 자연스럽고 깔끔한 한국어/한글로 정제해 주십시오. 인사말, 수정 내역 설명, '개선 완료된 결과입니다:'와 같은 부가 설명이나 메타 코멘트를 단 한 단어도 포함하지 마십시오. 백틱 기호(```)를 사용해 결과물 전체를 마크다운 코드 블록으로 래핑하지 마십시오(원래 원문이 코드 블록이었던 경우 제외). 오직 정제 및 개선된 결과물 본문만 순수하게 직접 출력하십시오."
+            };
+
+            string userContent = langCode switch
+            {
+                "ja-JP" => $"[改善する選択範囲]\n{text}",
+                "en-US" => $"[Selection to Improve]\n{text}",
+                _ => $"[개선할 선택 영역]\n{text}"
             };
 
             return await ExecuteLlmAsync(systemPrompt, userContent);

@@ -89,6 +89,48 @@ namespace Ueditor.Core.Services
             var llmApiKeyBox = new PasswordBox { PasswordChar = "●", PlaceholderText = "API Key 입력 (비워두면 저장된 Key 삭제)", HorizontalAlignment = HorizontalAlignment.Stretch };
             llmApiKeyBox.Password = await _llmService.GetApiKeyAsync(providerNames[providerIndex]);
 
+            var sourceLangCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
+            sourceLangCombo.Items.Add(getString("LlmLangAutoDetect", "자동 감지 (Auto Detect)"));
+            sourceLangCombo.Items.Add(getString("LlmLangKorean", "한국어 (Korean)"));
+            sourceLangCombo.Items.Add(getString("LlmLangEnglish", "영어 (English)"));
+            sourceLangCombo.Items.Add(getString("LlmLangJapanese", "일본어 (Japanese)"));
+            sourceLangCombo.Items.Add(getString("LlmLangChinese", "중국어 (Chinese)"));
+            sourceLangCombo.Items.Add(getString("LlmLangFrench", "프랑스어 (French)"));
+            sourceLangCombo.Items.Add(getString("LlmLangSpanish", "스페인어 (Spanish)"));
+            sourceLangCombo.Items.Add(getString("LlmLangGerman", "독일어 (German)"));
+
+            sourceLangCombo.SelectedIndex = settings.LlmSourceLanguage switch
+            {
+                "Korean" => 1,
+                "English" => 2,
+                "Japanese" => 3,
+                "Chinese" => 4,
+                "French" => 5,
+                "Spanish" => 6,
+                "German" => 7,
+                _ => 0
+            };
+
+            var targetLangCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
+            targetLangCombo.Items.Add(getString("LlmLangKorean", "한국어 (Korean)"));
+            targetLangCombo.Items.Add(getString("LlmLangEnglish", "영어 (English)"));
+            targetLangCombo.Items.Add(getString("LlmLangJapanese", "일본어 (Japanese)"));
+            targetLangCombo.Items.Add(getString("LlmLangChinese", "중국어 (Chinese)"));
+            targetLangCombo.Items.Add(getString("LlmLangFrench", "프랑스어 (French)"));
+            targetLangCombo.Items.Add(getString("LlmLangSpanish", "스페인어 (Spanish)"));
+            targetLangCombo.Items.Add(getString("LlmLangGerman", "독일어 (German)"));
+
+            targetLangCombo.SelectedIndex = settings.LlmTargetLanguage switch
+            {
+                "English" => 1,
+                "Japanese" => 2,
+                "Chinese" => 3,
+                "French" => 4,
+                "Spanish" => 5,
+                "German" => 6,
+                _ => 0
+            };
+
             var refreshLmStudioModelsButton = new Button { Content = getString("SettingsLlmLoadModels", "LM Studio 모델 불러오기"), HorizontalAlignment = HorizontalAlignment.Stretch };
             var llmModelStatusText = new TextBlock
             {
@@ -289,10 +331,7 @@ namespace Ueditor.Core.Services
             llmSection.Children.Add(llmProviderCombo);
             AddLabel(llmSection, getString("SettingsLlmEndpoint", "LLM API Endpoint"));
             llmSection.Children.Add(llmEndpointBox);
-            AddLabel(llmSection, getString("SettingsLlmModel", "LLM 모델명"));
-            llmSection.Children.Add(llmModelCombo);
-            llmSection.Children.Add(refreshLmStudioModelsButton);
-            llmSection.Children.Add(llmModelStatusText);
+
             AddLabel(llmSection, getString("SettingsLlmApiKey", "LLM API Key"));
             llmSection.Children.Add(llmApiKeyBox);
             llmSection.Children.Add(new TextBlock
@@ -300,6 +339,16 @@ namespace Ueditor.Core.Services
                 Text = getString("SettingsLlmApiKeyInfo", "API Key는 설정 파일에 저장하지 않고 Windows 자격 증명 관리자에 저장합니다. 비워두고 저장하면 기존 Key를 유지합니다. LM Studio는 기본 로컬 서버 설정에서 API Key 없이 사용할 수 있습니다."),
                 TextWrapping = TextWrapping.Wrap
             });
+
+            AddLabel(llmSection, getString("SettingsLlmModel", "LLM 모델명"));
+            llmSection.Children.Add(llmModelCombo);
+            llmSection.Children.Add(refreshLmStudioModelsButton);
+            llmSection.Children.Add(llmModelStatusText);
+
+            AddLabel(llmSection, getString("SettingsLlmSourceLanguage", "번역 원본 언어 (Source Language)"));
+            llmSection.Children.Add(sourceLangCombo);
+            AddLabel(llmSection, getString("SettingsLlmTargetLanguage", "번역 대상 언어 (Target Language)"));
+            llmSection.Children.Add(targetLangCombo);
 
             var settingsPivot = new Pivot { Width = 500, Height = 440, FontSize = 12 };
             var toolbarSection = CreateSection();
@@ -510,6 +559,29 @@ namespace Ueditor.Core.Services
             settings.LlmProvider = GetSelectedProviderName();
             settings.LlmEndpoint = llmEndpointBox.Text.Trim();
             settings.LlmModel = (llmModelCombo.SelectedItem as string ?? settings.LlmModel).Trim();
+
+            settings.LlmSourceLanguage = sourceLangCombo.SelectedIndex switch
+            {
+                1 => "Korean",
+                2 => "English",
+                3 => "Japanese",
+                4 => "Chinese",
+                5 => "French",
+                6 => "Spanish",
+                7 => "German",
+                _ => "Auto"
+            };
+
+            settings.LlmTargetLanguage = targetLangCombo.SelectedIndex switch
+            {
+                1 => "English",
+                2 => "Japanese",
+                3 => "Chinese",
+                4 => "French",
+                5 => "Spanish",
+                6 => "German",
+                _ => "Korean"
+            };
 
             if (settings.LlmProvider.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
             {
