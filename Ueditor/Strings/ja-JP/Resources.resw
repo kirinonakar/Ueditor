@@ -550,4 +550,58 @@
   <data name="SettingsAboutProjectGitHub" xml:space="preserve">
     <value>Project GitHub</value>
   </data>
+  <data name="SettingsShortcuts" xml:space="preserve">
+    <value>ショートカット</value>
+  </data>
+  <data name="SettingsShortcutsHeaderKey" xml:space="preserve">
+    <value>ショートカット</value>
+  </data>
+  <data name="SettingsShortcutsHeaderDesc" xml:space="preserve">
+    <value>説明</value>
+  </data>
+  <data name="ShortcutDescNewTab" xml:space="preserve">
+    <value>新規タブ</value>
+  </data>
+  <data name="ShortcutDescSave" xml:space="preserve">
+    <value>保存</value>
+  </data>
+  <data name="ShortcutDescOpen" xml:space="preserve">
+    <value>ファイルを開く</value>
+  </data>
+  <data name="ShortcutDescFind" xml:space="preserve">
+    <value>検索</value>
+  </data>
+  <data name="ShortcutDescClose" xml:space="preserve">
+    <value>タブを閉じる</value>
+  </data>
+  <data name="ShortcutDescPrint" xml:space="preserve">
+    <value>印刷</value>
+  </data>
+  <data name="ShortcutDescLeftPanel" xml:space="preserve">
+    <value>左パネル切り替え</value>
+  </data>
+  <data name="ShortcutDescRightPanel" xml:space="preserve">
+    <value>右パネル切り替え</value>
+  </data>
+  <data name="ShortcutDescTerminal" xml:space="preserve">
+    <value>ターミナル切り替え</value>
+  </data>
+  <data name="ShortcutDescUndo" xml:space="preserve">
+    <value>元に戻す</value>
+  </data>
+  <data name="ShortcutDescRedo" xml:space="preserve">
+    <value>やり直し</value>
+  </data>
+  <data name="ShortcutDescCopy" xml:space="preserve">
+    <value>コピー</value>
+  </data>
+  <data name="ShortcutDescPaste" xml:space="preserve">
+    <value>貼り付け</value>
+  </data>
+  <data name="ShortcutDescCut" xml:space="preserve">
+    <value>切り取り</value>
+  </data>
+  <data name="ShortcutDescAiPrompt" xml:space="preserve">
+    <value>AIプロンプト送信</value>
+  </data>
 </root>
