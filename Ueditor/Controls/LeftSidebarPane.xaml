@@ -152,7 +152,11 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
-                                                <FontIcon Grid.Column="0" Glyph="{Binding IconGlyph}" FontSize="13" Foreground="{ThemeResource SystemControlForegroundAccentBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <FontIcon Grid.Column="0" Glyph="{Binding IconGlyph}" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center">
+                                                    <FontIcon.Foreground>
+                                                        <SolidColorBrush Color="{Binding IconColor}"/>
+                                                    </FontIcon.Foreground>
+                                                </FontIcon>
                                                 <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                             </Grid>
                                         </DataTemplate>
@@ -198,7 +202,7 @@
                                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Text="{Binding Path}" FontSize="9" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" TextTrimming="CharacterEllipsis"/>
                                                 </StackPanel>
-                                                <ToggleButton Grid.Column="2" x:Name="FavoritePinToggle" Content="📌" FontSize="10" Background="Transparent" BorderBrush="Transparent" Padding="3" VerticalAlignment="Center" IsChecked="{Binding IsPinned}" Click="OnFavoritePinClick" Tag="{Binding Path}" ToolTipService.ToolTip="고정"/>
+                                                <Button Grid.Column="2" x:Name="FavoritePinButton" Content="📌" FontSize="10" Background="Transparent" BorderBrush="Transparent" Padding="3" VerticalAlignment="Center" Opacity="{Binding PinOpacity}" Click="OnFavoritePinClick" Tag="{Binding}" ToolTipService.ToolTip="고정"/>
                                                 <Button Grid.Column="3" Content="&#xE74D;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnRemoveFavoriteClick" Tag="{Binding Path}" Padding="3" VerticalAlignment="Center" FontSize="10"/>
                                             </Grid>
                                         </DataTemplate>

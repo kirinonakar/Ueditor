@@ -194,7 +194,9 @@ namespace Ueditor.Controls
             settings.FavoritePaths.Remove(path);
             settings.PinnedFavoritePaths.Remove(path);
             await _settingsService.SaveSettingsAsync(settings);
-            RefreshFavorites();
+            
+            bool showFiles = _leftSidebar.FavoritesFileTabButton.IsChecked == true;
+            RefreshFavorites(showFiles);
         }
 
         private async void OnFavoriteItemDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
@@ -223,14 +225,33 @@ namespace Ueditor.Controls
 
         private async void OnFavoritePinClick(object sender, RoutedEventArgs e)
         {
-            if (sender is not ToggleButton { Tag: string path } button)
+            if (sender is not Button button)
+            {
+                return;
+            }
+
+            string? path = null;
+            bool shouldPin = false;
+
+            if (button.Tag is FavoriteItem item)
+            {
+                path = item.Path;
+                shouldPin = !item.IsPinned;
+            }
+            else if (button.Tag is string p)
+            {
+                path = p;
+                var curSettings = _settingsService.CurrentSettings;
+                shouldPin = !curSettings.PinnedFavoritePaths.Contains(path);
+            }
+
+            if (string.IsNullOrEmpty(path))
             {
                 return;
             }
 
             var settings = _settingsService.CurrentSettings;
-            bool isPinned = button.IsChecked == true;
-            if (isPinned)
+            if (shouldPin)
             {
                 if (!settings.PinnedFavoritePaths.Contains(path))
                 {
@@ -243,7 +264,9 @@ namespace Ueditor.Controls
             }
 
             await _settingsService.SaveSettingsAsync(settings);
-            RefreshFavorites();
+            
+            bool showFiles = _leftSidebar.FavoritesFileTabButton.IsChecked == true;
+            RefreshFavorites(showFiles);
         }
 
         private void OnFavoritesTabClick(object sender, RoutedEventArgs e)

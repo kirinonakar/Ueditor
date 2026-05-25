@@ -20,6 +20,7 @@ namespace Ueditor.Core.Models
         public Windows.UI.Color IconColor => IsFolder
             ? Windows.UI.Color.FromArgb(255, 255, 195, 0)
             : Windows.UI.Color.FromArgb(255, 255, 215, 0);
+        public double PinOpacity => IsPinned ? 1.0 : 0.35;
     }
 
     public class GitFileItem

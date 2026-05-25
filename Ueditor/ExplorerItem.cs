@@ -12,6 +12,28 @@ namespace Ueditor
 
         public string IconGlyph => IsFolder ? "\uED41" : GetFileIconGlyph(Name);
 
+        public Windows.UI.Color IconColor => IsFolder
+            ? Windows.UI.Color.FromArgb(255, 255, 195, 0)
+            : GetFileIconColor();
+
+        private Windows.UI.Color GetFileIconColor()
+        {
+            try
+            {
+                if (Microsoft.UI.Xaml.Application.Current?.Resources != null &&
+                    Microsoft.UI.Xaml.Application.Current.Resources.TryGetValue("SystemControlForegroundAccentBrush", out var accent) &&
+                    accent is Microsoft.UI.Xaml.Media.SolidColorBrush scb)
+                {
+                    return scb.Color;
+                }
+            }
+            catch
+            {
+                // Fallback for thread access or unit test scenarios
+            }
+            return Windows.UI.Color.FromArgb(255, 0, 120, 215); // Fallback Accent Blue
+        }
+
         public ObservableCollection<ExplorerItem> Children { get; } = new ObservableCollection<ExplorerItem>();
 
         public bool HasUnrealizedChildren
