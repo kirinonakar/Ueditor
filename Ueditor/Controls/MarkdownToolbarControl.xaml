@@ -47,13 +47,13 @@
                 <Button x:Name="MarkdownHeadingButton" Tag="heading" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="제목">
                     <TextBlock Text="H" FontWeight="SemiBold" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                 </Button>
-                <Button x:Name="MarkdownBoldButton" Tag="bold" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="굵게 (Ctrl+B)">
+                <Button x:Name="MarkdownBoldButton" Tag="bold" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="굵게">
                     <TextBlock Text="B" FontWeight="Bold" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                 </Button>
-                <Button x:Name="MarkdownItalicButton" Tag="italic" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="기울임 (Ctrl+I)">
+                <Button x:Name="MarkdownItalicButton" Tag="italic" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="기울임">
                     <TextBlock Text="I" FontStyle="Italic" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                 </Button>
-                <Button x:Name="MarkdownUnderlineButton" Tag="underline" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="밑줄 (Ctrl+U)">
+                <Button x:Name="MarkdownUnderlineButton" Tag="underline" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="밑줄">
                     <TextBlock Text="U" TextDecorations="Underline" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                 </Button>
                 <Button x:Name="MarkdownHighlightButton" Tag="highlight" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="형광펜">

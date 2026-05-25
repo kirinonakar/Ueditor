@@ -165,13 +165,13 @@
     <value>Heading</value>
   </data>
   <data name="Bold" xml:space="preserve">
-    <value>Bold (Ctrl+B)</value>
+    <value>Bold</value>
   </data>
   <data name="Italic" xml:space="preserve">
-    <value>Italic (Ctrl+I)</value>
+    <value>Italic</value>
   </data>
   <data name="Underline" xml:space="preserve">
-    <value>Underline (Ctrl+U)</value>
+    <value>Underline</value>
   </data>
   <data name="Highlight" xml:space="preserve">
     <value>Highlight</value>

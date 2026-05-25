@@ -165,13 +165,13 @@
     <value>見出し</value>
   </data>
   <data name="Bold" xml:space="preserve">
-    <value>太字 (Ctrl+B)</value>
+    <value>太字</value>
   </data>
   <data name="Italic" xml:space="preserve">
-    <value>斜体 (Ctrl+I)</value>
+    <value>斜体</value>
   </data>
   <data name="Underline" xml:space="preserve">
-    <value>下線 (Ctrl+U)</value>
+    <value>下線</value>
   </data>
   <data name="Highlight" xml:space="preserve">
     <value>蛍光ペン</value>

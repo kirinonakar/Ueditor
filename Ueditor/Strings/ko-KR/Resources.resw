@@ -165,13 +165,13 @@
     <value>제목</value>
   </data>
   <data name="Bold" xml:space="preserve">
-    <value>굵게 (Ctrl+B)</value>
+    <value>굵게</value>
   </data>
   <data name="Italic" xml:space="preserve">
-    <value>기울임 (Ctrl+I)</value>
+    <value>기울임</value>
   </data>
   <data name="Underline" xml:space="preserve">
-    <value>밑줄 (Ctrl+U)</value>
+    <value>밑줄</value>
   </data>
   <data name="Highlight" xml:space="preserve">
     <value>형광펜</value>
