@@ -725,6 +725,12 @@ namespace Ueditor
                 {
                     switch (shortcutName)
                     {
+                        case "toggleLeftPanel":
+                            _ = ToggleLeftPanelAsync();
+                            break;
+                        case "toggleRightPanel":
+                            _ = ToggleRightPanelAsync();
+                            break;
                         case "newTab":
                             OpenNewTab();
                             break;
@@ -1563,6 +1569,22 @@ namespace Ueditor
         private void ApplyLeftSidebarVisibility(bool show)
         {
             _shellPanelLayoutService.ApplyLeftSidebarVisibility(show);
+        }
+
+        private async Task ToggleLeftPanelAsync()
+        {
+            bool show = LeftPanelToggle.IsChecked != true;
+            LeftPanelToggle.IsChecked = show;
+            ApplyLeftSidebarVisibility(show);
+            await SaveSidebarVisibilitySettingsAsync();
+        }
+
+        private async Task ToggleRightPanelAsync()
+        {
+            bool show = RightPanelToggle.IsChecked != true;
+            RightPanelToggle.IsChecked = show;
+            ApplyPreviewVisibility(show);
+            await SaveSidebarVisibilitySettingsAsync();
         }
 
         private async void OnToggleLeftPanelClick(object sender, RoutedEventArgs e)
@@ -3356,6 +3378,16 @@ namespace Ueditor
                 {
                     e.Handled = true;
                     OpenNewTab();
+                }
+                else if (e.Key == Windows.System.VirtualKey.Number1)
+                {
+                    e.Handled = true;
+                    _ = ToggleLeftPanelAsync();
+                }
+                else if (e.Key == Windows.System.VirtualKey.Number2)
+                {
+                    e.Handled = true;
+                    _ = ToggleRightPanelAsync();
                 }
                 else if (shift && e.Key == Windows.System.VirtualKey.F)
                 {

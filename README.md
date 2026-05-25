@@ -77,6 +77,8 @@ Ueditor is designed for speed and productivity, packing standard IDE shortcuts a
 | `Ctrl + F` | **Find/Search** - Opens the inline search bar within the editor. |
 | `Ctrl + W` | **Close Tab** - Closes the active editing tab. |
 | `Ctrl + P` | **Print Document** - Prints the active document using standard print flow. |
+| `Ctrl + 1` | **Toggle Left Panel** - Instantly shows or hides the left workspace sidebar (explorer, search, git, bookmarks). |
+| `Ctrl + 2` | **Toggle Right Panel** - Instantly shows or hides the right side live preview/assistant pane. |
 | `` Ctrl + ` `` | **Terminal Toggle** - Instantly shows or hides the native embedded terminal. |
 | `Ctrl + Z` | **Undo** - Reverts the last text editing action. |
 | `Ctrl + Y` | **Redo** - Re-applies the last reverted text editing action. |

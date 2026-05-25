@@ -433,6 +433,98 @@ namespace Ueditor.Core.Services
 
             toolbarSection.Children.Add(orderList);
 
+            var shortcutsSection = CreateSection();
+            shortcutsSection.Spacing = 4;
+            shortcutsSection.Padding = new Thickness(12, 12, 12, 12);
+
+            var headerKey = new TextBlock { Text = getString("SettingsShortcutsHeaderKey", "단축키"), FontWeight = Microsoft.UI.Text.FontWeights.Bold, FontSize = 11 };
+            var headerDesc = new TextBlock { Text = getString("SettingsShortcutsHeaderDesc", "설명"), FontWeight = Microsoft.UI.Text.FontWeights.Bold, FontSize = 11 };
+
+            var headerRow = new Grid { Padding = new Thickness(6, 6, 6, 6), Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(20, 128, 128, 128)), CornerRadius = new CornerRadius(4) };
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            Grid.SetColumn(headerKey, 0);
+            Grid.SetColumn(headerDesc, 1);
+            headerRow.Children.Add(headerKey);
+            headerRow.Children.Add(headerDesc);
+            shortcutsSection.Children.Add(headerRow);
+
+            var shortcutList = new List<(string Key, string Desc)>
+            {
+                ("Ctrl + N", getString("ShortcutDescNewTab", "새 편집 탭을 엽니다.")),
+                ("Ctrl + S", getString("ShortcutDescSave", "현재 파일을 저장합니다.")),
+                ("Ctrl + O", getString("ShortcutDescOpen", "파일 열기 대화상자를 엽니다.")),
+                ("Ctrl + F", getString("ShortcutDescFind", "에디터 내 검색 창을 활성화합니다.")),
+                ("Ctrl + W", getString("ShortcutDescClose", "현재 탭을 닫습니다.")),
+                ("Ctrl + P", getString("ShortcutDescPrint", "현재 문서를 인쇄합니다.")),
+                ("Ctrl + 1", getString("ShortcutDescLeftPanel", "좌측 패널(탐색기, 검색, 북마크 등)을 토글합니다.")),
+                ("Ctrl + 2", getString("ShortcutDescRightPanel", "우측 패널(실시간 미리보기, AI Assistant 등)을 토글합니다.")),
+                ("Ctrl + `", getString("ShortcutDescTerminal", "내장 터미널을 토글합니다.")),
+                ("Ctrl + Z", getString("ShortcutDescUndo", "이전 작업을 실행 취소합니다.")),
+                ("Ctrl + Y", getString("ShortcutDescRedo", "실행 취소한 작업을 다시 실행합니다.")),
+                ("Ctrl + C", getString("ShortcutDescCopy", "선택 영역을 복사합니다.")),
+                ("Ctrl + V", getString("ShortcutDescPaste", "클립보드 내용을 붙여넣습니다.")),
+                ("Ctrl + X", getString("ShortcutDescCut", "선택 영역을 잘라냅니다.")),
+                ("Ctrl + Enter", getString("ShortcutDescAiPrompt", "AI 질문 입력창에서 프롬프트를 전송합니다."))
+            };
+
+            bool alternate = false;
+            foreach (var item in shortcutList)
+            {
+                var rowGrid = new Grid { Padding = new Thickness(6, 6, 6, 6) };
+                if (alternate)
+                {
+                    rowGrid.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(10, 128, 128, 128));
+                }
+                alternate = !alternate;
+
+                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
+                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                var shortcutKeyBorder = new Border
+                {
+                    Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(15, 128, 128, 128)),
+                    BorderThickness = new Thickness(1),
+                    BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(30, 128, 128, 128)),
+                    CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(6, 2, 6, 2),
+                    HorizontalAlignment = HorizontalAlignment.Left
+                };
+                var shortcutKeyText = new TextBlock
+                {
+                    Text = item.Key,
+                    FontSize = 10.5,
+                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                    FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas")
+                };
+                shortcutKeyBorder.Child = shortcutKeyText;
+
+                var shortcutDescText = new TextBlock
+                {
+                    Text = item.Desc,
+                    FontSize = 10.5,
+                    TextWrapping = TextWrapping.Wrap,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+
+                Grid.SetColumn(shortcutKeyBorder, 0);
+                Grid.SetColumn(shortcutDescText, 1);
+
+                rowGrid.Children.Add(shortcutKeyBorder);
+                rowGrid.Children.Add(shortcutDescText);
+
+                var rowContainer = new StackPanel();
+                rowContainer.Children.Add(rowGrid);
+                rowContainer.Children.Add(new Border
+                {
+                    Height = 1,
+                    Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(15, 128, 128, 128)),
+                    HorizontalAlignment = HorizontalAlignment.Stretch
+                });
+
+                shortcutsSection.Children.Add(rowContainer);
+            }
+
             var aboutSection = CreateSection();
             aboutSection.HorizontalAlignment = HorizontalAlignment.Stretch;
             aboutSection.Spacing = 12;
@@ -512,6 +604,7 @@ namespace Ueditor.Core.Services
             settingsPivot.Items.Add(new PivotItem { Header = new TextBlock { Text = getString("SettingsEditing", "편집"), FontSize = 13 }, Content = new ScrollViewer { Content = editorSection } });
             settingsPivot.Items.Add(new PivotItem { Header = new TextBlock { Text = getString("SettingsToolbarCustomization", "툴바"), FontSize = 13 }, Content = new ScrollViewer { Content = toolbarSection } });
             settingsPivot.Items.Add(new PivotItem { Header = new TextBlock { Text = getString("SettingsLLM", "LLM"), FontSize = 13 }, Content = new ScrollViewer { Content = llmSection } });
+            settingsPivot.Items.Add(new PivotItem { Header = new TextBlock { Text = getString("SettingsShortcuts", "단축키"), FontSize = 13 }, Content = new ScrollViewer { Content = shortcutsSection } });
             settingsPivot.Items.Add(new PivotItem { Header = new TextBlock { Text = getString("SettingsAbout", "정보"), FontSize = 13 }, Content = new ScrollViewer { Content = aboutSection } });
 
             ApplyCompactStyleToLogicalTree(settingsPivot);

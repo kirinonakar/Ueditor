@@ -3220,6 +3220,16 @@
             const key = event.key ? event.key.toLowerCase() : '';
 
             if (ctrl) {
+                if (key === '1') {
+                    event.preventDefault();
+                    post({ type: 'shortcut', name: 'toggleLeftPanel' });
+                    return;
+                }
+                if (key === '2') {
+                    event.preventDefault();
+                    post({ type: 'shortcut', name: 'toggleRightPanel' });
+                    return;
+                }
                 if (key === 'n') {
                     event.preventDefault();
                     post({ type: 'shortcut', name: 'newTab' });
