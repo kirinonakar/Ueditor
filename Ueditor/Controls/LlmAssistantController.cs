@@ -45,6 +45,10 @@ namespace Ueditor.Controls
             _showError = showError;
 
             WireEvents();
+
+            // Set initial target language on sidebar
+            var initialTargetLang = _settingsService.CurrentSettings?.LlmTargetLanguage ?? "Korean";
+            _rightSidebar.UpdateTranslateLanguage(initialTargetLang);
         }
 
         public void SetSelectionText(string selectedText)
@@ -71,6 +75,7 @@ namespace Ueditor.Controls
             _rightSidebar.LlmImproveClick += OnLlmImproveClick;
             _rightSidebar.LlmCustomClick += OnLlmCustomClick;
             _rightSidebar.LlmInsertOutputClick += OnLlmInsertOutputClick;
+            _rightSidebar.LlmTargetLanguageSelected += OnLlmTargetLanguageSelected;
         }
 
         private string GetActiveSelectionLanguage()
@@ -247,6 +252,21 @@ namespace Ueditor.Controls
             {
                 _rightSidebar.LlmOutput.Text = $"AI 실행 도중 예외가 터졌습니다: {ex.Message}";
             }
+        }
+
+        private async void OnLlmTargetLanguageSelected(string targetLanguage)
+        {
+            var settings = _settingsService.CurrentSettings;
+            if (settings.LlmTargetLanguage == targetLanguage)
+            {
+                return;
+            }
+
+            settings.LlmTargetLanguage = targetLanguage;
+            await _settingsService.SaveSettingsAsync(settings);
+            
+            // Update the UI
+            _rightSidebar.UpdateTranslateLanguage(targetLanguage);
         }
     }
 }

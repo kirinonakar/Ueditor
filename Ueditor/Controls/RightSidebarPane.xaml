@@ -87,7 +87,19 @@
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
                                         <Button x:Name="LlmSummarizeButton" Content="선택 영역 요약" Grid.Column="0" HorizontalAlignment="Stretch" Click="OnLlmSummarizeClick"/>
-                                        <Button x:Name="LlmTranslateButton" Content="선택 영역 번역" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnLlmTranslateClick"/>
+                                        <Button x:Name="LlmTranslateButton" Content="선택 영역 번역" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnLlmTranslateClick">
+                                            <Button.ContextFlyout>
+                                                <MenuFlyout>
+                                                    <MenuFlyoutItem x:Name="LlmTargetLangKorean" Text="한국어 (Korean)" Click="OnLlmTargetLangClick" Tag="Korean"/>
+                                                    <MenuFlyoutItem x:Name="LlmTargetLangEnglish" Text="영어 (English)" Click="OnLlmTargetLangClick" Tag="English"/>
+                                                    <MenuFlyoutItem x:Name="LlmTargetLangJapanese" Text="일본어 (Japanese)" Click="OnLlmTargetLangClick" Tag="Japanese"/>
+                                                    <MenuFlyoutItem x:Name="LlmTargetLangChinese" Text="중국어 (Chinese)" Click="OnLlmTargetLangClick" Tag="Chinese"/>
+                                                    <MenuFlyoutItem x:Name="LlmTargetLangFrench" Text="프랑스어 (French)" Click="OnLlmTargetLangClick" Tag="French"/>
+                                                    <MenuFlyoutItem x:Name="LlmTargetLangSpanish" Text="스페인어 (Spanish)" Click="OnLlmTargetLangClick" Tag="Spanish"/>
+                                                    <MenuFlyoutItem x:Name="LlmTargetLangGerman" Text="독일어 (German)" Click="OnLlmTargetLangClick" Tag="German"/>
+                                                </MenuFlyout>
+                                            </Button.ContextFlyout>
+                                        </Button>
                                     </Grid>
     
                                     <Grid ColumnSpacing="8">

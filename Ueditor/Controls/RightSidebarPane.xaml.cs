@@ -18,6 +18,9 @@ namespace Ueditor.Controls
         public event RoutedEventHandler? LlmSummarizeClick;
         public event RoutedEventHandler? LlmTranslateClick;
         public event RoutedEventHandler? LlmImproveClick;
+        public event Action<string>? LlmTargetLanguageSelected;
+        private Func<string, string, string>? _getString;
+        private string _currentTargetLanguage = "Korean";
         public event RoutedEventHandler? LlmCustomClick;
         public event RoutedEventHandler? LlmInsertOutputClick;
 
@@ -74,7 +77,15 @@ namespace Ueditor.Controls
             LlmAddFileContextButton.Content = getString("LlmAddFileContextButtonText", "파일 맥락 추가");
             LlmExplainButton.Content = getString("LlmExplainButtonText", "선택 영역 설명 (Explain)");
             LlmSummarizeButton.Content = getString("LlmSummarizeButtonText", "선택 영역 요약");
-            LlmTranslateButton.Content = getString("LlmTranslateButtonText", "선택 영역 번역");
+            _getString = getString;
+            UpdateTranslateButtonText();
+            LlmTargetLangKorean.Text = getString("LlmLangKorean", "한국어 (Korean)");
+            LlmTargetLangEnglish.Text = getString("LlmLangEnglish", "영어 (English)");
+            LlmTargetLangJapanese.Text = getString("LlmLangJapanese", "일본어 (Japanese)");
+            LlmTargetLangChinese.Text = getString("LlmLangChinese", "중국어 (Chinese)");
+            LlmTargetLangFrench.Text = getString("LlmLangFrench", "프랑스어 (French)");
+            LlmTargetLangSpanish.Text = getString("LlmLangSpanish", "스페인어 (Spanish)");
+            LlmTargetLangGerman.Text = getString("LlmLangGerman", "독일어 (German)");
             LlmImproveButton.Content = getString("LlmImproveButtonText", "수식/마크다운 개선");
             LlmCustomPromptInput.PlaceholderText = getString("LlmCustomPromptPlaceholder", "질문이나 커스텀 지시사항 입력...");
             LlmCustomRunButton.Content = getString("LlmCustomRunButtonText", "실행");
@@ -138,6 +149,41 @@ namespace Ueditor.Controls
         private void OnLlmInsertOutputClick(object sender, RoutedEventArgs e)
         {
             LlmInsertOutputClick?.Invoke(sender, e);
+        }
+
+        private void OnLlmTargetLangClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuFlyoutItem item && item.Tag is string lang)
+            {
+                LlmTargetLanguageSelected?.Invoke(lang);
+            }
+        }
+
+        public void UpdateTranslateLanguage(string targetLanguage)
+        {
+            _currentTargetLanguage = targetLanguage;
+            UpdateTranslateButtonText();
+        }
+
+        private void UpdateTranslateButtonText()
+        {
+            if (_getString == null) return;
+
+            string baseText = _getString("LlmTranslateButtonText", "선택 영역 번역");
+            
+            string shortCode = _currentTargetLanguage switch
+            {
+                "Korean" => "KO",
+                "English" => "EN",
+                "Japanese" => "JP",
+                "Chinese" => "ZH",
+                "French" => "FR",
+                "Spanish" => "ES",
+                "German" => "DE",
+                _ => "KO"
+            };
+
+            LlmTranslateButton.Content = $"{baseText} ({shortCode})";
         }
     }
 }

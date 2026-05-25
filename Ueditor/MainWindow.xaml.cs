@@ -1415,6 +1415,7 @@ namespace Ueditor
                 LeftSidebarTabView.Localize(GetString, string.IsNullOrEmpty(_currentFolderPath), IsGitNotDetectedText);
                 StatusBarPane.Localize(GetString, IsGitNotDetectedText);
                 PreviewGrid.Localize(GetString);
+                PreviewGrid.UpdateTranslateLanguage(_settingsService.CurrentSettings?.LlmTargetLanguage ?? "Korean");
                 MarkdownToolbar.LocalizeTooltips(GetString);
             }
             catch (Exception ex)
