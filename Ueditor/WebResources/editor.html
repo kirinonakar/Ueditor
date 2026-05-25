@@ -1712,6 +1712,10 @@
                 state.currentColumn = selectionEnd.column + 1;
             } else {
                 state.selection = null;
+                const endLine = start.line + parts.length - 1;
+                const endColumn = parts.length === 1 ? start.column + parts[0].length : parts[parts.length - 1].length;
+                state.currentLine = endLine;
+                state.currentColumn = endColumn + 1;
             }
             queueRender(true);
             setTimeout(() => {
@@ -1721,7 +1725,7 @@
                     focusLine(targetLine, targetColumn);
                     reportCursorAndSelection();
                 } else {
-                    focusLine(start.line + newLines.length - 1, newLines[newLines.length - 1].length);
+                    focusLine(state.currentLine, Math.max(0, state.currentColumn - 1));
                 }
             }, 0);
         }
