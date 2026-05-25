@@ -140,6 +140,17 @@
             color: var(--link);
         }
 
+        img {
+            max-width: 100%;
+            height: auto;
+            vertical-align: middle;
+        }
+
+        p > img:only-child {
+            display: block;
+            margin: 6px 0;
+        }
+
         code {
             padding: 2px 5px;
             border-radius: 4px;
@@ -246,6 +257,7 @@
             pending: new Set(),
             rowHeights: new Map(),
             wordWrap: true,
+            baseHref: '',
             requestSeq: 1,
             renderQueued: false,
             lastRangeKey: '',
@@ -282,6 +294,7 @@
                     }
                 });
             });
+            rewritePreviewMediaUrls(template.content);
             return template.innerHTML;
         }
 
@@ -293,9 +306,92 @@
                 .replace(/>/g, '&gt;');
         }
 
+        function parseMarkdownImageTarget(value) {
+            const target = String(value || '').trim();
+            if (!target) return { src: '', title: '' };
+
+            if (target.startsWith('<')) {
+                const closeIndex = target.indexOf('>');
+                if (closeIndex > 0) {
+                    return {
+                        src: target.slice(1, closeIndex).trim(),
+                        title: parseOptionalTitle(target.slice(closeIndex + 1))
+                    };
+                }
+            }
+
+            const titled = /^(\S+)\s+(["'])(.*?)\2\s*$/.exec(target);
+            if (titled) {
+                return { src: titled[1], title: titled[3] };
+            }
+
+            return { src: target, title: '' };
+        }
+
+        function parseOptionalTitle(value) {
+            const match = /^\s+(["'])(.*?)\1\s*$/.exec(String(value || ''));
+            return match ? match[2] : '';
+        }
+
+        function isSafeMediaUrl(value) {
+            const trimmed = String(value || '').trim().toLowerCase();
+            return !!trimmed &&
+                !trimmed.startsWith('javascript:') &&
+                !trimmed.startsWith('vbscript:') &&
+                !trimmed.startsWith('data:text/html');
+        }
+
+        function renderMarkdownImage(alt, target) {
+            const parsed = parseMarkdownImageTarget(target);
+            if (!isSafeMediaUrl(parsed.src)) {
+                return escapeHtml(`![${alt}](${target})`);
+            }
+
+            const src = resolvePreviewResourceUrl(parsed.src);
+            const title = parsed.title ? ` title="${escapeAttribute(parsed.title)}"` : '';
+            return `<img src="${escapeAttribute(src)}" alt="${escapeAttribute(alt)}"${title} loading="lazy" decoding="async">`;
+        }
+
+        function resolvePreviewResourceUrl(value) {
+            const raw = String(value || '').trim();
+            if (!raw || !state.baseHref || raw.startsWith('#') || !isSafeMediaUrl(raw)) {
+                return raw;
+            }
+
+            try {
+                return new URL(raw, state.baseHref).href;
+            } catch {
+                return raw;
+            }
+        }
+
+        function rewritePreviewMediaUrls(root) {
+            root.querySelectorAll('img[src], video[src], audio[src], source[src], track[src]').forEach(node => {
+                node.setAttribute('src', resolvePreviewResourceUrl(node.getAttribute('src')));
+            });
+            root.querySelectorAll('video[poster]').forEach(node => {
+                node.setAttribute('poster', resolvePreviewResourceUrl(node.getAttribute('poster')));
+            });
+        }
+
         function htmlPreviewInjection(baseHref) {
             const base = baseHref ? `<base href="${escapeAttribute(baseHref)}">` : '';
             return `${base}<style id="ueditor-html-preview-selection-fix">html,body{min-height:100%;}body,body *{-webkit-user-select:text!important;user-select:text!important;}body{cursor:text;}</style>`;
+        }
+
+        function setPreviewBaseHref(baseHref) {
+            state.baseHref = String(baseHref || '');
+            let base = document.getElementById('preview-base-href');
+            if (!state.baseHref) {
+                if (base) base.remove();
+                return;
+            }
+            if (!base) {
+                base = document.createElement('base');
+                base.id = 'preview-base-href';
+                document.head.appendChild(base);
+            }
+            base.setAttribute('href', state.baseHref);
         }
 
         function buildHtmlPreviewDocument(html, baseHref) {
@@ -323,6 +419,7 @@
 
         function renderHtmlPreview(message) {
             state.mode = 'html';
+            setPreviewBaseHref(message.baseHref || '');
             state.cache.clear();
             state.pending.clear();
             state.rowHeights.clear();
@@ -345,6 +442,7 @@
             let out = String(text ?? '');
 
             out = out.replace(/`([^`]+)`/g, (_, code) => stash(`<code>${escapeHtml(code)}</code>`));
+            out = out.replace(/!\[([^\]]*)\]\(([^)]*)\)/g, (_, alt, target) => stash(renderMarkdownImage(alt, target)));
             out = stashInlineMath(out, stash);
             out = stashHtmlTags(out, stash);
             out = escapeHtml(out);
@@ -529,6 +627,7 @@
 
         function initVirtualPreview(message) {
             state.mode = message.mode || 'markdown';
+            setPreviewBaseHref(message.baseHref || '');
             state.wordWrap = message.wordWrap !== false;
             state.lineCount = Math.max(1, Number(message.lineCount || 1));
             state.cache.clear();
@@ -662,7 +761,23 @@
                 }
 
             viewport.innerHTML = rows.join('');
+            watchRenderedImages();
             measureRenderedRows();
+        }
+
+        function watchRenderedImages() {
+            viewport.querySelectorAll('img').forEach(img => {
+                const update = () => {
+                    state.lastRangeKey = '';
+                    measureRenderedRows();
+                };
+                if (img.complete) {
+                    requestAnimationFrame(update);
+                } else {
+                    img.addEventListener('load', update, { once: true });
+                    img.addEventListener('error', update, { once: true });
+                }
+            });
         }
 
         function isDisplayMathFence(line) {
@@ -737,6 +852,7 @@
 
         function renderFullFallback(message) {
             state.mode = message.mode || 'markdown';
+            setPreviewBaseHref(message.baseHref || '');
             if (state.mode === 'html') {
                 renderHtmlPreview(message);
                 return;

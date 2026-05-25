@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -26,6 +27,9 @@ namespace Ueditor
 {
     public sealed partial class MainWindow : Window
     {
+        private const string PreviewResourceHostName = "ueditor.local";
+        private const string PreviewDocumentHostName = "ueditor-doc.local";
+
         private readonly IFileService _fileService;
         private readonly ISettingsService _settingsService;
         private readonly ICredentialService _credentialService;
@@ -68,6 +72,7 @@ namespace Ueditor
         // Timer for debouncing live preview renders
         private readonly DispatcherTimer _previewDebounceTimer;
         private OpenedTab? _activeTabForPreview = null;
+        private string _mappedPreviewDocumentDirectory = string.Empty;
         private const int InitialEditorLineWarmupCount = 120;
         private const int InitialPreviewLineWarmupCount = 120;
 
@@ -521,15 +526,19 @@ namespace Ueditor
                 string webResourcesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "WebResources");
                 
                 PreviewWebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
-                    "ueditor.local", 
+                    PreviewResourceHostName, 
                     webResourcesPath, 
                     CoreWebView2HostResourceAccessKind.Allow
                 );
+                PreviewWebView.CoreWebView2.AddWebResourceRequestedFilter(
+                    $"http://{PreviewDocumentHostName}/*",
+                    CoreWebView2WebResourceContext.All);
 
                 PreviewWebView.CoreWebView2.Settings.IsWebMessageEnabled = true;
                 PreviewWebView.CoreWebView2.Settings.IsScriptEnabled = true;
                 PreviewWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
                 PreviewWebView.WebMessageReceived += OnPreviewWebMessageReceived;
+                PreviewWebView.CoreWebView2.WebResourceRequested += OnPreviewDocumentResourceRequested;
 
                 PreviewWebView.NavigationCompleted += (s, e) =>
                 {
@@ -541,7 +550,7 @@ namespace Ueditor
                 };
 
                 // Load preview renderer page. Version query avoids stale WebView2 virtual-host cache.
-                PreviewWebView.Source = new Uri($"http://ueditor.local/preview.html?v={GetWebResourceVersion("preview.html")}");
+                PreviewWebView.Source = new Uri($"http://{PreviewResourceHostName}/preview.html?v={GetWebResourceVersion("preview.html")}");
             }
             catch (Exception ex)
             {
@@ -992,6 +1001,7 @@ namespace Ueditor
                     initialStartLine = 1,
                     initialLines = previewSession?.GetLines(1, InitialPreviewLineWarmupCount) ?? Array.Empty<string>(),
                     mode = mode,
+                    baseHref = GetPreviewBaseHref(tab),
                     wordWrap = _settingsService.CurrentSettings.WordWrap,
                     theme = _settingsService.CurrentSettings.Theme,
                     customBackgroundColor = _settingsService.CurrentSettings.CustomBackgroundColor,
@@ -1008,30 +1018,151 @@ namespace Ueditor
             }
         }
 
-        private static string GetPreviewBaseHref(OpenedTab tab)
+        private string GetPreviewBaseHref(OpenedTab tab)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(tab.FilePath))
+                string directory = string.Empty;
+                if (!string.IsNullOrWhiteSpace(tab.FilePath))
+                {
+                    directory = Path.GetDirectoryName(tab.FilePath) ?? string.Empty;
+                }
+
+                if (string.IsNullOrWhiteSpace(directory) && !string.IsNullOrWhiteSpace(_currentFolderPath))
+                {
+                    directory = _currentFolderPath;
+                }
+
+                if (string.IsNullOrWhiteSpace(directory) && !string.IsNullOrWhiteSpace(_currentRepoPath))
+                {
+                    directory = _currentRepoPath;
+                }
+
+                if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
                 {
                     return string.Empty;
                 }
 
-                string? directory = Path.GetDirectoryName(tab.FilePath);
-                if (string.IsNullOrWhiteSpace(directory))
-                {
-                    return string.Empty;
-                }
-
-                string directoryWithSeparator = directory.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
-                    ? directory
-                    : directory + Path.DirectorySeparatorChar;
-                return new Uri(directoryWithSeparator).AbsoluteUri;
+                ConfigurePreviewDocumentFolderMapping(directory);
+                return $"http://{PreviewDocumentHostName}/";
             }
             catch
             {
                 return string.Empty;
             }
+        }
+
+        private void ConfigurePreviewDocumentFolderMapping(string directory)
+        {
+            try
+            {
+                if (PreviewWebView.CoreWebView2 == null || string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+                {
+                    return;
+                }
+
+                string normalizedDirectory = Path.GetFullPath(directory)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                if (string.Equals(_mappedPreviewDocumentDirectory, normalizedDirectory, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                PreviewWebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                    PreviewDocumentHostName,
+                    normalizedDirectory,
+                    CoreWebView2HostResourceAccessKind.Allow);
+                _mappedPreviewDocumentDirectory = normalizedDirectory;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to map preview document folder: {ex.Message}");
+            }
+        }
+
+        private void OnPreviewDocumentResourceRequested(CoreWebView2 sender, CoreWebView2WebResourceRequestedEventArgs args)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(_mappedPreviewDocumentDirectory) ||
+                    !Uri.TryCreate(args.Request.Uri, UriKind.Absolute, out var requestUri) ||
+                    !string.Equals(requestUri.Host, PreviewDocumentHostName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                string relativePath = Uri.UnescapeDataString(requestUri.AbsolutePath.TrimStart('/'))
+                    .Replace('/', Path.DirectorySeparatorChar);
+                if (string.IsNullOrWhiteSpace(relativePath))
+                {
+                    args.Response = sender.Environment.CreateWebResourceResponse(
+                        CreateEmptyPreviewResourceStream(),
+                        404,
+                        "Not Found",
+                        "Content-Type: text/plain");
+                    return;
+                }
+
+                string root = Path.GetFullPath(_mappedPreviewDocumentDirectory)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                string targetPath = Path.GetFullPath(Path.Combine(root, relativePath));
+                if (!targetPath.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                    !File.Exists(targetPath))
+                {
+                    args.Response = sender.Environment.CreateWebResourceResponse(
+                        CreateEmptyPreviewResourceStream(),
+                        404,
+                        "Not Found",
+                        "Content-Type: text/plain");
+                    return;
+                }
+
+                var stream = new FileStream(targetPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                string headers = $"Content-Type: {GetPreviewResourceContentType(targetPath)}\r\nCache-Control: no-store";
+                args.Response = sender.Environment.CreateWebResourceResponse(stream.AsRandomAccessStream(), 200, "OK", headers);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed serving preview document resource: {ex.Message}");
+                try
+                {
+                    args.Response = sender.Environment.CreateWebResourceResponse(
+                        CreateEmptyPreviewResourceStream(),
+                        500,
+                        "Internal Server Error",
+                        "Content-Type: text/plain");
+                }
+                catch { }
+            }
+        }
+
+        private static Windows.Storage.Streams.IRandomAccessStream CreateEmptyPreviewResourceStream()
+        {
+            return new MemoryStream(Array.Empty<byte>()).AsRandomAccessStream();
+        }
+
+        private static string GetPreviewResourceContentType(string path)
+        {
+            return Path.GetExtension(path).ToLowerInvariant() switch
+            {
+                ".png" => "image/png",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".gif" => "image/gif",
+                ".webp" => "image/webp",
+                ".svg" => "image/svg+xml",
+                ".bmp" => "image/bmp",
+                ".ico" => "image/x-icon",
+                ".avif" => "image/avif",
+                ".mp4" => "video/mp4",
+                ".webm" => "video/webm",
+                ".mp3" => "audio/mpeg",
+                ".wav" => "audio/wav",
+                ".ogg" => "audio/ogg",
+                ".css" => "text/css; charset=utf-8",
+                ".js" => "text/javascript; charset=utf-8",
+                ".html" or ".htm" => "text/html; charset=utf-8",
+                _ => "application/octet-stream"
+            };
         }
 
         #endregion
