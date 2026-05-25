@@ -301,7 +301,7 @@ namespace Ueditor.Core.Services
                 TextWrapping = TextWrapping.Wrap
             });
 
-            var settingsPivot = new Pivot { Width = 500, Height = 440 };
+            var settingsPivot = new Pivot { Width = 500, Height = 440, FontSize = 12 };
             var toolbarSection = CreateSection();
             var showLabelsCheck = new CheckBox { Content = getString("SettingsToolbarShowLabels", "툴바 버튼 글자 표시"), IsChecked = settings.ToolbarShowLabels };
             toolbarSection.Children.Add(showLabelsCheck);
@@ -357,7 +357,8 @@ namespace Ueditor.Core.Services
                 .Select(option => new ToolbarOrderItem(option.Id, getString(option.ResourceKey, option.Id))));
             var orderList = new ListView
             {
-                Height = 140,
+                Height = 240,
+                FontSize = 11,
                 SelectionMode = ListViewSelectionMode.None,
                 AllowDrop = true,
                 CanReorderItems = true,
@@ -370,6 +371,8 @@ namespace Ueditor.Core.Services
             settingsPivot.Items.Add(new PivotItem { Header = new TextBlock { Text = getString("SettingsEditing", "편집"), FontSize = 13 }, Content = new ScrollViewer { Content = editorSection } });
             settingsPivot.Items.Add(new PivotItem { Header = new TextBlock { Text = getString("SettingsToolbarCustomization", "툴바"), FontSize = 13 }, Content = new ScrollViewer { Content = toolbarSection } });
             settingsPivot.Items.Add(new PivotItem { Header = new TextBlock { Text = getString("SettingsLLM", "LLM"), FontSize = 13 }, Content = new ScrollViewer { Content = llmSection } });
+
+            ApplyCompactStyleToLogicalTree(settingsPivot);
 
             var dialog = new ContentDialog
             {
@@ -457,7 +460,7 @@ namespace Ueditor.Core.Services
 
         private static StackPanel CreateSection()
         {
-            return new StackPanel { Spacing = 10, Width = 460, Padding = new Thickness(2, 8, 2, 2) };
+            return new StackPanel { Spacing = 6, Width = 460, Padding = new Thickness(2, 6, 2, 2) };
         }
 
         private static List<string> NormalizeToolbarOrder(IReadOnlyList<string>? savedOrder)
@@ -689,6 +692,70 @@ namespace Ueditor.Core.Services
                     }
 
                     return models;
+                }
+            }
+        }
+
+        private static void ApplyCompactStyleToLogicalTree(object element)
+        {
+            if (element == null) return;
+
+            if (element is Control ctrl)
+            {
+                if (ctrl is not Pivot && ctrl is not PivotItem)
+                {
+                    if (ctrl is ListView)
+                    {
+                        ctrl.FontSize = 11;
+                    }
+                    else
+                    {
+                        ctrl.FontSize = 11.5;
+                    }
+                }
+
+                if (ctrl is ComboBox || ctrl is TextBox || ctrl is PasswordBox || ctrl is Button)
+                {
+                    ctrl.MinHeight = 26;
+                    ctrl.Height = 26;
+                    ctrl.Padding = new Thickness(8, 2, 8, 2);
+                    ctrl.VerticalAlignment = VerticalAlignment.Center;
+                }
+                else if (ctrl is CheckBox chk)
+                {
+                    chk.MinHeight = 22;
+                    chk.Padding = new Thickness(8, 2, 0, 2);
+                    chk.Margin = new Thickness(chk.Margin.Left, 1, chk.Margin.Right, 1);
+                }
+            }
+            else if (element is TextBlock tb)
+            {
+                if (tb.FontSize != 11 && tb.FontSize != 12)
+                {
+                    tb.FontSize = 11.5;
+                }
+            }
+
+            if (element is Panel panel)
+            {
+                foreach (var child in panel.Children)
+                {
+                    ApplyCompactStyleToLogicalTree(child);
+                }
+            }
+            else if (element is ContentControl cc)
+            {
+                ApplyCompactStyleToLogicalTree(cc.Content);
+            }
+            else if (element is ScrollViewer sv)
+            {
+                ApplyCompactStyleToLogicalTree(sv.Content);
+            }
+            else if (element is Pivot pivot)
+            {
+                foreach (var item in pivot.Items)
+                {
+                    ApplyCompactStyleToLogicalTree(item);
                 }
             }
         }

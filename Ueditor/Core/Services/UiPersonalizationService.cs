@@ -95,6 +95,10 @@ namespace Ueditor.Core.Services
             {
                 var fontFamily = new Microsoft.UI.Xaml.Media.FontFamily(settings.UiFontFamily);
                 
+                // Override theme resource font families globally in the application
+                Application.Current.Resources["ContentControlThemeFontFamily"] = fontFamily;
+                Application.Current.Resources["SystemControlFontFamily"] = fontFamily;
+                
                 // Override theme resource font families at the root element level
                 rootElement.Resources["ContentControlThemeFontFamily"] = fontFamily;
                 rootElement.Resources["SystemControlFontFamily"] = fontFamily;
