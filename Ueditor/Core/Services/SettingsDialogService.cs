@@ -358,13 +358,26 @@ namespace Ueditor.Core.Services
             var orderList = new ListView
             {
                 Height = 240,
-                FontSize = 11,
                 SelectionMode = ListViewSelectionMode.None,
                 AllowDrop = true,
                 CanReorderItems = true,
-                DisplayMemberPath = nameof(ToolbarOrderItem.Label),
                 ItemsSource = orderItems
             };
+
+            orderList.ItemTemplate = (Microsoft.UI.Xaml.DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(
+                @"<DataTemplate xmlns=""http://schemas.microsoft.com/winfx/2006/xaml/presentation"">
+                    <TextBlock Text=""{Binding Label}"" FontSize=""11"" Height=""18"" VerticalAlignment=""Center""/>
+                  </DataTemplate>"
+            );
+
+            orderList.ItemContainerStyle = (Microsoft.UI.Xaml.Style)Microsoft.UI.Xaml.Markup.XamlReader.Load(
+                @"<Style TargetType=""ListViewItem"" xmlns=""http://schemas.microsoft.com/winfx/2006/xaml/presentation"">
+                    <Setter Property=""MinHeight"" Value=""22""/>
+                    <Setter Property=""Height"" Value=""22""/>
+                    <Setter Property=""Padding"" Value=""8,1,8,1""/>
+                  </Style>"
+            );
+
             toolbarSection.Children.Add(orderList);
 
             settingsPivot.Items.Add(new PivotItem { Header = new TextBlock { Text = getString("SettingsAppearance", "모양"), FontSize = 13 }, Content = new ScrollViewer { Content = appearanceSection } });
@@ -535,7 +548,7 @@ namespace Ueditor.Core.Services
             var swatch = new Border
             {
                 Width = 120,
-                Height = 22,
+                Height = 18,
                 CornerRadius = new CornerRadius(3),
                 BorderThickness = new Thickness(1),
                 BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(120, 128, 128, 128)),
@@ -546,28 +559,45 @@ namespace Ueditor.Core.Services
             {
                 Color = initialColor,
                 IsAlphaEnabled = false,
-                HorizontalAlignment = HorizontalAlignment.Stretch
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                IsMoreButtonVisible = false
             };
             colorPicker = picker;
 
             var flyoutContent = new StackPanel
             {
-                Width = 320,
-                Spacing = 8,
-                Padding = new Thickness(8)
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Spacing = 6,
+                Padding = new Thickness(6)
             };
-            flyoutContent.Children.Add(new TextBlock { Text = title, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            flyoutContent.Children.Add(new TextBlock { Text = title, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontSize = 12 });
             flyoutContent.Children.Add(picker);
+
+            ApplyCompactStyleToLogicalTree(flyoutContent);
+
+            picker.Loaded += (s, e) =>
+            {
+                ApplyCompactStyleToVisualTree(picker);
+            };
 
             picker.ColorChanged += (_, __) =>
             {
                 swatch.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(picker.Color);
             };
 
+            var flyoutStyle = new Microsoft.UI.Xaml.Style(typeof(Microsoft.UI.Xaml.Controls.FlyoutPresenter));
+            flyoutStyle.Setters.Add(new Microsoft.UI.Xaml.Setter(Microsoft.UI.Xaml.Controls.Control.PaddingProperty, new Thickness(8)));
+            flyoutStyle.Setters.Add(new Microsoft.UI.Xaml.Setter(Microsoft.UI.Xaml.Controls.Control.MinWidthProperty, 360.0));
+            flyoutStyle.Setters.Add(new Microsoft.UI.Xaml.Setter(Microsoft.UI.Xaml.Controls.Control.MaxWidthProperty, 400.0));
+
             return new DropDownButton
             {
                 Content = swatch,
-                Flyout = new Flyout { Content = flyoutContent },
+                Flyout = new Flyout 
+                { 
+                    Content = flyoutContent,
+                    FlyoutPresenterStyle = flyoutStyle
+                },
                 HorizontalAlignment = HorizontalAlignment.Left
             };
         }
@@ -714,7 +744,14 @@ namespace Ueditor.Core.Services
                     }
                 }
 
-                if (ctrl is ComboBox || ctrl is TextBox || ctrl is PasswordBox || ctrl is Button)
+                if (ctrl is DropDownButton ddb)
+                {
+                    ddb.MinHeight = 26;
+                    ddb.Height = Double.NaN; // Allow automatic height so swatch is not clipped
+                    ddb.Padding = new Thickness(6, 2, 6, 2);
+                    ddb.VerticalAlignment = VerticalAlignment.Center;
+                }
+                else if (ctrl is ComboBox || ctrl is TextBox || ctrl is PasswordBox || ctrl is Button)
                 {
                     ctrl.MinHeight = 26;
                     ctrl.Height = 26;
@@ -757,6 +794,34 @@ namespace Ueditor.Core.Services
                 {
                     ApplyCompactStyleToLogicalTree(item);
                 }
+            }
+        }
+
+        private static void ApplyCompactStyleToVisualTree(Microsoft.UI.Xaml.DependencyObject element)
+        {
+            if (element == null) return;
+
+            int childrenCount = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(element);
+            for (int i = 0; i < childrenCount; i++)
+            {
+                var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(element, i);
+                if (child is Control ctrl)
+                {
+                    ctrl.FontSize = 10.5;
+
+                    if (ctrl is TextBox || ctrl is ComboBox || ctrl is Button)
+                    {
+                        ctrl.MinHeight = 22;
+                        ctrl.Height = 22;
+                        ctrl.Padding = new Thickness(4, 1, 4, 1);
+                    }
+                }
+                else if (child is TextBlock tb)
+                {
+                    tb.FontSize = 10.5;
+                }
+
+                ApplyCompactStyleToVisualTree(child);
             }
         }
     }
