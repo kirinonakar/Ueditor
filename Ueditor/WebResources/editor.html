@@ -377,6 +377,7 @@
             selectionAnchor: null,
             isSelecting: false,
             lastRangeKey: '',
+            cacheVersion: 0,
             renderQueued: false,
             clipboardRequests: new Map(),
             pendingLineActions: []
@@ -508,9 +509,28 @@
             state.cache.clear();
             state.pending.clear();
             state.lineHeights.clear();
+            state.cacheVersion++;
             state.lastRangeKey = '';
             setupVirtualHeight();
             queueRender(true);
+        }
+
+        function receiveLineBlock(startLine, lines) {
+            const start = Number(startLine || 1);
+            const safeLines = Array.isArray(lines) ? lines : [];
+            for (let i = 0; i < safeLines.length; i++) {
+                state.cache.set(start + i, safeLines[i] ?? '');
+            }
+            state.cacheVersion++;
+            for (const key of [...state.pending]) {
+                const [pendingStart, pendingCount] = key.split(':').map(Number);
+                const pendingEnd = pendingStart + pendingCount - 1;
+                const receivedEnd = start + safeLines.length - 1;
+                if (start <= pendingStart && (safeLines.length === 0 || receivedEnd >= pendingEnd || receivedEnd >= state.lineCount)) {
+                    state.pending.delete(key);
+                }
+            }
+            return safeLines.length;
         }
 
         function setupVirtualHeight() {
@@ -612,7 +632,7 @@
 
         function render() {
             const range = visibleRange();
-            const rangeKey = `${range.start}:${range.end}:${state.lineCount}:${scrollContainer.clientWidth}:${state.wordWrap}:${totalVirtualHeight()}`;
+            const rangeKey = `${range.start}:${range.end}:${state.lineCount}:${scrollContainer.clientWidth}:${state.wordWrap}:${totalVirtualHeight()}:${state.cacheVersion}`;
             requestMissingLines(range.start, range.end);
             if (rangeKey === state.lastRangeKey) return;
             state.lastRangeKey = rangeKey;
@@ -916,7 +936,11 @@
         }
 
         function lineElementFromEvent(event) {
-            return event.target.closest('.line-text');
+            const target = event.target;
+            if (target?.closest) {
+                return target.closest('.line-text');
+            }
+            return target?.parentElement?.closest?.('.line-text') || null;
         }
 
         function lineTextFromElement(element) {
@@ -1782,6 +1806,9 @@
                     state.language = msg.language || 'plaintext';
                     applyOptions(msg);
                     setupModel(msg.lineCount || 1);
+                    if (receiveLineBlock(msg.initialStartLine || 1, msg.initialLines || []) > 0) {
+                        queueRender(true);
+                    }
                     document.getElementById('loading-overlay')?.classList.add('hidden');
                     break;
                 case 'setText':
@@ -1799,23 +1826,14 @@
                     break;
                 case 'receiveLines':
                     {
-                        const start = Number(msg.startLine || 1);
-                        const lines = msg.lines || [];
-                        for (let i = 0; i < lines.length; i++) {
-                            state.cache.set(start + i, lines[i] ?? '');
-                        }
-                        for (const key of [...state.pending]) {
-                            const [pendingStart, pendingCount] = key.split(':').map(Number);
-                            if (start <= pendingStart && start + lines.length >= pendingStart + pendingCount) {
-                                state.pending.delete(key);
-                            }
-                        }
+                        receiveLineBlock(msg.startLine || 1, msg.lines || []);
                         runPendingLineActions();
                         queueRender(true);
                     }
                     break;
                 case 'lineCountChanged':
                     state.lineCount = Math.max(1, Number(msg.lineCount || 1));
+                    state.cacheVersion++;
                     setupVirtualHeight();
                     queueRender(true);
                     break;
@@ -1925,13 +1943,14 @@
             }
         });
 
-        viewport.addEventListener('pointerdown', event => {
+        scrollContainer.addEventListener('pointerdown', event => {
             if (event.button !== 0 || findPanel.contains(event.target)) return;
             const position = positionFromPointer(event);
             if (!position) return;
 
             const isEditable = position.element.getAttribute('contenteditable') === 'true';
-            viewport.setPointerCapture?.(event.pointerId);
+            event.preventDefault();
+            scrollContainer.setPointerCapture?.(event.pointerId);
 
             const hadSelection = hasCustomSelection();
             const anchor = event.shiftKey && state.selectionAnchor
@@ -1955,7 +1974,7 @@
             reportCursorAndSelection(position.element);
         });
 
-        viewport.addEventListener('pointermove', event => {
+        scrollContainer.addEventListener('pointermove', event => {
             if (!state.isSelecting) return;
             const position = positionFromPointer(event);
             if (!position) return;
@@ -1989,11 +2008,11 @@
             }
         });
 
-        viewport.addEventListener('pointerup', event => {
+        scrollContainer.addEventListener('pointerup', event => {
             if (!state.isSelecting) return;
             state.isSelecting = false;
             document.body.classList.remove('selecting');
-            viewport.releasePointerCapture?.(event.pointerId);
+            scrollContainer.releasePointerCapture?.(event.pointerId);
             const hadSelection = hasCustomSelection();
             const selection = normalizeSelection();
             if (selection && !hasCustomSelection()) {
@@ -2007,11 +2026,11 @@
             reportCursorAndSelection(document.activeElement);
         });
 
-        viewport.addEventListener('pointercancel', event => {
+        scrollContainer.addEventListener('pointercancel', event => {
             if (!state.isSelecting) return;
             state.isSelecting = false;
             document.body.classList.remove('selecting');
-            viewport.releasePointerCapture?.(event.pointerId);
+            scrollContainer.releasePointerCapture?.(event.pointerId);
             queueRender(true);
         });
 

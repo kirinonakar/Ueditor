@@ -57,6 +57,24 @@
             padding: 0;
         }
 
+        #html-preview {
+            position: absolute;
+            inset: 0;
+            display: none;
+            width: 100%;
+            height: 100%;
+            border: 0;
+            background: #fff;
+        }
+
+        body.html-mode #preview-scroll {
+            display: none;
+        }
+
+        body.html-mode #html-preview {
+            display: block;
+        }
+
         #virtual-spacer {
             width: 1px;
             height: var(--row-height);
@@ -211,11 +229,13 @@
         <div id="virtual-spacer"></div>
         <div id="preview-viewport"></div>
     </div>
+    <iframe id="html-preview" sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox"></iframe>
 
     <script>
         const scroll = document.getElementById('preview-scroll');
         const spacer = document.getElementById('virtual-spacer');
         const viewport = document.getElementById('preview-viewport');
+        const htmlPreview = document.getElementById('html-preview');
 
         const state = {
             lineCount: 1,
@@ -228,7 +248,8 @@
             wordWrap: true,
             requestSeq: 1,
             renderQueued: false,
-            lastRangeKey: ''
+            lastRangeKey: '',
+            cacheVersion: 0
         };
 
         function post(msg) {
@@ -262,6 +283,55 @@
                 });
             });
             return template.innerHTML;
+        }
+
+        function escapeAttribute(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        function htmlPreviewInjection(baseHref) {
+            const base = baseHref ? `<base href="${escapeAttribute(baseHref)}">` : '';
+            return `${base}<style id="ueditor-html-preview-selection-fix">html,body{min-height:100%;}body,body *{-webkit-user-select:text!important;user-select:text!important;}body{cursor:text;}</style>`;
+        }
+
+        function buildHtmlPreviewDocument(html, baseHref) {
+            const source = String(html || '');
+            const injection = htmlPreviewInjection(baseHref);
+            if (/<head(?:\s[^>]*)?>/i.test(source)) {
+                return source.replace(/<head(\s[^>]*)?>/i, match => `${match}${injection}`);
+            }
+            if (/<html(?:\s[^>]*)?>/i.test(source)) {
+                return source.replace(/<html(\s[^>]*)?>/i, match => `${match}<head>${injection}</head>`);
+            }
+            const bodySource = source.replace(/^\s*<!doctype[^>]*>\s*/i, '');
+            if (/<body(?:\s[^>]*)?>/i.test(bodySource)) {
+                return `<!DOCTYPE html><html><head>${injection}</head>${bodySource}</html>`;
+            }
+            return `<!DOCTYPE html><html><head>${injection}</head><body>${bodySource}</body></html>`;
+        }
+
+        function setHtmlMode(enabled) {
+            document.body.classList.toggle('html-mode', enabled);
+            if (!enabled) {
+                htmlPreview.removeAttribute('srcdoc');
+            }
+        }
+
+        function renderHtmlPreview(message) {
+            state.mode = 'html';
+            state.cache.clear();
+            state.pending.clear();
+            state.rowHeights.clear();
+            state.cacheVersion++;
+            state.lastRangeKey = '';
+            setHtmlMode(true);
+            viewport.innerHTML = '';
+            spacer.style.height = `${state.rowHeight}px`;
+            htmlPreview.srcdoc = buildHtmlPreviewDocument(message.text || '', message.baseHref || '');
         }
 
         function inlineMarkdown(text) {
@@ -464,10 +534,13 @@
             state.cache.clear();
             state.pending.clear();
             state.rowHeights.clear();
+            state.cacheVersion++;
             state.lastRangeKey = '';
+            setHtmlMode(false);
             document.body.classList.toggle('wrap-enabled', state.wordWrap);
             applyTheme(message);
             setupVirtualHeight();
+            receiveLineBlock(message.initialStartLine || 1, message.initialLines || []);
             queueRender(true);
         }
 
@@ -524,14 +597,9 @@
         }
 
         function render() {
-            if (state.lineCount <= 1 && !state.cache.has(1)) {
-                viewport.innerHTML = '<div class="empty-message">미리보기를 기다리는 중...</div>';
-                return;
-            }
-
             const range = visibleRange();
             requestMissingLines(range.start, range.end);
-            const key = `${range.start}:${range.end}:${state.lineCount}:${state.mode}:${scroll.clientWidth}:${totalVirtualHeight()}`;
+            const key = `${range.start}:${range.end}:${state.lineCount}:${state.mode}:${scroll.clientWidth}:${totalVirtualHeight()}:${state.cacheVersion}`;
             if (key === state.lastRangeKey) return;
             state.lastRangeKey = key;
             viewport.style.transform = `translateY(${rowTop(range.start)}px)`;
@@ -644,23 +712,35 @@
             }
         }
 
-        function receiveLines(message) {
-            const start = Number(message.startLine || 1);
-            const lines = message.lines || [];
-            for (let i = 0; i < lines.length; i++) {
-                state.cache.set(start + i, lines[i] ?? '');
+        function receiveLineBlock(startLine, lines) {
+            const start = Number(startLine || 1);
+            const safeLines = Array.isArray(lines) ? lines : [];
+            for (let i = 0; i < safeLines.length; i++) {
+                state.cache.set(start + i, safeLines[i] ?? '');
             }
+            state.cacheVersion++;
             for (const key of [...state.pending]) {
                 const [pendingStart, pendingCount] = key.split(':').map(Number);
-                if (start <= pendingStart && start + lines.length >= pendingStart + pendingCount) {
+                const pendingEnd = pendingStart + pendingCount - 1;
+                const receivedEnd = start + safeLines.length - 1;
+                if (start <= pendingStart && (safeLines.length === 0 || receivedEnd >= pendingEnd || receivedEnd >= state.lineCount)) {
                     state.pending.delete(key);
                 }
             }
+            return safeLines.length;
+        }
+
+        function receiveLines(message) {
+            receiveLineBlock(message.startLine || 1, message.lines || []);
             queueRender(true);
         }
 
         function renderFullFallback(message) {
             state.mode = message.mode || 'markdown';
+            if (state.mode === 'html') {
+                renderHtmlPreview(message);
+                return;
+            }
             state.wordWrap = message.wordWrap !== false;
             applyTheme(message);
             const lines = String(message.text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
@@ -668,6 +748,8 @@
             state.cache.clear();
             state.rowHeights.clear();
             lines.forEach((line, index) => state.cache.set(index + 1, line));
+            state.cacheVersion++;
+            setHtmlMode(false);
             document.body.classList.toggle('wrap-enabled', state.wordWrap);
             setupVirtualHeight();
             queueRender(true);
@@ -683,6 +765,7 @@
                 const message = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
                 if (message.action === 'initVirtualPreview') initVirtualPreview(message);
                 else if (message.action === 'previewLines') receiveLines(message);
+                else if (message.action === 'renderHtmlPreview') renderHtmlPreview(message);
                 else if (message.action === 'render') renderFullFallback(message);
             });
         }

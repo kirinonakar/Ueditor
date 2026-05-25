@@ -8,36 +8,53 @@ namespace Ueditor
 {
     public class CustomSplitter : Grid
     {
+        private const string SplitterBackgroundBrushKey = "SplitterBackgroundBrush";
+        private const string SplitterHoverBackgroundBrushKey = "SplitterHoverBackgroundBrush";
+
         private bool _isHorizontalSplitter;
+        private bool _isPointerOver;
 
         public CustomSplitter()
         {
             this.PointerEntered += CustomSplitter_PointerEntered;
             this.PointerExited += CustomSplitter_PointerExited;
+            this.Loaded += CustomSplitter_Loaded;
         }
 
         public void RefreshTheme()
         {
-            ClearValue(BackgroundProperty);
+            ApplyBackground(_isPointerOver ? SplitterHoverBackgroundBrushKey : SplitterBackgroundBrushKey);
+        }
+
+        private void CustomSplitter_Loaded(object sender, RoutedEventArgs e)
+        {
+            ApplyBackground(SplitterBackgroundBrushKey);
         }
 
         private void CustomSplitter_PointerEntered(object sender, PointerRoutedEventArgs e)
         {
+            _isPointerOver = true;
             _isHorizontalSplitter = ActualWidth > ActualHeight * 4;
             this.ProtectedCursor = InputSystemCursor.Create(_isHorizontalSplitter
                 ? InputSystemCursorShape.SizeNorthSouth
                 : InputSystemCursorShape.SizeWestEast);
 
-            if (Application.Current.Resources.TryGetValue("SplitterHoverBackgroundBrush", out var hoverBrush) && hoverBrush is Brush brush)
-            {
-                this.Background = brush;
-            }
+            ApplyBackground(SplitterHoverBackgroundBrushKey);
         }
 
         private void CustomSplitter_PointerExited(object sender, PointerRoutedEventArgs e)
         {
+            _isPointerOver = false;
             this.ProtectedCursor = null;
-            ClearValue(BackgroundProperty);
+            ApplyBackground(SplitterBackgroundBrushKey);
+        }
+
+        private void ApplyBackground(string resourceKey)
+        {
+            if (Application.Current.Resources.TryGetValue(resourceKey, out var value) && value is Brush brush)
+            {
+                this.Background = brush;
+            }
         }
     }
 }

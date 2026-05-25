@@ -82,12 +82,15 @@ namespace Ueditor.Editor
             int lineCount,
             string language,
             EditorSettings settings,
-            bool isReadOnly = false)
+            bool isReadOnly = false,
+            IReadOnlyList<string>? initialLines = null)
         {
             var msg = new
             {
                 action = "initModel",
                 lineCount = Math.Max(1, lineCount),
+                initialStartLine = 1,
+                initialLines = initialLines ?? Array.Empty<string>(),
                 language = language,
                 theme = settings.Theme,
                 wordWrap = settings.WordWrap,

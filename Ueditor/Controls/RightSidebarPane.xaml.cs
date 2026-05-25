@@ -50,7 +50,7 @@ namespace Ueditor.Controls
         {
             LivePreviewTab.Header = getString("LivePreviewTabHeader", "실시간 프리뷰");
             ComboItemMarkdown.Content = getString("ComboItemMarkdown", "Markdown");
-            ComboItemHtml.Content = getString("ComboItemHtml", "HTML Source");
+            ComboItemHtml.Content = getString("ComboItemHtml", "HTML Preview");
             ComboItemLatex.Content = getString("ComboItemLatex", "LaTeX Block");
             ComboItemAozora.Content = getString("ComboItemAozora", "Aozora");
             OpenBrowserButtonText.Text = getString("OpenInBrowserButtonText", "브라우저");

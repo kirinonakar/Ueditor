@@ -63,6 +63,8 @@ namespace Ueditor
         // Timer for debouncing live preview renders
         private readonly DispatcherTimer _previewDebounceTimer;
         private OpenedTab? _activeTabForPreview = null;
+        private const int InitialEditorLineWarmupCount = 500;
+        private const int InitialPreviewLineWarmupCount = 500;
 
         // Autosave timer
         private readonly DispatcherTimer _autoSaveTimer;
@@ -504,8 +506,8 @@ namespace Ueditor
                     }
                 };
 
-                // Load preview renderer page
-                PreviewWebView.Source = new Uri("http://ueditor.local/preview.html");
+                // Load preview renderer page. Version query avoids stale WebView2 virtual-host cache.
+                PreviewWebView.Source = new Uri($"http://ueditor.local/preview.html?v={GetWebResourceVersion("preview.html")}");
             }
             catch (Exception ex)
             {
@@ -732,7 +734,12 @@ namespace Ueditor
                     session.Model.LineCount,
                     tab.Language,
                     _settingsService.CurrentSettings,
-                    isReadOnly);
+                    isReadOnly,
+                    session.GetLines(1, InitialEditorLineWarmupCount));
+                if (string.Equals(tab.Language, "html", StringComparison.OrdinalIgnoreCase))
+                {
+                    await bridge.SetTextAsync(session.GetText());
+                }
             };
 
             bridge.LinesRequested += async (requestId, startLine, count) =>
@@ -864,7 +871,8 @@ namespace Ueditor
                 );
 
                 var settings = _settingsService.CurrentSettings;
-                var url = $"http://ueditor.local/editor.html?theme={Uri.EscapeDataString(settings.Theme)}" +
+                var url = $"http://ueditor.local/editor.html?v={GetWebResourceVersion("editor.html")}" +
+                    $"&theme={Uri.EscapeDataString(settings.Theme)}" +
                     $"&fontSize={settings.FontSize}" +
                     $"&fontFamily={Uri.EscapeDataString(settings.FontFamily)}" +
                     $"&wordWrap={(settings.WordWrap ? "pre-wrap" : "pre")}";
@@ -878,6 +886,21 @@ namespace Ueditor
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Failed initialization of editor: {ex.Message}");
+            }
+        }
+
+        private static string GetWebResourceVersion(string fileName)
+        {
+            try
+            {
+                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "WebResources", fileName);
+                return File.Exists(path)
+                    ? File.GetLastWriteTimeUtc(path).Ticks.ToString()
+                    : DateTime.UtcNow.Ticks.ToString();
+            }
+            catch
+            {
+                return DateTime.UtcNow.Ticks.ToString();
             }
         }
 
@@ -908,11 +931,35 @@ namespace Ueditor
                     3 => "aozora",
                     _ => "markdown"
                 };
+                if (string.Equals(tab.Language, "html", StringComparison.OrdinalIgnoreCase))
+                {
+                    mode = "html";
+                }
 
+                if (string.Equals(mode, "html", StringComparison.Ordinal))
+                {
+                    string previewText = _editorSessions.TryGetValue(tab.Id, out var htmlSession)
+                        ? htmlSession.GetText()
+                        : tab.Content ?? string.Empty;
+                    var htmlMsg = new
+                    {
+                        action = "renderHtmlPreview",
+                        text = previewText,
+                        baseHref = GetPreviewBaseHref(tab)
+                    };
+
+                    string htmlJson = System.Text.Json.JsonSerializer.Serialize(htmlMsg);
+                    PreviewWebView.CoreWebView2.PostWebMessageAsJson(htmlJson);
+                    return;
+                }
+
+                _editorSessions.TryGetValue(tab.Id, out var previewSession);
                 var renderMsg = new
                 {
                     action = "initVirtualPreview",
-                    lineCount = _editorSessions.TryGetValue(tab.Id, out var session) ? session.Model.LineCount : 1,
+                    lineCount = previewSession?.Model.LineCount ?? 1,
+                    initialStartLine = 1,
+                    initialLines = previewSession?.GetLines(1, InitialPreviewLineWarmupCount) ?? Array.Empty<string>(),
                     mode = mode,
                     wordWrap = _settingsService.CurrentSettings.WordWrap,
                     theme = _settingsService.CurrentSettings.Theme,
@@ -927,6 +974,32 @@ namespace Ueditor
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Failed sending live preview rendering data: {ex.Message}");
+            }
+        }
+
+        private static string GetPreviewBaseHref(OpenedTab tab)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(tab.FilePath))
+                {
+                    return string.Empty;
+                }
+
+                string? directory = Path.GetDirectoryName(tab.FilePath);
+                if (string.IsNullOrWhiteSpace(directory))
+                {
+                    return string.Empty;
+                }
+
+                string directoryWithSeparator = directory.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+                    ? directory
+                    : directory + Path.DirectorySeparatorChar;
+                return new Uri(directoryWithSeparator).AbsoluteUri;
+            }
+            catch
+            {
+                return string.Empty;
             }
         }
 
@@ -2098,7 +2171,12 @@ namespace Ueditor
                         session.Model.LineCount,
                         tab.Language,
                         _settingsService.CurrentSettings,
-                        isReadOnly: false);
+                        isReadOnly: false,
+                        initialLines: session.GetLines(1, InitialEditorLineWarmupCount));
+                    if (string.Equals(tab.Language, "html", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await bridgeGroup.Bridge.SetTextAsync(session.GetText());
+                    }
                     await bridgeGroup.Bridge.SetLanguageAsync(tab.FilePath);
                 }
 

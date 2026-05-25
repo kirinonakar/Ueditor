@@ -451,7 +451,7 @@
     <value>Markdown</value>
   </data>
   <data name="ComboItemHtml" xml:space="preserve">
-    <value>HTML Source</value>
+    <value>HTMLプレビュー</value>
   </data>
   <data name="ComboItemLatex" xml:space="preserve">
     <value>LaTeX Block</value>
