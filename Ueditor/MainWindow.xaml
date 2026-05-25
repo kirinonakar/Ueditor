@@ -31,7 +31,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
                 <Image Source="ms-appx:///Assets/Ueditor.png" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                <TextBlock Text="Ueditor" FontSize="14" FontWeight="SemiBold"
+                <TextBlock x:Name="AppTitleTextBlock" Text="Ueditor" FontSize="14" FontWeight="SemiBold"
                            VerticalAlignment="Center"
                            Foreground="{ThemeResource TitleBarForegroundBrush}"/>
             </StackPanel>

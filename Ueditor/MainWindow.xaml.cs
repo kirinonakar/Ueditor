@@ -738,6 +738,7 @@ namespace Ueditor
 
             UpdateStatusFileStats(tab);
             SyncEncodingCombo(tab);
+            UpdateWindowTitle();
         }
 
         private void WireEditorBridge(
@@ -1992,6 +1993,7 @@ namespace Ueditor
                     UpdateLanguageUI(activeTab);
                     SyncEncodingCombo(activeTab);
                 }
+                UpdateWindowTitle();
             }
         }
 
@@ -2082,6 +2084,7 @@ namespace Ueditor
                     }
                 }
             }
+            UpdateWindowTitle();
         }
 
         private void OnMoveTabLeftClick(object sender, RoutedEventArgs e)
@@ -2306,6 +2309,7 @@ namespace Ueditor
             {
                 OpenNewTab();
             }
+            UpdateWindowTitle();
         }
 
         private async void OnEditorTabViewSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -2536,6 +2540,7 @@ namespace Ueditor
                 UpdateStatusFileStats(tab);
                 UpdateLanguageUI(tab);
                 SyncEncodingCombo(tab);
+                UpdateWindowTitle();
             }
             catch (Exception ex)
             {
@@ -2695,6 +2700,25 @@ namespace Ueditor
             StatusGitBranch.Text = IsGitNotDetectedText(branch) ? GetLocalizedString("GitNotDetected", "Git: 감지 안됨") : branch;
         }
 
+        private void UpdateWindowTitle()
+        {
+            var activeTab = GetActiveTab();
+            string pathOrTitle = activeTab != null 
+                ? (!string.IsNullOrEmpty(activeTab.FilePath) ? activeTab.FilePath : activeTab.Title)
+                : "";
+
+            string newTitle = string.IsNullOrEmpty(pathOrTitle) 
+                ? "Ueditor" 
+                : $"Ueditor - {pathOrTitle}";
+
+            this.Title = newTitle;
+
+            if (AppTitleTextBlock != null)
+            {
+                AppTitleTextBlock.Text = newTitle;
+            }
+        }
+
         #endregion
 
         #region UI Personalization Helper
@@ -2830,6 +2854,7 @@ namespace Ueditor
                 UpdateLanguageUI(tab);
                 SyncEncodingCombo(tab);
                 await RefreshGitStatusUIAsync();
+                UpdateWindowTitle();
 
                 if (!string.IsNullOrEmpty(tab.FilePath) && File.Exists(tab.FilePath))
                 {
@@ -2880,6 +2905,7 @@ namespace Ueditor
                 UpdateLanguageUI(tab);
                 SyncEncodingCombo(tab);
                 await RefreshGitStatusUIAsync();
+                UpdateWindowTitle();
 
                 if (!string.IsNullOrEmpty(tab.FilePath) && File.Exists(tab.FilePath))
                 {
