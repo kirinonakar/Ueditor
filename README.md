@@ -98,7 +98,7 @@ Ueditor is designed for speed and productivity, packing standard IDE shortcuts a
 ## 🚀 Getting Started
 
 ### 📥 Download
-You can download the latest version from the [Releases Page](https://github.com/kirinonakar/Ueditor/releases).
+You can download the latest installer (built using **Inno Setup**) from the [Releases Page](https://github.com/kirinonakar/Ueditor/releases).
 
 ### Manual build Prerequisites
 
