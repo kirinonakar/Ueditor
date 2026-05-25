@@ -65,7 +65,10 @@ Designed for developers, writers, and power users, Ueditor provides a fluid, dis
 
 ## 🚀 Getting Started
 
-### Prerequisites
+### 📥 Download
+You can download the latest version from the [Releases Page](https://github.com/kirinonakar/Ueditor/releases).
+
+### Manual build Prerequisites
 
 To build and run Ueditor locally, make sure you have:
 *   **Windows 10 / 11**
@@ -87,18 +90,6 @@ To build and run Ueditor locally, make sure you have:
     Visual Studio will automatically restore NuGet packages (such as `Microsoft.WindowsAppSDK`).
 4.  **Run:**
     Set the startup project to `Ueditor` and press `F5` to build and run in unpackaged mode.
-
----
-
-## 📦 Deployment & Publishing
-
-Ueditor is configured as a **Self-Contained Unpackaged** desktop app (`<WindowsPackageType>None</WindowsPackageType>`), meaning it does not require MSIX packaging tools to run on target systems.
-
-To publish a standalone executable:
-```bash
-dotnet publish Ueditor/Ueditor.csproj -c Release -r win-x64 --self-contained true -p:PublishReadyToRun=true
-```
-This produces a fully optimized, self-contained `win-x64` executable structure in the publish directory.
 
 ---
 
