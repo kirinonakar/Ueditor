@@ -253,6 +253,12 @@
             cursor: default;
         }
 
+        .context-menu-separator {
+            height: 1px;
+            margin: 4px 2px;
+            background: rgba(127, 127, 127, 0.28);
+        }
+
         #loading-overlay {
             position: absolute;
             inset: 0;
@@ -416,7 +422,10 @@
             <button class="context-menu-button" type="button" data-action="paste" data-requires-edit="true">붙여넣기</button>
             <button class="context-menu-button" type="button" data-action="delete" data-requires-edit="true">삭제</button>
             <button class="context-menu-button" type="button" data-action="selectAll">모두 선택</button>
+            <div class="context-menu-separator" role="separator"></div>
             <button class="context-menu-button" type="button" data-action="toggleComment" data-requires-edit="true">주석 토글</button>
+            <button class="context-menu-button" type="button" data-action="indentLines" data-requires-edit="true">들여쓰기</button>
+            <button class="context-menu-button" type="button" data-action="outdentLines" data-requires-edit="true">내여쓰기</button>
         </div>
         <div id="autocomplete-popup" class="autocomplete-popup" hidden></div>
     </div>
@@ -794,10 +803,16 @@
             const isSql = language === 'sql';
             const isShell = ['shell', 'bash', 'powershell'].includes(language);
             const isMarkdown = ['markdown', 'md'].includes(language);
-
-            if (isHtml) {
-                return escapeHtml(text);
-            }
+            const isR = language === 'r';
+            const isRuby = language === 'ruby';
+            const isLua = language === 'lua';
+            const isLatex = language === 'latex';
+            const isDataConfig = ['yaml', 'toml', 'ini'].includes(language);
+            const isDiff = language === 'diff';
+            const isDockerfile = language === 'dockerfile';
+            const isMakefile = language === 'makefile';
+            const isFsharp = language === 'fsharp';
+            const isVb = language === 'vb';
 
             if (isHtml) {
                 // 1. Comments
@@ -919,6 +934,142 @@
                 // 7. Builtins
                 workingText = workingText.replace(/\b(True|False|None|self|print|len|range|str|int|float|list|dict|set|tuple|object|open|enumerate|zip)\b/g, m => stash(`<span class="token-type">${escapeHtml(m)}</span>`));
                 // 8. Functions
+                workingText = workingText.replace(/\b([a-zA-Z_]\w*)(?=\s*\()/g, m => stash(`<span class="token-function">${escapeHtml(m)}</span>`));
+            }
+            else if (isR) {
+                // 1. Comments
+                workingText = workingText.replace(/#.*/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                // 2. Strings
+                workingText = workingText.replace(/"(?:\\.|[^"\\])*"/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/'(?:\\.|[^'\\])*'/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                // 3. Numbers
+                workingText = workingText.replace(/\b(?:Inf|NaN|NA|NULL|TRUE|FALSE|T|F)\b|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?[iL]?\b/g, m => stash(`<span class="token-number">${escapeHtml(m)}</span>`));
+                // 4. Control Flow
+                workingText = workingText.replace(/\b(if|else|for|while|repeat|break|next|return|in)\b/g, m => stash(`<span class="token-control">${escapeHtml(m)}</span>`));
+                // 5. Keywords and builtins
+                workingText = workingText.replace(/\b(function|library|require|source|setwd|getwd|data|print|cat|paste|paste0|c|list|matrix|data\.frame|tibble|factor|length|nrow|ncol|names|colnames|rownames|apply|lapply|sapply|tapply|aggregate|subset|merge|read\.csv|read\.table|write\.csv|ggplot|aes|mutate|filter|select|summarise|arrange|group_by)\b/g, m => stash(`<span class="token-keyword">${escapeHtml(m)}</span>`));
+                // 6. Functions
+                workingText = workingText.replace(/\b([a-zA-Z.][\w.]*)(?=\s*\()/g, m => stash(`<span class="token-function">${escapeHtml(m)}</span>`));
+                // 7. Operators
+                workingText = workingText.replace(/<-|<<-|->|->>|%[^%\s]+%|::|:::|\|\||&&|<=|>=|==|!=|[+\-*\/=<>!&|~:$@^]/g, m => stash(`<span class="token-operator">${escapeHtml(m)}</span>`));
+                // 8. Punctuation
+                workingText = workingText.replace(/[{}()\[\],;]/g, m => stash(`<span class="token-punctuation">${escapeHtml(m)}</span>`));
+            }
+            else if (isRuby) {
+                // 1. Comments
+                workingText = workingText.replace(/#.*/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                // 2. Strings / symbols
+                workingText = workingText.replace(/"(?:\\.|[^"\\])*"/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/'(?:\\.|[^'\\])*'/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/:[a-zA-Z_]\w*[?!]?/g, m => stash(`<span class="token-variable">${escapeHtml(m)}</span>`));
+                // 3. Numbers
+                workingText = workingText.replace(/\b\d+(?:\.\d+)?\b/g, m => stash(`<span class="token-number">${escapeHtml(m)}</span>`));
+                // 4. Control Flow
+                workingText = workingText.replace(/\b(if|unless|else|elsif|case|when|while|until|for|in|do|end|begin|rescue|ensure|retry|return|yield|break|next|redo)\b/g, m => stash(`<span class="token-control">${escapeHtml(m)}</span>`));
+                // 5. Keywords / builtins
+                workingText = workingText.replace(/\b(def|class|module|include|extend|require|load|attr_reader|attr_writer|attr_accessor|private|protected|public|self|super|nil|true|false)\b/g, m => stash(`<span class="token-keyword">${escapeHtml(m)}</span>`));
+                // 6. Variables and functions
+                workingText = workingText.replace(/[@$][a-zA-Z_]\w*/g, m => stash(`<span class="token-variable">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/\b([a-zA-Z_]\w*[?!]?)(?=\s*\()/g, m => stash(`<span class="token-function">${escapeHtml(m)}</span>`));
+            }
+            else if (isLua) {
+                // 1. Comments
+                workingText = workingText.replace(/--\[\[[\s\S]*?\]\]/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/--.*/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                // 2. Strings
+                workingText = workingText.replace(/"(?:\\.|[^"\\])*"/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/'(?:\\.|[^'\\])*'/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                // 3. Numbers
+                workingText = workingText.replace(/\b\d+(?:\.\d+)?\b/g, m => stash(`<span class="token-number">${escapeHtml(m)}</span>`));
+                // 4. Control Flow
+                workingText = workingText.replace(/\b(if|then|elseif|else|end|for|while|repeat|until|do|break|return|goto|in)\b/g, m => stash(`<span class="token-control">${escapeHtml(m)}</span>`));
+                // 5. Keywords / builtins
+                workingText = workingText.replace(/\b(function|local|nil|true|false|and|or|not|require|print|pairs|ipairs|string|table|math|io|os|coroutine)\b/g, m => stash(`<span class="token-keyword">${escapeHtml(m)}</span>`));
+                // 6. Functions
+                workingText = workingText.replace(/\b([a-zA-Z_]\w*)(?=\s*\()/g, m => stash(`<span class="token-function">${escapeHtml(m)}</span>`));
+            }
+            else if (isLatex) {
+                // 1. Comments
+                workingText = workingText.replace(/%.*/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                // 2. Commands
+                workingText = workingText.replace(/\\[a-zA-Z@]+|\\./g, m => stash(`<span class="token-keyword">${escapeHtml(m)}</span>`));
+                // 3. Environments and references
+                workingText = workingText.replace(/\{(?:document|figure|table|itemize|enumerate|align|equation|array|tabular|section|subsection|subsubsection)\}/g, m => stash(`<span class="token-type">${escapeHtml(m)}</span>`));
+                // 4. Math delimiters
+                workingText = workingText.replace(/\$\$?|\[|\]/g, m => stash(`<span class="token-punctuation">${escapeHtml(m)}</span>`));
+                // 5. Braces
+                workingText = workingText.replace(/[{}]/g, m => stash(`<span class="token-punctuation">${escapeHtml(m)}</span>`));
+            }
+            else if (isDataConfig) {
+                // 1. Comments
+                workingText = workingText.replace(/#.*/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                // 2. Strings
+                workingText = workingText.replace(/"(?:\\.|[^"\\])*"/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/'(?:\\.|[^'\\])*'/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                // 3. Section headers and keys
+                workingText = workingText.replace(/^\s*\[[^\]]+\]/g, m => stash(`<span class="token-type">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/^\s*[-?]?\s*[a-zA-Z0-9_.-]+(?=\s*[:=])/g, m => stash(`<span class="token-keyword">${escapeHtml(m)}</span>`));
+                // 4. Scalars
+                workingText = workingText.replace(/\b(true|false|null|yes|no|on|off)\b/gi, m => stash(`<span class="token-type">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/\b-?\d+(?:\.\d+)?\b/g, m => stash(`<span class="token-number">${escapeHtml(m)}</span>`));
+                // 5. Punctuation
+                workingText = workingText.replace(/[:=\[\]{}.,-]/g, m => stash(`<span class="token-punctuation">${escapeHtml(m)}</span>`));
+            }
+            else if (isDiff) {
+                if (/^(diff --git|index |@@|\+\+\+|---)/.test(workingText)) {
+                    workingText = stash(`<span class="token-keyword">${escapeHtml(workingText)}</span>`);
+                } else if (workingText.startsWith('+')) {
+                    workingText = stash(`<span class="token-string">${escapeHtml(workingText)}</span>`);
+                } else if (workingText.startsWith('-')) {
+                    workingText = stash(`<span class="token-comment">${escapeHtml(workingText)}</span>`);
+                }
+            }
+            else if (isDockerfile) {
+                // 1. Comments
+                workingText = workingText.replace(/#.*/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                // 2. Strings
+                workingText = workingText.replace(/"(?:\\.|[^"\\])*"/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/'(?:\\.|[^'\\])*'/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                // 3. Instructions
+                workingText = workingText.replace(/^\s*(FROM|RUN|CMD|LABEL|MAINTAINER|EXPOSE|ENV|ADD|COPY|ENTRYPOINT|VOLUME|USER|WORKDIR|ARG|ONBUILD|STOPSIGNAL|HEALTHCHECK|SHELL)\b/gi, m => stash(`<span class="token-keyword">${escapeHtml(m)}</span>`));
+                // 4. Variables
+                workingText = workingText.replace(/\$[a-zA-Z_]\w*|\$\{[a-zA-Z_]\w*\}/g, m => stash(`<span class="token-variable">${escapeHtml(m)}</span>`));
+            }
+            else if (isMakefile) {
+                // 1. Comments
+                workingText = workingText.replace(/#.*/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                // 2. Targets and variables
+                workingText = workingText.replace(/^[^\s:=#][^:=#]*(?=\s*:)/g, m => stash(`<span class="token-function">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/^[A-Za-z_][A-Za-z0-9_]*(?=\s*[:+?]?=)/g, m => stash(`<span class="token-variable">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/\$\([^)]+\)|\$\{[^}]+\}/g, m => stash(`<span class="token-variable">${escapeHtml(m)}</span>`));
+                // 3. Directives
+                workingText = workingText.replace(/\b(ifdef|ifndef|ifeq|ifneq|else|endif|include|define|endef|export|override|private|vpath)\b/g, m => stash(`<span class="token-keyword">${escapeHtml(m)}</span>`));
+            }
+            else if (isFsharp) {
+                // 1. Comments
+                workingText = workingText.replace(/\(\*[\s\S]*?\*\)/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/\/\/.*/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                // 2. Strings
+                workingText = workingText.replace(/@"[^"]*"|"(?:\\.|[^"\\])*"/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                // 3. Numbers
+                workingText = workingText.replace(/\b\d+(?:\.\d+)?\b/g, m => stash(`<span class="token-number">${escapeHtml(m)}</span>`));
+                // 4. Control Flow / keywords
+                workingText = workingText.replace(/\b(if|then|else|match|with|for|while|do|done|try|finally|return|yield|async|let|use|fun|function|member|type|module|namespace|open|interface|abstract|override|static|mutable|rec|and|or|not|in|of|as|new)\b/g, m => stash(`<span class="token-keyword">${escapeHtml(m)}</span>`));
+                // 5. Types and functions
+                workingText = workingText.replace(/\b(unit|bool|string|int|int64|float|double|decimal|list|array|seq|option|Result|Some|None|Ok|Error|true|false|null)\b/g, m => stash(`<span class="token-type">${escapeHtml(m)}</span>`));
+                workingText = workingText.replace(/\b([a-zA-Z_]\w*)(?=\s*\()/g, m => stash(`<span class="token-function">${escapeHtml(m)}</span>`));
+            }
+            else if (isVb) {
+                // 1. Comments
+                workingText = workingText.replace(/'.*/g, m => stash(`<span class="token-comment">${escapeHtml(m)}</span>`));
+                // 2. Strings
+                workingText = workingText.replace(/"(?:[^"]|"")*"/g, m => stash(`<span class="token-string">${escapeHtml(m)}</span>`));
+                // 3. Numbers
+                workingText = workingText.replace(/\b\d+(?:\.\d+)?\b/g, m => stash(`<span class="token-number">${escapeHtml(m)}</span>`));
+                // 4. Control Flow / keywords
+                workingText = workingText.replace(/\b(If|Then|Else|ElseIf|End|For|Each|Next|While|Do|Loop|Select|Case|Try|Catch|Finally|Throw|Return|Exit|Continue|Imports|Namespace|Class|Module|Structure|Interface|Enum|Public|Private|Protected|Friend|Shared|Overrides|Overridable|MustOverride|Sub|Function|Property|Dim|Const|Static|New|In|As|Is|And|Or|Not|ByVal|ByRef)\b/g, m => stash(`<span class="token-keyword">${escapeHtml(m)}</span>`));
+                // 5. Types / builtins
+                workingText = workingText.replace(/\b(Boolean|Byte|Char|Date|Decimal|Double|Integer|Long|Object|Short|Single|String|True|False|Nothing|Console|Math)\b/g, m => stash(`<span class="token-type">${escapeHtml(m)}</span>`));
                 workingText = workingText.replace(/\b([a-zA-Z_]\w*)(?=\s*\()/g, m => stash(`<span class="token-function">${escapeHtml(m)}</span>`));
             }
             else if (isClike) {
@@ -1642,16 +1793,23 @@
         function lineCommentSyntax() {
             switch (state.language) {
                 case 'python':
+                case 'r':
                 case 'ruby':
                 case 'shell':
                 case 'powershell':
                 case 'yaml':
                 case 'toml':
                 case 'ini':
+                case 'dockerfile':
+                case 'makefile':
                     return { prefix: '# ' };
                 case 'sql':
                 case 'lua':
                     return { prefix: '-- ' };
+                case 'latex':
+                    return { prefix: '% ' };
+                case 'vb':
+                    return { prefix: "' " };
                 case 'html':
                 case 'xml':
                 case 'markdown':
@@ -1717,6 +1875,44 @@
             for (let line = startLine; line <= endLine; line++) {
                 toggleCommentForLine(line, syntax, shouldUncomment);
             }
+
+            post({ type: 'contentChanged' });
+            queueRender(true);
+            setTimeout(() => focusLine(startLine, 0), 0);
+        }
+
+        function changeLineIndent(direction) {
+            if (state.readOnly) return;
+
+            const { startLine, endLine } = selectedLineRange();
+            const indentText = ' '.repeat(Math.max(1, state.tabSize || 4));
+            let changed = false;
+
+            for (let line = startLine; line <= endLine; line++) {
+                const original = state.cache.get(line);
+                if (original === undefined) continue;
+
+                let next = original;
+                if (direction > 0) {
+                    next = indentText + original;
+                } else if (original.startsWith('\t')) {
+                    next = original.slice(1);
+                } else {
+                    const leadingSpaces = original.match(/^ +/)?.[0].length || 0;
+                    const removeCount = Math.min(indentText.length, leadingSpaces);
+                    if (removeCount > 0) {
+                        next = original.slice(removeCount);
+                    }
+                }
+
+                if (next !== original) {
+                    state.cache.set(line, next);
+                    post({ type: 'lineChanged', lineNumber: line, text: next });
+                    changed = true;
+                }
+            }
+
+            if (!changed) return;
 
             post({ type: 'contentChanged' });
             queueRender(true);
@@ -2506,6 +2702,10 @@
 
             if (event.key === 'Tab') {
                 event.preventDefault();
+                if (event.shiftKey || hasCustomSelection()) {
+                    changeLineIndent(event.shiftKey ? -1 : 1);
+                    return;
+                }
                 insertTextAtCaret(' '.repeat(state.tabSize));
                 return;
             }
@@ -2663,6 +2863,12 @@
                     break;
                 case 'toggleComment':
                     toggleComment();
+                    break;
+                case 'indentLines':
+                    changeLineIndent(1);
+                    break;
+                case 'outdentLines':
+                    changeLineIndent(-1);
                     break;
             }
         });

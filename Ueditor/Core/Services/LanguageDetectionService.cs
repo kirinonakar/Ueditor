@@ -26,8 +26,12 @@ namespace Ueditor.Core.Services
                 ".vb" => "vb",
                 ".js" => "javascript",
                 ".jsx" => "javascript",
+                ".mjs" => "javascript",
+                ".cjs" => "javascript",
                 ".ts" => "typescript",
                 ".tsx" => "typescript",
+                ".mts" => "typescript",
+                ".cts" => "typescript",
                 ".css" => "css",
                 ".scss" => "scss",
                 ".less" => "less",
@@ -47,6 +51,8 @@ namespace Ueditor.Core.Services
                 ".bash" => "shell",
                 ".zsh" => "shell",
                 ".ps1" => "powershell",
+                ".psm1" => "powershell",
+                ".psd1" => "powershell",
                 ".rs" => "rust",
                 ".go" => "go",
                 ".java" => "java",
@@ -58,6 +64,7 @@ namespace Ueditor.Core.Services
                 ".dart" => "dart",
                 ".lua" => "lua",
                 ".r" => "r",
+                ".rprofile" => "r",
                 ".dockerfile" => "dockerfile",
                 ".toml" => "toml",
                 ".ini" => "ini",
@@ -146,6 +153,14 @@ namespace Ueditor.Core.Services
             if (sample.StartsWith("#!/usr/bin/env ruby") ||
                 sample.Contains("puts ") ||
                 sample.Contains("def ") && sample.Contains("end")) return "ruby";
+
+            if (sample.Contains("library(") ||
+                sample.Contains("<-") && sample.Contains("function(") ||
+                sample.Contains("data.frame(") ||
+                sample.Contains("ggplot(")) return "r";
+
+            if (sample.Contains("local function ") ||
+                sample.Contains("function ") && sample.Contains(" end")) return "lua";
 
             if (sample.Contains("FROM ") && sample.Contains("RUN ", StringComparison.OrdinalIgnoreCase)) return "dockerfile";
 
