@@ -53,6 +53,11 @@ namespace Ueditor
         private string _currentFolderPath = string.Empty;
         private string _currentRepoPath = string.Empty;
         private bool _isSyncingEncodingCombo = false;
+
+        private bool _isStickyNoteMode = false;
+        private bool _wasLeftSidebarVisible = false;
+        private bool _wasRightSidebarVisible = false;
+        private bool _wasMarkdownToolbarVisible = false;
         
         // Dynamic tabs collection
         private readonly Dictionary<string, (WebView2 WebView, MonacoBridge Bridge)> _tabBridges = 
@@ -1260,12 +1265,90 @@ namespace Ueditor
 
         private void OnTopMostToggleClick(object sender, RoutedEventArgs e)
         {
-            _stickyNoteService.ApplyTopMost(this, TopToolbar.TopMostIsChecked);
+            bool topMost = TopToolbar.TopMostIsChecked;
+            _stickyNoteService.ApplyTopMost(this, topMost);
+            if (StickyNoteTopMostButton != null)
+            {
+                StickyNoteTopMostButton.IsChecked = topMost;
+            }
         }
 
         private void OnStickyNoteClick(object sender, RoutedEventArgs e)
         {
-            _stickyNoteService.ShowOrActivate(this);
+            if (_isStickyNoteMode)
+            {
+                ExitStickyNoteMode();
+            }
+            else
+            {
+                EnterStickyNoteMode();
+            }
+        }
+
+        private void EnterStickyNoteMode()
+        {
+            if (_isStickyNoteMode) return;
+            _isStickyNoteMode = true;
+
+            // Save current states
+            _wasLeftSidebarVisible = _shellPanelLayoutService.IsLeftSidebarVisible;
+            _wasRightSidebarVisible = _shellPanelLayoutService.IsRightSidebarVisible;
+            _wasMarkdownToolbarVisible = MarkdownToolbar.Visibility == Visibility.Visible;
+
+            // Sync topmost button state
+            StickyNoteTopMostButton.IsChecked = TopToolbar.TopMostIsChecked;
+
+            // Hide normal Titlebar and show Sticky Note Header
+            AppTitleBar.Visibility = Visibility.Collapsed;
+            ExitStickyNoteBar.Visibility = Visibility.Visible;
+            this.SetTitleBar(ExitStickyNoteBar);
+
+            // Collapse normal toolbars and status bar
+            TopToolbar.Visibility = Visibility.Collapsed;
+            MarkdownToolbar.Visibility = Visibility.Collapsed;
+            StatusBarPane.Visibility = Visibility.Collapsed;
+
+            // Hide left and right sidebars via layout service
+            _shellPanelLayoutService.ApplyLeftSidebarVisibility(false);
+            _shellPanelLayoutService.ApplyPreviewVisibility(false);
+        }
+
+        private void ExitStickyNoteMode()
+        {
+            if (!_isStickyNoteMode) return;
+            _isStickyNoteMode = false;
+
+            // Sync standard topmost state in toolbar with sticker header topmost state
+            bool topMost = StickyNoteTopMostButton.IsChecked == true;
+            TopToolbar.TopMostIsChecked = topMost;
+            _stickyNoteService.ApplyTopMost(this, topMost);
+
+            // Hide Sticky Note Header and show normal Titlebar
+            ExitStickyNoteBar.Visibility = Visibility.Collapsed;
+            AppTitleBar.Visibility = Visibility.Visible;
+            this.SetTitleBar(AppTitleBar);
+
+            // Restore normal toolbars and status bar
+            TopToolbar.Visibility = Visibility.Visible;
+            MarkdownToolbar.Visibility = _wasMarkdownToolbarVisible ? Visibility.Visible : Visibility.Collapsed;
+            StatusBarPane.Visibility = Visibility.Visible;
+
+            // Restore sidebars to cached states
+            LeftPanelToggle.IsChecked = _wasLeftSidebarVisible;
+            ApplyLeftSidebarVisibility(_wasLeftSidebarVisible);
+            ApplyPreviewVisibility(_wasRightSidebarVisible);
+        }
+
+        private void OnExitStickyNoteClick(object sender, RoutedEventArgs e)
+        {
+            ExitStickyNoteMode();
+        }
+
+        private void OnStickyNoteTopMostClick(object sender, RoutedEventArgs e)
+        {
+            bool topMost = StickyNoteTopMostButton.IsChecked == true;
+            _stickyNoteService.ApplyTopMost(this, topMost);
+            TopToolbar.TopMostIsChecked = topMost;
         }
 
         private async void OnFindClick(object sender, RoutedEventArgs e)

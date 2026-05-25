@@ -49,7 +49,11 @@ namespace Ueditor.Controls
             set => TerminalToggleButton.IsChecked = value;
         }
 
-        public bool TopMostIsChecked => TopMostToggleButton.IsChecked == true;
+        public bool TopMostIsChecked
+        {
+            get => TopMostToggleButton.IsChecked == true;
+            set => TopMostToggleButton.IsChecked = value;
+        }
 
         public void Localize(Func<string, string, string> getString)
         {
