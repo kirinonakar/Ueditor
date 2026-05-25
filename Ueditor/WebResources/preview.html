@@ -15,7 +15,8 @@
             --code-bg: #2d2d2d;
             --border: #3e3e3e;
             --font: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
-            --row-height: 34px;
+            --row-height: 24px;
+            --empty-row-height: 12px;
         }
 
         * {
@@ -96,14 +97,25 @@
 
         .preview-row {
             min-height: var(--row-height);
-            padding: 4px 22px;
+            padding: 0 22px;
             overflow: visible;
             border-bottom: none;
             overflow-wrap: anywhere;
         }
 
         .preview-row.empty {
+            min-height: var(--empty-row-height);
+            height: var(--empty-row-height);
+            padding-top: 0;
+            padding-bottom: 0;
             border-bottom-color: transparent;
+        }
+
+        .preview-row.skipped {
+            min-height: 0;
+            height: 0;
+            padding: 0;
+            overflow: hidden;
         }
 
         .preview-row.loading {
@@ -263,7 +275,7 @@
 
         const state = {
             lineCount: 1,
-            rowHeight: 34,
+            rowHeight: 24,
             overscan: 20,
             mode: 'markdown',
             cache: new Map(),
@@ -610,22 +622,22 @@
         }
 
         function rowHeightFor(lineNumber) {
-            return state.rowHeights.get(lineNumber) || state.rowHeight;
+            return state.rowHeights.has(lineNumber) ? state.rowHeights.get(lineNumber) : state.rowHeight;
         }
 
         function totalVirtualHeight() {
             let total = Math.max(1, state.lineCount) * state.rowHeight;
             for (const height of state.rowHeights.values()) {
-                total += Math.max(0, height - state.rowHeight);
+                total += Math.max(0, height) - state.rowHeight;
             }
-            return total;
+            return Math.max(1, total);
         }
 
         function rowTop(lineNumber) {
             let top = (Math.max(1, lineNumber) - 1) * state.rowHeight;
             for (const [line, height] of state.rowHeights.entries()) {
                 if (line < lineNumber) {
-                    top += Math.max(0, height - state.rowHeight);
+                    top += Math.max(0, height) - state.rowHeight;
                 }
             }
             return top;
@@ -722,7 +734,7 @@
                 let tableRows = [];
                 for (let lineNumber = range.start; lineNumber <= range.end; lineNumber++) {
                     if (!state.cache.has(lineNumber)) {
-                        rows.push(`<div class="preview-row loading">로딩 중...</div>`);
+                        rows.push(renderPreviewRow(lineNumber, '로딩 중...', 'loading'));
                         continue;
                     }
 
@@ -730,7 +742,8 @@
                     const prevLine = state.cache.get(lineNumber - 1);
                     let rendered;
                     if (lineNumber <= skipUntilLine) {
-                        rendered = '';
+                        rows.push(renderPreviewRow(lineNumber, '', 'skipped'));
+                        continue;
                     } else if (state.mode === 'markdown' && isHtmlBlockStart(line)) {
                         const block = collectHtmlBlock(lineNumber, range.end);
                         if (block) {
@@ -777,13 +790,18 @@
                         rendered = renderLine(line);
                     }
                     if (rendered !== undefined && rendered !== null) {
-                        rows.push(`<div class="preview-row${rendered === '' ? ' empty' : ''}">${rendered}</div>`);
+                        rows.push(renderPreviewRow(lineNumber, rendered, rendered === '' ? 'empty' : ''));
                     }
                 }
 
             viewport.innerHTML = rows.join('');
             watchRenderedImages();
             measureRenderedRows();
+        }
+
+        function renderPreviewRow(lineNumber, html, extraClass = '') {
+            const className = `preview-row${extraClass ? ` ${extraClass}` : ''}`;
+            return `<div class="${className}" data-line="${lineNumber}">${html}</div>`;
         }
 
         function watchRenderedImages() {
@@ -864,10 +882,13 @@
         function measureRenderedRows() {
             let changed = false;
             const rows = viewport.querySelectorAll('.preview-row');
-            const startLine = visibleRange().start;
-            rows.forEach((row, index) => {
-                const lineNumber = startLine + index;
-                const measured = Math.max(state.rowHeight, Math.ceil(row.scrollHeight));
+            rows.forEach(row => {
+                const lineNumber = Number(row.dataset.line || 0);
+                if (!lineNumber) return;
+
+                const measured = row.classList.contains('skipped')
+                    ? 0
+                    : Math.max(0, Math.ceil(row.getBoundingClientRect().height || row.scrollHeight || 0));
                 if (rowHeightFor(lineNumber) !== measured) {
                     state.rowHeights.set(lineNumber, measured);
                     changed = true;
