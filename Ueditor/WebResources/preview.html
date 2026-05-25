@@ -151,6 +151,19 @@
             margin: 6px 0;
         }
 
+        p[align="center"] > img:only-child,
+        div[align="center"] > img:only-child,
+        center > img:only-child {
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        p[align="right"] > img:only-child,
+        div[align="right"] > img:only-child {
+            margin-left: auto;
+            margin-right: 0;
+        }
+
         code {
             padding: 2px 5px;
             border-radius: 4px;
@@ -718,6 +731,14 @@
                     let rendered;
                     if (lineNumber <= skipUntilLine) {
                         rendered = '';
+                    } else if (state.mode === 'markdown' && isHtmlBlockStart(line)) {
+                        const block = collectHtmlBlock(lineNumber, range.end);
+                        if (block) {
+                            rendered = sanitizeHtml(block.html);
+                            skipUntilLine = block.endLine;
+                        } else {
+                            rendered = '';
+                        }
                     } else if (state.mode === 'markdown' && isDisplayMathFence(line)) {
                         const block = collectDisplayMathBlock(lineNumber, range.end);
                         if (block) {
@@ -783,6 +804,39 @@
         function isDisplayMathFence(line) {
             const trimmed = (line || '').trim();
             return trimmed === '$$' || trimmed === '\\[';
+        }
+
+        function htmlBlockTagName(line) {
+            const trimmed = (line || '').trim();
+            const match = /^<([A-Za-z][A-Za-z0-9:-]*)(?:\s[^<>]*?)?>\s*$/.exec(trimmed);
+            if (!match || /\/>\s*$/.test(trimmed)) return '';
+
+            const tag = match[1].toLowerCase();
+            return ['p', 'div', 'center', 'figure', 'figcaption'].includes(tag) ? tag : '';
+        }
+
+        function isHtmlBlockStart(line) {
+            return htmlBlockTagName(line) !== '';
+        }
+
+        function collectHtmlBlock(startLine, maxLine) {
+            const tag = htmlBlockTagName(state.cache.get(startLine));
+            if (!tag) return null;
+
+            const closePattern = new RegExp(`</${tag}\\s*>`, 'i');
+            const parts = [];
+            for (let line = startLine; line <= maxLine; line++) {
+                if (!state.cache.has(line)) return null;
+                const text = state.cache.get(line) || '';
+                parts.push(text);
+                if (closePattern.test(text)) {
+                    return {
+                        html: parts.join('\n'),
+                        endLine: line
+                    };
+                }
+            }
+            return null;
         }
 
         function isDisplayMathClose(line, opener) {
