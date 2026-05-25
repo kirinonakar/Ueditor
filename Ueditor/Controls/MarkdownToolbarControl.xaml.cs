@@ -92,8 +92,12 @@ namespace Ueditor.Controls
             var brush = new SolidColorBrush(color);
             TextColorPicker.Color = color;
             TextColorButton.Foreground = brush;
-            TextColorButton.Resources["AppBarButtonForegroundPointerOver"] = brush;
-            TextColorButton.Resources["AppBarButtonForegroundPressed"] = brush;
+            TextColorButton.Resources["ButtonForegroundPointerOver"] = brush;
+            TextColorButton.Resources["ButtonForegroundPressed"] = brush;
+            if (TextColorIcon != null)
+            {
+                TextColorIcon.Foreground = brush;
+            }
         }
     }
 }

@@ -92,7 +92,7 @@
                     <TextBlock Text="A-" FontSize="10" LineHeight="12" FontWeight="SemiBold" Style="{StaticResource MarkdownToolbarGlyphStyle}"/>
                 </Button>
                 <Button x:Name="TextColorButton" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnTextColorButtonClick" ToolTipService.ToolTip="글자색 (우클릭: 색상 선택)" RightTapped="OnTextColorButtonRightTapped">
-                    <FontIcon Glyph="&#xE8D3;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
+                    <FontIcon x:Name="TextColorIcon" Glyph="&#xE8D3;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
                     <Button.ContextFlyout>
                         <Flyout x:Name="ColorPickerFlyout" Placement="Bottom">
                             <Flyout.FlyoutPresenterStyle>
