@@ -89,6 +89,8 @@ namespace Ueditor.Core.Services
             var llmApiKeyBox = new PasswordBox { PasswordChar = "●", PlaceholderText = "API Key 입력 (비워두면 저장된 Key 삭제)", HorizontalAlignment = HorizontalAlignment.Stretch };
             llmApiKeyBox.Password = await _llmService.GetApiKeyAsync(providerNames[providerIndex]);
 
+            var confirmBeforeSendingCheck = new CheckBox { Content = getString("SettingsLlmConfirmBeforeSending", "전송 전 확인"), IsChecked = settings.LlmConfirmBeforeSending };
+
             var sourceLangCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
             sourceLangCombo.Items.Add(getString("LlmLangAutoDetect", "자동 감지 (Auto Detect)"));
             sourceLangCombo.Items.Add(getString("LlmLangKorean", "한국어 (Korean)"));
@@ -345,6 +347,8 @@ namespace Ueditor.Core.Services
             llmSection.Children.Add(refreshLmStudioModelsButton);
             llmSection.Children.Add(llmModelStatusText);
 
+            llmSection.Children.Add(confirmBeforeSendingCheck);
+
             AddLabel(llmSection, getString("SettingsLlmSourceLanguage", "번역 원본 언어 (Source Language)"));
             llmSection.Children.Add(sourceLangCombo);
             AddLabel(llmSection, getString("SettingsLlmTargetLanguage", "번역 대상 언어 (Target Language)"));
@@ -559,6 +563,7 @@ namespace Ueditor.Core.Services
             settings.LlmProvider = GetSelectedProviderName();
             settings.LlmEndpoint = llmEndpointBox.Text.Trim();
             settings.LlmModel = (llmModelCombo.SelectedItem as string ?? settings.LlmModel).Trim();
+            settings.LlmConfirmBeforeSending = confirmBeforeSendingCheck.IsChecked == true;
 
             settings.LlmSourceLanguage = sourceLangCombo.SelectedIndex switch
             {

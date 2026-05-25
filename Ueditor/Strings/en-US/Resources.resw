@@ -299,6 +299,9 @@
   <data name="SettingsLlmApiKeyInfo" xml:space="preserve">
     <value>API Keys are stored in the Windows Credential Manager, not in settings files. Leaving it empty preserves the existing Key. LM Studio does not require an API Key under default configurations.</value>
   </data>
+  <data name="SettingsLlmConfirmBeforeSending" xml:space="preserve">
+    <value>Confirm before sending</value>
+  </data>
   <data name="SettingsLlmSourceLanguage" xml:space="preserve">
     <value>Source Language</value>
   </data>

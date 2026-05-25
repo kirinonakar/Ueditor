@@ -217,20 +217,23 @@ namespace Ueditor.Controls
 
         private async Task PreflightCheckAndRunAsync(string actionName, string contentText, Func<Task<string>> llmCall)
         {
-            var textPreview = contentText.Length > 200 ? contentText.Substring(0, 200) + "..." : contentText;
-            var dialog = new ContentDialog
+            if (_settingsService.CurrentSettings.LlmConfirmBeforeSending)
             {
-                Title = "AI 전송 사전 확인 (Pre-flight Check)",
-                Content = $"액션: {actionName}\n\n전송될 AI 공급자: {_settingsService.CurrentSettings.LlmProvider} ({_settingsService.CurrentSettings.LlmModel})\n전송 텍스트 크기: {contentText.Length:N0} 자 (약 {contentText.Length / 4:N0} 토큰 소모)\n\n[전송 내용 미리보기]\n{textPreview}\n\n보안상의 문제나 의도하지 않은 토큰 대량 유실이 없는지 확인 후 전송해 주십시오.",
-                PrimaryButtonText = "API 전송 승인",
-                CloseButtonText = "취소",
-                XamlRoot = _xamlRootProvider()
-            };
+                var textPreview = contentText.Length > 200 ? contentText.Substring(0, 200) + "..." : contentText;
+                var dialog = new ContentDialog
+                {
+                    Title = "AI 전송 사전 확인 (Pre-flight Check)",
+                    Content = $"액션: {actionName}\n\n전송될 AI 공급자: {_settingsService.CurrentSettings.LlmProvider} ({_settingsService.CurrentSettings.LlmModel})\n전송 텍스트 크기: {contentText.Length:N0} 자 (약 {contentText.Length / 4:N0} 토큰 소모)\n\n[전송 내용 미리보기]\n{textPreview}\n\n보안상의 문제나 의도하지 않은 토큰 대량 유실이 없는지 확인 후 전송해 주십시오.",
+                    PrimaryButtonText = "API 전송 승인",
+                    CloseButtonText = "취소",
+                    XamlRoot = _xamlRootProvider()
+                };
 
-            var result = await dialog.ShowAsync();
-            if (result != ContentDialogResult.Primary)
-            {
-                return;
+                var result = await dialog.ShowAsync();
+                if (result != ContentDialogResult.Primary)
+                {
+                    return;
+                }
             }
 
             _rightSidebar.LlmOutput.Text = "AI 분석 및 응답 생성이 비동기 구동 중입니다. 잠시만 대기해 주십시오...";

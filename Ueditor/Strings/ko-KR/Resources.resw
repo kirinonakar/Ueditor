@@ -299,6 +299,9 @@
   <data name="SettingsLlmApiKeyInfo" xml:space="preserve">
     <value>API Key는 설정 파일에 저장하지 않고 Windows 자격 증명 관리자에 저장합니다. 비워두고 저장하면 기존 Key를 유지합니다. LM Studio는 기본 로컬 서버 설정에서 API Key 없이 사용할 수 있습니다.</value>
   </data>
+  <data name="SettingsLlmConfirmBeforeSending" xml:space="preserve">
+    <value>전송 전 확인</value>
+  </data>
   <data name="SettingsLlmSourceLanguage" xml:space="preserve">
     <value>번역 원본 언어 (Source Language)</value>
   </data>

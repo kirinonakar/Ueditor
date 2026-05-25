@@ -102,7 +102,7 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBox x:Name="LlmCustomPromptInput" Grid.Column="0" PlaceholderText="질문이나 커스텀 지시사항 입력..." Height="32"/>
+                                        <TextBox x:Name="LlmCustomPromptInput" Grid.Column="0" PlaceholderText="질문이나 커스텀 지시사항 입력..." Height="32" KeyDown="OnLlmCustomPromptInputKeyDown"/>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
                                             <Button x:Name="LlmCustomRunButton" Content="실행" Click="OnLlmCustomClick" Style="{StaticResource AccentButtonStyle}"/>
                                             <Button x:Name="LlmInsertOutputButton" Content="입력" Click="OnLlmInsertOutputClick" ToolTipService.ToolTip="AI 응답을 현재 커서에 입력"/>

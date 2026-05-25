@@ -39,6 +39,7 @@ namespace Ueditor.Core.Models
         public string LlmModelGemini { get; set; } = "gemini-flash-lite-latest";
         public string LlmModelOpenAI { get; set; } = "gpt-5.5";
         public string LlmModelLmStudio { get; set; } = "";
+        public bool LlmConfirmBeforeSending { get; set; } = true;
         public string LlmSourceLanguage { get; set; } = "Auto";
         public string LlmTargetLanguage { get; set; } = "Korean";
 

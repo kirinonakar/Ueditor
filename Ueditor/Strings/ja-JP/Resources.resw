@@ -299,6 +299,9 @@
   <data name="SettingsLlmApiKeyInfo" xml:space="preserve">
     <value>APIキーは設定ファイルではなく、Windowsの資格情報マネージャーに保存されます。空欄で保存すると、既存のキーが維持されます。LM Studioはデフォルトのローカルサーバー設定でAPIキーなしで動作します。</value>
   </data>
+  <data name="SettingsLlmConfirmBeforeSending" xml:space="preserve">
+    <value>送信前に確認</value>
+  </data>
   <data name="SettingsLlmSourceLanguage" xml:space="preserve">
     <value>翻訳元言語 (Source Language)</value>
   </data>

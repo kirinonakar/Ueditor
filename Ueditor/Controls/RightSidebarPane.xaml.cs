@@ -122,6 +122,19 @@ namespace Ueditor.Controls
             LlmCustomClick?.Invoke(sender, e);
         }
 
+        private void OnLlmCustomPromptInputKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                var ctrl = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control) & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+                if (ctrl)
+                {
+                    e.Handled = true;
+                    LlmCustomClick?.Invoke(sender, e);
+                }
+            }
+        }
+
         private void OnLlmInsertOutputClick(object sender, RoutedEventArgs e)
         {
             LlmInsertOutputClick?.Invoke(sender, e);
