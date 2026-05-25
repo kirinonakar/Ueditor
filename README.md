@@ -88,10 +88,8 @@ Ueditor is designed for speed and productivity, packing standard IDE shortcuts a
 ### 🛠️ Interactive Tool Buttons
 
 *   **Custom Text Color Selector:**
-    *   **Left-Click** on the `TextColor` button on the Markdown toolbar to apply the last chosen color to selected text.
     *   **Right-Click** on the `TextColor` button to summon the native **Color Picker** dialog, allowing you to select and configure custom text colors precisely.
 *   **AI Target Language Selector:**
-    *   **Left-Click** on the AI pane's "선택 영역 번역" (Translate Selection) button to execute the translation.
     *   **Right-Click** on the translate button to open a context menu enabling you to switch target translation languages (Korean, English, Japanese, Chinese, French, Spanish, German) instantly.
 
 ## 🚀 Getting Started
