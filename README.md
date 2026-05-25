@@ -25,6 +25,10 @@
 
 Designed for developers, writers, and power users, Ueditor provides a fluid, distraction-free environment. It features standard workspace tools like a **live Markdown/HTML/LaTeX previewer**, a **built-in terminal**, **comprehensive Git integration**, **multi-provider secure AI assistance**, and a **virtualized editor core** capable of opening and editing files from small snippets to 200MB+ logs seamlessly.
 
+<p align="center">
+  <img src="screenshot.png" alt="Ueditor Screenshot" width="100%" />
+</p>
+
 ---
 
 ## ✨ Key Features
@@ -58,6 +62,10 @@ Designed for developers, writers, and power users, Ueditor provides a fluid, dis
 ### 🌿 Git Panel
 *   **Status Tracker:** View staged/unstaged changes, stage/unstage files, execute commits, and push to remotes.
 *   **History Viewer:** Visual repository branch and commit history logs.
+
+### ⭐ Favorites
+*   **File & Folder Bookmarks:** Pin any file or folder to your Favorites panel for instant one-click access — no more digging through deep directory trees.
+*   **Right-Click to Add:** Simply **right-click** any file or folder in the Explorer panel and select **"Add to Favorites"** from the context menu.
 
 ### 🔍 Advanced Search
 *   **Global Lookup:** Folder-wide multi-file search with Match Case, Whole Word, and Regex filtering.
@@ -94,6 +102,8 @@ Ueditor is designed for speed and productivity, packing standard IDE shortcuts a
     *   **Right-Click** on the `TextColor` button to summon the native **Color Picker** dialog, allowing you to select and configure custom text colors precisely.
 *   **AI Target Language Selector:**
     *   **Right-Click** on the translate button to open a context menu enabling you to switch target translation languages (Korean, English, Japanese, Chinese, French, Spanish, German) instantly.
+*   **Add to Favorites:**
+    *   **Right-Click** any file or folder in the Explorer panel and choose **"Add to Favorites"** to instantly pin it to your Favorites sidebar for quick access.
 
 ## 🚀 Getting Started
 
