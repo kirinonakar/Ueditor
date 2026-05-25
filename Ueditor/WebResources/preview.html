@@ -564,9 +564,33 @@
                 .replace(/(^|[^\w\\])\$([^$\n]+?)\$/g, (_, prefix, expr) => `${prefix}${stash(renderLatex(expr, false))}`);
         }
 
+        function sanitizeInlineHtmlTag(tag) {
+            const raw = String(tag || '');
+            const match = /^<\/?\s*([A-Za-z][A-Za-z0-9:-]*)([^<>]*?)\s*\/?>$/.exec(raw);
+            if (!match) return escapeHtml(raw);
+
+            const isClosing = /^<\s*\//.test(raw);
+            const tagName = match[1].toLowerCase();
+            const allowedInlineTags = new Set(['span', 'strong', 'em', 'b', 'i', 'u', 'big', 'small', 'mark', 's', 'code']);
+            if (!allowedInlineTags.has(tagName)) return escapeHtml(raw);
+            if (isClosing) return `</${tagName}>`;
+
+            if (tagName === 'span') {
+                const styleMatch = /\bstyle\s*=\s*(["'])(.*?)\1/i.exec(match[2] || '');
+                if (styleMatch) {
+                    const colorMatch = /(?:^|;)\s*color\s*:\s*(#[0-9a-fA-F]{6})\s*;?\s*(?:$|;)/i.exec(styleMatch[2]);
+                    if (colorMatch) {
+                        return `<span style="color: ${colorMatch[1].toUpperCase()}">`;
+                    }
+                }
+            }
+
+            return `<${tagName}>`;
+        }
+
         function stashHtmlTags(value, stash) {
             return value.replace(/<\/?[A-Za-z][A-Za-z0-9:-]*(?:\s+[^<>]*?)?\s*\/?>/g, tag => {
-                return stash(sanitizeHtml(tag));
+                return stash(sanitizeInlineHtmlTag(tag));
             });
         }
 
@@ -1292,7 +1316,7 @@
             const tag = match[1].toLowerCase();
             return [
                 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-                'p', 'div', 'span', 'strong', 'em', 'b', 'i', 'u', 'small', 'center',
+                'p', 'div', 'span', 'strong', 'em', 'b', 'i', 'u', 'big', 'small', 'center',
                 'ol', 'ul', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'pre', 'code'
             ].includes(tag);
         }
