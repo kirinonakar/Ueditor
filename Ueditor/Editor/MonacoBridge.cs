@@ -299,7 +299,11 @@ namespace Ueditor.Editor
             string json = JsonSerializer.Serialize(obj);
             try
             {
-                await _webView.ExecuteScriptAsync($"handleCsharpMessage({json});");
+                if (_webView.CoreWebView2 != null)
+                {
+                    _webView.CoreWebView2.PostWebMessageAsJson(json);
+                }
+                await Task.CompletedTask;
             }
             catch (Exception ex)
             {

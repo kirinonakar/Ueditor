@@ -63,8 +63,8 @@ namespace Ueditor
         // Timer for debouncing live preview renders
         private readonly DispatcherTimer _previewDebounceTimer;
         private OpenedTab? _activeTabForPreview = null;
-        private const int InitialEditorLineWarmupCount = 500;
-        private const int InitialPreviewLineWarmupCount = 500;
+        private const int InitialEditorLineWarmupCount = 120;
+        private const int InitialPreviewLineWarmupCount = 120;
 
         // Autosave timer
         private readonly DispatcherTimer _autoSaveTimer;
@@ -736,10 +736,6 @@ namespace Ueditor
                     _settingsService.CurrentSettings,
                     isReadOnly,
                     session.GetLines(1, InitialEditorLineWarmupCount));
-                if (string.Equals(tab.Language, "html", StringComparison.OrdinalIgnoreCase))
-                {
-                    await bridge.SetTextAsync(session.GetText());
-                }
             };
 
             bridge.LinesRequested += async (requestId, startLine, count) =>
@@ -2173,10 +2169,6 @@ namespace Ueditor
                         _settingsService.CurrentSettings,
                         isReadOnly: false,
                         initialLines: session.GetLines(1, InitialEditorLineWarmupCount));
-                    if (string.Equals(tab.Language, "html", StringComparison.OrdinalIgnoreCase))
-                    {
-                        await bridgeGroup.Bridge.SetTextAsync(session.GetText());
-                    }
                     await bridgeGroup.Bridge.SetLanguageAsync(tab.FilePath);
                 }
 
