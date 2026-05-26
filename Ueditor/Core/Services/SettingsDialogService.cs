@@ -669,13 +669,16 @@ SOFTWARE.",
             descText.FontSize = 10.5;
             copyrightText.FontSize = 9.5;
 
+            bool isDarkTheme = xamlRoot.Content is FrameworkElement fe && fe.ActualTheme == ElementTheme.Dark;
+
             var dialog = new ContentDialog
             {
                 Title = getString("SettingsTitle", "Ueditor 설정"),
                 Content = settingsPivot,
                 PrimaryButtonText = getString("SettingsSave", "적용 및 저장"),
                 CloseButtonText = getString("SettingsCancel", "취소"),
-                XamlRoot = xamlRoot
+                XamlRoot = xamlRoot,
+                RequestedTheme = isDarkTheme ? ElementTheme.Dark : ElementTheme.Light
             };
 
             var result = await dialog.ShowAsync();
