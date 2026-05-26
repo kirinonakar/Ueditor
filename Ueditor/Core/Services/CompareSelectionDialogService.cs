@@ -19,9 +19,9 @@ namespace Ueditor.Core.Services
 
     public sealed class CompareSelectionDialogService
     {
-        public async Task<CompareFileSelection?> ShowAsync(Window owner, XamlRoot xamlRoot, IReadOnlyList<OpenedTab> tabs)
+        public async Task<CompareFileSelection?> ShowAsync(Window owner, XamlRoot xamlRoot, IReadOnlyList<OpenedTab> tabs, ElementTheme theme)
         {
-            var panel = new StackPanel { Spacing = 12, Width = 400 };
+            var panel = new StackPanel { Spacing = 12, Width = 400, RequestedTheme = theme };
 
             var tabChoices = new List<string> { "탭에서 선택..." };
             foreach (var tab in tabs)
@@ -59,7 +59,8 @@ namespace Ueditor.Core.Services
                 Content = panel,
                 PrimaryButtonText = "비교하기",
                 CloseButtonText = "취소",
-                XamlRoot = xamlRoot
+                XamlRoot = xamlRoot,
+                RequestedTheme = theme
             };
 
             var result = await dialog.ShowAsync();

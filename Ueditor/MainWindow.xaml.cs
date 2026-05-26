@@ -3770,7 +3770,7 @@ namespace Ueditor
 
         private async void OnCompareFilesClick(object sender, RoutedEventArgs e)
         {
-            var selection = await _compareSelectionDialogService.ShowAsync(this, this.Content.XamlRoot, _viewModel.Tabs);
+            var selection = await _compareSelectionDialogService.ShowAsync(this, this.Content.XamlRoot, _viewModel.Tabs, GetCurrentElementTheme());
             if (selection == null)
             {
                 return;
