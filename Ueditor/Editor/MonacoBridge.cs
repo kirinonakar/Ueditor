@@ -14,6 +14,7 @@ namespace Ueditor.Editor
     public class MonacoBridge
     {
         private readonly WebView2 _webView;
+        private readonly ILocalizationService? _localizationService;
         private bool _isReady = false;
         private string? _pendingText = null;
 
@@ -33,9 +34,10 @@ namespace Ueditor.Editor
         public event Action<int, double>? ScrollChanged;
         public event Action<bool>? ScrollSyncChanged;
 
-        public MonacoBridge(WebView2 webView)
+        public MonacoBridge(WebView2 webView, ILocalizationService? localizationService = null)
         {
             _webView = webView;
+            _localizationService = localizationService;
             _webView.WebMessageReceived += OnWebMessageReceived;
         }
 
@@ -103,7 +105,14 @@ namespace Ueditor.Editor
                 customBackgroundColor = settings.CustomBackgroundColor,
                 customForegroundColor = settings.CustomForegroundColor,
                 autocompleteEnabled = settings.AutocompleteEnabled,
-                readOnly = isReadOnly
+                readOnly = isReadOnly,
+                findPlaceholder = _localizationService?.GetString("EditorFindPlaceholder", "찾기") ?? "찾기",
+                replacePlaceholder = _localizationService?.GetString("EditorReplacePlaceholder", "바꾸기") ?? "바꾸기",
+                replaceButton = _localizationService?.GetString("EditorReplaceButton", "바꾸기") ?? "바꾸기",
+                replaceAllButton = _localizationService?.GetString("EditorReplaceAllButton", "모두 바꾸기") ?? "모두 바꾸기",
+                findPrevTooltip = _localizationService?.GetString("EditorFindPrevTooltip", "이전") ?? "이전",
+                findNextTooltip = _localizationService?.GetString("EditorFindNextTooltip", "다음") ?? "다음",
+                findCloseTooltip = _localizationService?.GetString("EditorFindCloseTooltip", "닫기") ?? "닫기"
             };
             await SendMessageAsync(msg);
         }
@@ -264,7 +273,14 @@ namespace Ueditor.Editor
                 customBackgroundColor = settings.CustomBackgroundColor,
                 customForegroundColor = settings.CustomForegroundColor,
                 autocompleteEnabled = settings.AutocompleteEnabled,
-                readOnly = isReadOnly
+                readOnly = isReadOnly,
+                findPlaceholder = _localizationService?.GetString("EditorFindPlaceholder", "찾기") ?? "찾기",
+                replacePlaceholder = _localizationService?.GetString("EditorReplacePlaceholder", "바꾸기") ?? "바꾸기",
+                replaceButton = _localizationService?.GetString("EditorReplaceButton", "바꾸기") ?? "바꾸기",
+                replaceAllButton = _localizationService?.GetString("EditorReplaceAllButton", "모두 바꾸기") ?? "모두 바꾸기",
+                findPrevTooltip = _localizationService?.GetString("EditorFindPrevTooltip", "이전") ?? "이전",
+                findNextTooltip = _localizationService?.GetString("EditorFindNextTooltip", "다음") ?? "다음",
+                findCloseTooltip = _localizationService?.GetString("EditorFindCloseTooltip", "닫기") ?? "닫기"
             };
             await SendMessageAsync(msg);
         }

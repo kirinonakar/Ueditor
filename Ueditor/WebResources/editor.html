@@ -626,6 +626,43 @@
             if (!state.wordWrap) {
                 state.lineHeights.clear();
             }
+
+            // Apply localized strings for Find & Replace panel if present
+            if (msg.findPlaceholder !== undefined) {
+                const el = document.getElementById('find-input');
+                if (el) el.placeholder = msg.findPlaceholder;
+            }
+            if (msg.replacePlaceholder !== undefined) {
+                const el = document.getElementById('replace-input');
+                if (el) el.placeholder = msg.replacePlaceholder;
+            }
+            if (msg.replaceButton !== undefined) {
+                const el = document.getElementById('replace-btn');
+                if (el) {
+                    el.textContent = msg.replaceButton;
+                    el.title = msg.replaceButton;
+                }
+            }
+            if (msg.replaceAllButton !== undefined) {
+                const el = document.getElementById('replace-all-btn');
+                if (el) {
+                    el.textContent = msg.replaceAllButton;
+                    el.title = msg.replaceAllButton;
+                }
+            }
+            if (msg.findPrevTooltip !== undefined) {
+                const el = document.getElementById('find-prev');
+                if (el) el.title = msg.findPrevTooltip;
+            }
+            if (msg.findNextTooltip !== undefined) {
+                const el = document.getElementById('find-next');
+                if (el) el.title = msg.findNextTooltip;
+            }
+            if (msg.findCloseTooltip !== undefined) {
+                const el = document.getElementById('find-close');
+                if (el) el.title = msg.findCloseTooltip;
+            }
+
             setupVirtualHeight();
             queueRender(true);
         }

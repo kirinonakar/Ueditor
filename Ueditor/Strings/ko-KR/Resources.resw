@@ -606,4 +606,25 @@
   <data name="ShortcutDescAiPrompt" xml:space="preserve">
     <value>AI 프롬프트 전송</value>
   </data>
+  <data name="EditorFindPlaceholder" xml:space="preserve">
+    <value>찾기</value>
+  </data>
+  <data name="EditorReplacePlaceholder" xml:space="preserve">
+    <value>바꾸기</value>
+  </data>
+  <data name="EditorReplaceButton" xml:space="preserve">
+    <value>바꾸기</value>
+  </data>
+  <data name="EditorReplaceAllButton" xml:space="preserve">
+    <value>모두 바꾸기</value>
+  </data>
+  <data name="EditorFindPrevTooltip" xml:space="preserve">
+    <value>이전</value>
+  </data>
+  <data name="EditorFindNextTooltip" xml:space="preserve">
+    <value>다음</value>
+  </data>
+  <data name="EditorFindCloseTooltip" xml:space="preserve">
+    <value>닫기</value>
+  </data>
 </root>

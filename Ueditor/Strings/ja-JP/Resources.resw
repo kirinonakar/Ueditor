@@ -607,4 +607,25 @@
   <data name="ShortcutDescAiPrompt" xml:space="preserve">
     <value>AIプロンプト送信</value>
   </data>
+  <data name="EditorFindPlaceholder" xml:space="preserve">
+    <value>検索</value>
+  </data>
+  <data name="EditorReplacePlaceholder" xml:space="preserve">
+    <value>置換</value>
+  </data>
+  <data name="EditorReplaceButton" xml:space="preserve">
+    <value>置換</value>
+  </data>
+  <data name="EditorReplaceAllButton" xml:space="preserve">
+    <value>すべて置換</value>
+  </data>
+  <data name="EditorFindPrevTooltip" xml:space="preserve">
+    <value>前へ</value>
+  </data>
+  <data name="EditorFindNextTooltip" xml:space="preserve">
+    <value>次へ</value>
+  </data>
+  <data name="EditorFindCloseTooltip" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
 </root>

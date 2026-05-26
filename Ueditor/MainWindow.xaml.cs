@@ -756,7 +756,7 @@ namespace Ueditor
             }
             catch { }
 
-            var bridge = new MonacoBridge(editorWebView);
+            var bridge = new MonacoBridge(editorWebView, _localizationService);
             _tabBridges[tab.Id] = (editorWebView, bridge);
 
             WireEditorBridge(bridge, editorWebView, tab, tabItem, session, isReadOnly);

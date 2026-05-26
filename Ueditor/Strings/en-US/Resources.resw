@@ -606,4 +606,25 @@ Supports live preview, code &amp; formula templates, terminal interface, Git int
   <data name="ShortcutDescAiPrompt" xml:space="preserve">
     <value>Send AI Prompt</value>
   </data>
+  <data name="EditorFindPlaceholder" xml:space="preserve">
+    <value>Find</value>
+  </data>
+  <data name="EditorReplacePlaceholder" xml:space="preserve">
+    <value>Replace</value>
+  </data>
+  <data name="EditorReplaceButton" xml:space="preserve">
+    <value>Replace</value>
+  </data>
+  <data name="EditorReplaceAllButton" xml:space="preserve">
+    <value>Replace All</value>
+  </data>
+  <data name="EditorFindPrevTooltip" xml:space="preserve">
+    <value>Previous</value>
+  </data>
+  <data name="EditorFindNextTooltip" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="EditorFindCloseTooltip" xml:space="preserve">
+    <value>Close</value>
+  </data>
 </root>
