@@ -8,8 +8,36 @@ namespace Ueditor.Core.Models
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public string Id { get; } = Guid.NewGuid().ToString();
-        public string? FilePath { get; set; }
-        public string Title { get; set; } = "제목 없음";
+
+        private string? _filePath;
+        public string? FilePath
+        {
+            get => _filePath;
+            set
+            {
+                if (_filePath != value)
+                {
+                    _filePath = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private string _title = "제목 없음";
+        public string Title
+        {
+            get => _title;
+            set
+            {
+                if (_title != value)
+                {
+                    _title = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(DisplayTitle));
+                }
+            }
+        }
+
         public string Content { get; set; } = string.Empty;
 
         private bool _isDirty = false;

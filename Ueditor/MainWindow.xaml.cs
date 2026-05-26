@@ -1107,45 +1107,65 @@ namespace Ueditor
 
         private void MarkTabDirty(OpenedTab tab, TabViewItem? tabItem = null)
         {
-            if (!string.IsNullOrEmpty(tab.FilePath))
+            SetDirtyStateForFileGroup(tab, true);
+        }
+
+        private List<OpenedTab> GetTabsForSameFile(OpenedTab sourceTab)
+        {
+            string? pathKey = NormalizeTabPath(sourceTab.FilePath);
+            if (pathKey == null)
             {
-                if (!tab.IsDirty)
+                return new List<OpenedTab> { sourceTab };
+            }
+
+            var tabs = _viewModel.Tabs
+                .Where(tab =>
                 {
-                    tab.IsDirty = true;
+                    string? otherPathKey = NormalizeTabPath(tab.FilePath);
+                    return otherPathKey != null &&
+                           string.Equals(otherPathKey, pathKey, StringComparison.OrdinalIgnoreCase);
+                })
+                .ToList();
+
+            if (!tabs.Any(tab => tab.Id == sourceTab.Id))
+            {
+                tabs.Add(sourceTab);
+            }
+
+            return tabs;
+        }
+
+        private bool IsAnySameFileTabDirty(OpenedTab sourceTab)
+        {
+            return GetTabsForSameFile(sourceTab).Any(tab => tab.IsDirty);
+        }
+
+        private void SetDirtyStateForFileGroup(OpenedTab sourceTab, bool isDirty)
+        {
+            bool changed = false;
+            foreach (var tab in GetTabsForSameFile(sourceTab))
+            {
+                if (tab.IsDirty != isDirty)
+                {
+                    tab.IsDirty = isDirty;
+                    changed = true;
                 }
-                PropagateDirtyStateToOtherTabs(tab);
+            }
+
+            if (changed)
+            {
+                UpdateWindowTitle();
             }
         }
 
         private void PropagateDirtyStateToOtherTabs(OpenedTab sourceTab)
         {
-            if (string.IsNullOrEmpty(sourceTab.FilePath)) return;
-
-            foreach (var otherTab in _viewModel.Tabs)
-            {
-                if (otherTab.Id != sourceTab.Id &&
-                    !string.IsNullOrEmpty(otherTab.FilePath) &&
-                    otherTab.FilePath.Equals(sourceTab.FilePath, StringComparison.OrdinalIgnoreCase) &&
-                    !otherTab.IsDirty)
-                {
-                    otherTab.IsDirty = true;
-                }
-            }
+            SetDirtyStateForFileGroup(sourceTab, true);
         }
 
         private void CleanDirtyStateOnOtherTabs(OpenedTab sourceTab)
         {
-            if (string.IsNullOrEmpty(sourceTab.FilePath)) return;
-
-            foreach (var otherTab in _viewModel.Tabs)
-            {
-                if (otherTab.Id != sourceTab.Id &&
-                    !string.IsNullOrEmpty(otherTab.FilePath) &&
-                    otherTab.FilePath.Equals(sourceTab.FilePath, StringComparison.OrdinalIgnoreCase))
-                {
-                    otherTab.IsDirty = false;
-                }
-            }
+            SetDirtyStateForFileGroup(sourceTab, false);
         }
 
         private void SchedulePreview(OpenedTab tab)
@@ -1600,7 +1620,8 @@ namespace Ueditor
 
         private async void OnSaveFileClick(object sender, RoutedEventArgs e)
         {
-            if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
+            var activeTabView = GetCurrentActiveTabView();
+            if (activeTabView.SelectedItem is TabViewItem activeTabItem &&
                 activeTabItem.Tag is string tabId)
             {
                 var tab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
@@ -1613,7 +1634,8 @@ namespace Ueditor
 
         private async void OnSaveAsFileClick(object sender, RoutedEventArgs e)
         {
-            if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
+            var activeTabView = GetCurrentActiveTabView();
+            if (activeTabView.SelectedItem is TabViewItem activeTabItem &&
                 activeTabItem.Tag is string tabId)
             {
                 var tab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
@@ -2230,14 +2252,11 @@ namespace Ueditor
             return EditorWorkspace.GetCurrentActiveTabView();
         }
 
-        private void OpenSplitNewTab()
+        private void OpenSplitNewTab(OpenedTab? sourceTab = null)
         {
-            var activeTabItem = EditorTabView.SelectedItem as TabViewItem;
-            OpenedTab? activeTab = null;
-            if (activeTabItem != null && activeTabItem.Tag is string tabId)
-            {
-                activeTab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
-            }
+            // Capture the source tab before EditorWorkspace changes focus/active pane.
+            // Otherwise split can duplicate the wrong pane and can also leave dirty state out of sync.
+            OpenedTab? activeTab = sourceTab ?? GetActiveTab();
 
             if (activeTab != null)
             {
@@ -2252,6 +2271,8 @@ namespace Ueditor
                     content = activeTab.Content ?? "";
                 }
 
+                bool isDirty = IsAnySameFileTabDirty(activeTab);
+
                 var newTab = OpenNewTab(
                     filePath: path,
                     content: content,
@@ -2260,11 +2281,8 @@ namespace Ueditor
                     encodingWasAutoDetected: activeTab.EncodingWasAutoDetected
                 );
 
-                if (activeTab.IsDirty)
-                {
-                    newTab.IsDirty = true;
-                    PropagateDirtyStateToOtherTabs(newTab);
-                }
+                newTab.IsDirty = isDirty;
+                SetDirtyStateForFileGroup(activeTab, isDirty);
             }
             else
             {
@@ -2283,8 +2301,17 @@ namespace Ueditor
             EditorWorkspace.SetSplitMode(EditorSplitMode.None, () => OpenNewTab());
             MergeDuplicateFileTabsAfterUnsplit(preferredTab?.Id);
         }
-        private void OnSplitVerticalClick(object sender, RoutedEventArgs e) => EditorWorkspace.SetSplitMode(EditorSplitMode.Vertical, () => OpenSplitNewTab());
-        private void OnSplitHorizontalClick(object sender, RoutedEventArgs e) => EditorWorkspace.SetSplitMode(EditorSplitMode.Horizontal, () => OpenSplitNewTab());
+        private void OnSplitVerticalClick(object sender, RoutedEventArgs e)
+        {
+            var sourceTab = GetActiveTab();
+            EditorWorkspace.SetSplitMode(EditorSplitMode.Vertical, () => OpenSplitNewTab(sourceTab));
+        }
+
+        private void OnSplitHorizontalClick(object sender, RoutedEventArgs e)
+        {
+            var sourceTab = GetActiveTab();
+            EditorWorkspace.SetSplitMode(EditorSplitMode.Horizontal, () => OpenSplitNewTab(sourceTab));
+        }
 
         private void MergeDuplicateFileTabsAfterUnsplit(string? preferredTabId)
         {
@@ -2960,12 +2987,11 @@ namespace Ueditor
 
             if (!_editorSessions.TryGetValue(sourceTab.Id, out var sourceSession)) return;
             string updatedText = sourceSession.GetText();
+            bool sourceDirty = sourceTab.IsDirty;
 
-            var otherTabs = _viewModel.Tabs.Where(t =>
-                t.Id != sourceTab.Id &&
-                !string.IsNullOrEmpty(t.FilePath) &&
-                t.FilePath.Equals(sourceTab.FilePath, StringComparison.OrdinalIgnoreCase)
-            ).ToList();
+            var otherTabs = GetTabsForSameFile(sourceTab)
+                .Where(t => t.Id != sourceTab.Id)
+                .ToList();
 
             foreach (var otherTab in otherTabs)
             {
@@ -2974,19 +3000,6 @@ namespace Ueditor
                     otherSession.UpdateContentFromSync(updatedText);
                 }
                 otherTab.Content = updatedText;
-
-                if (!updateUi)
-                {
-                    otherTab.IsDirty = sourceTab.IsDirty;
-                }
-                else if (sourceTab.IsDirty)
-                {
-                    MarkTabDirty(otherTab);
-                }
-                else
-                {
-                    otherTab.IsDirty = false;
-                }
 
                 if (_tabBridges.TryGetValue(otherTab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
                 {
@@ -2998,6 +3011,8 @@ namespace Ueditor
                     SchedulePreview(otherTab);
                 }
             }
+
+            SetDirtyStateForFileGroup(sourceTab, sourceDirty);
         }
 
         private void InitializePickerWindow(object picker)
