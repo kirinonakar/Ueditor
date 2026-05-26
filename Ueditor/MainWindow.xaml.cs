@@ -46,6 +46,7 @@ namespace Ueditor
         private readonly IFileSaveDialogService _fileSaveDialogService;
         private readonly ShellPanelLayoutService _shellPanelLayoutService;
         private readonly TerminalShortcutService _terminalShortcutService;
+        private readonly FunctionKeyShortcutService _functionKeyShortcutService;
         private readonly ExplorerDirectoryService _explorerDirectoryService;
         private readonly CompareSelectionDialogService _compareSelectionDialogService;
         private readonly SearchReplaceController _searchReplaceController;
@@ -164,6 +165,10 @@ namespace Ueditor
                 PreviewGrid);
             _terminalShortcutService = new TerminalShortcutService(WindowNative.GetWindowHandle(this));
             _terminalShortcutService.ToggleRequested += (_, _) => ToggleTerminal();
+            _functionKeyShortcutService = new FunctionKeyShortcutService(WindowNative.GetWindowHandle(this));
+            _functionKeyShortcutService.TopMostRequested += (_, _) => ToggleTopMostShortcut();
+            _functionKeyShortcutService.ThemeRequested += (_, _) => OnToggleThemeClick(this, new RoutedEventArgs());
+            _functionKeyShortcutService.StickyNoteRequested += (_, _) => OnStickyNoteClick(this, new RoutedEventArgs());
             _gitAutoRefreshTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(30)
@@ -363,6 +368,7 @@ namespace Ueditor
             try
             {
                 _terminalShortcutService.Stop();
+                _functionKeyShortcutService.Stop();
             }
             catch { }
 
@@ -410,6 +416,7 @@ namespace Ueditor
         private void CleanupBeforeRestart()
         {
             _terminalShortcutService.Stop();
+            _functionKeyShortcutService.Stop();
 
             _previewDebounceTimer.Stop();
             _autoSaveTimer.Stop();
@@ -466,10 +473,12 @@ namespace Ueditor
             if (e.WindowActivationState == WindowActivationState.Deactivated)
             {
                 _terminalShortcutService.Stop();
+                _functionKeyShortcutService.Stop();
             }
             else
             {
                 _terminalShortcutService.Start();
+                _functionKeyShortcutService.Start();
             }
         }
 
@@ -1578,6 +1587,17 @@ namespace Ueditor
             if (StickyNoteTopMostButton != null)
             {
                 StickyNoteTopMostButton.IsChecked = topMost;
+            }
+        }
+
+        private void ToggleTopMostShortcut()
+        {
+            bool nextTopMost = !TopToolbar.TopMostIsChecked;
+            TopToolbar.TopMostIsChecked = nextTopMost;
+            _stickyNoteService.ApplyTopMost(this, nextTopMost);
+            if (StickyNoteTopMostButton != null)
+            {
+                StickyNoteTopMostButton.IsChecked = nextTopMost;
             }
         }
 
@@ -3789,28 +3809,9 @@ namespace Ueditor
 
         private void OnRootKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
-            if (e.Key == Windows.System.VirtualKey.F9)
+            if (TryHandleFunctionKeyShortcut(e.Key))
             {
                 e.Handled = true;
-                bool nextTopMost = !TopToolbar.TopMostIsChecked;
-                TopToolbar.TopMostIsChecked = nextTopMost;
-                _stickyNoteService.ApplyTopMost(this, nextTopMost);
-                if (StickyNoteTopMostButton != null)
-                {
-                    StickyNoteTopMostButton.IsChecked = nextTopMost;
-                }
-                return;
-            }
-            else if (e.Key == Windows.System.VirtualKey.F10)
-            {
-                e.Handled = true;
-                OnToggleThemeClick(this, new RoutedEventArgs());
-                return;
-            }
-            else if (e.Key == Windows.System.VirtualKey.F12)
-            {
-                e.Handled = true;
-                OnStickyNoteClick(this, new RoutedEventArgs());
                 return;
             }
 
@@ -3882,6 +3883,27 @@ namespace Ueditor
                     _terminalShortcutService.RequestToggle();
                 }
             }
+        }
+
+        private bool TryHandleFunctionKeyShortcut(Windows.System.VirtualKey key)
+        {
+            switch (key)
+            {
+                case Windows.System.VirtualKey.F9:
+                    _functionKeyShortcutService.SuppressUntilReleased(FunctionKeyShortcutService.F9VirtualKey);
+                    ToggleTopMostShortcut();
+                    return true;
+                case Windows.System.VirtualKey.F10:
+                    _functionKeyShortcutService.SuppressUntilReleased(FunctionKeyShortcutService.F10VirtualKey);
+                    OnToggleThemeClick(this, new RoutedEventArgs());
+                    return true;
+                case Windows.System.VirtualKey.F12:
+                    _functionKeyShortcutService.SuppressUntilReleased(FunctionKeyShortcutService.F12VirtualKey);
+                    OnStickyNoteClick(this, new RoutedEventArgs());
+                    return true;
+            }
+
+            return false;
         }
 
         #endregion
