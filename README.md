@@ -75,6 +75,9 @@ Designed for developers, writers, and power users, Ueditor provides a fluid, dis
 *   **Global Lookup:** Folder-wide multi-file search with Match Case, Whole Word, and Regex filtering.
 *   **Jump-to-Source:** Double-click search results to open the file and focus the exact line.
 
+### 🌐 Multilingual Support (다국어 지원 / 多言語対応)
+* Native support for English (`en-US`), Korean (`ko-KR`), and Japanese (`ja-JP`). The user interface automatically adapts to your system language or preferred settings for a fully localized desktop experience.
+
 ## ⌨️ Keyboard Shortcuts & Special Features
 
 Ueditor is designed for speed and productivity, packing standard IDE shortcuts and premium interactive elements.
@@ -85,6 +88,7 @@ Ueditor is designed for speed and productivity, packing standard IDE shortcuts a
 | :--- | :--- |
 | `Ctrl + N` | New Tab |
 | `Ctrl + S` | Save File |
+| `Ctrl + Shift + S` | Save As |
 | `Ctrl + O` | Open File |
 | `Ctrl + F` | Find / Search |
 | `Ctrl + W` | Close Tab |

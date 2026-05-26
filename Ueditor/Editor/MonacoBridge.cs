@@ -30,6 +30,8 @@ namespace Ueditor.Editor
         public event Action<int>? DeleteLineRequested;
         public event Action<string, int, int, bool, bool>? FindRequested;
         public event Action<string, bool>? FindAllRequested;
+        public event Action<int, double>? ScrollChanged;
+        public event Action<bool>? ScrollSyncChanged;
 
         public MonacoBridge(WebView2 webView)
         {
@@ -321,6 +323,27 @@ namespace Ueditor.Editor
             await SendMessageAsync(msg);
         }
 
+        public async Task SyncScrollFromPreviewAsync(int firstLine, double offset)
+        {
+            var msg = new
+            {
+                action = "syncScroll",
+                firstLine = firstLine,
+                offset = offset
+            };
+            await SendMessageAsync(msg);
+        }
+
+        public async Task UpdateScrollSyncStateAsync(bool enabled)
+        {
+            var msg = new
+            {
+                action = "scrollSyncChanged",
+                enabled = enabled
+            };
+            await SendMessageAsync(msg);
+        }
+
         private async Task SendMessageAsync(object obj)
         {
             if (!_isReady) return;
@@ -478,6 +501,21 @@ namespace Ueditor.Editor
                             if (root.TryGetProperty("name", out JsonElement nameProp))
                             {
                                 ShortcutPressed?.Invoke(nameProp.GetString() ?? string.Empty);
+                            }
+                            break;
+
+                        case "editorScroll":
+                            if (root.TryGetProperty("firstLine", out JsonElement editorFirstLineProp) &&
+                                root.TryGetProperty("offset", out JsonElement editorOffsetProp))
+                            {
+                                ScrollChanged?.Invoke(editorFirstLineProp.GetInt32(), editorOffsetProp.GetDouble());
+                            }
+                            break;
+
+                        case "scrollSyncChanged":
+                            if (root.TryGetProperty("enabled", out JsonElement enabledProp))
+                            {
+                                ScrollSyncChanged?.Invoke(enabledProp.GetBoolean());
                             }
                             break;
 

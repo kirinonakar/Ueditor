@@ -316,7 +316,8 @@
             renderQueued: false,
             lastRangeKey: '',
             cacheVersion: 0,
-            blockContextLines: 120
+            blockContextLines: 120,
+            scrollSyncEnabled: true
         };
 
         function post(msg) {
@@ -957,6 +958,7 @@
             setPreviewBaseHref(message.baseHref || '');
             state.wordWrap = message.wordWrap !== false;
             state.lineCount = Math.max(1, Number(message.lineCount || 1));
+            state.scrollSyncEnabled = message.scrollSyncEnabled !== false;
             state.cache.clear();
             state.pending.clear();
             state.rowHeights.clear();
@@ -1499,7 +1501,19 @@
             queueRender(true);
         }
 
-        scroll.addEventListener('scroll', () => queueRender());
+        let isSyncingScroll = false;
+        scroll.addEventListener('scroll', () => {
+            queueRender();
+            if (state.scrollSyncEnabled && !isSyncingScroll) {
+                const firstVisible = lineAt(scroll.scrollTop);
+                const offset = scroll.scrollTop - rowTop(firstVisible);
+                post({
+                    type: 'previewScroll',
+                    firstLine: firstVisible,
+                    offset: offset
+                });
+            }
+        });
         window.addEventListener('resize', () => queueRender(true));
         window.addEventListener('dragover', event => event.preventDefault(), false);
         window.addEventListener('drop', event => event.preventDefault(), false);
@@ -1511,6 +1525,19 @@
                 else if (message.action === 'previewLines') receiveLines(message);
                 else if (message.action === 'renderHtmlPreview') renderHtmlPreview(message);
                 else if (message.action === 'render') renderFullFallback(message);
+                else if (message.action === 'scrollSyncChanged') {
+                    state.scrollSyncEnabled = !!message.enabled;
+                }
+                else if (message.action === 'syncScroll') {
+                    if (state.scrollSyncEnabled && message.firstLine) {
+                        isSyncingScroll = true;
+                        const targetScrollTop = rowTop(message.firstLine) + (message.offset || 0);
+                        scroll.scrollTop = targetScrollTop;
+                        requestAnimationFrame(() => {
+                            isSyncingScroll = false;
+                        });
+                    }
+                }
             });
         }
 

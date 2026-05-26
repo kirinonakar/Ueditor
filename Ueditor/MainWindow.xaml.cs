@@ -87,6 +87,7 @@ namespace Ueditor
         private bool _isStickyNoteMode = false;
         private bool _wasLeftSidebarVisible = false;
         private bool _wasRightSidebarVisible = false;
+        private bool _scrollSyncEnabled = true;
         private bool _wasMarkdownToolbarVisible = false;
         
         // Dynamic tabs collection
@@ -611,6 +612,24 @@ namespace Ueditor
                     return;
                 }
 
+                if (string.Equals(type, "previewScroll", StringComparison.Ordinal))
+                {
+                    int firstLine = root.TryGetProperty("firstLine", out var firstLineProp) ? firstLineProp.GetInt32() : 1;
+                    double offset = root.TryGetProperty("offset", out var offsetProp) ? offsetProp.GetDouble() : 0;
+                    this.DispatcherQueue.TryEnqueue(() =>
+                    {
+                        var activeTab = GetActiveTab();
+                        if (activeTab != null && _tabBridges.TryGetValue(activeTab.Id, out var bridgeGroup))
+                        {
+                            if (bridgeGroup.Bridge != null)
+                            {
+                                _ = bridgeGroup.Bridge.SyncScrollFromPreviewAsync(firstLine, offset);
+                            }
+                        }
+                    });
+                    return;
+                }
+
                 if (!string.Equals(type, "previewRequestLines", StringComparison.Ordinal))
                 {
                     return;
@@ -835,6 +854,7 @@ namespace Ueditor
                     isReadOnly,
                     session.GetLines(1, InitialEditorLineWarmupCount));
                 await bridge.UpdateSnippetsAsync(_snippetService.GetSnippets());
+                await bridge.UpdateScrollSyncStateAsync(_scrollSyncEnabled);
 
                 this.DispatcherQueue.TryEnqueue(async () =>
                 {
@@ -948,6 +968,68 @@ namespace Ueditor
                         SelectionStatsText.Text = string.Format(fmt, selectedText.Length.ToString("N0"), (selectedText.Length / 4).ToString("N0"));
                     }
                 }
+            };
+
+            bridge.ScrollChanged += (firstLine, offset) =>
+            {
+                this.DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (GetActiveTab() == tab)
+                    {
+                        try
+                        {
+                            if (PreviewWebView.CoreWebView2 != null)
+                            {
+                                var syncMsg = new
+                                {
+                                    action = "syncScroll",
+                                    firstLine = firstLine,
+                                    offset = offset
+                                };
+                                PreviewWebView.CoreWebView2.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(syncMsg));
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Failed to sync scroll to preview: {ex.Message}");
+                        }
+                    }
+                });
+            };
+
+            bridge.ScrollSyncChanged += (enabled) =>
+            {
+                this.DispatcherQueue.TryEnqueue(async () =>
+                {
+                    _scrollSyncEnabled = enabled;
+
+                    // Synchronize all open editor tabs to this state
+                    foreach (var grp in _tabBridges.Values)
+                    {
+                        if (grp.Bridge != null)
+                        {
+                            await grp.Bridge.UpdateScrollSyncStateAsync(enabled);
+                        }
+                    }
+
+                    // Synchronize preview tab
+                    try
+                    {
+                        if (PreviewWebView.CoreWebView2 != null)
+                        {
+                            var syncMsg = new
+                            {
+                                action = "scrollSyncChanged",
+                                enabled = enabled
+                            };
+                            PreviewWebView.CoreWebView2.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(syncMsg));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed to sync scroll sync state to preview: {ex.Message}");
+                    }
+                });
             };
         }
 
@@ -1076,7 +1158,8 @@ namespace Ueditor
                     theme = _settingsService.CurrentSettings.Theme,
                     customBackgroundColor = _settingsService.CurrentSettings.CustomBackgroundColor,
                     customForegroundColor = _settingsService.CurrentSettings.CustomForegroundColor,
-                    uiFontFamily = _settingsService.CurrentSettings.UiFontFamily
+                    uiFontFamily = _settingsService.CurrentSettings.UiFontFamily,
+                    scrollSyncEnabled = _scrollSyncEnabled
                 };
 
                 string json = System.Text.Json.JsonSerializer.Serialize(renderMsg);
