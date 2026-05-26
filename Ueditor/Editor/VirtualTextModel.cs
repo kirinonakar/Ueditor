@@ -29,7 +29,7 @@ namespace Ueditor.Editor
     public interface ITextModel
     {
         int LineCount { get; }
-        string LineEnding { get; }
+        string LineEnding { get; set; }
         string GetLine(int lineNumber);
         IReadOnlyList<string> GetLines(int startLine, int count);
         string GetTextRange(int startLine, int startColumn, int endLine, int endColumn);
@@ -64,7 +64,7 @@ namespace Ueditor.Editor
 
         public int LineCount => _lines.Count;
 
-        public string LineEnding { get; }
+        public string LineEnding { get; set; }
 
         public static LineArrayTextModel FromText(string text)
         {

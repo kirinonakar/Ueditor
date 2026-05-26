@@ -750,6 +750,7 @@ namespace Ueditor
 
             UpdateStatusFileStats(tab);
             SyncEncodingCombo(tab);
+            SyncLineEndingText(tab);
             UpdateWindowTitle();
         }
 
@@ -2004,6 +2005,7 @@ namespace Ueditor
                     UpdateLivePreview(activeTab);
                     UpdateLanguageUI(activeTab);
                     SyncEncodingCombo(activeTab);
+                    SyncLineEndingText(activeTab);
                 }
                 UpdateWindowTitle();
             }
@@ -2089,6 +2091,7 @@ namespace Ueditor
                     UpdateLivePreview(tab);
                     UpdateLanguageUI(tab);
                     SyncEncodingCombo(tab);
+                    SyncLineEndingText(tab);
 
                     if (_tabBridges.TryGetValue(tab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
                     {
@@ -2570,12 +2573,14 @@ namespace Ueditor
                 UpdateStatusFileStats(tab);
                 UpdateLanguageUI(tab);
                 SyncEncodingCombo(tab);
+                SyncLineEndingText(tab);
                 UpdateWindowTitle();
             }
             catch (Exception ex)
             {
                 ShowErrorMessage("인코딩 변경 실패", ex.Message);
                 SyncEncodingCombo(tab);
+                SyncLineEndingText(tab);
             }
         }
 
@@ -2904,6 +2909,7 @@ namespace Ueditor
                 UpdateStatusFileStats(tab);
                 UpdateLanguageUI(tab);
                 SyncEncodingCombo(tab);
+                SyncLineEndingText(tab);
                 await RefreshGitStatusUIAsync();
                 UpdateWindowTitle();
 
@@ -3557,15 +3563,89 @@ namespace Ueditor
 
         private void OnStatusLineEndingClick(object sender, RoutedEventArgs e)
         {
+            var tab = GetActiveTab();
+            if (tab == null) return;
+
+            string currentLe = "LF";
+            if (_editorSessions.TryGetValue(tab.Id, out var session))
+            {
+                currentLe = session.Model.LineEnding == "\r\n" ? "CRLF" : "LF";
+            }
+
             var flyout = new MenuFlyout();
             var lfItem = new MenuFlyoutItem { Text = "LF" };
             var crlfItem = new MenuFlyoutItem { Text = "CRLF" };
-            lfItem.Click += (s, args) => { _currentLineEnding = "LF"; StatusBarPane.LineEndingText.Text = "LF"; };
-            crlfItem.Click += (s, args) => { _currentLineEnding = "CRLF"; StatusBarPane.LineEndingText.Text = "CRLF"; };
+
+            lfItem.Click += async (s, args) =>
+            {
+                if (currentLe == "LF") return;
+                await ChangeLineEndingWithPopupAsync(tab, "LF");
+            };
+
+            crlfItem.Click += async (s, args) =>
+            {
+                if (currentLe == "CRLF") return;
+                await ChangeLineEndingWithPopupAsync(tab, "CRLF");
+            };
+
             flyout.Items.Add(lfItem);
             flyout.Items.Add(crlfItem);
             if (sender is Button btn)
                 flyout.ShowAt(btn, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Top });
+        }
+
+        private async Task ChangeLineEndingWithPopupAsync(OpenedTab tab, string targetEnding)
+        {
+            string contentFormat = GetLocalizedString(
+                "LineEndingChangeContentFormat",
+                "현재 열려 있는 파일의 줄 끝 방식을 '{0}'(으)로 변환하시겠습니까?");
+
+            var dialog = new ContentDialog
+            {
+                Title = GetLocalizedString("LineEndingChangeTitle", "줄 끝 방식 변경"),
+                Content = string.Format(contentFormat, targetEnding),
+                PrimaryButtonText = GetLocalizedString("LineEndingChangeConvert", "변환"),
+                CloseButtonText = GetLocalizedString("LineEndingChangeCancel", "취소"),
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                if (_editorSessions.TryGetValue(tab.Id, out var session))
+                {
+                    session.Model.LineEnding = targetEnding == "CRLF" ? "\r\n" : "\n";
+                }
+
+                var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id)
+                           ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id);
+                if (tabItem != null)
+                {
+                    MarkTabDirty(tab, tabItem);
+                }
+                else
+                {
+                    tab.IsDirty = true;
+                }
+
+                StatusBarPane.LineEndingText.Text = targetEnding;
+                _currentLineEnding = targetEnding;
+            }
+        }
+
+        private void SyncLineEndingText(OpenedTab tab)
+        {
+            if (_editorSessions.TryGetValue(tab.Id, out var session))
+            {
+                string le = session.Model.LineEnding == "\r\n" ? "CRLF" : "LF";
+                StatusBarPane.LineEndingText.Text = le;
+                _currentLineEnding = le;
+            }
+            else
+            {
+                StatusBarPane.LineEndingText.Text = "LF";
+                _currentLineEnding = "LF";
+            }
         }
 
 #pragma warning disable CS0414
