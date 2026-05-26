@@ -13,28 +13,45 @@
             BorderThickness="0,0,0,1"
             Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}">
         <Border.Resources>
-            <Style x:Key="MarkdownToolbarButtonStyle" TargetType="Button">
-                <Setter Property="MinWidth" Value="28"/>
-                <Setter Property="Width" Value="28"/>
-                <Setter Property="MinHeight" Value="26"/>
-                <Setter Property="Height" Value="26"/>
-                <Setter Property="Padding" Value="0"/>
-                <Setter Property="Margin" Value="1,0,1,0"/>
-                <Setter Property="BorderThickness" Value="0"/>
-                <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                <Setter Property="VerticalContentAlignment" Value="Center"/>
-                <Setter Property="VerticalAlignment" Value="Center"/>
-                <Setter Property="Background" Value="Transparent"/>
-            </Style>
-            <Style x:Key="MarkdownToolbarGlyphStyle" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="12"/>
-                <Setter Property="LineHeight" Value="14"/>
-                <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
-                <Setter Property="TextAlignment" Value="Center"/>
-                <Setter Property="HorizontalAlignment" Value="Center"/>
-                <Setter Property="VerticalAlignment" Value="Center"/>
-                <Setter Property="Margin" Value="0"/>
-            </Style>
+            <ResourceDictionary>
+                <ResourceDictionary.ThemeDictionaries>
+                    <ResourceDictionary x:Key="Light">
+                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#15000000"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#26000000"/>
+                        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+                    </ResourceDictionary>
+                    <ResourceDictionary x:Key="Dark">
+                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#15FFFFFF"/>
+                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#26FFFFFF"/>
+                        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+                        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+                    </ResourceDictionary>
+                </ResourceDictionary.ThemeDictionaries>
+
+                <Style x:Key="MarkdownToolbarButtonStyle" TargetType="Button">
+                    <Setter Property="MinWidth" Value="28"/>
+                    <Setter Property="Width" Value="28"/>
+                    <Setter Property="MinHeight" Value="26"/>
+                    <Setter Property="Height" Value="26"/>
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="Margin" Value="1,0,1,0"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                    <Setter Property="VerticalContentAlignment" Value="Center"/>
+                    <Setter Property="VerticalAlignment" Value="Center"/>
+                    <Setter Property="Background" Value="Transparent"/>
+                </Style>
+                <Style x:Key="MarkdownToolbarGlyphStyle" TargetType="TextBlock">
+                    <Setter Property="FontSize" Value="12"/>
+                    <Setter Property="LineHeight" Value="14"/>
+                    <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
+                    <Setter Property="TextAlignment" Value="Center"/>
+                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                    <Setter Property="VerticalAlignment" Value="Center"/>
+                    <Setter Property="Margin" Value="0"/>
+                </Style>
+            </ResourceDictionary>
         </Border.Resources>
 
         <ScrollViewer Height="32"

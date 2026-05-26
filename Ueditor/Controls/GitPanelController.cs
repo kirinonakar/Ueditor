@@ -188,13 +188,20 @@ namespace Ueditor.Controls
                 return;
             }
 
+            bool isDarkTheme = false;
+            if (_xamlRootProvider()?.Content is FrameworkElement fe)
+            {
+                isDarkTheme = fe.ActualTheme == ElementTheme.Dark;
+            }
+
             var dialog = new ContentDialog
             {
                 Title = "Git 파일 복원",
                 Content = $"{Path.GetFileName(filePath)} 변경 사항을 복원합니다. Untracked 파일은 삭제됩니다.",
                 PrimaryButtonText = "복원",
                 CloseButtonText = "취소",
-                XamlRoot = _xamlRootProvider()
+                XamlRoot = _xamlRootProvider(),
+                RequestedTheme = isDarkTheme ? ElementTheme.Dark : ElementTheme.Light
             };
 
             if (await dialog.ShowAsync() != ContentDialogResult.Primary)
@@ -252,13 +259,20 @@ namespace Ueditor.Controls
 
         public async Task RestoreAllAsync(string repoPath)
         {
+            bool isDarkTheme = false;
+            if (_xamlRootProvider()?.Content is FrameworkElement fe)
+            {
+                isDarkTheme = fe.ActualTheme == ElementTheme.Dark;
+            }
+
             var dialog = new ContentDialog
             {
                 Title = "Git 전체 복원",
                 Content = "모든 변경 사항을 복원합니다. Untracked 파일은 삭제됩니다.",
                 PrimaryButtonText = "전체 복원",
                 CloseButtonText = "취소",
-                XamlRoot = _xamlRootProvider()
+                XamlRoot = _xamlRootProvider(),
+                RequestedTheme = isDarkTheme ? ElementTheme.Dark : ElementTheme.Light
             };
 
             if (await dialog.ShowAsync() != ContentDialogResult.Primary)
@@ -310,14 +324,21 @@ namespace Ueditor.Controls
             string commitInfo,
             System.Collections.Generic.IReadOnlyList<(string Status, string Path)> changedFiles)
         {
+            bool isDarkTheme = false;
+            if (_xamlRootProvider()?.Content is FrameworkElement fe)
+            {
+                isDarkTheme = fe.ActualTheme == ElementTheme.Dark;
+            }
+
             var dialog = new ContentDialog
             {
                 Title = string.Format(_getString("GitHistoryItemDialogTitle", "커밋 정보 [{0}]"), hash.Substring(0, 7)),
                 CloseButtonText = _getString("GitHistoryItemClose", "닫기"),
-                XamlRoot = _xamlRootProvider()
+                XamlRoot = _xamlRootProvider(),
+                RequestedTheme = isDarkTheme ? ElementTheme.Dark : ElementTheme.Light
             };
 
-            var fileListView = BuildCommitChangedFilesList(changedFiles);
+            var fileListView = BuildCommitChangedFilesList(changedFiles, isDarkTheme);
             string currentHash = hash;
             fileListView.DoubleTapped += async (_, _) =>
             {
@@ -355,7 +376,7 @@ namespace Ueditor.Controls
             await dialog.ShowAsync();
         }
 
-        private ListView BuildCommitChangedFilesList(System.Collections.Generic.IEnumerable<(string Status, string Path)> changedFiles)
+        private ListView BuildCommitChangedFilesList(System.Collections.Generic.IEnumerable<(string Status, string Path)> changedFiles, bool isDarkTheme)
         {
             var fileListView = new ListView
             {
@@ -368,7 +389,7 @@ namespace Ueditor.Controls
             {
                 fileListView.Items.Add(new ListViewItem
                 {
-                    Content = CreateCommitFileRow(file.Status, file.Path),
+                    Content = CreateCommitFileRow(file.Status, file.Path, isDarkTheme),
                     Tag = file
                 });
             }
@@ -376,13 +397,27 @@ namespace Ueditor.Controls
             return fileListView;
         }
 
-        private static Grid CreateCommitFileRow(string status, string path)
+        private static Grid CreateCommitFileRow(string status, string path, bool isDarkTheme)
         {
-            var statusColor = status.StartsWith("A", StringComparison.OrdinalIgnoreCase)
-                ? Windows.UI.Color.FromArgb(255, 46, 160, 67)
-                : status.StartsWith("D", StringComparison.OrdinalIgnoreCase)
-                    ? Windows.UI.Color.FromArgb(255, 248, 81, 73)
-                    : Windows.UI.Color.FromArgb(255, 0, 95, 184);
+            Windows.UI.Color statusColor;
+            if (isDarkTheme)
+            {
+                // Soft, desaturated premium colors for Dark Theme (GitHub style)
+                statusColor = status.StartsWith("A", StringComparison.OrdinalIgnoreCase)
+                    ? Windows.UI.Color.FromArgb(255, 63, 185, 80)    // soft green (#3fb950)
+                    : status.StartsWith("D", StringComparison.OrdinalIgnoreCase)
+                        ? Windows.UI.Color.FromArgb(255, 248, 81, 73)   // soft red (#f85149)
+                        : Windows.UI.Color.FromArgb(255, 88, 166, 255);  // soft blue (#58a6ff)
+            }
+            else
+            {
+                // Harmonious professional colors for Light Theme
+                statusColor = status.StartsWith("A", StringComparison.OrdinalIgnoreCase)
+                    ? Windows.UI.Color.FromArgb(255, 34, 134, 58)    // desaturated dark green (#22863a)
+                    : status.StartsWith("D", StringComparison.OrdinalIgnoreCase)
+                        ? Windows.UI.Color.FromArgb(255, 203, 36, 49)   // desaturated dark red (#cb2431)
+                        : Windows.UI.Color.FromArgb(255, 3, 102, 214);   // elegant blue (#0366d6)
+            }
 
             var grid = new Grid { Padding = new Thickness(0, 2, 0, 2) };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });

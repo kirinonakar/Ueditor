@@ -18,6 +18,7 @@
             --removed-bg: rgba(248, 81, 73, 0.15);
             --removed-border: rgba(248, 81, 73, 0.4);
             --removed-text: #f85149;
+            --empty-bg: #171717;
             --font-family: Consolas, "Courier New", monospace;
             --ui-font: "Segoe UI", "Malgun Gothic", sans-serif;
             --scrollmap-width: 14px;
@@ -32,6 +33,7 @@
                 --gutter-fg: #6a737d;
                 --added-text: #22863a;
                 --removed-text: #cb2431;
+                --empty-bg: #f9f9f9;
             }
         }
 
@@ -169,12 +171,12 @@
         }
 
         .row-empty {
-            background: #171717;
+            background: var(--empty-bg);
             user-select: none;
         }
         .row-empty .line-number {
             color: transparent;
-            background: #171717;
+            background: var(--empty-bg);
         }
 
         /* ── Scrollmap (custom scrollbar with diff markers) ── */
@@ -495,27 +497,40 @@
         resizeObs.observe(leftScrollmap);
         resizeObs.observe(rightScrollmap);
 
+        function applyThemeSettings(theme, uiFontFamily, editorFontFamily) {
+            const bg    = theme === 'Light' ? '#ffffff' : '#1e1e1e';
+            const fg    = theme === 'Light' ? '#1a1a1a' : '#d4d4d4';
+            const empty = theme === 'Light' ? '#f9f9f9' : '#171717';
+            
+            document.documentElement.style.setProperty('--bg',         bg);
+            document.documentElement.style.setProperty('--fg',         fg);
+            document.documentElement.style.setProperty('--empty-bg',   empty);
+            document.documentElement.style.setProperty('--header-bg',  theme === 'Light' ? '#f3f3f3' : '#252526');
+            document.documentElement.style.setProperty('--gutter-bg',  theme === 'Light' ? '#f3f3f3' : '#1e1e1e');
+            document.documentElement.style.setProperty('--border',     theme === 'Light' ? '#e1e4e8' : '#3e3e3e');
+            
+            if (uiFontFamily) {
+                document.documentElement.style.setProperty('--ui-font',    uiFontFamily);
+            }
+            if (editorFontFamily) {
+                document.documentElement.style.setProperty('--font-family', editorFontFamily);
+            }
+
+            const addedText   = theme === 'Light' ? '#22863a' : '#3fb950';
+            const removedText = theme === 'Light' ? '#cb2431' : '#f85149';
+            document.documentElement.style.setProperty('--added-text',   addedText);
+            document.documentElement.style.setProperty('--removed-text', removedText);
+        }
+
         // ── WebView2 IPC ───────────────────────────────────────────────────
         if (window.chrome && window.chrome.webview) {
             window.chrome.webview.addEventListener('message', event => {
                 const msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
                 if (msg.action === 'compare') {
-                    const theme = msg.theme || 'Dark';
-                    const bg    = theme === 'Light' ? '#ffffff' : '#1e1e1e';
-                    const fg    = theme === 'Light' ? '#1a1a1a' : '#d4d4d4';
-                    document.documentElement.style.setProperty('--bg',         bg);
-                    document.documentElement.style.setProperty('--fg',         fg);
-                    document.documentElement.style.setProperty('--header-bg',  theme === 'Light' ? '#f3f3f3' : '#252526');
-                    document.documentElement.style.setProperty('--gutter-bg',  theme === 'Light' ? '#f3f3f3' : '#1e1e1e');
-                    document.documentElement.style.setProperty('--border',     theme === 'Light' ? '#e1e4e8' : '#3e3e3e');
-                    document.documentElement.style.setProperty('--ui-font',    msg.uiFontFamily || '"Segoe UI", "Malgun Gothic", sans-serif');
-
-                    const addedText   = theme === 'Light' ? '#22863a' : '#3fb950';
-                    const removedText = theme === 'Light' ? '#cb2431' : '#f85149';
-                    document.documentElement.style.setProperty('--added-text',   addedText);
-                    document.documentElement.style.setProperty('--removed-text', removedText);
-
+                    applyThemeSettings(msg.theme || 'Dark', msg.uiFontFamily, null);
                     renderDiff(msg);
+                } else if (msg.action === 'updateOptions') {
+                    applyThemeSettings(msg.theme || 'Dark', null, msg.fontFamily);
                 }
             });
         }
