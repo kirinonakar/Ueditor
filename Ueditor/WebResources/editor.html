@@ -3143,8 +3143,35 @@
             reportCursorAndSelection(position.element);
         });
 
+        function endSelection(event) {
+            if (!state.isSelecting) return;
+            state.isSelecting = false;
+            state.isLineSelecting = false;
+            document.body.classList.remove('selecting');
+            if (event && event.pointerId !== undefined) {
+                try {
+                    scrollContainer.releasePointerCapture?.(event.pointerId);
+                } catch (e) {}
+            }
+            const hadSelection = hasCustomSelection();
+            const selection = normalizeSelection();
+            if (selection && !hasCustomSelection()) {
+                state.selection = null;
+            } else if (selection) {
+                setTimeout(() => focusLine(state.currentLine, Math.max(0, state.currentColumn - 1)), 0);
+            }
+            if (hadSelection || hasCustomSelection()) {
+                queueRender(true);
+            }
+            reportCursorAndSelection(document.activeElement);
+        }
+
         scrollContainer.addEventListener('pointermove', event => {
             if (!state.isSelecting) return;
+            if ((event.buttons & 1) === 0) {
+                endSelection(event);
+                return;
+            }
             const position = positionFromPointer(event);
             if (!position) return;
 
@@ -3197,26 +3224,11 @@
             }
         });
 
-        scrollContainer.addEventListener('pointerup', event => {
-            if (!state.isSelecting) return;
-            state.isSelecting = false;
-            state.isLineSelecting = false;
-            document.body.classList.remove('selecting');
-            scrollContainer.releasePointerCapture?.(event.pointerId);
-            const hadSelection = hasCustomSelection();
-            const selection = normalizeSelection();
-            if (selection && !hasCustomSelection()) {
-                state.selection = null;
-            } else if (selection) {
-                setTimeout(() => focusLine(state.currentLine, Math.max(0, state.currentColumn - 1)), 0);
-            }
-            if (hadSelection || hasCustomSelection()) {
-                queueRender(true);
-            }
-            reportCursorAndSelection(document.activeElement);
+        window.addEventListener('pointerup', event => {
+            endSelection(event);
         });
 
-        scrollContainer.addEventListener('pointercancel', event => {
+        window.addEventListener('pointercancel', event => {
             if (!state.isSelecting) return;
             state.isSelecting = false;
             state.isLineSelecting = false;
