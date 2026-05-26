@@ -829,7 +829,7 @@
                         tagHtml += `<span class="token-tag">${escapeHtml(tagName)}</span>`;
                         remainder = remainder.slice(tagName.length);
                     }
-                    remainder = remainder.replace(/([a-zA-Z0-9:-]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/g, (attrMatch, attrName, attrVal) => {
+                    remainder = remainder.replace(/([a-zA-Z0-9:-]+)(\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/g, (attrMatch, attrName, attrVal) => {
                         let attrHtml = `<span class="token-attr">${escapeHtml(attrName)}</span>`;
                         if (attrVal) {
                             const eqIndex = attrVal.indexOf('=');
