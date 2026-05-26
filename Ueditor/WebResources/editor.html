@@ -498,7 +498,9 @@
             autocompleteEnabled: true,
             snippets: [],
             scrollSyncEnabled: true,
-            dragStartPosition: null
+            dragStartPosition: null,
+            isComposing: false,
+            compositionLine: null
         };
 
         function post(msg) {
@@ -3228,6 +3230,22 @@
             }
         });
 
+        viewport.addEventListener('compositionstart', event => {
+            const element = lineElementFromEvent(event);
+            state.isComposing = true;
+            state.compositionLine = element ? Number(element.dataset.line || 1) : state.currentLine;
+        });
+
+        viewport.addEventListener('compositionend', event => {
+            const element = lineElementFromEvent(event) || activeEditableElement();
+            state.isComposing = false;
+            state.compositionLine = null;
+            if (element && element.getAttribute('contenteditable') === 'true') {
+                state.selection = null;
+                commitLine(element);
+            }
+        });
+
         let lastPointerDownTime = 0;
         let lastPointerDownPosition = null;
 
@@ -3434,6 +3452,10 @@
         });
 
         document.addEventListener('keydown', event => {
+            if (event.isComposing || state.isComposing || event.key === 'Process' || event.keyCode === 229) {
+                return;
+            }
+
             if (autocompleteState.isOpen) {
                 if (event.key === 'ArrowDown') {
                     event.preventDefault();
@@ -3582,6 +3604,12 @@
         });
 
         viewport.addEventListener('beforeinput', event => {
+            if (event.isComposing || state.isComposing ||
+                event.inputType === 'insertCompositionText' ||
+                event.inputType === 'deleteCompositionText') {
+                return;
+            }
+
             if (!hasCustomSelection()) return;
             const sel = normalizeSelection();
             if (!sel) return;
@@ -3607,7 +3635,8 @@
             const element = lineElementFromEvent(event);
             reportCursorAndSelection(element || document.activeElement);
 
-            if (state.autocompleteEnabled && element && element.getAttribute('contenteditable') === 'true') {
+            if (!state.isComposing && !event.isComposing &&
+                state.autocompleteEnabled && element && element.getAttribute('contenteditable') === 'true') {
                 const ignoredKeys = [
                     'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
                     'Enter', 'Escape', 'Tab', 'Shift', 'Control', 'Alt', 'Meta',

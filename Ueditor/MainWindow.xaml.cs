@@ -2196,9 +2196,92 @@ namespace Ueditor
             }
         }
 
-        private void OnSplitNoneClick(object sender, RoutedEventArgs e) => EditorWorkspace.SetSplitMode(EditorSplitMode.None, () => OpenNewTab());
+        private async void OnSplitNoneClick(object sender, RoutedEventArgs e)
+        {
+            var preferredTab = GetActiveTab();
+            if (preferredTab != null)
+            {
+                await SyncEditsToOtherTabsAsync(preferredTab);
+            }
+
+            EditorWorkspace.SetSplitMode(EditorSplitMode.None, () => OpenNewTab());
+            MergeDuplicateFileTabsAfterUnsplit(preferredTab?.Id);
+        }
         private void OnSplitVerticalClick(object sender, RoutedEventArgs e) => EditorWorkspace.SetSplitMode(EditorSplitMode.Vertical, () => OpenSplitNewTab());
         private void OnSplitHorizontalClick(object sender, RoutedEventArgs e) => EditorWorkspace.SetSplitMode(EditorSplitMode.Horizontal, () => OpenSplitNewTab());
+
+        private void MergeDuplicateFileTabsAfterUnsplit(string? preferredTabId)
+        {
+            var tabItems = EditorTabView.TabItems
+                .OfType<TabViewItem>()
+                .Where(item => item.Tag is string)
+                .ToList();
+
+            var groups = tabItems
+                .Select(item =>
+                {
+                    string tabId = (string)item.Tag!;
+                    var tab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
+                    return new { Item = item, Tab = tab, PathKey = NormalizeTabPath(tab?.FilePath) };
+                })
+                .Where(entry => entry.Tab != null && entry.PathKey != null)
+                .GroupBy(entry => entry.PathKey!, StringComparer.OrdinalIgnoreCase)
+                .Where(group => group.Count() > 1)
+                .ToList();
+
+            foreach (var group in groups)
+            {
+                var keeper = group.FirstOrDefault(entry => entry.Tab!.Id == preferredTabId) ?? group.First();
+                foreach (var duplicate in group.Where(entry => entry.Tab!.Id != keeper.Tab!.Id).ToList())
+                {
+                    MergeDuplicateTabState(keeper.Tab!, keeper.Item, duplicate.Tab!);
+                    CloseTabAndCleanup(duplicate.Tab!, duplicate.Item);
+                }
+
+                keeper.Item.Header = keeper.Tab!.DisplayTitle;
+                EditorTabView.SelectedItem = keeper.Item;
+            }
+
+            UpdateWindowTitle();
+        }
+
+        private static string? NormalizeTabPath(string? filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath)) return null;
+
+            try
+            {
+                return Path.GetFullPath(filePath);
+            }
+            catch
+            {
+                return filePath;
+            }
+        }
+
+        private void MergeDuplicateTabState(OpenedTab keeper, TabViewItem keeperItem, OpenedTab duplicate)
+        {
+            if (duplicate.IsDirty && !keeper.IsDirty &&
+                _editorSessions.TryGetValue(duplicate.Id, out var duplicateSession))
+            {
+                string duplicateText = duplicateSession.GetText();
+                if (_editorSessions.TryGetValue(keeper.Id, out var keeperSession))
+                {
+                    keeperSession.UpdateContentFromSync(duplicateText);
+                }
+                keeper.Content = duplicateText;
+
+                if (_tabBridges.TryGetValue(keeper.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
+                {
+                    _ = bridgeGroup.Bridge.SetTextAsync(duplicateText);
+                }
+            }
+
+            keeper.IsDirty |= duplicate.IsDirty;
+            keeper.EncodingName = duplicate.EncodingName;
+            keeper.EncodingWasAutoDetected = duplicate.EncodingWasAutoDetected;
+            keeperItem.Header = keeper.DisplayTitle;
+        }
 
         private void OnEditorTabView2AddTabClick(TabView sender, object args)
         {
