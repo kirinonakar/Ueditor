@@ -4208,16 +4208,8 @@ namespace Ueditor
             switch (key)
             {
                 case Windows.System.VirtualKey.F9:
-                    _functionKeyShortcutService.SuppressUntilReleased(FunctionKeyShortcutService.F9VirtualKey);
-                    ToggleTopMostShortcut();
-                    return true;
                 case Windows.System.VirtualKey.F10:
-                    _functionKeyShortcutService.SuppressUntilReleased(FunctionKeyShortcutService.F10VirtualKey);
-                    OnToggleThemeClick(this, new RoutedEventArgs());
-                    return true;
                 case Windows.System.VirtualKey.F12:
-                    _functionKeyShortcutService.SuppressUntilReleased(FunctionKeyShortcutService.F12VirtualKey);
-                    OnStickyNoteClick(this, new RoutedEventArgs());
                     return true;
             }
 
