@@ -407,43 +407,57 @@ namespace Ueditor.Controls
                 if (session.WindowHandle != IntPtr.Zero)
                 {
                     ShowWindow(session.WindowHandle, SW_HIDE);
-                    session.WindowHandle = IntPtr.Zero;
                 }
 
-                if (session.Process != null)
+                var process = session.Process;
+                bool isNative = session.IsNative;
+
+                if (process != null)
                 {
-                    if (!session.Process.HasExited)
+                    Task.Run(() =>
                     {
-                        try { session.Process.StandardInput.WriteLine("exit"); } catch { }
-
-                        if (!session.Process.WaitForExit(1000))
+                        try
                         {
-                            try
+                            if (!process.HasExited)
                             {
-                                using var killer = new Process
+                                if (!isNative)
                                 {
-                                    StartInfo = new ProcessStartInfo("taskkill", $"/T /F /PID {session.Process.Id}")
+                                    try
                                     {
-                                        CreateNoWindow = true,
-                                        UseShellExecute = false
+                                        process.StandardInput.WriteLine("exit");
+                                        process.StandardInput.Flush();
                                     }
-                                };
-                                killer.Start();
-                                killer.WaitForExit(3000);
-                            }
-                            catch { }
-                        }
-                    }
+                                    catch { }
+                                }
 
-                    session.Process.Dispose();
-                    session.Process = null;
+                                if (!process.WaitForExit(100))
+                                {
+                                    process.Kill(entireProcessTree: true);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Failed to terminate terminal process: {ex.Message}");
+                        }
+                        finally
+                        {
+                            try { process.Dispose(); } catch { }
+                        }
+                    });
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Debug.WriteLine($"Error in StopTerminalSession: {ex.Message}");
+            }
+            finally
+            {
+                session.WindowHandle = IntPtr.Zero;
                 session.Process = null;
             }
         }
+
 
         public void ResizeEmbeddedTerminal()
         {
