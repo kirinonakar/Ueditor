@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.Web.WebView2.Core;
 using Windows.ApplicationModel.DataTransfer;
@@ -758,10 +759,15 @@ namespace Ueditor
             // Instantiate TabViewItem XAML element
             var tabItem = new TabViewItem
             {
-                Header = tab.DisplayTitle,
                 Content = grid,
                 Tag = tab.Id
             };
+            tabItem.SetBinding(TabViewItem.HeaderProperty, new Binding
+            {
+                Path = new PropertyPath("DisplayTitle"),
+                Mode = BindingMode.OneWay,
+                Source = tab
+            });
             var targetTabView = GetCurrentActiveTabView();
 
             // Tab right-click context menu
@@ -1091,12 +1097,11 @@ namespace Ueditor
             };
         }
 
-        private void MarkTabDirty(OpenedTab tab, TabViewItem tabItem)
+        private void MarkTabDirty(OpenedTab tab, TabViewItem? tabItem = null)
         {
             if (!tab.IsDirty && !string.IsNullOrEmpty(tab.FilePath))
             {
                 tab.IsDirty = true;
-                tabItem.Header = tab.DisplayTitle;
                 PropagateDirtyStateToOtherTabs(tab);
             }
         }
@@ -1105,49 +1110,29 @@ namespace Ueditor
         {
             if (string.IsNullOrEmpty(sourceTab.FilePath)) return;
 
-            var otherTabs = _viewModel.Tabs.Where(t =>
-                t.Id != sourceTab.Id &&
-                !string.IsNullOrEmpty(t.FilePath) &&
-                t.FilePath.Equals(sourceTab.FilePath, StringComparison.OrdinalIgnoreCase)
-            ).ToList();
-
-            foreach (var otherTab in otherTabs)
+            foreach (var otherTab in _viewModel.Tabs)
             {
-                if (!otherTab.IsDirty)
+                if (otherTab.Id != sourceTab.Id &&
+                    !string.IsNullOrEmpty(otherTab.FilePath) &&
+                    otherTab.FilePath.Equals(sourceTab.FilePath, StringComparison.OrdinalIgnoreCase) &&
+                    !otherTab.IsDirty)
                 {
                     otherTab.IsDirty = true;
-                    var otherTabItem = FindTabViewItem(otherTab.Id);
-                    if (otherTabItem != null)
-                    {
-                        otherTabItem.Header = otherTab.DisplayTitle;
-                    }
                 }
             }
-        }
-
-        private TabViewItem? FindTabViewItem(string tabId)
-        {
-            return EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tabId)
-                ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tabId);
         }
 
         private void CleanDirtyStateOnOtherTabs(OpenedTab sourceTab)
         {
             if (string.IsNullOrEmpty(sourceTab.FilePath)) return;
 
-            var otherTabs = _viewModel.Tabs.Where(t =>
-                t.Id != sourceTab.Id &&
-                !string.IsNullOrEmpty(t.FilePath) &&
-                t.FilePath.Equals(sourceTab.FilePath, StringComparison.OrdinalIgnoreCase)
-            ).ToList();
-
-            foreach (var otherTab in otherTabs)
+            foreach (var otherTab in _viewModel.Tabs)
             {
-                otherTab.IsDirty = false;
-                var otherTabItem = FindTabViewItem(otherTab.Id);
-                if (otherTabItem != null)
+                if (otherTab.Id != sourceTab.Id &&
+                    !string.IsNullOrEmpty(otherTab.FilePath) &&
+                    otherTab.FilePath.Equals(sourceTab.FilePath, StringComparison.OrdinalIgnoreCase))
                 {
-                    otherTabItem.Header = otherTab.DisplayTitle;
+                    otherTab.IsDirty = false;
                 }
             }
         }
@@ -2308,11 +2293,10 @@ namespace Ueditor
                 var keeper = group.FirstOrDefault(entry => entry.Tab!.Id == preferredTabId) ?? group.First();
                 foreach (var duplicate in group.Where(entry => entry.Tab!.Id != keeper.Tab!.Id).ToList())
                 {
-                    MergeDuplicateTabState(keeper.Tab!, keeper.Item, duplicate.Tab!);
+                    MergeDuplicateTabState(keeper.Tab!, duplicate.Tab!);
                     CloseTabAndCleanup(duplicate.Tab!, duplicate.Item);
                 }
 
-                keeper.Item.Header = keeper.Tab!.DisplayTitle;
                 EditorTabView.SelectedItem = keeper.Item;
             }
 
@@ -2333,7 +2317,7 @@ namespace Ueditor
             }
         }
 
-        private void MergeDuplicateTabState(OpenedTab keeper, TabViewItem keeperItem, OpenedTab duplicate)
+        private void MergeDuplicateTabState(OpenedTab keeper, OpenedTab duplicate)
         {
             if (duplicate.IsDirty && !keeper.IsDirty &&
                 _editorSessions.TryGetValue(duplicate.Id, out var duplicateSession))
@@ -2354,7 +2338,6 @@ namespace Ueditor
             keeper.IsDirty |= duplicate.IsDirty;
             keeper.EncodingName = duplicate.EncodingName;
             keeper.EncodingWasAutoDetected = duplicate.EncodingWasAutoDetected;
-            keeperItem.Header = keeper.DisplayTitle;
         }
 
         private void OnEditorTabView2AddTabClick(TabView sender, object args)
@@ -2889,13 +2872,6 @@ namespace Ueditor
                 var session = new EditorDocumentSession(tab, readResult.Model);
                 _editorSessions[tab.Id] = session;
 
-                var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id)
-                           ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id);
-                if (tabItem != null)
-                {
-                    tabItem.Header = tab.DisplayTitle;
-                }
-
                 if (_tabBridges.TryGetValue(tab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
                 {
                     await bridgeGroup.Bridge.InitializeModelAsync(
@@ -2982,27 +2958,17 @@ namespace Ueditor
                 }
                 otherTab.Content = updatedText;
 
-                var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == otherTab.Id)
-                           ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == otherTab.Id);
-
                 if (!updateUi)
                 {
                     otherTab.IsDirty = sourceTab.IsDirty;
                 }
                 else if (sourceTab.IsDirty)
                 {
-                    if (tabItem != null)
-                    {
-                        MarkTabDirty(otherTab, tabItem);
-                    }
+                    MarkTabDirty(otherTab);
                 }
                 else
                 {
                     otherTab.IsDirty = false;
-                    if (tabItem != null)
-                    {
-                        tabItem.Header = otherTab.DisplayTitle;
-                    }
                 }
 
                 if (_tabBridges.TryGetValue(otherTab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
@@ -3234,7 +3200,6 @@ namespace Ueditor
                 }
 
                 tab.IsDirty = false;
-                tabItem.Header = tab.DisplayTitle;
                 CleanDirtyStateOnOtherTabs(tab);
 
                 UpdateStatusFileStats(tab);
@@ -3294,7 +3259,6 @@ namespace Ueditor
                 }
 
                 tab.IsDirty = false;
-                tabItem.Header = tab.DisplayTitle;
                 UpdateStatusFileStats(tab);
                 UpdateTotalLines(tab);
                 UpdateLanguageUI(tab);
