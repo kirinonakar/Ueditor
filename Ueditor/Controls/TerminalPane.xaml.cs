@@ -28,6 +28,10 @@ namespace Ueditor.Controls
             KeyDown += OnTerminalPaneKeyDown;
             Unloaded += OnUnloaded;
             ActualThemeChanged += OnActualThemeChanged;
+            Loaded += (s, e) => {
+                this.RequestedTheme = this.ActualTheme == ElementTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
+                UpdateAllTerminalThemes();
+            };
         }
 
         private void OnActualThemeChanged(FrameworkElement sender, object args)
@@ -186,6 +190,9 @@ namespace Ueditor.Controls
 
         [System.Runtime.InteropServices.DllImport("uxtheme.dll", ExactSpelling = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
         private static extern int SetWindowTheme(IntPtr hWnd, string pszSubAppName, string? pszSubIdList);
+
+        [System.Runtime.InteropServices.DllImport("uxtheme.dll", EntryPoint = "#133")]
+        private static extern bool AllowDarkModeForWindow(IntPtr hWnd, bool allow);
 
         private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
 
@@ -816,6 +823,7 @@ namespace Ueditor.Controls
             {
                 int useDark = isDark ? 1 : 0;
                 DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref useDark, sizeof(int));
+                AllowDarkModeForWindow(hwnd, isDark);
                 SetWindowTheme(hwnd, isDark ? "DarkMode_Explorer" : "Explorer", null);
                 
                 // Force non-client area redraw (scrollbars)
@@ -831,6 +839,7 @@ namespace Ueditor.Controls
         public void UpdateAllTerminalThemes()
         {
             bool isDark = this.ActualTheme == ElementTheme.Dark;
+            this.RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light;
             foreach (var session in _terminalSessions)
             {
                 if (session.IsNative && session.WindowHandle != IntPtr.Zero)

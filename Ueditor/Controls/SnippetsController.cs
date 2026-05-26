@@ -166,7 +166,8 @@ namespace Ueditor.Controls
                 Content = stack,
                 PrimaryButtonText = primaryButtonText,
                 CloseButtonText = "취소",
-                XamlRoot = _xamlRootProvider()
+                XamlRoot = _xamlRootProvider(),
+                RequestedTheme = _leftSidebar.ActualTheme
             };
 
             var result = await dialog.ShowAsync();
