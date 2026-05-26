@@ -29,7 +29,6 @@ namespace Ueditor.Controls
             Unloaded += OnUnloaded;
             ActualThemeChanged += OnActualThemeChanged;
             Loaded += (s, e) => {
-                this.RequestedTheme = this.ActualTheme == ElementTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
                 UpdateAllTerminalThemes();
             };
         }
@@ -839,7 +838,6 @@ namespace Ueditor.Controls
         public void UpdateAllTerminalThemes()
         {
             bool isDark = this.ActualTheme == ElementTheme.Dark;
-            this.RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light;
             foreach (var session in _terminalSessions)
             {
                 if (session.IsNative && session.WindowHandle != IntPtr.Zero)
