@@ -71,9 +71,11 @@
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBox x:Name="LlmFileContextInput" PlaceholderText="파일 맥락 없음" IsReadOnly="True" Height="30" FontSize="11"/>
                                             <Button x:Name="LlmAddFileContextButton" Grid.Column="1" Content="파일 맥락 추가" Click="OnLlmAddFileContextClick" Padding="10,4,10,4"/>
+                                            <Button x:Name="LlmRemoveFileContextButton" Grid.Column="2" Content="삭제" Click="OnLlmRemoveFileContextClick" Padding="10,4,10,4"/>
                                         </Grid>
                                     </StackPanel>
                                 </Border>

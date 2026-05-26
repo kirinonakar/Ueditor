@@ -509,6 +509,9 @@
   <data name="LlmAddFileContextButtonText" xml:space="preserve">
     <value>Add File Context</value>
   </data>
+  <data name="LlmRemoveFileContextButtonText" xml:space="preserve">
+    <value>Delete</value>
+  </data>
   <data name="LlmExplainButtonText" xml:space="preserve">
     <value>Explain Selection</value>
   </data>

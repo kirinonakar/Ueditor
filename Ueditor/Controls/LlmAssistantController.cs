@@ -69,6 +69,7 @@ namespace Ueditor.Controls
         private void WireEvents()
         {
             _rightSidebar.LlmAddFileContextClick += OnLlmAddFileContextClick;
+            _rightSidebar.LlmRemoveFileContextClick += OnLlmRemoveFileContextClick;
             _rightSidebar.LlmExplainClick += OnLlmExplainClick;
             _rightSidebar.LlmSummarizeClick += OnLlmSummarizeClick;
             _rightSidebar.LlmTranslateClick += OnLlmTranslateClick;
@@ -191,6 +192,12 @@ namespace Ueditor.Controls
 
             _fileContextText = $"[파일 맥락: {title}]\n{content}";
             _rightSidebar.LlmFileContext.Text = $"{Path.GetFileName(title)} · {_fileContextText.Length:N0} 글자";
+        }
+
+        private void OnLlmRemoveFileContextClick(object sender, RoutedEventArgs e)
+        {
+            _fileContextText = string.Empty;
+            _rightSidebar.LlmFileContext.Text = string.Empty;
         }
 
         private async void OnLlmInsertOutputClick(object sender, RoutedEventArgs e)

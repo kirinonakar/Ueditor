@@ -510,6 +510,9 @@
   <data name="LlmAddFileContextButtonText" xml:space="preserve">
     <value>ファイル追加</value>
   </data>
+  <data name="LlmRemoveFileContextButtonText" xml:space="preserve">
+    <value>削除</value>
+  </data>
   <data name="LlmExplainButtonText" xml:space="preserve">
     <value>選択範囲の解説 (Explain)</value>
   </data>

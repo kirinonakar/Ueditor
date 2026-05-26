@@ -509,6 +509,9 @@
   <data name="LlmAddFileContextButtonText" xml:space="preserve">
     <value>파일 맥락 추가</value>
   </data>
+  <data name="LlmRemoveFileContextButtonText" xml:space="preserve">
+    <value>삭제</value>
+  </data>
   <data name="LlmExplainButtonText" xml:space="preserve">
     <value>선택 영역 설명 (Explain)</value>
   </data>

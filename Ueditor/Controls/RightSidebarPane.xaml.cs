@@ -14,6 +14,7 @@ namespace Ueditor.Controls
         public event SelectionChangedEventHandler? PreviewModeSelectionChanged;
         public event RoutedEventHandler? OpenPreviewInBrowserClick;
         public event RoutedEventHandler? LlmAddFileContextClick;
+        public event RoutedEventHandler? LlmRemoveFileContextClick;
         public event RoutedEventHandler? LlmExplainClick;
         public event RoutedEventHandler? LlmSummarizeClick;
         public event RoutedEventHandler? LlmTranslateClick;
@@ -42,6 +43,7 @@ namespace Ueditor.Controls
         public TextBlock OpenBrowserBtnText => OpenBrowserButtonText;
         public TabViewItem AiAssistantTabItem => AiAssistantTab;
         public Button LlmAddFileCtxButton => LlmAddFileContextButton;
+        public Button LlmRemoveFileCtxButton => LlmRemoveFileContextButton;
         public Button LlmExplainBtn => LlmExplainButton;
         public Button LlmSummarizeBtn => LlmSummarizeButton;
         public Button LlmTranslateBtn => LlmTranslateButton;
@@ -75,6 +77,7 @@ namespace Ueditor.Controls
 
             LlmFileContextInput.PlaceholderText = getString("LlmFileContextPlaceholder", "파일 맥락 없음");
             LlmAddFileContextButton.Content = getString("LlmAddFileContextButtonText", "파일 맥락 추가");
+            LlmRemoveFileContextButton.Content = getString("LlmRemoveFileContextButtonText", "삭제");
             LlmExplainButton.Content = getString("LlmExplainButtonText", "선택 영역 설명 (Explain)");
             LlmSummarizeButton.Content = getString("LlmSummarizeButtonText", "선택 영역 요약");
             _getString = getString;
@@ -106,6 +109,11 @@ namespace Ueditor.Controls
         private void OnLlmAddFileContextClick(object sender, RoutedEventArgs e)
         {
             LlmAddFileContextClick?.Invoke(sender, e);
+        }
+
+        private void OnLlmRemoveFileContextClick(object sender, RoutedEventArgs e)
+        {
+            LlmRemoveFileContextClick?.Invoke(sender, e);
         }
 
         private void OnLlmExplainClick(object sender, RoutedEventArgs e)
