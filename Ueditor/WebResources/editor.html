@@ -3090,17 +3090,37 @@
             contextMenu.style.left = `${Math.max(4, left)}px`;
             contextMenu.style.top = `${Math.max(4, top)}px`;
 
-            // Adjust submenus if they would go offscreen to the right (submenu is ~180px wide)
-            const submenus = contextMenu.querySelectorAll('.submenu');
-            const wouldOverflowRight = (left + menuRect.width + 180) > window.innerWidth;
-            for (const submenu of submenus) {
-                if (wouldOverflowRight) {
-                    submenu.style.left = 'auto';
-                    submenu.style.right = '100%';
-                } else {
-                    submenu.style.left = '100%';
-                    submenu.style.right = 'auto';
-                }
+            // Adjust each submenu position individually to prevent clipping on any edge
+            for (const item of contextMenu.querySelectorAll('.context-menu-item.has-submenu')) {
+                const submenu = item.querySelector(':scope > .submenu');
+                if (!submenu) continue;
+
+                // Temporarily show (hidden) to get real dimensions
+                const prevDisplay = submenu.style.display;
+                const prevVisibility = submenu.style.visibility;
+                submenu.style.visibility = 'hidden';
+                submenu.style.display = 'block';
+                submenu.style.left = '100%';
+                submenu.style.right = 'auto';
+                submenu.style.top = '-4px';
+                submenu.style.bottom = 'auto';
+
+                const itemRect = item.getBoundingClientRect();
+                const sw = submenu.offsetWidth;
+                const sh = submenu.offsetHeight;
+
+                submenu.style.display = prevDisplay;
+                submenu.style.visibility = prevVisibility;
+
+                // Horizontal: open left if not enough room on right
+                const goLeft = (itemRect.right + sw) > window.innerWidth;
+                submenu.style.left = goLeft ? 'auto' : '100%';
+                submenu.style.right = goLeft ? '100%' : 'auto';
+
+                // Vertical: open upward if not enough room below
+                const goUp = (itemRect.top - 4 + sh) > window.innerHeight;
+                submenu.style.top = goUp ? 'auto' : '-4px';
+                submenu.style.bottom = goUp ? '-4px' : 'auto';
             }
         }
 

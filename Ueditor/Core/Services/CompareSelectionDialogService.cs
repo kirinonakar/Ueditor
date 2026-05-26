@@ -23,7 +23,7 @@ namespace Ueditor.Core.Services
         {
             var panel = new StackPanel { Spacing = 12, Width = 400 };
 
-            var tabChoices = new List<string> { "직접 파일 선택..." };
+            var tabChoices = new List<string> { "탭에서 선택..." };
             foreach (var tab in tabs)
             {
                 tabChoices.Add($"[탭] {tab.Title}");
