@@ -118,6 +118,10 @@
             background: var(--row-hover);
         }
 
+        .line-row.selected-empty-row .line-text {
+            background: var(--selection);
+        }
+
         .line-number {
             align-self: stretch;
             min-height: var(--line-height);
@@ -493,7 +497,8 @@
             pendingLineActions: [],
             autocompleteEnabled: true,
             snippets: [],
-            scrollSyncEnabled: true
+            scrollSyncEnabled: true,
+            dragStartPosition: null
         };
 
         function post(msg) {
@@ -813,10 +818,12 @@
                     ? `${text.slice(0, MAX_RENDER_CHARS)} ... [긴 줄: ${text.length.toLocaleString()}자, 렌더링 보호]`
                     : text;
                 const contentEditable = !state.readOnly && hasLine && !isLong ? 'true' : 'false';
-                const isInSelection = !!selectionBoundsForLine(line, displayText.length);
+                const selectionBounds = selectionBoundsForLine(line, displayText.length);
+                const isInSelection = !!selectionBounds;
+                const isSelectedEmptyLine = isInSelection && displayText.length === 0 && hasCustomSelection();
                 const textClass = `line-text${hasLine ? '' : ' loading'}${isLong ? ' long-line' : ''}`;
                 rows.push(
-                    `<div class="line-row${isInSelection ? ' selected-row' : ''}" data-line="${line}">` +
+                    `<div class="line-row${isInSelection ? ' selected-row' : ''}${isSelectedEmptyLine ? ' selected-empty-row' : ''}" data-line="${line}">` +
                     `<div class="line-number">${line}</div>` +
                     `<div class="${textClass}" contenteditable="${contentEditable}" spellcheck="false" data-line="${line}">${renderLineContent(line, displayText)}</div>` +
                     `</div>`
@@ -3240,7 +3247,7 @@
                     scrollContainer.setPointerCapture?.(event.pointerId);
 
                     state.selectionAnchor = { line: line, column: 0 };
-                    state.selection = { start: { line: line, column: 0 }, end: { line: line, column: lineLength } };
+                    state.selection = { start: { line: line, column: 0 }, end: { line: line, column: lineLength || 1 } };
                     state.isSelecting = true;
                     state.isLineSelecting = true;
                     document.body.classList.add('selecting');
@@ -3285,6 +3292,14 @@
             scrollContainer.setPointerCapture?.(event.pointerId);
 
             const hadSelection = hasCustomSelection();
+            const positionText = state.cache.get(position.line) ?? lineTextFromElement(position.element);
+            state.dragStartPosition = {
+                line: position.line,
+                column: position.column,
+                isEmptyLine: positionText.length === 0,
+                clientX: event.clientX,
+                clientY: event.clientY
+            };
             const anchor = event.shiftKey && state.selectionAnchor
                 ? state.selectionAnchor
                 : { line: position.line, column: position.column };
@@ -3317,6 +3332,7 @@
                     scrollContainer.releasePointerCapture?.(event.pointerId);
                 } catch (e) {}
             }
+            state.dragStartPosition = null;
             const hadSelection = hasCustomSelection();
             const selection = normalizeSelection();
             if (selection && !hasCustomSelection()) {
@@ -3375,12 +3391,28 @@
                             newSelection.start.column === newSelection.end.column;
 
             if (isEmpty && !state.selection) {
-                // Ignore micro-movements to prevent losing focus due to DOM re-renders on simple click
-                return;
+                const emptyLineDragDistance = state.dragStartPosition?.isEmptyLine &&
+                    state.dragStartPosition.line === position.line
+                    ? Math.hypot(event.clientX - state.dragStartPosition.clientX, event.clientY - state.dragStartPosition.clientY)
+                    : 0;
+                if (emptyLineDragDistance > 4) {
+                    newSelection = {
+                        start: { line: position.line, column: 0 },
+                        end: { line: position.line, column: 1 }
+                    };
+                } else {
+                    // Ignore micro-movements to prevent losing focus due to DOM re-renders on simple click
+                    return;
+                }
             }
 
-            if (selectionChanged) {
-                state.selection = isEmpty ? null : newSelection;
+            const finalSelectionChanged = selectionChanged ||
+                newSelection.start.column !== newSelection.end.column;
+
+            if (finalSelectionChanged) {
+                const finalSelectionIsEmpty = newSelection.start.line === newSelection.end.line &&
+                    newSelection.start.column === newSelection.end.column;
+                state.selection = finalSelectionIsEmpty ? null : newSelection;
                 state.currentLine = position.line;
                 state.currentColumn = position.column + 1;
                 queueRender(true);
