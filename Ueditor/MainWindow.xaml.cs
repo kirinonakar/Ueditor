@@ -1093,10 +1093,11 @@ namespace Ueditor
 
         private void MarkTabDirty(OpenedTab tab, TabViewItem tabItem)
         {
-            if (!tab.IsDirty)
+            if (!tab.IsDirty && !string.IsNullOrEmpty(tab.FilePath))
             {
                 tab.IsDirty = true;
                 tabItem.Header = tab.DisplayTitle;
+                PropagateDirtyStateToOtherTabs(tab);
             }
         }
 
@@ -1112,11 +1113,41 @@ namespace Ueditor
 
             foreach (var otherTab in otherTabs)
             {
-                var otherTabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == otherTab.Id)
-                                ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == otherTab.Id);
+                if (!otherTab.IsDirty)
+                {
+                    otherTab.IsDirty = true;
+                    var otherTabItem = FindTabViewItem(otherTab.Id);
+                    if (otherTabItem != null)
+                    {
+                        otherTabItem.Header = otherTab.DisplayTitle;
+                    }
+                }
+            }
+        }
+
+        private TabViewItem? FindTabViewItem(string tabId)
+        {
+            return EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tabId)
+                ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tabId);
+        }
+
+        private void CleanDirtyStateOnOtherTabs(OpenedTab sourceTab)
+        {
+            if (string.IsNullOrEmpty(sourceTab.FilePath)) return;
+
+            var otherTabs = _viewModel.Tabs.Where(t =>
+                t.Id != sourceTab.Id &&
+                !string.IsNullOrEmpty(t.FilePath) &&
+                t.FilePath.Equals(sourceTab.FilePath, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+
+            foreach (var otherTab in otherTabs)
+            {
+                otherTab.IsDirty = false;
+                var otherTabItem = FindTabViewItem(otherTab.Id);
                 if (otherTabItem != null)
                 {
-                    MarkTabDirty(otherTab, otherTabItem);
+                    otherTabItem.Header = otherTab.DisplayTitle;
                 }
             }
         }
@@ -3204,23 +3235,7 @@ namespace Ueditor
 
                 tab.IsDirty = false;
                 tabItem.Header = tab.DisplayTitle;
-
-                var otherTabs = _viewModel.Tabs.Where(t =>
-                    t.Id != tab.Id &&
-                    !string.IsNullOrEmpty(t.FilePath) &&
-                    t.FilePath.Equals(tab.FilePath, StringComparison.OrdinalIgnoreCase)
-                ).ToList();
-
-                foreach (var otherTab in otherTabs)
-                {
-                    otherTab.IsDirty = false;
-                    var otherTabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == otherTab.Id)
-                                    ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == otherTab.Id);
-                    if (otherTabItem != null)
-                    {
-                        otherTabItem.Header = otherTab.DisplayTitle;
-                    }
-                }
+                CleanDirtyStateOnOtherTabs(tab);
 
                 UpdateStatusFileStats(tab);
                 UpdateTotalLines(tab);
@@ -3888,18 +3903,37 @@ namespace Ueditor
                 CloseButtonText = "취소",
                 XamlRoot = this.Content.XamlRoot
             };
-            var result = await dialog.ShowAsync();
-            if (result == ContentDialogResult.Primary && int.TryParse(lineBox.Text, out int targetLine) && targetLine > 0)
+
+            lineBox.KeyDown += async (s, args) =>
             {
-                if (_tabBridges.TryGetValue(activeTab.Id, out var bridgeGroup))
+                if (args.Key == Windows.System.VirtualKey.Enter)
                 {
-                    if (bridgeGroup.Bridge != null)
-                        await bridgeGroup.Bridge.RevealLineAsync(targetLine, 0, 0, "");
-                    else if (bridgeGroup.WebView?.CoreWebView2 != null)
+                    args.Handled = true;
+                    if (int.TryParse(lineBox.Text, out int targetLine) && targetLine > 0)
                     {
-                        var msg = new { action = "revealLine", lineNumber = targetLine, indexOfMatch = 0, matchLength = 0, query = "" };
-                        bridgeGroup.WebView.CoreWebView2.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(msg));
+                        dialog.Hide();
+                        await PerformLineNavigationAsync(activeTab.Id, targetLine);
                     }
+                }
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary && int.TryParse(lineBox.Text, out int clickedLine) && clickedLine > 0)
+            {
+                await PerformLineNavigationAsync(activeTab.Id, clickedLine);
+            }
+        }
+
+        private async Task PerformLineNavigationAsync(string tabId, int targetLine)
+        {
+            if (_tabBridges.TryGetValue(tabId, out var bridgeGroup))
+            {
+                if (bridgeGroup.Bridge != null)
+                    await bridgeGroup.Bridge.RevealLineAsync(targetLine, 0, 0, "");
+                else if (bridgeGroup.WebView?.CoreWebView2 != null)
+                {
+                    var msg = new { action = "revealLine", lineNumber = targetLine, indexOfMatch = 0, matchLength = 0, query = "" };
+                    bridgeGroup.WebView.CoreWebView2.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(msg));
                 }
             }
         }
