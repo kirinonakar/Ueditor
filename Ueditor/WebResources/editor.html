@@ -2882,7 +2882,7 @@
                     transformed = text.toLowerCase();
                     break;
                 case 'toSentenceCase':
-                    transformed = text.toLowerCase().replace(/(^\s*|[.!?]\s+)([a-z가-힣])/g, (match, p1, p2) => p1 + p2.toUpperCase());
+                    transformed = text.replace(/((?:^|[.!?]\s+)\s*)(\S)/g, (match, p1, p2) => p1 + p2.toUpperCase());
                     break;
                 case 'toTitleCase':
                     transformed = text.toLowerCase().replace(/\b([a-z])/g, match => match.toUpperCase());
