@@ -527,16 +527,16 @@ namespace Ueditor.Core.Services
 
             var aboutSection = CreateSection();
             aboutSection.HorizontalAlignment = HorizontalAlignment.Stretch;
-            aboutSection.Spacing = 12;
-            aboutSection.Padding = new Thickness(16, 20, 16, 16);
+            aboutSection.Spacing = 6;
+            aboutSection.Padding = new Thickness(16, 8, 16, 12);
 
             var iconImage = new Image
             {
                 Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri("ms-appx:///Assets/Ueditor.png")),
-                Width = 80,
-                Height = 80,
+                Width = 72,
+                Height = 72,
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 8)
+                Margin = new Thickness(0, 12, 0, 2)
             };
             aboutSection.Children.Add(iconImage);
 
@@ -544,22 +544,22 @@ namespace Ueditor.Core.Services
             var titleText = new TextBlock
             {
                 Text = $"Ueditor (v{appVersion})",
-                FontSize = 18,
+                FontSize = 17,
                 FontWeight = Microsoft.UI.Text.FontWeights.Bold,
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 4)
+                Margin = new Thickness(0, 0, 0, 0)
             };
             aboutSection.Children.Add(titleText);
 
             var descText = new TextBlock
             {
                 Text = getString("SettingsAboutDescription", "강력하고 가벼운 텍스트 및 마크다운 에디터입니다.\n실시간 미리보기, 코드 및 수식 템플릿, 터미널 인터페이스, Git 통합, AI Assistant 등을 지원합니다."),
-                FontSize = 11.5,
+                FontSize = 11,
                 TextWrapping = TextWrapping.Wrap,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 TextAlignment = TextAlignment.Center,
                 Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray),
-                Margin = new Thickness(0, 4, 0, 16)
+                Margin = new Thickness(0, 0, 0, 4)
             };
             aboutSection.Children.Add(descText);
 
@@ -568,14 +568,14 @@ namespace Ueditor.Core.Services
                 Height = 1,
                 Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(40, 128, 128, 128)),
                 HorizontalAlignment = HorizontalAlignment.Stretch,
-                Margin = new Thickness(20, 0, 20, 12)
+                Margin = new Thickness(20, 2, 20, 4)
             };
             aboutSection.Children.Add(separator);
 
             var githubHeader = new TextBlock
             {
                 Text = getString("SettingsAboutProjectGitHub", "Project GitHub"),
-                FontSize = 11,
+                FontSize = 10.5,
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 HorizontalAlignment = HorizontalAlignment.Center
             };
@@ -586,8 +586,8 @@ namespace Ueditor.Core.Services
                 Content = "https://github.com/kirinonakar/Ueditor",
                 NavigateUri = new Uri("https://github.com/kirinonakar/Ueditor"),
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Padding = new Thickness(8, 4, 8, 4),
-                Margin = new Thickness(0, 0, 0, 12)
+                Padding = new Thickness(8, 2, 8, 2),
+                Margin = new Thickness(0, 0, 0, 2)
             };
             aboutSection.Children.Add(githubLink);
 
@@ -595,7 +595,7 @@ namespace Ueditor.Core.Services
             {
                 Content = getString("SettingsAboutThirdPartyNotices", "오픈소스 라이선스 고지 (Third-Party Notices)"),
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 12)
+                Margin = new Thickness(0, 0, 0, 6)
             };
 
             var noticesFlyout = new Flyout
@@ -661,8 +661,8 @@ SOFTWARE.",
             ApplyCompactStyleToLogicalTree(settingsPivot);
 
             // Re-apply custom font sizes for About tab to prevent them being flattened by compact style
-            titleText.FontSize = 18;
-            descText.FontSize = 11;
+            titleText.FontSize = 17;
+            descText.FontSize = 10.5;
             copyrightText.FontSize = 9.5;
 
             var dialog = new ContentDialog
