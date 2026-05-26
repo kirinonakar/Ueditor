@@ -106,6 +106,9 @@
                 <ToggleButton x:Name="SearchActivityButton" Tag="3" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick" ToolTipService.ToolTip="검색">
                     <FontIcon Glyph="&#xE721;" FontSize="13"/>
                 </ToggleButton>
+                <ToggleButton x:Name="TocActivityButton" Tag="6" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick" ToolTipService.ToolTip="목차">
+                    <FontIcon Glyph="&#xE169;" FontSize="13"/>
+                </ToggleButton>
                 <ToggleButton x:Name="GitActivityButton" Tag="4" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick" ToolTipService.ToolTip="Git">
                     <FontIcon Glyph="&#xE139;" FontSize="13"/>
                 </ToggleButton>
@@ -397,6 +400,29 @@
                                     </ListView.ItemTemplate>
                                 </ListView>
                                 <Button x:Name="AddSnippetButton" Grid.Row="2" Content="스니펫 추가..." HorizontalAlignment="Stretch" Click="OnAddSnippetClick" Margin="0,10,0,0" Style="{StaticResource AccentButtonStyle}"/>
+                        </Grid>
+
+                        <!-- Tab 7: TOC (Table of Contents) Outline -->
+                        <Grid x:Name="TocSidebarPage" Padding="10" Visibility="Collapsed">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Name="TocHeaderText" Grid.Row="0" Text="목차 (TOC)" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" Margin="0,0,0,10"/>
+                            <ListView x:Name="TocListView" Grid.Row="1" SelectionMode="Single" DoubleTapped="OnTocItemDoubleTapped">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Padding="0,4,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding DisplayText}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="{Binding Margin}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding LineDisplay}" FontSize="10" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
                         </Grid>
                     </Grid>
                 </Grid>

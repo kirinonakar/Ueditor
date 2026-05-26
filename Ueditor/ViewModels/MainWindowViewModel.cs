@@ -13,5 +13,6 @@ namespace Ueditor.ViewModels
         public ObservableCollection<SearchResultItem> SearchResults { get; } = new ObservableCollection<SearchResultItem>();
         public ObservableCollection<ExplorerItem> ExplorerItems { get; } = new ObservableCollection<ExplorerItem>();
         public ObservableCollection<OpenedTab> Tabs { get; } = new ObservableCollection<OpenedTab>();
+        public ObservableCollection<TocItem> TocItems { get; } = new ObservableCollection<TocItem>();
     }
 }

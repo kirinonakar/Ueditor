@@ -44,6 +44,7 @@ namespace Ueditor.Controls
         public event DoubleTappedEventHandler? SearchResultDoubleTapped;
         public event DoubleTappedEventHandler? RecentFileItemDoubleTapped;
         public event RoutedEventHandler? RemoveRecentFileClick;
+        public event DoubleTappedEventHandler? TocItemDoubleTapped;
 
         public Grid ExplorerPage => ExplorerSidebarPage;
         public Grid FavoritesPage => FavoritesSidebarPage;
@@ -51,6 +52,7 @@ namespace Ueditor.Controls
         public Grid GitPage => GitSidebarPage;
         public Grid SearchPage => SearchSidebarPage;
         public Grid RecentPage => RecentSidebarPage;
+        public Grid TocPage => TocSidebarPage;
 
         public ToggleButton ExplorerActivity => ExplorerActivityButton;
         public ToggleButton FavoritesActivity => FavoritesActivityButton;
@@ -58,6 +60,7 @@ namespace Ueditor.Controls
         public ToggleButton GitActivity => GitActivityButton;
         public ToggleButton SearchActivity => SearchActivityButton;
         public ToggleButton RecentActivity => RecentActivityButton;
+        public ToggleButton TocActivity => TocActivityButton;
 
         public TextBlock ExplorerStatus => ExplorerStatusText;
         public TextBlock FavoritesHeader => FavoritesHeaderText;
@@ -86,6 +89,7 @@ namespace Ueditor.Controls
         public ListView GitChangedFiles => GitChangedFilesList;
         public ListView GitHistory => GitHistoryList;
         public ListView SearchResults => SearchResultsList;
+        public ListView TocList => TocListView;
 
         public TextBlock GitPanelBranch => GitPanelBranchText;
         public ComboBox GitBranches => GitBranchesCombo;
@@ -109,6 +113,7 @@ namespace Ueditor.Controls
             ToolTipService.SetToolTip(GitActivityButton, getString("Git", "Git"));
             ToolTipService.SetToolTip(SearchActivityButton, getString("Search", "검색"));
             ToolTipService.SetToolTip(RecentActivityButton, getString("RecentFiles", "최근 파일"));
+            ToolTipService.SetToolTip(TocActivityButton, getString("TOC", "목차 (TOC)"));
 
             if (updateEmptyFolderStatus)
             {
@@ -117,6 +122,7 @@ namespace Ueditor.Controls
 
             FavoritesHeaderText.Text = getString("FavoritesHeader", "즐겨찾기 목록");
             SnippetsHeaderText.Text = getString("SnippetsHeader", "코드 및 수식 템플릿");
+            TocHeaderText.Text = getString("TOCHeader", "목차 (TOC)");
             AddSnippetButton.Content = getString("AddSnippet", "스니펫 추가...");
 
             ToolTipService.SetToolTip(ExplorerUpButton, getString("ExplorerUpTooltip", "상위 폴더"));
@@ -163,7 +169,8 @@ namespace Ueditor.Controls
                 RecentSidebarPage,
                 SearchSidebarPage,
                 GitSidebarPage,
-                SnippetsSidebarPage
+                SnippetsSidebarPage,
+                TocSidebarPage
             };
 
             ToggleButton[] buttons =
@@ -173,7 +180,8 @@ namespace Ueditor.Controls
                 RecentActivityButton,
                 SearchActivityButton,
                 GitActivityButton,
-                SnippetsActivityButton
+                SnippetsActivityButton,
+                TocActivityButton
             };
 
             int safeIndex = Math.Clamp(index, 0, pages.Length - 1);
@@ -217,5 +225,6 @@ namespace Ueditor.Controls
         private void OnSearchResultDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => SearchResultDoubleTapped?.Invoke(sender, e);
         private void OnRecentFileItemDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => RecentFileItemDoubleTapped?.Invoke(sender, e);
         private void OnRemoveRecentFileClick(object sender, RoutedEventArgs e) => RemoveRecentFileClick?.Invoke(sender, e);
+        private void OnTocItemDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => TocItemDoubleTapped?.Invoke(sender, e);
     }
 }

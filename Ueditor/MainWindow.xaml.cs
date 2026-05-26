@@ -53,6 +53,7 @@ namespace Ueditor
         private readonly FavoritesRecentController _favoritesRecentController;
         private readonly SnippetsController _snippetsController;
         private readonly LlmAssistantController _llmAssistantController;
+        private readonly TocController _tocController;
         private readonly MainWindowViewModel _viewModel = new MainWindowViewModel();
         private string _currentFolderPath = string.Empty;
         private string _currentRepoPath = string.Empty;
@@ -224,6 +225,26 @@ namespace Ueditor
                 GetTabTextForLlmContext,
                 InsertTextIntoActiveEditorAsync,
                 ShowErrorMessage);
+            _tocController = new TocController(
+                _viewModel,
+                LeftSidebarTabView,
+                GetActiveTab,
+                tab => _editorSessions.TryGetValue(tab.Id, out var s) ? s : null,
+                () => PreviewModeCombo.SelectedIndex == 3,
+                async targetLine =>
+                {
+                    var activeTab = GetActiveTab();
+                    if (activeTab != null && _tabBridges.TryGetValue(activeTab.Id, out var bridgeGroup))
+                    {
+                        if (bridgeGroup.Bridge != null)
+                            await bridgeGroup.Bridge.RevealLineAsync(targetLine, 0, 0, "");
+                        else if (bridgeGroup.WebView?.CoreWebView2 != null)
+                        {
+                            var msg = new { action = "revealLine", lineNumber = targetLine, indexOfMatch = 0, matchLength = 0, query = "" };
+                            bridgeGroup.WebView.CoreWebView2.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(msg));
+                        }
+                    }
+                });
 
             if (Content is FrameworkElement rootElement)
             {
@@ -941,6 +962,7 @@ namespace Ueditor
                 MarkTabDirty(tab, tabItem);
                 SchedulePreview(tab);
                 UpdateLanguageUI(tab);
+                _tocController?.RefreshToc(tab);
             };
 
             bridge.CursorChanged += (line, col) =>
@@ -1685,6 +1707,11 @@ namespace Ueditor
                     SearchQueryInput.Focus(FocusState.Keyboard);
                 });
             }
+
+            if (safeIndex == 6)
+            {
+                _tocController?.RefreshToc(GetActiveTab());
+            }
         }
 
         private void EnsureLeftPanelVisible()
@@ -2180,6 +2207,7 @@ namespace Ueditor
                     {
                         await bridgeGroup.Bridge.RequestSelectionAsync();
                     }
+                    _tocController?.RefreshToc(tab);
                 }
             }
             UpdateWindowTitle();
