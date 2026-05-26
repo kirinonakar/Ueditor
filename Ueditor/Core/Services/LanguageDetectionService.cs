@@ -24,6 +24,7 @@ namespace Ueditor.Core.Services
                 ".cs" => "csharp",
                 ".fs" => "fsharp",
                 ".vb" => "vb",
+                ".vbs" => "vbscript",
                 ".js" => "javascript",
                 ".jsx" => "javascript",
                 ".mjs" => "javascript",
@@ -187,6 +188,12 @@ namespace Ueditor.Core.Services
             if (sample.Contains("param(") ||
                 sample.Contains("Write-Host") ||
                 sample.Contains("Get-ChildItem")) return "powershell";
+
+            if (sample.Contains("Option Explicit") ||
+                sample.Contains("WScript.Echo") ||
+                sample.Contains("CreateObject(\"") ||
+                sample.Contains("MsgBox ") ||
+                sample.Contains("On Error Resume Next")) return "vbscript";
 
             return defaultLanguage;
         }

@@ -46,6 +46,40 @@ namespace Ueditor.Core.Services
                 selectedPath = selectedPath.Substring(0, nullPos);
             }
 
+            if (!string.IsNullOrEmpty(selectedPath))
+            {
+                if (ofn.nFilterIndex == 1)
+                {
+                    if (!selectedPath.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
+                    {
+                        selectedPath += ".txt";
+                    }
+                }
+                else if (ofn.nFilterIndex == 2)
+                {
+                    if (!selectedPath.EndsWith(".md", StringComparison.OrdinalIgnoreCase) &&
+                        !selectedPath.EndsWith(".markdown", StringComparison.OrdinalIgnoreCase))
+                    {
+                        selectedPath += ".md";
+                    }
+                }
+                else if (ofn.nFilterIndex == 3)
+                {
+                    if (!selectedPath.EndsWith(".html", StringComparison.OrdinalIgnoreCase) &&
+                        !selectedPath.EndsWith(".htm", StringComparison.OrdinalIgnoreCase))
+                    {
+                        selectedPath += ".html";
+                    }
+                }
+                else if (ofn.nFilterIndex == 4)
+                {
+                    if (!selectedPath.EndsWith(".tex", StringComparison.OrdinalIgnoreCase))
+                    {
+                        selectedPath += ".tex";
+                    }
+                }
+            }
+
             return string.IsNullOrEmpty(selectedPath) ? null : selectedPath;
         }
 

@@ -812,7 +812,7 @@
             const isDockerfile = language === 'dockerfile';
             const isMakefile = language === 'makefile';
             const isFsharp = language === 'fsharp';
-            const isVb = language === 'vb';
+            const isVb = ['vb', 'vbscript'].includes(language);
 
             if (isHtml) {
                 // 1. Comments
