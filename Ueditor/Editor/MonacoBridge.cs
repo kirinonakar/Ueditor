@@ -59,6 +59,7 @@ namespace Ueditor.Editor
                 
                 // Disable browser context menu to keep it premium
                 _webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+                _webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
             }
             catch (Exception ex)
             {

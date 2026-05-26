@@ -597,6 +597,7 @@ namespace Ueditor
                 PreviewWebView.CoreWebView2.Settings.IsWebMessageEnabled = true;
                 PreviewWebView.CoreWebView2.Settings.IsScriptEnabled = true;
                 PreviewWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+                PreviewWebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
                 PreviewWebView.WebMessageReceived += OnPreviewWebMessageReceived;
                 PreviewWebView.CoreWebView2.WebResourceRequested += OnPreviewDocumentResourceRequested;
 
@@ -3552,6 +3553,7 @@ namespace Ueditor
             diffWebView.CoreWebView2.Settings.IsWebMessageEnabled = true;
             diffWebView.CoreWebView2.Settings.IsScriptEnabled = true;
             diffWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+            diffWebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
 
             diffWebView.Source = new Uri("http://ueditor.local/diff.html");
 
