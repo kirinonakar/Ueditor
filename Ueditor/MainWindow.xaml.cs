@@ -2583,14 +2583,35 @@ namespace Ueditor
         {
             this.DispatcherQueue.TryEnqueue(async () =>
             {
-                var tabsToReload = _viewModel.Tabs.Where(t =>
+                var tabsToProcess = _viewModel.Tabs.Where(t =>
                     !string.IsNullOrEmpty(t.FilePath) &&
-                    (string.IsNullOrEmpty(filePath) || t.FilePath.Equals(filePath, StringComparison.OrdinalIgnoreCase))
+                    (
+                        (!string.IsNullOrEmpty(filePath) && t.FilePath.Equals(filePath, StringComparison.OrdinalIgnoreCase)) ||
+                        (string.IsNullOrEmpty(filePath) && !string.IsNullOrEmpty(_currentRepoPath) && t.FilePath.StartsWith(_currentRepoPath, StringComparison.OrdinalIgnoreCase))
+                    )
                 ).ToList();
 
-                foreach (var tab in tabsToReload)
+                foreach (var tab in tabsToProcess)
                 {
-                    await ReloadTabWithEncodingAsync(tab, tab.EncodingName);
+                    if (!File.Exists(tab.FilePath))
+                    {
+                        var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id)
+                                   ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id);
+                        if (tabItem != null)
+                        {
+                            CloseTabAndCleanup(tab, tabItem);
+                        }
+                    }
+                    else
+                    {
+                        await ReloadTabWithEncodingAsync(tab, tab.EncodingName);
+                    }
+                }
+
+                // Refresh the file browser list to reflect the restored files on disk
+                if (!string.IsNullOrEmpty(_currentFolderPath) && Directory.Exists(_currentFolderPath))
+                {
+                    LoadDirectoryRoot(_currentFolderPath);
                 }
             });
         }
@@ -2891,6 +2912,11 @@ namespace Ueditor
                     _favoritesRecentController.AddRecentFile(tab.FilePath);
                 }
 
+                if (!string.IsNullOrEmpty(_currentFolderPath) && Directory.Exists(_currentFolderPath))
+                {
+                    LoadDirectoryRoot(_currentFolderPath);
+                }
+
                 return true;
             }
             catch (Exception ex)
@@ -2940,6 +2966,11 @@ namespace Ueditor
                 if (!string.IsNullOrEmpty(tab.FilePath) && File.Exists(tab.FilePath))
                 {
                     _favoritesRecentController.AddRecentFile(tab.FilePath);
+                }
+
+                if (!string.IsNullOrEmpty(_currentFolderPath) && Directory.Exists(_currentFolderPath))
+                {
+                    LoadDirectoryRoot(_currentFolderPath);
                 }
 
                 return true;
