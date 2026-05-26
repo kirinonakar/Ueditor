@@ -12,23 +12,29 @@
                         <ResourceDictionary>
                             <ResourceDictionary.ThemeDictionaries>
                                 <ResourceDictionary x:Key="Light">
-                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#15000000"/>
-                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#26000000"/>
-                                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
-                                    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+                                    <SolidColorBrush x:Key="ButtonBackground" Color="#FCFCFC"/>
+                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#F0F0F0"/>
+                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#E5E5E5"/>
+                                    <SolidColorBrush x:Key="ButtonBorderBrush" Color="#E0E0E0"/>
+                                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#D5D5D5"/>
+                                    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#C5C5C5"/>
+                                    <SolidColorBrush x:Key="LlmOutputBackground" Color="#FCFCFC"/>
                                 </ResourceDictionary>
                                 <ResourceDictionary x:Key="Dark">
-                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#15FFFFFF"/>
-                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#26FFFFFF"/>
-                                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
-                                    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+                                    <SolidColorBrush x:Key="ButtonBackground" Color="#2D2D30"/>
+                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#3A3A3D"/>
+                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#454548"/>
+                                    <SolidColorBrush x:Key="ButtonBorderBrush" Color="#3F3F46"/>
+                                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#4E4E56"/>
+                                    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#5D5D66"/>
+                                    <SolidColorBrush x:Key="LlmOutputBackground" Color="#181818"/>
                                 </ResourceDictionary>
                             </ResourceDictionary.ThemeDictionaries>
 
                             <Style x:Key="RightSidebarButtonStyle" TargetType="Button">
-                                <Setter Property="Background" Value="Transparent"/>
-                                <Setter Property="BorderThickness" Value="1"/>
+                                <Setter Property="Background" Value="{ThemeResource ButtonBackground}"/>
                                 <Setter Property="BorderBrush" Value="{ThemeResource ButtonBorderBrush}"/>
+                                <Setter Property="BorderThickness" Value="1"/>
                                 <Setter Property="Padding" Value="10,4,10,4"/>
                                 <Setter Property="CornerRadius" Value="4"/>
                                 <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -85,7 +91,7 @@
                                 </Grid.RowDefinitions>
     
                                 <!-- Row 0: AI Chat Output Area -->
-                                <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1" Padding="10" CornerRadius="4">
+                                <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Background="{ThemeResource LlmOutputBackground}" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1" Padding="10" CornerRadius="4">
                                     <TextBlock x:Name="LlmOutputText" Text="대기 중... 에디터에서 영역을 선택한 후 하단의 AI 분석 도구를 사용해 보세요." TextWrapping="Wrap" FontSize="13" LineHeight="1.5" IsTextSelectionEnabled="True"/>
                                 </ScrollViewer>
     
