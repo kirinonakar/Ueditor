@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -151,9 +152,17 @@
             line-height: 1.25;
         }
 
-        h1 { font-size: 1.35em; }
-        h2 { font-size: 1.2em; }
-        h3 { font-size: 1.08em; }
+        h1 {
+            font-size: 1.35em;
+        }
+
+        h2 {
+            font-size: 1.2em;
+        }
+
+        h3 {
+            font-size: 1.08em;
+        }
 
         [align="center" i] {
             text-align: center;
@@ -177,20 +186,20 @@
             vertical-align: middle;
         }
 
-        p > img:only-child {
+        p>img:only-child {
             display: block;
             margin: 6px 0;
         }
 
-        p[align="center"] > img:only-child,
-        div[align="center"] > img:only-child,
-        center > img:only-child {
+        p[align="center"]>img:only-child,
+        div[align="center"]>img:only-child,
+        center>img:only-child {
             margin-left: auto;
             margin-right: auto;
         }
 
-        p[align="right"] > img:only-child,
-        div[align="right"] > img:only-child {
+        p[align="right"]>img:only-child,
+        div[align="right"]>img:only-child {
             margin-left: auto;
             margin-right: 0;
         }
@@ -244,11 +253,14 @@
             margin: 6px 0;
             font-size: 0.9em;
         }
-        th, td {
+
+        th,
+        td {
             border: 1px solid var(--border);
             padding: 5px 10px;
             text-align: left;
         }
+
         th {
             background: color-mix(in srgb, var(--fg) 10%, transparent);
             font-weight: 600;
@@ -280,7 +292,7 @@
         }
 
         .aozora {
-            font-family: "Yu Mincho", "MS Mincho", "Hiragino Mincho ProN", "BIZ UDPMincho", serif;
+            font-family: "Noto Serif JP", "Yu Mincho", "MS Mincho", "Hiragino Mincho ProN", "BIZ UDPMincho", serif;
             letter-spacing: 0.04em;
         }
 
@@ -301,18 +313,21 @@
             overflow-x: auto;
             min-height: 48px;
         }
+
         .mermaid-block svg {
             max-width: 100%;
             height: auto;
         }
     </style>
 </head>
+
 <body>
     <div id="preview-scroll">
         <div id="virtual-spacer"></div>
         <div id="preview-viewport"></div>
     </div>
-    <iframe id="html-preview" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox"></iframe>
+    <iframe id="html-preview"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox"></iframe>
 
     <script>
         const scroll = document.getElementById('preview-scroll');
@@ -1017,11 +1032,11 @@
                     theme: mermaidTheme,
                     securityLevel: 'loose'
                 });
-                
+
                 if (state.mermaidCache) {
                     state.mermaidCache.clear();
                 }
-                
+
                 const blocks = viewport.querySelectorAll('.mermaid-block');
                 blocks.forEach(block => {
                     block.classList.remove('rendered', 'rendering');
@@ -1296,70 +1311,70 @@
             viewport.style.transform = `translateY(${rowTop(range.start)}px)`;
 
             const rows = [];
-                let skipUntilLine = 0;
-                for (let lineNumber = range.start; lineNumber <= range.end; lineNumber++) {
-                    if (!state.cache.has(lineNumber)) {
-                        rows.push(renderPreviewRow(lineNumber, '로딩 중...', 'loading'));
-                        continue;
-                    }
-
-                    const line = state.cache.get(lineNumber) || '';
-                    let rendered;
-                    if (lineNumber <= skipUntilLine) {
-                        rows.push(renderPreviewRow(lineNumber, '', 'skipped'));
-                        continue;
-                    } else if (state.mode === 'markdown' && isFencedCodeStart(line)) {
-                        const block = collectFencedCodeBlock(lineNumber, state.lineCount);
-                        if (block) {
-                            rendered = renderFencedCodeBlock(block);
-                            skipUntilLine = block.endLine;
-                            range.end = Math.max(range.end, skipUntilLine);
-                        } else {
-                            rendered = '';
-                        }
-                    } else if (state.mode === 'markdown' && isHtmlBlockStart(line)) {
-                        const block = collectHtmlBlock(lineNumber, state.lineCount);
-                        if (block) {
-                            rendered = sanitizeHtml(block.html);
-                            skipUntilLine = block.endLine;
-                            range.end = Math.max(range.end, skipUntilLine);
-                        } else {
-                            rendered = '';
-                        }
-                    } else if (state.mode === 'markdown' && isDisplayMathFence(line)) {
-                        const block = collectDisplayMathBlock(lineNumber, state.lineCount);
-                        if (block) {
-                            rendered = renderLatexLine(block.text);
-                            skipUntilLine = block.endLine;
-                            range.end = Math.max(range.end, skipUntilLine);
-                        } else {
-                            rendered = '';
-                        }
-                    } else if (state.mode === 'markdown' && isMarkdownOrderedListStart(lineNumber)) {
-                        const block = collectMarkdownOrderedListBlock(lineNumber, state.lineCount);
-                        if (block) {
-                            rendered = renderMarkdownOrderedListBlock(block);
-                            skipUntilLine = block.endLine;
-                            range.end = Math.max(range.end, skipUntilLine);
-                        } else {
-                            rendered = '';
-                        }
-                    } else if (state.mode === 'markdown' && isMarkdownTableStart(lineNumber)) {
-                        const block = collectMarkdownTableBlock(lineNumber, state.lineCount);
-                        if (block) {
-                            rendered = renderMarkdownTableBlock(block);
-                            skipUntilLine = block.endLine;
-                            range.end = Math.max(range.end, skipUntilLine);
-                        } else {
-                            rendered = '';
-                        }
-                    } else {
-                        rendered = renderLine(line);
-                    }
-                    if (rendered !== undefined && rendered !== null) {
-                        rows.push(renderPreviewRow(lineNumber, rendered, rendered === '' ? 'empty' : ''));
-                    }
+            let skipUntilLine = 0;
+            for (let lineNumber = range.start; lineNumber <= range.end; lineNumber++) {
+                if (!state.cache.has(lineNumber)) {
+                    rows.push(renderPreviewRow(lineNumber, '로딩 중...', 'loading'));
+                    continue;
                 }
+
+                const line = state.cache.get(lineNumber) || '';
+                let rendered;
+                if (lineNumber <= skipUntilLine) {
+                    rows.push(renderPreviewRow(lineNumber, '', 'skipped'));
+                    continue;
+                } else if (state.mode === 'markdown' && isFencedCodeStart(line)) {
+                    const block = collectFencedCodeBlock(lineNumber, state.lineCount);
+                    if (block) {
+                        rendered = renderFencedCodeBlock(block);
+                        skipUntilLine = block.endLine;
+                        range.end = Math.max(range.end, skipUntilLine);
+                    } else {
+                        rendered = '';
+                    }
+                } else if (state.mode === 'markdown' && isHtmlBlockStart(line)) {
+                    const block = collectHtmlBlock(lineNumber, state.lineCount);
+                    if (block) {
+                        rendered = sanitizeHtml(block.html);
+                        skipUntilLine = block.endLine;
+                        range.end = Math.max(range.end, skipUntilLine);
+                    } else {
+                        rendered = '';
+                    }
+                } else if (state.mode === 'markdown' && isDisplayMathFence(line)) {
+                    const block = collectDisplayMathBlock(lineNumber, state.lineCount);
+                    if (block) {
+                        rendered = renderLatexLine(block.text);
+                        skipUntilLine = block.endLine;
+                        range.end = Math.max(range.end, skipUntilLine);
+                    } else {
+                        rendered = '';
+                    }
+                } else if (state.mode === 'markdown' && isMarkdownOrderedListStart(lineNumber)) {
+                    const block = collectMarkdownOrderedListBlock(lineNumber, state.lineCount);
+                    if (block) {
+                        rendered = renderMarkdownOrderedListBlock(block);
+                        skipUntilLine = block.endLine;
+                        range.end = Math.max(range.end, skipUntilLine);
+                    } else {
+                        rendered = '';
+                    }
+                } else if (state.mode === 'markdown' && isMarkdownTableStart(lineNumber)) {
+                    const block = collectMarkdownTableBlock(lineNumber, state.lineCount);
+                    if (block) {
+                        rendered = renderMarkdownTableBlock(block);
+                        skipUntilLine = block.endLine;
+                        range.end = Math.max(range.end, skipUntilLine);
+                    } else {
+                        rendered = '';
+                    }
+                } else {
+                    rendered = renderLine(line);
+                }
+                if (rendered !== undefined && rendered !== null) {
+                    rows.push(renderPreviewRow(lineNumber, rendered, rendered === '' ? 'empty' : ''));
+                }
+            }
 
             viewport.innerHTML = rows.join('');
             watchRenderedImages();
@@ -1379,7 +1394,7 @@
 
                 const code = block.dataset.code;
                 const id = `mermaid-svg-${++mermaidCounter}`;
-                
+
                 try {
                     const { svg } = await mermaid.render(id, code);
                     block.innerHTML = svg;
@@ -1391,7 +1406,7 @@
                     block.innerHTML = `<pre class="mermaid-error" style="color: #ff6b6b; padding: 10px; border: 1px solid #ff6b6b; border-radius: 4px; background: rgba(255, 107, 107, 0.1); white-space: pre-wrap;">${escapeHtml(err.message || err)}</pre>`;
                     block.classList.remove('rendering');
                     block.classList.add('rendered');
-                    
+
                     const badElement = document.getElementById(id);
                     if (badElement) badElement.remove();
                 }
@@ -1720,4 +1735,5 @@
         });
     </script>
 </body>
+
 </html>
