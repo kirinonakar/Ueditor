@@ -301,6 +301,8 @@ namespace Ueditor
             this.Activated += OnWindowActivationChanged;
             this.Closed += OnWindowClosed;
             this.AppWindow.Closing += OnAppWindowClosing;
+            _terminalShortcutService.Start();
+            _functionKeyShortcutService.Start();
         }
 
         private void WireLeftSidebarEvents()

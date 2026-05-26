@@ -33,9 +33,9 @@ namespace Ueditor.Core.Services
 
         public void Start()
         {
-            ResetPressedState();
             if (!_pollTimer.IsEnabled)
             {
+                ResetPressedState();
                 _pollTimer.Start();
             }
         }
