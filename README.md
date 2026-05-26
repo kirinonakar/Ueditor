@@ -75,7 +75,7 @@ Designed for developers, writers, and power users, Ueditor provides a fluid, dis
 *   **Global Lookup:** Folder-wide multi-file search with Match Case, Whole Word, and Regex filtering.
 *   **Jump-to-Source:** Double-click search results to open the file and focus the exact line.
 
-### 🌐 Multilingual Support (다국어 지원 / 多言語対応)
+### 🌐 Multilingual Support
 * Native support for English (`en-US`), Korean (`ko-KR`), and Japanese (`ja-JP`). The user interface automatically adapts to your system language or preferred settings for a fully localized desktop experience.
 
 ## ⌨️ Keyboard Shortcuts & Special Features
