@@ -40,6 +40,11 @@ Designed for developers, writers, and power users, Ueditor provides a fluid, dis
 *   **Auto-Completion & Snippets:** Intelligent auto-completion suggesting variables, keywords, and customizable snippets (such as Markdown tables, LaTeX matrices, HTML5 shells, C# notifier properties) that insert seamlessly via Enter or Tab.
 *   **Rich Markdown Toolbar:** Quick-apply styling (bold, italic, underline, list, color, tables) to selected text.
 
+### 💾 Auto-Save (자동 저장)
+*   **Smart Background Auto-Save:** Periodically saves all modified tabs with assigned file paths to prevent data loss.
+*   **5-Second Interval:** Silently saves active changes every 5 seconds, keeping the workflow fluid and secure.
+*   **Workspace-Aware:** Activates automatically in active Git repository workspaces (only functions when a Git-initialized folder is opened in the editor). Toggle on/off seamlessly via Settings (**"Autosave 사용"** / **"Use Autosave"**).
+
 ### 🖥️ Native Premium Windows UI
 *   **Mica Backdrop & Dark Mode:** Native Windows themes using a high-fidelity Mica backdrop.
 *   **Multi-Pane Splitters:** Easily adjust sidebars, preview sections, and terminal panes via interactive C# split-controls.
