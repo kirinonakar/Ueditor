@@ -6,6 +6,7 @@
     <title>Ueditor Virtual Preview</title>
     <link rel="stylesheet" href="katex/katex.min.css">
     <script src="katex/katex.min.js"></script>
+    <script src="mermaid/mermaid.min.js"></script>
     <style>
         :root {
             --bg: transparent;
@@ -287,6 +288,23 @@
             padding: 20px 22px;
             color: var(--muted);
         }
+
+        .mermaid-block {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+            margin: 6px 0;
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow-x: auto;
+            min-height: 48px;
+        }
+        .mermaid-block svg {
+            max-width: 100%;
+            height: auto;
+        }
     </style>
 </head>
 <body>
@@ -317,8 +335,18 @@
             lastRangeKey: '',
             cacheVersion: 0,
             blockContextLines: 120,
-            scrollSyncEnabled: true
+            scrollSyncEnabled: true,
+            mermaidCache: new Map(),
+            theme: 'Dark'
         };
+
+        if (typeof mermaid !== 'undefined') {
+            mermaid.initialize({
+                startOnLoad: false,
+                securityLevel: 'loose',
+                theme: 'dark'
+            });
+        }
 
         function post(msg) {
             if (window.chrome && window.chrome.webview) {
@@ -640,6 +668,13 @@
         }
 
         function renderFencedCodeBlock(block) {
+            if (block.language === 'mermaid') {
+                const cachedSvg = state.mermaidCache.get(block.code);
+                if (cachedSvg) {
+                    return `<div class="mermaid-block rendered" data-code="${escapeAttribute(block.code)}">${cachedSvg}</div>`;
+                }
+                return `<div class="mermaid-block" data-code="${escapeAttribute(block.code)}">Rendering...</div>`;
+            }
             const langClass = block.language
                 ? ` class="language-${escapeAttribute(block.language)}"`
                 : '';
@@ -918,6 +953,29 @@
             document.documentElement.style.setProperty('--border', theme === 'Light' ? '#d8dee4' : '#3e3e3e');
             document.documentElement.style.setProperty('--muted', theme === 'Light' ? '#667085' : '#9aa0a6');
             document.documentElement.style.setProperty('--font', message.uiFontFamily || '"Segoe UI", "Malgun Gothic", Arial, sans-serif');
+
+            state.theme = theme;
+            if (typeof mermaid !== 'undefined') {
+                const mermaidTheme = theme === 'Light' ? 'default' : 'dark';
+                mermaid.initialize({
+                    startOnLoad: false,
+                    theme: mermaidTheme,
+                    securityLevel: 'loose'
+                });
+                
+                if (state.mermaidCache) {
+                    state.mermaidCache.clear();
+                }
+                
+                const blocks = viewport.querySelectorAll('.mermaid-block');
+                blocks.forEach(block => {
+                    block.classList.remove('rendered', 'rendering');
+                    block.innerHTML = 'Rendering...';
+                });
+                if (blocks.length > 0) {
+                    renderMermaidBlocks();
+                }
+            }
         }
 
         function setupVirtualHeight() {
@@ -1240,6 +1298,41 @@
 
             viewport.innerHTML = rows.join('');
             watchRenderedImages();
+            renderMermaidBlocks();
+            measureRenderedRows();
+        }
+
+        let mermaidCounter = 0;
+        async function renderMermaidBlocks() {
+            if (typeof mermaid === 'undefined') return;
+            const blocks = viewport.querySelectorAll('.mermaid-block:not(.rendered)');
+            if (blocks.length === 0) return;
+
+            for (const block of blocks) {
+                if (block.classList.contains('rendering') || block.classList.contains('rendered')) continue;
+                block.classList.add('rendering');
+
+                const code = block.dataset.code;
+                const id = `mermaid-svg-${++mermaidCounter}`;
+                
+                try {
+                    const { svg } = await mermaid.render(id, code);
+                    block.innerHTML = svg;
+                    block.classList.remove('rendering');
+                    block.classList.add('rendered');
+                    state.mermaidCache.set(code, svg);
+                } catch (err) {
+                    console.error('Mermaid render error:', err);
+                    block.innerHTML = `<pre class="mermaid-error" style="color: #ff6b6b; padding: 10px; border: 1px solid #ff6b6b; border-radius: 4px; background: rgba(255, 107, 107, 0.1); white-space: pre-wrap;">${escapeHtml(err.message || err)}</pre>`;
+                    block.classList.remove('rendering');
+                    block.classList.add('rendered');
+                    
+                    const badElement = document.getElementById(id);
+                    if (badElement) badElement.remove();
+                }
+            }
+
+            state.lastRangeKey = '';
             measureRenderedRows();
         }
 

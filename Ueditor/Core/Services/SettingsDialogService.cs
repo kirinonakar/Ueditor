@@ -591,6 +591,57 @@ namespace Ueditor.Core.Services
             };
             aboutSection.Children.Add(githubLink);
 
+            var thirdPartyNoticesButton = new Button
+            {
+                Content = getString("SettingsAboutThirdPartyNotices", "오픈소스 라이선스 고지 (Third-Party Notices)"),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 12)
+            };
+
+            var noticesFlyout = new Flyout
+            {
+                Content = new ScrollViewer
+                {
+                    Content = new TextBlock
+                    {
+                        Text = @"This software includes Mermaid.
+
+Mermaid
+License: MIT License
+Copyright (c) 2014 - 2022 Knut Sveidqvist
+
+The MIT License (MIT)
+
+Copyright (c) 2014 - 2022 Knut Sveidqvist
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the ""Software""), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED ""AS IS"", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.",
+                        TextWrapping = TextWrapping.Wrap,
+                        FontSize = 10.5,
+                        FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas")
+                    },
+                    MaxHeight = 280,
+                    Width = 380
+                }
+            };
+            thirdPartyNoticesButton.Flyout = noticesFlyout;
+            aboutSection.Children.Add(thirdPartyNoticesButton);
+
             var copyrightText = new TextBlock
             {
                 Text = "Copyright © 2026 kirinonakar. All rights reserved.",
