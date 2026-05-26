@@ -383,7 +383,7 @@ namespace Ueditor.Core.Services
                 var lines = output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var line in lines)
                 {
-                    var parts = line.Split(new[] { '\t', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    var parts = line.Split('\t', StringSplitOptions.RemoveEmptyEntries);
                     if (parts.Length >= 2)
                     {
                         list.Add((parts[0].Trim(), parts[1].Trim().Replace('/', '\\')));
