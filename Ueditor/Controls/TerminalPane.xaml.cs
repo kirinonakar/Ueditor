@@ -27,6 +27,12 @@ namespace Ueditor.Controls
             TerminalSessionsList.ItemsSource = _terminalSessions;
             KeyDown += OnTerminalPaneKeyDown;
             Unloaded += OnUnloaded;
+            ActualThemeChanged += OnActualThemeChanged;
+        }
+
+        private void OnActualThemeChanged(FrameworkElement sender, object args)
+        {
+            UpdateAllTerminalThemes();
         }
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
@@ -175,6 +181,14 @@ namespace Ueditor.Controls
             CloseRequested?.Invoke(this, EventArgs.Empty);
         }
 
+        [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+        [System.Runtime.InteropServices.DllImport("uxtheme.dll", ExactSpelling = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern int SetWindowTheme(IntPtr hWnd, string pszSubAppName, string? pszSubIdList);
+
+        private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+
         [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
         private static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
 
@@ -291,6 +305,7 @@ namespace Ueditor.Controls
                 session.WindowHandle = childHwnd;
                 session.IsNative = true;
                 ShowWindow(session.WindowHandle, SW_HIDE);
+                ApplyTerminalTheme(session.WindowHandle, this.ActualTheme == ElementTheme.Dark);
 
                 IntPtr parentHwnd = _ownerWindow != null ? WindowNative.GetWindowHandle(_ownerWindow) : IntPtr.Zero;
                 if (parentHwnd == IntPtr.Zero)
@@ -791,6 +806,37 @@ namespace Ueditor.Controls
                 TerminalInputAreaGrid.Visibility = Visibility.Visible;
                 TerminalOutputTextBox.Text = session.Output.ToString();
                 TerminalInputBox.Focus(FocusState.Programmatic);
+            }
+        }
+
+        private void ApplyTerminalTheme(IntPtr hwnd, bool isDark)
+        {
+            if (hwnd == IntPtr.Zero) return;
+            try
+            {
+                int useDark = isDark ? 1 : 0;
+                DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref useDark, sizeof(int));
+                SetWindowTheme(hwnd, isDark ? "DarkMode_Explorer" : "Explorer", null);
+                
+                // Force non-client area redraw (scrollbars)
+                SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, 
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOOWNERZORDER);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to apply terminal theme: {ex.Message}");
+            }
+        }
+
+        public void UpdateAllTerminalThemes()
+        {
+            bool isDark = this.ActualTheme == ElementTheme.Dark;
+            foreach (var session in _terminalSessions)
+            {
+                if (session.IsNative && session.WindowHandle != IntPtr.Zero)
+                {
+                    ApplyTerminalTheme(session.WindowHandle, isDark);
+                }
             }
         }
 

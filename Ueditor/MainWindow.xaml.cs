@@ -586,25 +586,43 @@ namespace Ueditor
                 string cacheFolder = Path.Combine(localAppData, "Ueditor", "WebView2Cache");
                 var env = await CoreWebView2Environment.CreateWithOptionsAsync(null, cacheFolder, null);
                 await PreviewWebView.EnsureCoreWebView2Async(env);
+
+                var coreWebView = PreviewWebView.CoreWebView2;
+                if (coreWebView == null)
+                {
+                    throw new InvalidOperationException("CoreWebView2 failed to initialize.");
+                }
+
+                try
+                {
+                    bool isDark = string.Equals(_settingsService.CurrentSettings.Theme, "Dark", StringComparison.OrdinalIgnoreCase);
+                    if (coreWebView.Profile != null)
+                    {
+                        coreWebView.Profile.PreferredColorScheme = isDark
+                            ? Microsoft.Web.WebView2.Core.CoreWebView2PreferredColorScheme.Dark
+                            : Microsoft.Web.WebView2.Core.CoreWebView2PreferredColorScheme.Light;
+                    }
+                }
+                catch { }
                 
                 // Configure Virtual Host Mapping to access local files under WebResources folder via simulated URL http://ueditor.local/
                 string webResourcesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "WebResources");
                 
-                PreviewWebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                coreWebView.SetVirtualHostNameToFolderMapping(
                     PreviewResourceHostName, 
                     webResourcesPath, 
                     CoreWebView2HostResourceAccessKind.Allow
                 );
-                PreviewWebView.CoreWebView2.AddWebResourceRequestedFilter(
+                coreWebView.AddWebResourceRequestedFilter(
                     $"http://{PreviewDocumentHostName}/*",
                     CoreWebView2WebResourceContext.All);
 
-                PreviewWebView.CoreWebView2.Settings.IsWebMessageEnabled = true;
-                PreviewWebView.CoreWebView2.Settings.IsScriptEnabled = true;
-                PreviewWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
-                PreviewWebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
+                coreWebView.Settings.IsWebMessageEnabled = true;
+                coreWebView.Settings.IsScriptEnabled = true;
+                coreWebView.Settings.AreDefaultContextMenusEnabled = false;
+                coreWebView.Settings.AreDevToolsEnabled = false;
                 PreviewWebView.WebMessageReceived += OnPreviewWebMessageReceived;
-                PreviewWebView.CoreWebView2.WebResourceRequested += OnPreviewDocumentResourceRequested;
+                coreWebView.WebResourceRequested += OnPreviewDocumentResourceRequested;
 
                 PreviewWebView.NavigationCompleted += (s, e) =>
                 {
@@ -1180,9 +1198,27 @@ namespace Ueditor
             try
             {
                 await bridge.InitializeAsync();
+
+                var coreWebView = wv.CoreWebView2;
+                if (coreWebView == null)
+                {
+                    throw new InvalidOperationException("CoreWebView2 failed to initialize.");
+                }
+
+                try
+                {
+                    bool isDark = string.Equals(_settingsService.CurrentSettings.Theme, "Dark", StringComparison.OrdinalIgnoreCase);
+                    if (coreWebView.Profile != null)
+                    {
+                        coreWebView.Profile.PreferredColorScheme = isDark
+                            ? Microsoft.Web.WebView2.Core.CoreWebView2PreferredColorScheme.Dark
+                            : Microsoft.Web.WebView2.Core.CoreWebView2PreferredColorScheme.Light;
+                    }
+                }
+                catch { }
                 
                 string webResourcesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "WebResources");
-                wv.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                coreWebView.SetVirtualHostNameToFolderMapping(
                     "ueditor.local", 
                     webResourcesPath, 
                     CoreWebView2HostResourceAccessKind.Allow
@@ -1886,6 +1922,28 @@ namespace Ueditor
             await _settingsService.SaveSettingsAsync(settings);
             ApplyUiPersonalization(settings);
             RefreshAllSplitters();
+
+            try
+            {
+                bool isDark = string.Equals(settings.Theme, "Dark", StringComparison.OrdinalIgnoreCase);
+                var scheme = isDark
+                    ? Microsoft.Web.WebView2.Core.CoreWebView2PreferredColorScheme.Dark
+                    : Microsoft.Web.WebView2.Core.CoreWebView2PreferredColorScheme.Light;
+
+                if (PreviewWebView.CoreWebView2 != null && PreviewWebView.CoreWebView2.Profile != null)
+                {
+                    PreviewWebView.CoreWebView2.Profile.PreferredColorScheme = scheme;
+                }
+
+                foreach (var grp in _tabBridges.Values)
+                {
+                    if (grp.WebView?.CoreWebView2 != null && grp.WebView.CoreWebView2.Profile != null)
+                    {
+                        grp.WebView.CoreWebView2.Profile.PreferredColorScheme = scheme;
+                    }
+                }
+            }
+            catch { }
 
             foreach (var grp in _tabBridges.Values)
             {
@@ -3764,17 +3822,35 @@ namespace Ueditor
             var env = await CoreWebView2Environment.CreateWithOptionsAsync(null, cacheFolder, null);
             await diffWebView.EnsureCoreWebView2Async(env);
 
+            var coreWebView = diffWebView.CoreWebView2;
+            if (coreWebView == null)
+            {
+                throw new InvalidOperationException("CoreWebView2 failed to initialize.");
+            }
+
+            try
+            {
+                bool isDark = string.Equals(_settingsService.CurrentSettings.Theme, "Dark", StringComparison.OrdinalIgnoreCase);
+                if (coreWebView.Profile != null)
+                {
+                    coreWebView.Profile.PreferredColorScheme = isDark
+                        ? Microsoft.Web.WebView2.Core.CoreWebView2PreferredColorScheme.Dark
+                        : Microsoft.Web.WebView2.Core.CoreWebView2PreferredColorScheme.Light;
+                }
+            }
+            catch { }
+
             string webResourcesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "WebResources");
-            diffWebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+            coreWebView.SetVirtualHostNameToFolderMapping(
                 "ueditor.local",
                 webResourcesPath,
                 CoreWebView2HostResourceAccessKind.Allow
             );
 
-            diffWebView.CoreWebView2.Settings.IsWebMessageEnabled = true;
-            diffWebView.CoreWebView2.Settings.IsScriptEnabled = true;
-            diffWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
-            diffWebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
+            coreWebView.Settings.IsWebMessageEnabled = true;
+            coreWebView.Settings.IsScriptEnabled = true;
+            coreWebView.Settings.AreDefaultContextMenusEnabled = false;
+            coreWebView.Settings.AreDevToolsEnabled = false;
 
             diffWebView.Source = new Uri("http://ueditor.local/diff.html");
 
