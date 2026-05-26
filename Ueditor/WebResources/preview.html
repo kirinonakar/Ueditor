@@ -66,6 +66,9 @@
             height: 100%;
             border: 0;
             background: #fff;
+            overflow: auto;
+            -webkit-user-select: text;
+            user-select: text;
         }
 
         body.html-mode #preview-scroll {
@@ -291,7 +294,7 @@
         <div id="virtual-spacer"></div>
         <div id="preview-viewport"></div>
     </div>
-    <iframe id="html-preview" sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox"></iframe>
+    <iframe id="html-preview" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox"></iframe>
 
     <script>
         const scroll = document.getElementById('preview-scroll');
@@ -428,7 +431,7 @@
 
         function htmlPreviewInjection(baseHref) {
             const base = baseHref ? `<base href="${escapeAttribute(baseHref)}">` : '';
-            return `${base}<style id="ueditor-html-preview-selection-fix">html,body{min-height:100%;}body,body *{-webkit-user-select:text!important;user-select:text!important;}body{cursor:text;}</style>`;
+            return `${base}<style id="ueditor-html-preview-selection-fix">html,body{min-height:100%;overflow:auto!important;-webkit-user-select:text!important;user-select:text!important;}body{cursor:text;}</style>`;
         }
 
         function setPreviewBaseHref(baseHref) {
@@ -693,7 +696,10 @@
             const bodyRows = [];
             let endLine = startLine + 1;
             for (let line = startLine + 2; line <= maxLine; line++) {
-                if (!state.cache.has(line)) break;
+                if (!state.cache.has(line)) {
+                    requestLines(line, Math.min(100, maxLine - line + 1));
+                    break;
+                }
                 const cells = splitMarkdownTableRow(state.cache.get(line));
                 if (!cells || isMarkdownTableSeparator(state.cache.get(line))) break;
                 bodyRows.push(cells);
@@ -764,7 +770,10 @@
             let endLine = startLine;
 
             for (let lineNumber = startLine; lineNumber <= maxLine; lineNumber++) {
-                if (!state.cache.has(lineNumber)) break;
+                if (!state.cache.has(lineNumber)) {
+                    requestLines(lineNumber, Math.min(100, maxLine - lineNumber + 1));
+                    break;
+                }
 
                 const line = state.cache.get(lineNumber) || '';
                 const item = orderedListItemInfo(line);
@@ -1175,42 +1184,47 @@
                         rows.push(renderPreviewRow(lineNumber, '', 'skipped'));
                         continue;
                     } else if (state.mode === 'markdown' && isFencedCodeStart(line)) {
-                        const block = collectFencedCodeBlock(lineNumber, range.end);
+                        const block = collectFencedCodeBlock(lineNumber, state.lineCount);
                         if (block) {
                             rendered = renderFencedCodeBlock(block);
                             skipUntilLine = block.endLine;
+                            range.end = Math.max(range.end, skipUntilLine);
                         } else {
                             rendered = '';
                         }
                     } else if (state.mode === 'markdown' && isHtmlBlockStart(line)) {
-                        const block = collectHtmlBlock(lineNumber, range.end);
+                        const block = collectHtmlBlock(lineNumber, state.lineCount);
                         if (block) {
                             rendered = sanitizeHtml(block.html);
                             skipUntilLine = block.endLine;
+                            range.end = Math.max(range.end, skipUntilLine);
                         } else {
                             rendered = '';
                         }
                     } else if (state.mode === 'markdown' && isDisplayMathFence(line)) {
-                        const block = collectDisplayMathBlock(lineNumber, range.end);
+                        const block = collectDisplayMathBlock(lineNumber, state.lineCount);
                         if (block) {
                             rendered = renderLatexLine(block.text);
                             skipUntilLine = block.endLine;
+                            range.end = Math.max(range.end, skipUntilLine);
                         } else {
                             rendered = '';
                         }
                     } else if (state.mode === 'markdown' && isMarkdownOrderedListStart(lineNumber)) {
-                        const block = collectMarkdownOrderedListBlock(lineNumber, range.end);
+                        const block = collectMarkdownOrderedListBlock(lineNumber, state.lineCount);
                         if (block) {
                             rendered = renderMarkdownOrderedListBlock(block);
                             skipUntilLine = block.endLine;
+                            range.end = Math.max(range.end, skipUntilLine);
                         } else {
                             rendered = '';
                         }
                     } else if (state.mode === 'markdown' && isMarkdownTableStart(lineNumber)) {
-                        const block = collectMarkdownTableBlock(lineNumber, range.end);
+                        const block = collectMarkdownTableBlock(lineNumber, state.lineCount);
                         if (block) {
                             rendered = renderMarkdownTableBlock(block);
                             skipUntilLine = block.endLine;
+                            range.end = Math.max(range.end, skipUntilLine);
                         } else {
                             rendered = '';
                         }
@@ -1289,7 +1303,14 @@
 
             const parts = [];
             for (let line = startLine + 1; line <= maxLine; line++) {
-                if (!state.cache.has(line)) return null;
+                if (!state.cache.has(line)) {
+                    requestLines(line, Math.min(100, maxLine - line + 1));
+                    return {
+                        code: parts.join('\n'),
+                        language: fence.language,
+                        endLine: line - 1
+                    };
+                }
                 const text = state.cache.get(line) || '';
                 if (isFencedCodeClose(text, fence)) {
                     return {
@@ -1300,7 +1321,11 @@
                 }
                 parts.push(text);
             }
-            return null;
+            return {
+                code: parts.join('\n'),
+                language: fence.language,
+                endLine: maxLine
+            };
         }
 
         function isDisplayMathFence(line) {
@@ -1345,7 +1370,13 @@
             const closePattern = new RegExp(`</${tag}\\s*>`, 'i');
             const parts = [];
             for (let line = startLine; line <= maxLine; line++) {
-                if (!state.cache.has(line)) return null;
+                if (!state.cache.has(line)) {
+                    requestLines(line, Math.min(100, maxLine - line + 1));
+                    return {
+                        html: parts.join('\n'),
+                        endLine: line - 1
+                    };
+                }
                 const text = state.cache.get(line) || '';
                 parts.push(text);
                 if (closePattern.test(text)) {
@@ -1355,7 +1386,10 @@
                     };
                 }
             }
-            return null;
+            return {
+                html: parts.join('\n'),
+                endLine: maxLine
+            };
         }
 
         function isDisplayMathClose(line, opener) {
@@ -1367,7 +1401,13 @@
             const opener = (state.cache.get(startLine) || '').trim();
             const parts = [];
             for (let line = startLine + 1; line <= maxLine; line++) {
-                if (!state.cache.has(line)) return null;
+                if (!state.cache.has(line)) {
+                    requestLines(line, Math.min(100, maxLine - line + 1));
+                    return {
+                        text: parts.join('\n'),
+                        endLine: line - 1
+                    };
+                }
                 const text = state.cache.get(line) || '';
                 if (isDisplayMathClose(text, opener)) {
                     return {
@@ -1377,7 +1417,10 @@
                 }
                 parts.push(text);
             }
-            return null;
+            return {
+                text: parts.join('\n'),
+                endLine: maxLine
+            };
         }
 
         function measureRenderedRows() {

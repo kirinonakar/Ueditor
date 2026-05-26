@@ -111,7 +111,7 @@
                 <ColumnDefinition Width="Auto"/>                                                      <!-- Col 1: Grid Splitter -->
                 <ColumnDefinition Width="*" MinWidth="300"/>                                          <!-- Col 2: Center Editor TabView -->
                 <ColumnDefinition Width="Auto"/>                                                      <!-- Col 3: Grid Splitter -->
-                <ColumnDefinition x:Name="PreviewColumn" Width="400" MinWidth="150" MaxWidth="800"/>  <!-- Col 4: Right Split Preview Panel -->
+                <ColumnDefinition x:Name="PreviewColumn" Width="400" MinWidth="150" MaxWidth="1500"/>  <!-- Col 4: Right Split Preview Panel -->
             </Grid.ColumnDefinitions>
 
             <controls:LeftSidebarPane x:Name="LeftSidebarTabView" Grid.Column="0" />
