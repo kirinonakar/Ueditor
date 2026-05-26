@@ -647,6 +647,11 @@ namespace Ueditor
 
                 if (string.Equals(type, "previewScroll", StringComparison.Ordinal))
                 {
+                    if (!_scrollSyncEnabled)
+                    {
+                        return;
+                    }
+
                     int firstLine = root.TryGetProperty("firstLine", out var firstLineProp) ? firstLineProp.GetInt32() : 1;
                     double offset = root.TryGetProperty("offset", out var offsetProp) ? offsetProp.GetDouble() : 0;
                     this.DispatcherQueue.TryEnqueue(() =>
@@ -1006,6 +1011,11 @@ namespace Ueditor
 
             bridge.ScrollChanged += (firstLine, offset) =>
             {
+                if (!_scrollSyncEnabled)
+                {
+                    return;
+                }
+
                 this.DispatcherQueue.TryEnqueue(() =>
                 {
                     if (GetActiveTab() == tab)
@@ -1171,7 +1181,8 @@ namespace Ueditor
                     {
                         action = "renderHtmlPreview",
                         text = previewText,
-                        baseHref = GetPreviewBaseHref(tab)
+                        baseHref = GetPreviewBaseHref(tab),
+                        scrollSyncEnabled = _scrollSyncEnabled
                     };
 
                     string htmlJson = System.Text.Json.JsonSerializer.Serialize(htmlMsg);

@@ -354,6 +354,55 @@
             }
         }
 
+        let isSyncingScroll = false;
+        let suppressPreviewScrollEvents = false;
+        let scrollSuppressionToken = 0;
+
+        function suppressPreviewScrollUntilNextFrame() {
+            const token = ++scrollSuppressionToken;
+            suppressPreviewScrollEvents = true;
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (token === scrollSuppressionToken) {
+                        suppressPreviewScrollEvents = false;
+                    }
+                });
+            });
+        }
+
+        function setPreviewScrollTopSilently(value) {
+            const target = Math.max(0, Number(value || 0));
+            if (Math.abs(scroll.scrollTop - target) <= 0.5) return;
+            suppressPreviewScrollUntilNextFrame();
+            scroll.scrollTop = target;
+        }
+
+        function trimRowHeights() {
+            for (const line of [...state.rowHeights.keys()]) {
+                if (line > state.lineCount) {
+                    state.rowHeights.delete(line);
+                }
+            }
+        }
+
+        function getHtmlPreviewScrollTop() {
+            try {
+                const doc = htmlPreview.contentDocument;
+                const win = htmlPreview.contentWindow;
+                return win?.scrollY || doc?.documentElement?.scrollTop || doc?.body?.scrollTop || 0;
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        function restoreHtmlPreviewScrollTop(scrollTop) {
+            try {
+                htmlPreview.contentWindow?.scrollTo(0, Math.max(0, Number(scrollTop || 0)));
+            } catch (e) {
+                // Ignore inaccessible iframe state.
+            }
+        }
+
         function escapeHtml(value) {
             return String(value ?? '')
                 .replace(/&/g, '&amp;')
@@ -502,7 +551,9 @@
         }
 
         function renderHtmlPreview(message) {
+            const previousFrameScrollTop = getHtmlPreviewScrollTop();
             state.mode = 'html';
+            state.scrollSyncEnabled = message.scrollSyncEnabled !== false;
             setPreviewBaseHref(message.baseHref || '');
             state.cache.clear();
             state.pending.clear();
@@ -512,6 +563,10 @@
             setHtmlMode(true);
             viewport.innerHTML = '';
             spacer.style.height = `${state.rowHeight}px`;
+            htmlPreview.addEventListener('load', () => {
+                restoreHtmlPreviewScrollTop(previousFrameScrollTop);
+                requestAnimationFrame(() => restoreHtmlPreviewScrollTop(previousFrameScrollTop));
+            }, { once: true });
             htmlPreview.srcdoc = buildHtmlPreviewDocument(message.text || '', message.baseHref || '');
         }
 
@@ -1012,14 +1067,22 @@
         }
 
         function initVirtualPreview(message) {
-            state.mode = message.mode || 'markdown';
+            const preserveScrollTop = scroll.scrollTop;
+            const nextMode = message.mode || 'markdown';
+            const nextWordWrap = message.wordWrap !== false;
+            const canReuseMeasuredHeights = state.mode === nextMode && state.wordWrap === nextWordWrap;
+            state.mode = nextMode;
             setPreviewBaseHref(message.baseHref || '');
-            state.wordWrap = message.wordWrap !== false;
+            state.wordWrap = nextWordWrap;
             state.lineCount = Math.max(1, Number(message.lineCount || 1));
             state.scrollSyncEnabled = message.scrollSyncEnabled !== false;
             state.cache.clear();
             state.pending.clear();
-            state.rowHeights.clear();
+            if (canReuseMeasuredHeights) {
+                trimRowHeights();
+            } else {
+                state.rowHeights.clear();
+            }
             state.cacheVersion++;
             state.lastRangeKey = '';
             setHtmlMode(false);
@@ -1027,6 +1090,8 @@
             applyTheme(message);
             setupVirtualHeight();
             receiveLineBlock(message.initialStartLine || 1, message.initialLines || []);
+            const maxScrollTop = Math.max(0, totalVirtualHeight() - scroll.clientHeight);
+            setPreviewScrollTopSilently(Math.min(preserveScrollTop, maxScrollTop));
             queueRender(true);
         }
 
@@ -1520,8 +1585,6 @@
 
         function measureRenderedRows() {
             let changed = false;
-            let heightDeltaBeforeAnchor = 0;
-            const anchorLine = lineAt(scroll.scrollTop);
             const rows = viewport.querySelectorAll('.preview-row');
             rows.forEach(row => {
                 const lineNumber = Number(row.dataset.line || 0);
@@ -1533,18 +1596,12 @@
                 const previous = rowHeightFor(lineNumber);
                 if (Math.abs(previous - measured) > 1) {
                     state.rowHeights.set(lineNumber, measured);
-                    if (lineNumber < anchorLine) {
-                        heightDeltaBeforeAnchor += measured - previous;
-                    }
                     changed = true;
                 }
             });
 
             if (changed) {
                 setupVirtualHeight();
-                if (heightDeltaBeforeAnchor) {
-                    scroll.scrollTop += heightDeltaBeforeAnchor;
-                }
                 state.lastRangeKey = '';
                 requestAnimationFrame(() => render());
             }
@@ -1574,30 +1631,40 @@
         }
 
         function renderFullFallback(message) {
-            state.mode = message.mode || 'markdown';
+            const preserveScrollTop = scroll.scrollTop;
+            const nextMode = message.mode || 'markdown';
+            const nextWordWrap = message.wordWrap !== false;
+            const canReuseMeasuredHeights = state.mode === nextMode && state.wordWrap === nextWordWrap;
+            state.mode = nextMode;
+            state.scrollSyncEnabled = message.scrollSyncEnabled !== false;
             setPreviewBaseHref(message.baseHref || '');
             if (state.mode === 'html') {
                 renderHtmlPreview(message);
                 return;
             }
-            state.wordWrap = message.wordWrap !== false;
+            state.wordWrap = nextWordWrap;
             applyTheme(message);
             const lines = String(message.text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
             state.lineCount = Math.max(1, lines.length);
             state.cache.clear();
-            state.rowHeights.clear();
+            if (canReuseMeasuredHeights) {
+                trimRowHeights();
+            } else {
+                state.rowHeights.clear();
+            }
             lines.forEach((line, index) => state.cache.set(index + 1, line));
             state.cacheVersion++;
             setHtmlMode(false);
             document.body.classList.toggle('wrap-enabled', state.wordWrap);
             setupVirtualHeight();
+            const maxScrollTop = Math.max(0, totalVirtualHeight() - scroll.clientHeight);
+            setPreviewScrollTopSilently(Math.min(preserveScrollTop, maxScrollTop));
             queueRender(true);
         }
 
-        let isSyncingScroll = false;
         scroll.addEventListener('scroll', () => {
             queueRender();
-            if (state.scrollSyncEnabled && !isSyncingScroll) {
+            if (state.scrollSyncEnabled && !isSyncingScroll && !suppressPreviewScrollEvents) {
                 const firstVisible = lineAt(scroll.scrollTop);
                 const offset = scroll.scrollTop - rowTop(firstVisible);
                 post({
@@ -1625,7 +1692,7 @@
                     if (state.scrollSyncEnabled && message.firstLine) {
                         isSyncingScroll = true;
                         const targetScrollTop = rowTop(message.firstLine) + (message.offset || 0);
-                        scroll.scrollTop = targetScrollTop;
+                        setPreviewScrollTopSilently(targetScrollTop);
                         requestAnimationFrame(() => {
                             isSyncingScroll = false;
                         });
