@@ -20,6 +20,7 @@
             --removed-text: #f85149;
             --font-family: Consolas, "Courier New", monospace;
             --ui-font: "Segoe UI", "Malgun Gothic", sans-serif;
+            --scrollmap-width: 14px;
         }
 
         @media (prefers-color-scheme: light) {
@@ -98,10 +99,23 @@
             text-overflow: ellipsis;
         }
 
+        /* Wrapper that contains both the scrollable content and the scrollmap */
+        .panel-body {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
         .view-wrapper {
             flex: 1;
             overflow: auto;
             position: relative;
+            /* Hide native scrollbar on right side — we draw our own scrollmap there */
+            scrollbar-width: none; /* Firefox */
+        }
+        .view-wrapper::-webkit-scrollbar {
+            display: none; /* Chrome/WebView2 */
         }
 
         .diff-view {
@@ -163,21 +177,47 @@
             background: #171717;
         }
 
-        /* Scrollbar aesthetics */
-        ::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
+        /* ── Scrollmap (custom scrollbar with diff markers) ── */
+        .scrollmap {
+            width: var(--scrollmap-width);
+            height: 100%;
+            position: relative;
+            flex-shrink: 0;
+            background: rgba(128, 128, 128, 0.08);  /* 배경을 아주 옅게 */
+            border-left: 1px solid var(--border);
+            cursor: pointer;
+            overflow: hidden;
         }
-        ::-webkit-scrollbar-track {
-            background: var(--bg);
+
+        /* Coloured markers rendered absolutely inside the scrollmap */
+        .scrollmap-marker {
+            position: absolute;
+            left: 1px;
+            right: 1px;
+            min-height: 2px;
+            border-radius: 1px;
+            pointer-events: none;
+            z-index: 1;
         }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(127, 127, 127, 0.25);
-            border: 2px solid var(--bg);
-            border-radius: 5px;
+        .scrollmap-marker.added {
+            background: rgba(46, 160, 67, 0.8);
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(127, 127, 127, 0.4);
+        .scrollmap-marker.removed {
+            background: rgba(248, 81, 73, 0.8);
+        }
+
+        /* Viewport thumb — shows the current visible region */
+        .scrollmap-thumb {
+            position: absolute;
+            left: 0;
+            right: 0;
+            background: rgba(160, 160, 160, 0.25);
+            border-top: 2px solid rgba(200, 200, 200, 0.7);
+            border-bottom: 2px solid rgba(200, 200, 200, 0.7);
+            border-radius: 2px;
+            pointer-events: none;
+            z-index: 10;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
         }
     </style>
 </head>
@@ -191,31 +231,45 @@
             <!-- Left Panel (Original) -->
             <div class="diff-column">
                 <div class="panel-header" id="left-header">원본 파일 (Original)</div>
-                <div class="view-wrapper" id="left-wrapper">
-                    <div class="diff-view" id="left-view"></div>
+                <div class="panel-body">
+                    <div class="view-wrapper" id="left-wrapper">
+                        <div class="diff-view" id="left-view"></div>
+                    </div>
+                    <div class="scrollmap" id="left-scrollmap">
+                        <div class="scrollmap-thumb" id="left-thumb"></div>
+                    </div>
                 </div>
             </div>
             <!-- Right Panel (Modified) -->
             <div class="diff-column">
                 <div class="panel-header" id="right-header">비교 대상 파일 (Modified)</div>
-                <div class="view-wrapper" id="right-wrapper">
-                    <div class="diff-view" id="right-view"></div>
+                <div class="panel-body">
+                    <div class="view-wrapper" id="right-wrapper">
+                        <div class="diff-view" id="right-view"></div>
+                    </div>
+                    <div class="scrollmap" id="right-scrollmap">
+                        <div class="scrollmap-thumb" id="right-thumb"></div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        const leftWrapper = document.getElementById('left-wrapper');
+        const leftWrapper  = document.getElementById('left-wrapper');
         const rightWrapper = document.getElementById('right-wrapper');
-        const leftView = document.getElementById('left-view');
-        const rightView = document.getElementById('right-view');
+        const leftView     = document.getElementById('left-view');
+        const rightView    = document.getElementById('right-view');
+        const leftScrollmap  = document.getElementById('left-scrollmap');
+        const rightScrollmap = document.getElementById('right-scrollmap');
+        const leftThumb  = document.getElementById('left-thumb');
+        const rightThumb = document.getElementById('right-thumb');
 
         // Prevent dragging duplicate windows
         window.addEventListener('dragover', e => e.preventDefault());
-        window.addEventListener('drop', e => e.preventDefault());
+        window.addEventListener('drop',     e => e.preventDefault());
 
-        // LCS diff comparison logic
+        // ── LCS diff comparison logic ──────────────────────────────────────
         function computeLineDiff(textA, textB) {
             const linesA = textA.split(/\r?\n/);
             const linesB = textB.split(/\r?\n/);
@@ -255,13 +309,103 @@
             return { diffA, diffB };
         }
 
+        // ── Scrollmap helpers ──────────────────────────────────────────────
+
+        /**
+         * Build coloured diff markers for a scrollmap.
+         * @param {HTMLElement} scrollmap  - the scrollmap container
+         * @param {HTMLElement} view       - the diff-view table element
+         * @param {'removed'|'added'} markerClass - CSS class for the markers
+         */
+        function buildScrollmapMarkers(scrollmap, wrapper, view, markerClass) {
+            // Remove old markers (but keep the thumb)
+            scrollmap.querySelectorAll('.scrollmap-marker').forEach(el => el.remove());
+
+            const mapH   = scrollmap.clientHeight;
+            const totalH = wrapper.scrollHeight;   // full scrollable height of the wrapper
+            if (totalH === 0 || mapH === 0) return;
+
+            const scale = mapH / totalH;
+
+            // Gather all changed rows
+            const selector = markerClass === 'added' ? '.row-added' : '.row-removed';
+            const rows = view.querySelectorAll(selector);
+
+            // Collapse adjacent rows into bands
+            const bands = [];
+            rows.forEach(row => {
+                const top    = row.offsetTop  * scale;
+                const height = Math.max(row.offsetHeight * scale, 2);
+                const bottom = top + height;
+
+                if (bands.length > 0 && top <= bands[bands.length - 1].bottom + 1) {
+                    bands[bands.length - 1].bottom = Math.max(bands[bands.length - 1].bottom, bottom);
+                } else {
+                    bands.push({ top, bottom });
+                }
+            });
+
+            const thumb = scrollmap.querySelector('.scrollmap-thumb');
+            bands.forEach(band => {
+                const marker = document.createElement('div');
+                marker.className = `scrollmap-marker ${markerClass}`;
+                marker.style.top    = `${band.top}px`;
+                marker.style.height = `${Math.max(band.bottom - band.top, 2)}px`;
+                scrollmap.insertBefore(marker, thumb);
+            });
+        }
+
+        /**
+         * Update the viewport thumb position inside a scrollmap.
+         */
+        function updateScrollmapThumb(wrapper, scrollmap, thumb) {
+            const mapH   = scrollmap.clientHeight;
+            const totalH = wrapper.scrollHeight;   // full scrollable height
+            if (totalH === 0 || mapH === 0) return;
+
+            const scale   = mapH / totalH;
+            const viewH   = wrapper.clientHeight;
+            const scrollY = wrapper.scrollTop;
+
+            const thumbTop = scrollY * scale;
+            // If content fits entirely, thumb fills the whole map
+            const thumbH   = totalH <= viewH ? mapH : Math.max(viewH * scale, 8);
+
+            thumb.style.top    = `${thumbTop}px`;
+            thumb.style.height = `${thumbH}px`;
+        }
+
+        /**
+         * Attach click/drag scrolling on a scrollmap.
+         */
+        function attachScrollmapInput(scrollmap, wrapper, view, thumb) {
+            function scrollToRatio(clientY) {
+                const rect   = scrollmap.getBoundingClientRect();
+                const ratio  = Math.min(Math.max((clientY - rect.top) / rect.height, 0), 1);
+                const maxSc  = view.scrollHeight - wrapper.clientHeight;
+                wrapper.scrollTop = ratio * maxSc;
+            }
+
+            let dragging = false;
+            scrollmap.addEventListener('mousedown', e => {
+                dragging = true;
+                scrollToRatio(e.clientY);
+                e.preventDefault();
+            });
+            window.addEventListener('mousemove', e => {
+                if (dragging) scrollToRatio(e.clientY);
+            });
+            window.addEventListener('mouseup', () => { dragging = false; });
+        }
+
+        // ── Render ─────────────────────────────────────────────────────────
         function renderDiff(data) {
             const { diffA, diffB } = computeLineDiff(data.textA, data.textB);
 
-            document.getElementById('left-header').textContent = `원본: ${data.titleA || '원본 파일'}`;
+            document.getElementById('left-header').textContent  = `원본: ${data.titleA || '원본 파일'}`;
             document.getElementById('right-header').textContent = `수정본: ${data.titleB || '비교 대상 파일'}`;
 
-            let leftHtml = '';
+            let leftHtml  = '';
             let rightHtml = '';
             let additions = 0;
             let deletions = 0;
@@ -291,10 +435,19 @@
                 }
             }
 
-            leftView.innerHTML = leftHtml;
+            leftView.innerHTML  = leftHtml;
             rightView.innerHTML = rightHtml;
 
-            document.getElementById('diff-stats').textContent = `변경사항: 추가 ${additions}줄, 삭제 ${deletions}줄`;
+            document.getElementById('diff-stats').textContent =
+                `변경사항: 추가 ${additions}줄, 삭제 ${deletions}줄`;
+
+            // Build scrollmaps after a paint cycle so offsetTop values are ready
+            requestAnimationFrame(() => {
+                buildScrollmapMarkers(leftScrollmap,  leftWrapper,  leftView,  'removed');
+                buildScrollmapMarkers(rightScrollmap, rightWrapper, rightView, 'added');
+                updateScrollmapThumb(leftWrapper,  leftScrollmap,  leftThumb);
+                updateScrollmapThumb(rightWrapper, rightScrollmap, rightThumb);
+            });
         }
 
         function escapeHtml(value) {
@@ -306,51 +459,62 @@
                 .replace(/'/g, '&#039;');
         }
 
-        // Synchronized Scrolling Logic
-        let isSyncingLeftScroll = false;
+        // ── Synchronized Scrolling ─────────────────────────────────────────
+        let isSyncingLeftScroll  = false;
         let isSyncingRightScroll = false;
 
         leftWrapper.addEventListener('scroll', () => {
-            if (isSyncingLeftScroll) {
-                isSyncingLeftScroll = false;
-                return;
-            }
+            updateScrollmapThumb(leftWrapper,  leftScrollmap,  leftThumb);
+            updateScrollmapThumb(rightWrapper, rightScrollmap, rightThumb);
+            if (isSyncingLeftScroll) { isSyncingLeftScroll = false; return; }
             isSyncingRightScroll = true;
-            rightWrapper.scrollTop = leftWrapper.scrollTop;
+            rightWrapper.scrollTop  = leftWrapper.scrollTop;
             rightWrapper.scrollLeft = leftWrapper.scrollLeft;
         });
 
         rightWrapper.addEventListener('scroll', () => {
-            if (isSyncingRightScroll) {
-                isSyncingRightScroll = false;
-                return;
-            }
+            updateScrollmapThumb(rightWrapper, rightScrollmap, rightThumb);
+            updateScrollmapThumb(leftWrapper,  leftScrollmap,  leftThumb);
+            if (isSyncingRightScroll) { isSyncingRightScroll = false; return; }
             isSyncingLeftScroll = true;
-            leftWrapper.scrollTop = rightWrapper.scrollTop;
+            leftWrapper.scrollTop  = rightWrapper.scrollTop;
             leftWrapper.scrollLeft = rightWrapper.scrollLeft;
         });
 
-        // WebView2 IPC communication
+        // Scrollmap click/drag
+        attachScrollmapInput(leftScrollmap,  leftWrapper,  leftView,  leftThumb);
+        attachScrollmapInput(rightScrollmap, rightWrapper, rightView, rightThumb);
+
+        // Rebuild on resize
+        const resizeObs = new ResizeObserver(() => {
+            buildScrollmapMarkers(leftScrollmap,  leftWrapper,  leftView,  'removed');
+            buildScrollmapMarkers(rightScrollmap, rightWrapper, rightView, 'added');
+            updateScrollmapThumb(leftWrapper,  leftScrollmap,  leftThumb);
+            updateScrollmapThumb(rightWrapper, rightScrollmap, rightThumb);
+        });
+        resizeObs.observe(leftScrollmap);
+        resizeObs.observe(rightScrollmap);
+
+        // ── WebView2 IPC ───────────────────────────────────────────────────
         if (window.chrome && window.chrome.webview) {
             window.chrome.webview.addEventListener('message', event => {
                 const msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
                 if (msg.action === 'compare') {
-                    // Apply theme personalization if possible
                     const theme = msg.theme || 'Dark';
-                    const bg = theme === 'Light' ? '#ffffff' : '#1e1e1e';
-                    const fg = theme === 'Light' ? '#1a1a1a' : '#d4d4d4';
-                    document.documentElement.style.setProperty('--bg', bg);
-                    document.documentElement.style.setProperty('--fg', fg);
-                    document.documentElement.style.setProperty('--header-bg', theme === 'Light' ? '#f3f3f3' : '#252526');
-                    document.documentElement.style.setProperty('--gutter-bg', theme === 'Light' ? '#f3f3f3' : '#1e1e1e');
-                    document.documentElement.style.setProperty('--border', theme === 'Light' ? '#e1e4e8' : '#3e3e3e');
-                    document.documentElement.style.setProperty('--ui-font', msg.uiFontFamily || '"Segoe UI", "Malgun Gothic", sans-serif');
-                    
-                    const addedText = theme === 'Light' ? '#22863a' : '#3fb950';
+                    const bg    = theme === 'Light' ? '#ffffff' : '#1e1e1e';
+                    const fg    = theme === 'Light' ? '#1a1a1a' : '#d4d4d4';
+                    document.documentElement.style.setProperty('--bg',         bg);
+                    document.documentElement.style.setProperty('--fg',         fg);
+                    document.documentElement.style.setProperty('--header-bg',  theme === 'Light' ? '#f3f3f3' : '#252526');
+                    document.documentElement.style.setProperty('--gutter-bg',  theme === 'Light' ? '#f3f3f3' : '#1e1e1e');
+                    document.documentElement.style.setProperty('--border',     theme === 'Light' ? '#e1e4e8' : '#3e3e3e');
+                    document.documentElement.style.setProperty('--ui-font',    msg.uiFontFamily || '"Segoe UI", "Malgun Gothic", sans-serif');
+
+                    const addedText   = theme === 'Light' ? '#22863a' : '#3fb950';
                     const removedText = theme === 'Light' ? '#cb2431' : '#f85149';
-                    document.documentElement.style.setProperty('--added-text', addedText);
+                    document.documentElement.style.setProperty('--added-text',   addedText);
                     document.documentElement.style.setProperty('--removed-text', removedText);
-                    
+
                     renderDiff(msg);
                 }
             });
