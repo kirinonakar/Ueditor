@@ -7,7 +7,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-                <Grid x:Name="RightSidebarRoot" Background="{ThemeResource SystemControlBackgroundAltHighBrush}">
+                <Grid x:Name="RightSidebarRoot" Background="{ThemeResource SidebarBackgroundBrush}">
                     <Grid.Resources>
                         <ResourceDictionary>
                             <ResourceDictionary.ThemeDictionaries>
@@ -21,13 +21,13 @@
                                     <SolidColorBrush x:Key="LlmOutputBackground" Color="#FCFCFC"/>
                                 </ResourceDictionary>
                                 <ResourceDictionary x:Key="Dark">
-                                    <SolidColorBrush x:Key="ButtonBackground" Color="#2D2D30"/>
-                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#3A3A3D"/>
-                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#454548"/>
-                                    <SolidColorBrush x:Key="ButtonBorderBrush" Color="#3F3F46"/>
-                                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#4E4E56"/>
-                                    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#5D5D66"/>
-                                    <SolidColorBrush x:Key="LlmOutputBackground" Color="#181818"/>
+                                    <SolidColorBrush x:Key="ButtonBackground" Color="#2B2D31"/>
+                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#35373C"/>
+                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3F4248"/>
+                                    <SolidColorBrush x:Key="ButtonBorderBrush" Color="#2E3033"/>
+                                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#3B3E45"/>
+                                    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#4E525C"/>
+                                    <SolidColorBrush x:Key="LlmOutputBackground" Color="#151618"/>
                                 </ResourceDictionary>
                             </ResourceDictionary.ThemeDictionaries>
 
