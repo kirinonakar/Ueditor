@@ -8,6 +8,35 @@
     mc:Ignorable="d">
 
                 <Grid x:Name="RightSidebarRoot" Background="{ThemeResource SystemControlBackgroundAltHighBrush}">
+                    <Grid.Resources>
+                        <ResourceDictionary>
+                            <ResourceDictionary.ThemeDictionaries>
+                                <ResourceDictionary x:Key="Light">
+                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#15000000"/>
+                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#26000000"/>
+                                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+                                    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+                                </ResourceDictionary>
+                                <ResourceDictionary x:Key="Dark">
+                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#15FFFFFF"/>
+                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#26FFFFFF"/>
+                                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+                                    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+                                </ResourceDictionary>
+                            </ResourceDictionary.ThemeDictionaries>
+
+                            <Style x:Key="RightSidebarButtonStyle" TargetType="Button">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="1"/>
+                                <Setter Property="BorderBrush" Value="{ThemeResource ButtonBorderBrush}"/>
+                                <Setter Property="Padding" Value="10,4,10,4"/>
+                                <Setter Property="CornerRadius" Value="4"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                            </Style>
+                        </ResourceDictionary>
+                    </Grid.Resources>
+
                     <TabView x:Name="RightTabView" 
                              VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
                              IsAddTabButtonVisible="False" AllowDropTabs="False">
@@ -31,7 +60,7 @@
                                                     <ComboBoxItem x:Name="ComboItemLatex" Content="LaTeX Block"/>
                                                     <ComboBoxItem x:Name="ComboItemAozora" Content="Aozora"/>
                                                 </ComboBox>
-                                                <Button x:Name="OpenBrowserButton" Click="OnOpenPreviewInBrowserClick" Height="24" Padding="8,0,8,0" ToolTipService.ToolTip="HTML 미리보기를 브라우저로 열기">
+                                                <Button x:Name="OpenBrowserButton" Click="OnOpenPreviewInBrowserClick" Height="24" Padding="8,0,8,0" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="HTML 미리보기를 브라우저로 열기">
                                                     <StackPanel Orientation="Horizontal" Spacing="4">
                                                         <FontIcon Glyph="&#xE774;" FontSize="12"/>
                                                         <TextBlock x:Name="OpenBrowserButtonText" Text="브라우저" FontSize="11" VerticalAlignment="Center"/>
@@ -74,8 +103,8 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBox x:Name="LlmFileContextInput" PlaceholderText="파일 맥락 없음" IsReadOnly="True" Height="30" FontSize="11"/>
-                                            <Button x:Name="LlmAddFileContextButton" Grid.Column="1" Content="파일 맥락 추가" Click="OnLlmAddFileContextClick" Padding="10,4,10,4"/>
-                                            <Button x:Name="LlmRemoveFileContextButton" Grid.Column="2" Content="삭제" Click="OnLlmRemoveFileContextClick" Padding="10,4,10,4"/>
+                                            <Button x:Name="LlmAddFileContextButton" Grid.Column="1" Content="파일 맥락 추가" Click="OnLlmAddFileContextClick" Style="{StaticResource RightSidebarButtonStyle}"/>
+                                            <Button x:Name="LlmRemoveFileContextButton" Grid.Column="2" Content="삭제" Click="OnLlmRemoveFileContextClick" Style="{StaticResource RightSidebarButtonStyle}"/>
                                         </Grid>
                                     </StackPanel>
                                 </Border>
@@ -88,8 +117,8 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <Button x:Name="LlmSummarizeButton" Content="선택 영역 요약" Grid.Column="0" HorizontalAlignment="Stretch" Click="OnLlmSummarizeClick"/>
-                                        <Button x:Name="LlmTranslateButton" Content="선택 영역 번역" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnLlmTranslateClick">
+                                        <Button x:Name="LlmSummarizeButton" Content="선택 영역 요약" Grid.Column="0" HorizontalAlignment="Stretch" Click="OnLlmSummarizeClick" Style="{StaticResource RightSidebarButtonStyle}"/>
+                                        <Button x:Name="LlmTranslateButton" Content="선택 영역 번역" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnLlmTranslateClick" Style="{StaticResource RightSidebarButtonStyle}">
                                             <Button.ContextFlyout>
                                                 <MenuFlyout>
                                                     <MenuFlyoutItem x:Name="LlmTargetLangKorean" Text="한국어 (Korean)" Click="OnLlmTargetLangClick" Tag="Korean"/>
@@ -108,7 +137,7 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <Button x:Name="LlmImproveButton" Content="수식/마크다운 개선" HorizontalAlignment="Stretch" Click="OnLlmImproveClick"/>
+                                        <Button x:Name="LlmImproveButton" Content="수식/마크다운 개선" HorizontalAlignment="Stretch" Click="OnLlmImproveClick" Style="{StaticResource RightSidebarButtonStyle}"/>
                                     </Grid>
                                     
                                     <Grid ColumnSpacing="8" Margin="0,5,0,0">
@@ -119,7 +148,7 @@
                                         <TextBox x:Name="LlmCustomPromptInput" Grid.Column="0" PlaceholderText="질문이나 커스텀 지시사항 입력..." Height="32" KeyDown="OnLlmCustomPromptInputKeyDown"/>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
                                             <Button x:Name="LlmCustomRunButton" Content="실행" Click="OnLlmCustomClick" Style="{StaticResource AccentButtonStyle}"/>
-                                            <Button x:Name="LlmInsertOutputButton" Content="입력" Click="OnLlmInsertOutputClick" ToolTipService.ToolTip="AI 응답을 현재 커서에 입력"/>
+                                            <Button x:Name="LlmInsertOutputButton" Content="입력" Click="OnLlmInsertOutputClick" ToolTipService.ToolTip="AI 응답을 현재 커서에 입력" Style="{StaticResource RightSidebarButtonStyle}"/>
                                         </StackPanel>
                                     </Grid>
                                 </StackPanel>
