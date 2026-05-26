@@ -88,9 +88,21 @@ namespace Ueditor.Controls
 
             _viewModel.GitFiles.Clear();
             _leftSidebar.GitBranches.Items.Clear();
+            int selectedIndex = -1;
+            int i = 0;
             foreach (var branchName in await _gitService.GetBranchesAsync(repoPath))
             {
-                _leftSidebar.GitBranches.Items.Add(branchName.Trim());
+                string cleanedBranchName = branchName.Trim();
+                _leftSidebar.GitBranches.Items.Add(cleanedBranchName);
+                if (cleanedBranchName.StartsWith("*"))
+                {
+                    selectedIndex = i;
+                }
+                i++;
+            }
+            if (selectedIndex >= 0)
+            {
+                _leftSidebar.GitBranches.SelectedIndex = selectedIndex;
             }
 
             _leftSidebar.GitHistory.Items.Clear();
