@@ -705,7 +705,7 @@ namespace Ueditor
 
         #region Tab Operations (탭 비즈니스 로직)
 
-        private void OpenNewTab(
+        private OpenedTab OpenNewTab(
             string? filePath = null,
             string content = "",
             bool isReadOnly = false,
@@ -819,6 +819,7 @@ namespace Ueditor
             SyncEncodingCombo(tab);
             SyncLineEndingText(tab);
             UpdateWindowTitle();
+            return tab;
         }
 
         private void WireEditorBridge(
@@ -871,6 +872,7 @@ namespace Ueditor
                                 if (text != null)
                                 {
                                     MarkTabDirty(tab, tabItem);
+                                    PropagateDirtyStateToOtherTabs(tab);
                                     SchedulePreview(tab);
                                     _ = bridge.SetTextAsync(text);
                                     _ = SyncEditsToOtherTabsAsync(tab);
@@ -883,6 +885,7 @@ namespace Ueditor
                                 if (text != null)
                                 {
                                     MarkTabDirty(tab, tabItem);
+                                    PropagateDirtyStateToOtherTabs(tab);
                                     SchedulePreview(tab);
                                     _ = bridge.SetTextAsync(text);
                                     _ = SyncEditsToOtherTabsAsync(tab);
@@ -934,6 +937,7 @@ namespace Ueditor
                 if (!isComposing)
                 {
                     MarkTabDirty(tab, tabItem);
+                    PropagateDirtyStateToOtherTabs(tab);
                     SchedulePreview(tab);
                 }
                 _ = SyncEditsToOtherTabsAsync(tab, updateUi: !isComposing);
@@ -943,6 +947,7 @@ namespace Ueditor
             {
                 int lineCount = session.InsertLine(lineNumber, text);
                 MarkTabDirty(tab, tabItem);
+                PropagateDirtyStateToOtherTabs(tab);
                 await bridge.UpdateLineCountAsync(lineCount);
                 SchedulePreview(tab);
                 await SyncEditsToOtherTabsAsync(tab);
@@ -953,6 +958,7 @@ namespace Ueditor
             {
                 int lineCount = session.SplitLine(lineNumber, before, after);
                 MarkTabDirty(tab, tabItem);
+                PropagateDirtyStateToOtherTabs(tab);
                 await bridge.UpdateLineCountAsync(lineCount);
                 SchedulePreview(tab);
                 await SyncEditsToOtherTabsAsync(tab);
@@ -963,6 +969,7 @@ namespace Ueditor
             {
                 int lineCount = session.MergeLineWithPrevious(lineNumber);
                 MarkTabDirty(tab, tabItem);
+                PropagateDirtyStateToOtherTabs(tab);
                 await bridge.UpdateLineCountAsync(lineCount);
                 SchedulePreview(tab);
                 await SyncEditsToOtherTabsAsync(tab);
@@ -973,6 +980,7 @@ namespace Ueditor
             {
                 int lineCount = session.DeleteLine(lineNumber);
                 MarkTabDirty(tab, tabItem);
+                PropagateDirtyStateToOtherTabs(tab);
                 await bridge.UpdateLineCountAsync(lineCount);
                 SchedulePreview(tab);
                 await SyncEditsToOtherTabsAsync(tab);
@@ -1099,9 +1107,12 @@ namespace Ueditor
 
         private void MarkTabDirty(OpenedTab tab, TabViewItem? tabItem = null)
         {
-            if (!tab.IsDirty && !string.IsNullOrEmpty(tab.FilePath))
+            if (!string.IsNullOrEmpty(tab.FilePath))
             {
-                tab.IsDirty = true;
+                if (!tab.IsDirty)
+                {
+                    tab.IsDirty = true;
+                }
                 PropagateDirtyStateToOtherTabs(tab);
             }
         }
@@ -2241,13 +2252,19 @@ namespace Ueditor
                     content = activeTab.Content ?? "";
                 }
 
-                OpenNewTab(
+                var newTab = OpenNewTab(
                     filePath: path,
                     content: content,
                     isReadOnly: false,
                     encodingName: activeTab.EncodingName,
                     encodingWasAutoDetected: activeTab.EncodingWasAutoDetected
                 );
+
+                if (activeTab.IsDirty)
+                {
+                    newTab.IsDirty = true;
+                    PropagateDirtyStateToOtherTabs(newTab);
+                }
             }
             else
             {
