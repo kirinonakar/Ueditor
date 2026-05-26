@@ -254,6 +254,7 @@ namespace Ueditor.Editor
                 ".ini" => "ini",
                 ".yml" => "yaml",
                 ".yaml" => "yaml",
+                ".reg" => "reg",
                 _ => "plaintext"
             };
 

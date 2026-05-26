@@ -1057,6 +1057,7 @@
             const isMakefile = language === 'makefile';
             const isFsharp = language === 'fsharp';
             const isVb = ['vb', 'vbscript'].includes(language);
+            const isReg = language === 'reg';
 
             if (isHtml) {
                 // 1. Comments
@@ -1315,6 +1316,60 @@
                 // 5. Types / builtins
                 workingText = workingText.replace(/\b(Boolean|Byte|Char|Date|Decimal|Double|Integer|Long|Object|Short|Single|String|True|False|Nothing|Console|Math)\b/g, m => stash(`<span class="token-type">${escapeHtml(m)}</span>`));
                 workingText = workingText.replace(/\b([a-zA-Z_]\w*)(?=\s*\()/g, m => stash(`<span class="token-function">${escapeHtml(m)}</span>`));
+            }
+            else if (isReg) {
+                // 1. Comments (semicolons) - must be first
+                if (/^\s*;/.test(workingText)) {
+                    return `<span class="token-comment">${escapeHtml(workingText)}</span>`;
+                }
+                // 2. Registry header line
+                if (/^Windows Registry Editor/i.test(workingText)) {
+                    return `<span class="token-keyword">${escapeHtml(workingText)}</span>`;
+                }
+                // 3. Section headers [HKEY_...] (full line is the section)
+                if (/^\[/.test(workingText)) {
+                    const cls = /^\[-/.test(workingText) ? 'token-comment' : 'token-type';
+                    return `<span class="${cls}">${escapeHtml(workingText)}</span>`;
+                }
+                // 4. Value assignment lines: "Name"=data or @=data
+                const assignMatch = workingText.match(/^(@|"(?:[^"\\]|\\.)*")(=)(.*)/);
+                if (assignMatch) {
+                    const namePart  = `<span class="token-variable">${escapeHtml(assignMatch[1])}</span>`;
+                    const eqPart    = `<span class="token-operator">=</span>`;
+                    let   valuePart = assignMatch[3];
+
+                    // dword:XXXXXXXX
+                    const dwordM = valuePart.match(/^(dword:)([0-9a-fA-F]+)(.*)/i);
+                    if (dwordM) {
+                        valuePart = `<span class="token-keyword">${escapeHtml(dwordM[1])}</span><span class="token-number">${escapeHtml(dwordM[2])}</span>${escapeHtml(dwordM[3])}`;
+                    }
+                    // hex(N): or hex:
+                    else if (/^hex[:(]/i.test(valuePart)) {
+                        const hexTypeM = valuePart.match(/^(hex(?:\(\d+\))?:)(.*)/i);
+                        if (hexTypeM) {
+                            valuePart = `<span class="token-keyword">${escapeHtml(hexTypeM[1])}</span><span class="token-number">${escapeHtml(hexTypeM[2])}</span>`;
+                        } else {
+                            valuePart = escapeHtml(valuePart);
+                        }
+                    }
+                    // String value "..."
+                    else if (/^"/.test(valuePart)) {
+                        valuePart = `<span class="token-string">${escapeHtml(valuePart)}</span>`;
+                    }
+                    // Delete value (-)
+                    else if (valuePart === '-') {
+                        valuePart = `<span class="token-comment">-</span>`;
+                    }
+                    else {
+                        valuePart = escapeHtml(valuePart);
+                    }
+
+                    return namePart + eqPart + valuePart;
+                }
+                // 5. Continuation hex lines (  xx,xx,xx,\\ )
+                if (/^\s+[0-9a-fA-F]{2}/.test(workingText)) {
+                    return workingText.replace(/[0-9a-fA-F]{2}/g, m => `<span class="token-number">${escapeHtml(m)}</span>`);
+                }
             }
             else if (isClike) {
                 // 1. Multi-line comments
@@ -3146,7 +3201,14 @@
             return { word, start };
         }
 
-        function getAutocompleteCandidates(currentWord) {
+        // Returns the leading special-character prefix of a snippet keyword
+        // e.g. keyword="[HKEY" → prefix="[", keyword="@val" → prefix="@"
+        function snippetKeywordSpecialPrefix(keyword) {
+            const match = keyword.match(/^([^\w가-힣]+)/);
+            return match ? match[1] : '';
+        }
+
+        function getAutocompleteCandidates(currentWord, fullTextBeforeCaret) {
             if (!currentWord || currentWord.length < 1) return [];
             const candidates = [];
             const seen = new Set();
@@ -3160,7 +3222,32 @@
 
                 const lowerKeyword = keyword.toLowerCase();
                 const lowerTitle = title.toLowerCase();
-                if (!lowerKeyword.startsWith(lowerCurrent) && !lowerTitle.startsWith(lowerCurrent)) continue;
+
+                // Check if keyword matches current word, but also try matching
+                // the special-char prefix + current word against the keyword
+                const specialPrefix = snippetKeywordSpecialPrefix(keyword);
+                let matched = false;
+                let extraPrefixLen = 0;
+
+                if (lowerKeyword.startsWith(lowerCurrent)) {
+                    matched = true;
+                } else if (lowerTitle.startsWith(lowerCurrent)) {
+                    matched = true;
+                } else if (specialPrefix && fullTextBeforeCaret !== undefined) {
+                    // Check if the characters just before wordStart include the special prefix
+                    const withPrefix = specialPrefix + currentWord;
+                    const lowerWithPrefix = withPrefix.toLowerCase();
+                    if (lowerKeyword.startsWith(lowerWithPrefix)) {
+                        // Verify the text actually has this prefix before the current word
+                        const textBefore = fullTextBeforeCaret;
+                        if (textBefore.endsWith(specialPrefix + currentWord) || textBefore.slice(-specialPrefix.length) === specialPrefix) {
+                            matched = true;
+                            extraPrefixLen = specialPrefix.length;
+                        }
+                    }
+                }
+
+                if (!matched) continue;
 
                 const key = `snippet:${lowerKeyword}`;
                 if (seen.has(key)) continue;
@@ -3169,7 +3256,8 @@
                     kind: 'snippet',
                     label: keyword,
                     insertText: content,
-                    detail: title ? `스니펫: ${title}` : '스니펫'
+                    detail: title ? `스니펫: ${title}` : '스니펫',
+                    extraPrefixLen
                 });
             }
 
@@ -3231,7 +3319,8 @@
                 return;
             }
 
-            const candidates = getAutocompleteCandidates(word);
+            const textBeforeCaret = text.slice(0, caret);
+            const candidates = getAutocompleteCandidates(word, textBeforeCaret);
             if (candidates.length === 0) {
                 hideAutocomplete();
                 return;
@@ -3243,6 +3332,7 @@
             autocompleteState.element = element;
             autocompleteState.wordStart = start;
             autocompleteState.word = word;
+            autocompleteState.textBeforeCaret = textBeforeCaret;
 
             renderAutocomplete();
         }
@@ -3300,8 +3390,20 @@
             }
 
             const text = lineTextFromElement(element);
-            const wordStart = autocompleteState.wordStart;
+            let wordStart = autocompleteState.wordStart;
             const caret = getCaretOffset(element);
+
+            // If the snippet keyword has a leading special-char prefix and it exists
+            // in the text just before wordStart, extend wordStart to include it
+            if (candidate.kind === 'snippet') {
+                const specialPrefix = snippetKeywordSpecialPrefix(candidate.label || '');
+                if (specialPrefix && wordStart >= specialPrefix.length) {
+                    const textBefore = text.slice(wordStart - specialPrefix.length, wordStart);
+                    if (textBefore === specialPrefix) {
+                        wordStart -= specialPrefix.length;
+                    }
+                }
+            }
 
             replaceWordWithAutocompleteText(element, wordStart, caret, candidate.insertText || candidate.label || '');
             hideAutocomplete();
