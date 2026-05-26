@@ -71,6 +71,7 @@ namespace Ueditor.Core.Services
                 ".ini" => "ini",
                 ".yml" => "yaml",
                 ".yaml" => "yaml",
+                ".reg" => "reg",
                 _ => "plaintext"
             };
         }
@@ -85,6 +86,11 @@ namespace Ueditor.Core.Services
             if (sample.StartsWith("{") && sample.EndsWith("}") && sample.Contains("\"")) return "json";
             if (sample.StartsWith("[") && sample.EndsWith("]") && sample.Contains("{\"")) return "json";
             if (sample.StartsWith("diff --git") || sample.Contains("\n@@ ")) return "diff";
+
+            if (sample.StartsWith("Windows Registry Editor", StringComparison.OrdinalIgnoreCase) ||
+                (sample.Contains("[HKEY_LOCAL_MACHINE") || sample.Contains("[HKEY_CURRENT_USER") ||
+                 sample.Contains("[HKEY_CLASSES_ROOT") || sample.Contains("[HKEY_USERS") ||
+                 sample.Contains("[HKEY_CURRENT_CONFIG"))) return "reg";
 
             if (sample.Contains("<!DOCTYPE html", StringComparison.OrdinalIgnoreCase) ||
                 sample.Contains("<html", StringComparison.OrdinalIgnoreCase) ||

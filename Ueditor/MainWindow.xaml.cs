@@ -1494,6 +1494,7 @@ namespace Ueditor
             picker.FileTypeFilter.Add(".toml");
             picker.FileTypeFilter.Add(".ini");
             picker.FileTypeFilter.Add(".diff");
+            picker.FileTypeFilter.Add(".reg");
 
             var file = await picker.PickSingleFileAsync();
             if (file != null)
