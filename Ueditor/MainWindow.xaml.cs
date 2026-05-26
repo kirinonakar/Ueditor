@@ -3789,6 +3789,31 @@ namespace Ueditor
 
         private void OnRootKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
+            if (e.Key == Windows.System.VirtualKey.F9)
+            {
+                e.Handled = true;
+                bool nextTopMost = !TopToolbar.TopMostIsChecked;
+                TopToolbar.TopMostIsChecked = nextTopMost;
+                _stickyNoteService.ApplyTopMost(this, nextTopMost);
+                if (StickyNoteTopMostButton != null)
+                {
+                    StickyNoteTopMostButton.IsChecked = nextTopMost;
+                }
+                return;
+            }
+            else if (e.Key == Windows.System.VirtualKey.F10)
+            {
+                e.Handled = true;
+                OnToggleThemeClick(this, new RoutedEventArgs());
+                return;
+            }
+            else if (e.Key == Windows.System.VirtualKey.F12)
+            {
+                e.Handled = true;
+                OnStickyNoteClick(this, new RoutedEventArgs());
+                return;
+            }
+
             var ctrl = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control) & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
             var shift = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift) & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
             if (ctrl)
@@ -3827,7 +3852,14 @@ namespace Ueditor
                 else if (e.Key == Windows.System.VirtualKey.S)
                 {
                     e.Handled = true;
-                    OnSaveFileClick(this, new RoutedEventArgs());
+                    if (shift)
+                    {
+                        OnSaveAsFileClick(this, new RoutedEventArgs());
+                    }
+                    else
+                    {
+                        OnSaveFileClick(this, new RoutedEventArgs());
+                    }
                 }
                 else if (e.Key == Windows.System.VirtualKey.O)
                 {

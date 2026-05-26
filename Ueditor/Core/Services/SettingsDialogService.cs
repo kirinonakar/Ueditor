@@ -338,7 +338,7 @@ namespace Ueditor.Core.Services
             llmSection.Children.Add(llmApiKeyBox);
             llmSection.Children.Add(new TextBlock
             {
-                Text = getString("SettingsLlmApiKeyInfo", "API Key는 설정 파일에 저장하지 않고 Windows 자격 증명 관리자에 저장합니다. 비워두고 저장하면 기존 Key를 유지합니다. LM Studio는 기본 로컬 서버 설정에서 API Key 없이 사용할 수 있습니다."),
+                Text = getString("SettingsLlmApiKeyInfo", "API Key는 설정 파일에 저장하지 않고 Windows 자격 증명 관리자에 저장합니다."),
                 TextWrapping = TextWrapping.Wrap
             });
 
@@ -453,6 +453,7 @@ namespace Ueditor.Core.Services
             {
                 ("Ctrl + N", getString("ShortcutDescNewTab", "새 편집 탭을 엽니다.")),
                 ("Ctrl + S", getString("ShortcutDescSave", "현재 파일을 저장합니다.")),
+                ("Ctrl + Shift + S", getString("ShortcutDescSaveAs", "다른 이름으로 저장 대화상자를 엽니다.")),
                 ("Ctrl + O", getString("ShortcutDescOpen", "파일 열기 대화상자를 엽니다.")),
                 ("Ctrl + F", getString("ShortcutDescFind", "에디터 내 검색 창을 활성화합니다.")),
                 ("Ctrl + W", getString("ShortcutDescClose", "현재 탭을 닫습니다.")),
@@ -465,7 +466,10 @@ namespace Ueditor.Core.Services
                 ("Ctrl + C", getString("ShortcutDescCopy", "선택 영역을 복사합니다.")),
                 ("Ctrl + V", getString("ShortcutDescPaste", "클립보드 내용을 붙여넣습니다.")),
                 ("Ctrl + X", getString("ShortcutDescCut", "선택 영역을 잘라냅니다.")),
-                ("Ctrl + Enter", getString("ShortcutDescAiPrompt", "AI 질문 입력창에서 프롬프트를 전송합니다."))
+                ("Ctrl + Enter", getString("ShortcutDescAiPrompt", "AI 질문 입력창에서 프롬프트를 전송합니다.")),
+                ("F9", getString("ShortcutDescTopMost", "항상위 토글")),
+                ("F10", getString("ShortcutDescTheme", "테마 토글")),
+                ("F12", getString("ShortcutDescStickyNote", "스티커 노트"))
             };
 
             bool alternate = false;

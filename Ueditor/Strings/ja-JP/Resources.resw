@@ -297,7 +297,7 @@
     <value>LM Studioは、サーバーが起動しているときに http://localhost:1234/v1/models からモデルリストを取得します。</value>
   </data>
   <data name="SettingsLlmApiKeyInfo" xml:space="preserve">
-    <value>APIキーは設定ファイルではなく、Windowsの資格情報マネージャーに保存されます。空欄で保存すると、既存のキーが維持されます。LM Studioはデフォルトのローカルサーバー設定でAPIキーなしで動作します。</value>
+    <value>APIキーは設定ファイルではなく、Windowsの資格情報マネージャーに保存されます。</value>
   </data>
   <data name="SettingsLlmConfirmBeforeSending" xml:space="preserve">
     <value>送信前に確認</value>
@@ -606,6 +606,18 @@
   </data>
   <data name="ShortcutDescAiPrompt" xml:space="preserve">
     <value>AIプロンプト送信</value>
+  </data>
+  <data name="ShortcutDescSaveAs" xml:space="preserve">
+    <value>名前を付けて保存</value>
+  </data>
+  <data name="ShortcutDescTopMost" xml:space="preserve">
+    <value>最前面表示</value>
+  </data>
+  <data name="ShortcutDescTheme" xml:space="preserve">
+    <value>テーマ切り替え</value>
+  </data>
+  <data name="ShortcutDescStickyNote" xml:space="preserve">
+    <value>付箋</value>
   </data>
   <data name="EditorFindPlaceholder" xml:space="preserve">
     <value>検索</value>

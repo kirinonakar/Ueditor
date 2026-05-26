@@ -103,6 +103,9 @@ Ueditor is designed for speed and productivity, packing standard IDE shortcuts a
 | `Ctrl + X` | Cut |
 | `Ctrl + Mouse Wheel` | Zoom In / Out |
 | `Ctrl + Enter` | Send AI Prompt |
+| `F9` | Toggle Always on Top |
+| `F10` | Toggle Theme (Dark / Light) |
+| `F12` | Toggle Sticky Note Mode |
 
 ### 🛠️ Interactive Tool Buttons
 

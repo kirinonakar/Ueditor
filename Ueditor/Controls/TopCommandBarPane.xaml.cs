@@ -73,10 +73,10 @@ namespace Ueditor.Controls
             ToolTipService.SetToolTip(TerminalToggleButton, getString("Terminal", "터미널") + " (Ctrl+`)");
 
             TopMostToggleButton.Label = getString("TopMost", "항상위");
-            ToolTipService.SetToolTip(TopMostToggleButton, getString("TopMost", "항상 위"));
+            ToolTipService.SetToolTip(TopMostToggleButton, getString("TopMost", "항상 위") + " (F9)");
 
             StickyNoteButton.Label = getString("StickyNote", "스티커");
-            ToolTipService.SetToolTip(StickyNoteButton, getString("StickyNote", "스티커 노트"));
+            ToolTipService.SetToolTip(StickyNoteButton, getString("StickyNote", "스티커 노트") + " (F12)");
 
             WordWrapToggle.Label = getString("WordWrap", "Word Wrap");
 
@@ -87,6 +87,7 @@ namespace Ueditor.Controls
             ToolTipService.SetToolTip(MarkdownToolbarToggle, getString("Markdown", "마크다운 툴바 토글"));
 
             ThemeButton.Label = getString("Theme", "테마");
+            ToolTipService.SetToolTip(ThemeButton, getString("Theme", "테마") + " (F10)");
 
             SplitButton.Label = getString("Split", "분할");
             ToolTipService.SetToolTip(SplitButton, getString("Split", "에디터 화면 분할"));

@@ -297,7 +297,7 @@
     <value>LM Studio loads the list of models from http://localhost:1234/v1/models when the server is running.</value>
   </data>
   <data name="SettingsLlmApiKeyInfo" xml:space="preserve">
-    <value>API Keys are stored in the Windows Credential Manager, not in settings files. Leaving it empty preserves the existing Key. LM Studio does not require an API Key under default configurations.</value>
+    <value>API Keys are stored in the Windows Credential Manager, not in settings files.</value>
   </data>
   <data name="SettingsLlmConfirmBeforeSending" xml:space="preserve">
     <value>Confirm before sending</value>
@@ -605,6 +605,18 @@ Supports live preview, code &amp; formula templates, terminal interface, Git int
   </data>
   <data name="ShortcutDescAiPrompt" xml:space="preserve">
     <value>Send AI Prompt</value>
+  </data>
+  <data name="ShortcutDescSaveAs" xml:space="preserve">
+    <value>Save As</value>
+  </data>
+  <data name="ShortcutDescTopMost" xml:space="preserve">
+    <value>Always on Top</value>
+  </data>
+  <data name="ShortcutDescTheme" xml:space="preserve">
+    <value>Toggle Theme</value>
+  </data>
+  <data name="ShortcutDescStickyNote" xml:space="preserve">
+    <value>Sticky Note</value>
   </data>
   <data name="EditorFindPlaceholder" xml:space="preserve">
     <value>Find</value>

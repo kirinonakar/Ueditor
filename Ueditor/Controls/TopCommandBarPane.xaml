@@ -33,13 +33,13 @@
                     <FontIcon Glyph="&#xE749;"/>
                 </AppBarButton.Icon>
             </AppBarButton>
-            <AppBarToggleButton x:Name="TopMostToggleButton" Click="OnTopMostToggleClick" ToolTipService.ToolTip="항상 위">
+            <AppBarToggleButton x:Name="TopMostToggleButton" Click="OnTopMostToggleClick" ToolTipService.ToolTip="항상 위 (F9)">
                 <AppBarToggleButton.Icon>
                     <FontIcon Glyph="&#xE840;"/>
                 </AppBarToggleButton.Icon>
                 <AppBarToggleButton.Label>항상위</AppBarToggleButton.Label>
             </AppBarToggleButton>
-            <AppBarButton x:Name="StickyNoteButton" Label="스티커" Click="OnStickyNoteClick" ToolTipService.ToolTip="스티커 노트">
+            <AppBarButton x:Name="StickyNoteButton" Label="스티커" Click="OnStickyNoteClick" ToolTipService.ToolTip="스티커 노트 (F12)">
                 <AppBarButton.Icon>
                     <FontIcon Glyph="&#xE70B;"/>
                 </AppBarButton.Icon>
@@ -59,7 +59,7 @@
                 <AppBarToggleButton.Label>Markdown</AppBarToggleButton.Label>
             </AppBarToggleButton>
             <AppBarSeparator/>
-            <AppBarButton x:Name="ThemeButton" Label="테마" Click="OnToggleThemeClick">
+            <AppBarButton x:Name="ThemeButton" Label="테마" Click="OnToggleThemeClick" ToolTipService.ToolTip="테마 (F10)">
                 <AppBarButton.Icon>
                     <FontIcon Glyph="&#xE790;"/>
                 </AppBarButton.Icon>
