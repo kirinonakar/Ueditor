@@ -3504,7 +3504,31 @@ namespace Ueditor
         {
             if (!_autoSaveEnabled) return;
             if (string.IsNullOrEmpty(_currentRepoPath)) return;
-            var dirtyTabs = _viewModel.Tabs.Where(t => t.IsDirty && !string.IsNullOrEmpty(t.FilePath)).ToList();
+
+            string repoPath;
+            try
+            {
+                repoPath = Path.GetFullPath(_currentRepoPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            }
+            catch
+            {
+                return;
+            }
+
+            var dirtyTabs = _viewModel.Tabs.Where(t =>
+            {
+                if (!t.IsDirty || string.IsNullOrEmpty(t.FilePath)) return false;
+                try
+                {
+                    string fullPath = Path.GetFullPath(t.FilePath);
+                    return fullPath.StartsWith(repoPath, StringComparison.OrdinalIgnoreCase);
+                }
+                catch
+                {
+                    return false;
+                }
+            }).ToList();
+
             foreach (var tab in dirtyTabs)
                 await SaveTabAsync(tab);
         }

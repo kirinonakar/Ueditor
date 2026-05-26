@@ -41,9 +41,8 @@ Designed for developers, writers, and power users, Ueditor provides a fluid, dis
 *   **Rich Markdown Toolbar:** Quick-apply styling (bold, italic, underline, list, color, tables) to selected text.
 
 ### 💾 Auto-Save
-*   **Smart Background Auto-Save:** Periodically saves all modified tabs with assigned file paths to prevent data loss.
-*   **5-Second Interval:** Silently saves active changes every 5 seconds, keeping the workflow fluid and secure.
-*   **Workspace-Aware:** Activates automatically in active Git repository workspaces (only functions when a Git-initialized folder is opened in the editor). Toggle on/off seamlessly via Settings.
+*   **Smart Background Auto-Save:** Automatically saves modified files within the active Git repository folder every 5 seconds.
+*   **Workspace-Aware:** Only triggers when a Git repository folder is opened in the editor.
 
 ### 🖥️ Native Premium Windows UI
 *   **Mica Backdrop & Dark Mode:** Native Windows themes using a high-fidelity Mica backdrop.
@@ -84,22 +83,22 @@ Ueditor is designed for speed and productivity, packing standard IDE shortcuts a
 
 | Shortcut | Description |
 | :--- | :--- |
-| `Ctrl + N` | **New Tab** - Opens a brand new blank editing tab. |
-| `Ctrl + S` | **Save File** - Instantly saves the active file. |
-| `Ctrl + O` | **Open File** - Opens the native file picker to select documents. |
-| `Ctrl + F` | **Find/Search** - Opens the inline search bar within the editor. |
-| `Ctrl + W` | **Close Tab** - Closes the active editing tab. |
-| `Ctrl + P` | **Print Document** - Prints the active document using standard print flow. |
-| `Ctrl + 1` | **Toggle Left Panel** - Instantly shows or hides the left workspace sidebar (explorer, search, git, bookmarks). |
-| `Ctrl + 2` | **Toggle Right Panel** - Instantly shows or hides the right side live preview/assistant pane. |
-| `` Ctrl + ` `` | **Terminal Toggle** - Instantly shows or hides the native embedded terminal. |
-| `Ctrl + Z` | **Undo** - Reverts the last text editing action. |
-| `Ctrl + Y` | **Redo** - Re-applies the last reverted text editing action. |
-| `Ctrl + C` | **Copy** - Copies selected text to the clipboard. |
-| `Ctrl + V` | **Paste** - Pastes text from the clipboard to the active cursor position. |
-| `Ctrl + X` | **Cut** - Cuts selected text to the clipboard. |
-| `Ctrl + Mouse Wheel` | **Zoom In/Out** - Scale the editor's text size dynamically. |
-| `Ctrl + Enter` | **Send AI Prompt** - Fast submit inside the AI input text prompt box. |
+| `Ctrl + N` | New Tab |
+| `Ctrl + S` | Save File |
+| `Ctrl + O` | Open File |
+| `Ctrl + F` | Find / Search |
+| `Ctrl + W` | Close Tab |
+| `Ctrl + P` | Print |
+| `Ctrl + 1` | Toggle Left Panel |
+| `Ctrl + 2` | Toggle Right Panel |
+| `` Ctrl + ` `` | Toggle Terminal |
+| `Ctrl + Z` | Undo |
+| `Ctrl + Y` | Redo |
+| `Ctrl + C` | Copy |
+| `Ctrl + V` | Paste |
+| `Ctrl + X` | Cut |
+| `Ctrl + Mouse Wheel` | Zoom In / Out |
+| `Ctrl + Enter` | Send AI Prompt |
 
 ### 🛠️ Interactive Tool Buttons
 
