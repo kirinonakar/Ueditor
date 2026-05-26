@@ -2836,7 +2836,7 @@
             state.searchIndex = -1;
             state.activeSearch = null;
             queueRender(true);
-            scrollContainer.focus();
+            focusLine(state.currentLine, Math.max(0, state.currentColumn - 1));
         }
 
         function requestFindAll() {
@@ -2872,7 +2872,7 @@
                 matchLength: match.matchLength,
                 query
             };
-            revealLine(match.lineNumber, match.indexOfMatch, match.matchLength, query);
+            revealLine(match.lineNumber, match.indexOfMatch, match.matchLength, query, true);
         }
 
         function renderSearchMatches(text, query, activeMatch) {
@@ -2984,13 +2984,13 @@
                             matchLength: match.matchLength,
                             query: state.searchQuery
                         };
-                        revealLine(match.lineNumber, match.indexOfMatch, match.matchLength, state.searchQuery);
+                        revealLine(match.lineNumber, match.indexOfMatch, match.matchLength, state.searchQuery, true);
                     }
                     queueRender(true);
                     break;
                 case 'findResult':
                     if (msg.found) {
-                        revealLine(msg.lineNumber, msg.indexOfMatch || 0, msg.matchLength || 0, msg.query || findInput.value);
+                        revealLine(msg.lineNumber, msg.indexOfMatch || 0, msg.matchLength || 0, msg.query || findInput.value, true);
                     }
                     break;
                 case 'focus':
@@ -3010,7 +3010,7 @@
             }
         }
 
-        function revealLine(lineNumber, indexOfMatch = 0, matchLength = 0, query = '') {
+        function revealLine(lineNumber, indexOfMatch = 0, matchLength = 0, query = '', preventFocus = false) {
             const safeLine = Math.min(Math.max(1, Number(lineNumber || 1)), state.lineCount);
             state.currentLine = safeLine;
             state.currentColumn = Math.max(1, Number(indexOfMatch || 0) + 1);
@@ -3020,7 +3020,9 @@
             scrollContainer.scrollTop = Math.max(0, lineTop(safeLine) - state.lineHeight * state.overscan);
             requestLines(Math.max(1, safeLine - state.overscan), state.overscan * 2 + 1);
             queueRender(true);
-            setTimeout(() => focusLine(safeLine, Math.max(0, indexOfMatch || 0)), 40);
+            if (!preventFocus) {
+                setTimeout(() => focusLine(safeLine, Math.max(0, indexOfMatch || 0)), 40);
+            }
         }
 
         function printDocument(fullText) {
@@ -3309,6 +3311,10 @@
                     post({ type: 'shortcut', name: 'redo' });
                     return;
                 }
+            }
+
+            if (document.activeElement && (document.activeElement.closest('#find-panel') || document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+                return;
             }
 
             const element = activeEditableElement();

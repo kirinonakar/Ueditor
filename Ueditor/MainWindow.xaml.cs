@@ -598,8 +598,20 @@ namespace Ueditor
                 {
                     return;
                 }
+                string type = typeProp.GetString() ?? string.Empty;
+                if (string.Equals(type, "shortcut", StringComparison.Ordinal))
+                {
+                    if (root.TryGetProperty("name", out var nameProp) && string.Equals(nameProp.GetString(), "find", StringComparison.Ordinal))
+                    {
+                        this.DispatcherQueue.TryEnqueue(() =>
+                        {
+                            OnFindClick(null!, null!);
+                        });
+                    }
+                    return;
+                }
 
-                if (!string.Equals(typeProp.GetString(), "previewRequestLines", StringComparison.Ordinal))
+                if (!string.Equals(type, "previewRequestLines", StringComparison.Ordinal))
                 {
                     return;
                 }

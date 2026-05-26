@@ -1513,6 +1513,24 @@
                 else if (message.action === 'render') renderFullFallback(message);
             });
         }
+
+        function handleKeyDown(event) {
+            const ctrl = event.ctrlKey || event.metaKey;
+            const key = event.key ? event.key.toLowerCase() : '';
+            if (ctrl && key === 'f') {
+                event.preventDefault();
+                post({ type: 'shortcut', name: 'find' });
+            }
+        }
+
+        document.addEventListener('keydown', handleKeyDown);
+        htmlPreview.addEventListener('load', () => {
+            try {
+                htmlPreview.contentWindow.addEventListener('keydown', handleKeyDown);
+            } catch (e) {
+                // Ignore cross-origin errors
+            }
+        });
     </script>
 </body>
 </html>
