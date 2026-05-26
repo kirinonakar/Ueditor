@@ -110,6 +110,12 @@
                         </Flyout>
                     </Button.ContextFlyout>
                 </Button>
+                <Button x:Name="MarkdownCharMapButton" Tag="charmap" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="문자표">
+                    <FontIcon Glyph="&#xE8D2;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
+                </Button>
+                <Button x:Name="MarkdownCurrentDateButton" Tag="currentDate" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="현재 날짜">
+                    <FontIcon Glyph="&#xE787;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
+                </Button>
                 <Button x:Name="MarkdownLinkButton" Tag="link" Style="{StaticResource MarkdownToolbarButtonStyle}" Click="OnCommandButtonClick" ToolTipService.ToolTip="링크">
                     <FontIcon Glyph="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="13"/>
                 </Button>

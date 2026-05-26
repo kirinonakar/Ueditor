@@ -209,6 +209,12 @@
   <data name="Link" xml:space="preserve">
     <value>Link</value>
   </data>
+  <data name="CharMap" xml:space="preserve">
+    <value>Character Map</value>
+  </data>
+  <data name="CurrentDate" xml:space="preserve">
+    <value>Current Date</value>
+  </data>
   <data name="SettingsTitle" xml:space="preserve">
     <value>Ueditor Settings</value>
   </data>

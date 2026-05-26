@@ -2759,6 +2759,29 @@ namespace Ueditor
 
         private async void OnMarkdownToolbarCommandRequested(object? sender, MarkdownCommandRequestedEventArgs e)
         {
+            if (e.Command == "charmap")
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "charmap.exe",
+                        UseShellExecute = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    ShowErrorMessage("문자표 실행 실패", ex.Message);
+                }
+                return;
+            }
+            else if (e.Command == "currentDate")
+            {
+                string dateStr = DateTime.Now.ToString("yyyy-MM-dd");
+                await InsertTextIntoActiveEditorAsync(dateStr);
+                return;
+            }
+
             await ApplyMarkdownCommandToActiveEditorAsync(e.Command, e.Color);
         }
 

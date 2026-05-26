@@ -57,6 +57,8 @@ namespace Ueditor.Controls
             ToolTipService.SetToolTip(MarkdownFontIncreaseButton, getText("FontIncrease", "글자 크게"));
             ToolTipService.SetToolTip(MarkdownFontDecreaseButton, getText("FontDecrease", "글자 작게"));
             ToolTipService.SetToolTip(TextColorButton, getText("TextColor", "글자색 (우클릭: 색상 선택)"));
+            ToolTipService.SetToolTip(MarkdownCharMapButton, getText("CharMap", "문자표"));
+            ToolTipService.SetToolTip(MarkdownCurrentDateButton, getText("CurrentDate", "현재 날짜"));
             ToolTipService.SetToolTip(MarkdownLinkButton, getText("Link", "링크"));
         }
 

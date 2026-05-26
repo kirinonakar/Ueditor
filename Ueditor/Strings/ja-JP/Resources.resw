@@ -209,6 +209,12 @@
   <data name="Link" xml:space="preserve">
     <value>リンク</value>
   </data>
+  <data name="CharMap" xml:space="preserve">
+    <value>文字の選択</value>
+  </data>
+  <data name="CurrentDate" xml:space="preserve">
+    <value>現在の日付</value>
+  </data>
   <data name="SettingsTitle" xml:space="preserve">
     <value>Ueditor 設定</value>
   </data>

@@ -209,6 +209,12 @@
   <data name="Link" xml:space="preserve">
     <value>링크</value>
   </data>
+  <data name="CharMap" xml:space="preserve">
+    <value>문자표</value>
+  </data>
+  <data name="CurrentDate" xml:space="preserve">
+    <value>현재 날짜</value>
+  </data>
   <data name="SettingsTitle" xml:space="preserve">
     <value>Ueditor 설정</value>
   </data>
@@ -483,7 +489,7 @@
     <value>Markdown</value>
   </data>
   <data name="ComboItemHtml" xml:space="preserve">
-    <value>HTML 미리보기</value>
+    <value>HTML</value>
   </data>
   <data name="ComboItemLatex" xml:space="preserve">
     <value>LaTeX Block</value>
