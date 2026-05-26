@@ -639,4 +639,10 @@
   <data name="EditorFindCloseTooltip" xml:space="preserve">
     <value>닫기</value>
   </data>
+  <data name="StatusTotalLinesFormat" xml:space="preserve">
+    <value>전체 줄수: {0}</value>
+  </data>
+  <data name="StatusSelectionStatsFormat" xml:space="preserve">
+    <value>선택됨: {0}자 / {1}단어 / {2}줄</value>
+  </data>
 </root>

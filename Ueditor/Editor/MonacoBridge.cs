@@ -408,10 +408,7 @@ namespace Ueditor.Editor
                             break;
 
                         case "contentChanged":
-                            if (root.TryGetProperty("content", out JsonElement contentProp))
-                            {
-                                ContentChanged?.Invoke(contentProp.GetString() ?? string.Empty);
-                            }
+                            ContentChanged?.Invoke(string.Empty);
                             break;
 
                         case "requestLines":

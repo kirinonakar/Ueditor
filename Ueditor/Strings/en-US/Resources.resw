@@ -639,4 +639,10 @@ Supports live preview, code &amp; formula templates, terminal interface, Git int
   <data name="EditorFindCloseTooltip" xml:space="preserve">
     <value>Close</value>
   </data>
+  <data name="StatusTotalLinesFormat" xml:space="preserve">
+    <value>Total Lines: {0}</value>
+  </data>
+  <data name="StatusSelectionStatsFormat" xml:space="preserve">
+    <value>Selected: {0} chars / {1} words / {2} lines</value>
+  </data>
 </root>

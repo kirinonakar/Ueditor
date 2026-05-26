@@ -116,7 +116,7 @@
             </ToggleButton>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="15" VerticalAlignment="Center" Margin="8,0,0,0">
-                <Button x:Name="LineNumberButton" Padding="0" Background="Transparent" BorderBrush="Transparent" Click="HandleLineNumberClick" ToolTipService.ToolTip="클릭하여 줄 이동">
+                <Button x:Name="LineNumberButton" MinWidth="90" HorizontalContentAlignment="Left" Padding="0" Background="Transparent" BorderBrush="Transparent" Click="HandleLineNumberClick" ToolTipService.ToolTip="클릭하여 줄 이동">
                     <StackPanel Orientation="Horizontal" Spacing="3">
                         <TextBlock x:Name="StatusLineLabel" Text="줄" FontSize="11" VerticalAlignment="Center"/>
                         <TextBlock x:Name="StatusLine" Text="1" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -125,10 +125,12 @@
                         <TextBlock x:Name="StatusCol" Text="1" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <TextBlock x:Name="StatusFileStats" Text="크기: 0 bytes" FontSize="11" VerticalAlignment="Center"/>
-                <Button x:Name="LineEndingButton" Padding="4,0" Background="Transparent" BorderBrush="Transparent" Click="HandleLineEndingClick" ToolTipService.ToolTip="클릭하여 줄 끝 방식 변경">
+                <TextBlock x:Name="StatusTotalLines" MinWidth="85" Text="전체 줄수: 0" FontSize="11" VerticalAlignment="Center"/>
+                <TextBlock x:Name="StatusFileStats" MinWidth="110" Text="크기: 0 bytes" FontSize="11" VerticalAlignment="Center"/>
+                <Button x:Name="LineEndingButton" MinWidth="35" HorizontalContentAlignment="Left" Padding="4,0" Background="Transparent" BorderBrush="Transparent" Click="HandleLineEndingClick" ToolTipService.ToolTip="클릭하여 줄 끝 방식 변경">
                     <TextBlock x:Name="StatusLineEnding" Text="LF" FontSize="11" VerticalAlignment="Center"/>
                 </Button>
+                <TextBlock x:Name="StatusSelectionStats" Text="" FontSize="11" VerticalAlignment="Center" Visibility="Collapsed"/>
             </StackPanel>
 
             <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="15" VerticalAlignment="Center">

@@ -115,6 +115,8 @@ namespace Ueditor
         private ToggleButton RightPanelToggle => StatusBarPane.RightPanelToggleButton;
         private TextBlock StatusLine => StatusBarPane.LineText;
         private TextBlock StatusCol => StatusBarPane.ColumnText;
+        private TextBlock StatusTotalLines => StatusBarPane.TotalLinesText;
+        private TextBlock StatusSelectionStats => StatusBarPane.StatusSelectionStatsText;
         private TextBlock StatusFileStats => StatusBarPane.FileStatsText;
         private TextBlock StatusGitBranch => StatusBarPane.GitBranchText;
         private TextBlock StatusLanguage => StatusBarPane.LanguageText;
@@ -806,6 +808,8 @@ namespace Ueditor
             targetTabView.SelectedItem = tabItem;
 
             UpdateStatusFileStats(tab);
+            UpdateTotalLines(tab);
+            UpdateStatusSelectionStats(null);
             SyncEncodingCombo(tab);
             SyncLineEndingText(tab);
             UpdateWindowTitle();
@@ -936,6 +940,7 @@ namespace Ueditor
                 await bridge.UpdateLineCountAsync(lineCount);
                 SchedulePreview(tab);
                 await SyncEditsToOtherTabsAsync(tab);
+                UpdateTotalLines(tab);
             };
 
             bridge.LineSplitRequested += async (lineNumber, before, after) =>
@@ -945,6 +950,7 @@ namespace Ueditor
                 await bridge.UpdateLineCountAsync(lineCount);
                 SchedulePreview(tab);
                 await SyncEditsToOtherTabsAsync(tab);
+                UpdateTotalLines(tab);
             };
 
             bridge.MergeLineWithPreviousRequested += async (lineNumber) =>
@@ -954,6 +960,7 @@ namespace Ueditor
                 await bridge.UpdateLineCountAsync(lineCount);
                 SchedulePreview(tab);
                 await SyncEditsToOtherTabsAsync(tab);
+                UpdateTotalLines(tab);
             };
 
             bridge.DeleteLineRequested += async (lineNumber) =>
@@ -963,6 +970,7 @@ namespace Ueditor
                 await bridge.UpdateLineCountAsync(lineCount);
                 SchedulePreview(tab);
                 await SyncEditsToOtherTabsAsync(tab);
+                UpdateTotalLines(tab);
             };
 
             bridge.FindRequested += async (query, startLine, startColumn, reverse, matchCase) =>
@@ -983,6 +991,8 @@ namespace Ueditor
                 SchedulePreview(tab);
                 UpdateLanguageUI(tab);
                 _tocController?.RefreshToc(tab);
+                UpdateTotalLines(tab);
+                PropagateDirtyStateToOtherTabs(tab);
             };
 
             bridge.CursorChanged += (line, col) =>
@@ -1009,6 +1019,7 @@ namespace Ueditor
                         string fmt = GetLocalizedString("SelectionStats", "선택 영역: {0} 글자 수 (약 {1} 토큰)");
                         SelectionStatsText.Text = string.Format(fmt, selectedText.Length.ToString("N0"), (selectedText.Length / 4).ToString("N0"));
                     }
+                    UpdateStatusSelectionStats(selectedText);
                 }
             };
 
@@ -1086,6 +1097,27 @@ namespace Ueditor
             {
                 tab.IsDirty = true;
                 tabItem.Header = tab.DisplayTitle;
+            }
+        }
+
+        private void PropagateDirtyStateToOtherTabs(OpenedTab sourceTab)
+        {
+            if (string.IsNullOrEmpty(sourceTab.FilePath)) return;
+
+            var otherTabs = _viewModel.Tabs.Where(t =>
+                t.Id != sourceTab.Id &&
+                !string.IsNullOrEmpty(t.FilePath) &&
+                t.FilePath.Equals(sourceTab.FilePath, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+
+            foreach (var otherTab in otherTabs)
+            {
+                var otherTabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == otherTab.Id)
+                                ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == otherTab.Id);
+                if (otherTabItem != null)
+                {
+                    MarkTabDirty(otherTab, otherTabItem);
+                }
             }
         }
 
@@ -1866,6 +1898,12 @@ namespace Ueditor
                 PreviewGrid.Localize(GetString);
                 PreviewGrid.UpdateTranslateLanguage(_settingsService.CurrentSettings?.LlmTargetLanguage ?? "Korean");
                 MarkdownToolbar.LocalizeTooltips(GetString);
+
+                var activeTab = GetActiveTab();
+                if (activeTab != null)
+                {
+                    UpdateTotalLines(activeTab);
+                }
             }
             catch (Exception ex)
             {
@@ -2149,6 +2187,8 @@ namespace Ueditor
                 if (activeTab != null)
                 {
                     UpdateStatusFileStats(activeTab);
+                    UpdateTotalLines(activeTab);
+                    UpdateStatusSelectionStats(null);
                     UpdateLivePreview(activeTab);
                     UpdateLanguageUI(activeTab);
                     SyncEncodingCombo(activeTab);
@@ -2318,6 +2358,8 @@ namespace Ueditor
                 if (tab != null)
                 {
                     UpdateStatusFileStats(tab);
+                    UpdateTotalLines(tab);
+                    UpdateStatusSelectionStats(null);
                     UpdateLivePreview(tab);
                     UpdateLanguageUI(tab);
                     SyncEncodingCombo(tab);
@@ -2687,6 +2729,40 @@ namespace Ueditor
             }
         }
 
+        private void UpdateTotalLines(OpenedTab tab)
+        {
+            if (tab == null || GetActiveTab() != tab) return;
+            if (_editorSessions.TryGetValue(tab.Id, out var session))
+            {
+                int totalLines = session.Model.LineCount;
+                string format = GetLocalizedString("StatusTotalLinesFormat", "전체 줄수: {0}");
+                StatusTotalLines.Text = string.Format(format, totalLines);
+            }
+            else
+            {
+                string format = GetLocalizedString("StatusTotalLinesFormat", "전체 줄수: {0}");
+                StatusTotalLines.Text = string.Format(format, 1);
+            }
+        }
+
+        private void UpdateStatusSelectionStats(string? selectedText)
+        {
+            if (string.IsNullOrEmpty(selectedText))
+            {
+                StatusSelectionStats.Visibility = Visibility.Collapsed;
+                StatusSelectionStats.Text = string.Empty;
+                return;
+            }
+
+            int charCount = selectedText.Length;
+            int wordCount = selectedText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+            int lineCount = selectedText.Replace("\r\n", "\n").Split('\n').Length;
+
+            string format = GetLocalizedString("StatusSelectionStatsFormat", "선택됨: {0}자 / {1}단어 / {2}줄");
+            StatusSelectionStats.Text = string.Format(format, charCount.ToString("N0"), wordCount.ToString("N0"), lineCount.ToString("N0"));
+            StatusSelectionStats.Visibility = Visibility.Visible;
+        }
+
         private void SyncEncodingCombo(OpenedTab tab)
         {
             try
@@ -2802,6 +2878,8 @@ namespace Ueditor
 
                 UpdateLivePreview(tab);
                 UpdateStatusFileStats(tab);
+                UpdateTotalLines(tab);
+                UpdateStatusSelectionStats(null);
                 UpdateLanguageUI(tab);
                 SyncEncodingCombo(tab);
                 SyncLineEndingText(tab);
@@ -3145,6 +3223,7 @@ namespace Ueditor
                 }
 
                 UpdateStatusFileStats(tab);
+                UpdateTotalLines(tab);
                 UpdateLanguageUI(tab);
                 SyncEncodingCombo(tab);
                 SyncLineEndingText(tab);
@@ -3202,6 +3281,7 @@ namespace Ueditor
                 tab.IsDirty = false;
                 tabItem.Header = tab.DisplayTitle;
                 UpdateStatusFileStats(tab);
+                UpdateTotalLines(tab);
                 UpdateLanguageUI(tab);
                 SyncEncodingCombo(tab);
                 await RefreshGitStatusUIAsync();

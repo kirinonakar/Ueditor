@@ -640,4 +640,10 @@
   <data name="EditorFindCloseTooltip" xml:space="preserve">
     <value>閉じる</value>
   </data>
+  <data name="StatusTotalLinesFormat" xml:space="preserve">
+    <value>総行数: {0}</value>
+  </data>
+  <data name="StatusSelectionStatsFormat" xml:space="preserve">
+    <value>選択済: {0}文字 / {1}単語 / {2}行</value>
+  </data>
 </root>
