@@ -17,6 +17,7 @@ namespace Ueditor.Editor
         private readonly ILocalizationService? _localizationService;
         private bool _isReady = false;
         private string? _pendingText = null;
+        private bool _pendingSetTextShouldFocus = true;
 
         public event Action<string>? ContentChanged;
         public event Action<string>? SelectionReceived;
@@ -24,7 +25,7 @@ namespace Ueditor.Editor
         public event Action? EditorReady;
         public event Action<string>? ShortcutPressed;
         public event Action<int, int, int>? LinesRequested;
-        public event Action<int, string>? LineChanged;
+        public event Action<int, string, bool>? LineChanged;
         public event Action<int, string>? LineInsertRequested;
         public event Action<int, string, string>? LineSplitRequested;
         public event Action<int>? MergeLineWithPreviousRequested;
@@ -72,15 +73,16 @@ namespace Ueditor.Editor
             _webView.Source = new Uri(hostUrl);
         }
 
-        public async Task SetTextAsync(string text)
+        public async Task SetTextAsync(string text, bool shouldFocus = true)
         {
             if (!_isReady)
             {
                 _pendingText = text;
+                _pendingSetTextShouldFocus = shouldFocus;
                 return;
             }
 
-            var msg = new { action = "setText", text = text };
+            var msg = new { action = "setText", text = text, shouldFocus = shouldFocus };
             await SendMessageAsync(msg);
         }
 
@@ -399,8 +401,9 @@ namespace Ueditor.Editor
                             EditorReady?.Invoke();
                             if (_pendingText != null)
                             {
-                                _ = SetTextAsync(_pendingText);
+                                _ = SetTextAsync(_pendingText, _pendingSetTextShouldFocus);
                                 _pendingText = null;
+                                _pendingSetTextShouldFocus = true;
                             }
                             break;
 
@@ -427,7 +430,9 @@ namespace Ueditor.Editor
                             if (root.TryGetProperty("lineNumber", out JsonElement lineNumberProp) &&
                                 root.TryGetProperty("text", out JsonElement textProp))
                             {
-                                LineChanged?.Invoke(lineNumberProp.GetInt32(), textProp.GetString() ?? string.Empty);
+                                bool isComposing = root.TryGetProperty("isComposing", out JsonElement isComposingProp) &&
+                                    isComposingProp.ValueKind == JsonValueKind.True;
+                                LineChanged?.Invoke(lineNumberProp.GetInt32(), textProp.GetString() ?? string.Empty, isComposing);
                             }
                             break;
 

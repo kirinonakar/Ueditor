@@ -1415,11 +1415,14 @@
         function commitLine(element) {
             const lineNumber = Number(element.dataset.line || 1);
             const text = lineTextFromElement(element);
+            const isComposing = state.isComposing;
             state.cache.set(lineNumber, text);
             state.currentLine = lineNumber;
             state.currentColumn = getCaretOffset(element) + 1;
-            post({ type: 'lineChanged', lineNumber, text });
-            post({ type: 'contentChanged' });
+            post({ type: 'lineChanged', lineNumber, text, isComposing });
+            if (!isComposing) {
+                post({ type: 'contentChanged' });
+            }
             reportCursorAndSelection(element);
         }
 
@@ -3086,7 +3089,9 @@
                         setupModel(Math.max(1, lines.length));
                         lines.forEach((line, index) => state.cache.set(index + 1, line));
                         queueRender(true);
-                        setTimeout(() => focusLine(targetLine, targetCol), 20);
+                        if (msg.shouldFocus !== false) {
+                            setTimeout(() => focusLine(targetLine, targetCol), 20);
+                        }
                     }
                     break;
                 case 'receiveLines':

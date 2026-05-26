@@ -918,12 +918,15 @@ namespace Ueditor
                 }
             };
 
-            bridge.LineChanged += (lineNumber, text) =>
+            bridge.LineChanged += (lineNumber, text, isComposing) =>
             {
                 session.ReplaceLine(lineNumber, text);
-                MarkTabDirty(tab, tabItem);
-                SchedulePreview(tab);
-                _ = SyncEditsToOtherTabsAsync(tab);
+                if (!isComposing)
+                {
+                    MarkTabDirty(tab, tabItem);
+                    SchedulePreview(tab);
+                }
+                _ = SyncEditsToOtherTabsAsync(tab, updateUi: !isComposing);
             };
 
             bridge.LineInsertRequested += async (lineNumber, text) =>
@@ -2273,7 +2276,7 @@ namespace Ueditor
 
                 if (_tabBridges.TryGetValue(keeper.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
                 {
-                    _ = bridgeGroup.Bridge.SetTextAsync(duplicateText);
+                    _ = bridgeGroup.Bridge.SetTextAsync(duplicateText, shouldFocus: false);
                 }
             }
 
@@ -2849,7 +2852,7 @@ namespace Ueditor
             });
         }
 
-        private async Task SyncEditsToOtherTabsAsync(OpenedTab sourceTab)
+        private async Task SyncEditsToOtherTabsAsync(OpenedTab sourceTab, bool updateUi = true)
         {
             if (string.IsNullOrEmpty(sourceTab.FilePath)) return;
 
@@ -2873,7 +2876,11 @@ namespace Ueditor
                 var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == otherTab.Id)
                            ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == otherTab.Id);
 
-                if (sourceTab.IsDirty)
+                if (!updateUi)
+                {
+                    otherTab.IsDirty = sourceTab.IsDirty;
+                }
+                else if (sourceTab.IsDirty)
                 {
                     if (tabItem != null)
                     {
@@ -2891,10 +2898,13 @@ namespace Ueditor
 
                 if (_tabBridges.TryGetValue(otherTab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
                 {
-                    await bridgeGroup.Bridge.SetTextAsync(updatedText);
+                    await bridgeGroup.Bridge.SetTextAsync(updatedText, shouldFocus: false);
                 }
 
-                SchedulePreview(otherTab);
+                if (updateUi)
+                {
+                    SchedulePreview(otherTab);
+                }
             }
         }
 
