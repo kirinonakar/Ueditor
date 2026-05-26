@@ -2485,36 +2485,54 @@ namespace Ueditor
                 return;
             }
 
-            if (tab.IsDirty)
+            if (selectedEncoding == "Auto")
             {
-                var dialog = new ContentDialog
-                {
-                    Title = "인코딩 변경",
-                    Content = "인코딩을 바꾸면 파일을 다시 읽습니다. 저장하지 않은 변경 사항을 먼저 저장하시겠습니까?",
-                    PrimaryButtonText = "저장 후 변경",
-                    SecondaryButtonText = "저장 안 함",
-                    CloseButtonText = "취소",
-                    XamlRoot = this.Content.XamlRoot
-                };
-
-                var result = await dialog.ShowAsync();
-                if (result == ContentDialogResult.Primary)
-                {
-                    bool saved = await SaveTabAsync(tab);
-                    if (!saved)
-                    {
-                        SyncEncodingCombo(tab);
-                        return;
-                    }
-                }
-                else if (result != ContentDialogResult.Secondary)
-                {
-                    SyncEncodingCombo(tab);
-                    return;
-                }
+                await ReloadTabWithEncodingAsync(tab, selectedEncoding);
+                return;
             }
 
-            await ReloadTabWithEncodingAsync(tab, selectedEncoding);
+            string dirtyWarning = tab.IsDirty
+                ? GetLocalizedString("EncodingChangeDirtyWarning", "\n\n(주의: '다시 읽기'를 선택하면 저장하지 않은 변경 사항이 유실됩니다!)")
+                : string.Empty;
+
+            string contentFormat = GetLocalizedString(
+                "EncodingChangeContentFormat",
+                "현재 열려 있는 파일의 인코딩을 '{0}'(으)로 변경하시겠습니까?\n\n- 변환: 현재 편집 중인 텍스트를 유지하고 파일 인코딩 형식을 변환하여 저장합니다.\n- 다시 읽기: 저장된 파일을 해당 인코딩으로 다시 로드합니다.{1}");
+
+            var dialog = new ContentDialog
+            {
+                Title = GetLocalizedString("EncodingChangeTitle", "인코딩 변경"),
+                Content = string.Format(contentFormat, selectedEncoding, dirtyWarning),
+                PrimaryButtonText = GetLocalizedString("EncodingChangeConvert", "변환"),
+                SecondaryButtonText = GetLocalizedString("EncodingChangeReopen", "다시 읽기"),
+                CloseButtonText = GetLocalizedString("EncodingChangeCancel", "취소"),
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                tab.EncodingName = selectedEncoding;
+                var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id)
+                           ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id);
+                if (tabItem != null)
+                {
+                    MarkTabDirty(tab, tabItem);
+                }
+                else
+                {
+                    tab.IsDirty = true;
+                }
+                SyncEncodingCombo(tab);
+            }
+            else if (result == ContentDialogResult.Secondary)
+            {
+                await ReloadTabWithEncodingAsync(tab, selectedEncoding);
+            }
+            else
+            {
+                SyncEncodingCombo(tab);
+            }
         }
 
         private async Task ReloadTabWithEncodingAsync(OpenedTab tab, string encodingName)
