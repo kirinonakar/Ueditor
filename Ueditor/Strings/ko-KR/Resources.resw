@@ -651,4 +651,265 @@
   <data name="StatusSelectionStatsFormat" xml:space="preserve">
     <value>선택됨: {0}자 / {1}단어 / {2}줄</value>
   </data>
+  <data name="UnsavedChangesAppCloseTitle" xml:space="preserve">
+    <value>저장되지 않은 변경 사항</value>
+  </data>
+  <data name="UnsavedChangesAppCloseMessage" xml:space="preserve">
+    <value>저장되지 않은 탭이 {0}개 있습니다. 종료하기 전에 저장하시겠습니까?</value>
+  </data>
+  <data name="UnsavedChangesAppCloseDiscard" xml:space="preserve">
+    <value>저장하지 않고 종료</value>
+  </data>
+  <data name="UnsavedChangesAppCloseSave" xml:space="preserve">
+    <value>저장하고 종료</value>
+  </data>
+  <data name="UnsavedChangesTabCloseTitle" xml:space="preserve">
+    <value>변경 내용 저장</value>
+  </data>
+  <data name="UnsavedChangesTabCloseMessage" xml:space="preserve">
+    <value>파일 '{0}'의 변경 내용이 저장되지 않았습니다. 닫으시겠습니까?</value>
+  </data>
+  <data name="UnsavedChangesTabCloseDiscard" xml:space="preserve">
+    <value>저장하지 않고 닫기</value>
+  </data>
+  <data name="UnsavedChangesTabCloseSave" xml:space="preserve">
+    <value>저장</value>
+  </data>
+  <data name="UnsavedChangesCancel" xml:space="preserve">
+    <value>취소</value>
+  </data>
+  <data name="GitHistoryItemDialogTitle" xml:space="preserve">
+    <value>커밋 정보 [{0}]</value>
+  </data>
+  <data name="GitHistoryItemClose" xml:space="preserve">
+    <value>닫기</value>
+  </data>
+  <data name="GitHistoryItemDialogHeader" xml:space="preserve">
+    <value>변경된 파일 목록 (더블클릭 시 비교 뷰어 열림):</value>
+  </data>
+  <data name="GitCommitSuccessTitle" xml:space="preserve">
+    <value>Git 커밋</value>
+  </data>
+  <data name="GitCommitSuccessMessage" xml:space="preserve">
+    <value>성공적으로 커밋 완료되었습니다!</value>
+  </data>
+  <data name="UntitledNewTab" xml:space="preserve">
+    <value>제목 없음</value>
+  </data>
+  <data name="GoToLinePlaceholder" xml:space="preserve">
+    <value>이동할 줄 번호 입력...</value>
+  </data>
+  <data name="GoToLineTitle" xml:space="preserve">
+    <value>줄 이동 (Go to Line)</value>
+  </data>
+  <data name="GoToLineButton" xml:space="preserve">
+    <value>이동</value>
+  </data>
+  <data name="GoToLineCancel" xml:space="preserve">
+    <value>취소</value>
+  </data>
+  <data name="SnippetInsertErrorTitle" xml:space="preserve">
+    <value>스니펫 삽입 오류</value>
+  </data>
+  <data name="SnippetInsertErrorMessage" xml:space="preserve">
+    <value>현재 텍스트 에디터 창이 활성화되어 있지 않습니다.</value>
+  </data>
+  <data name="SnippetAddTitle" xml:space="preserve">
+    <value>새 코드/수식 스니펫 추가</value>
+  </data>
+  <data name="SnippetAddButton" xml:space="preserve">
+    <value>추가</value>
+  </data>
+  <data name="SnippetEditTitle" xml:space="preserve">
+    <value>스니펫 수정</value>
+  </data>
+  <data name="SnippetEditSave" xml:space="preserve">
+    <value>저장</value>
+  </data>
+  <data name="SnippetPlaceholderName" xml:space="preserve">
+    <value>스니펫 이름 (예: C# Loop)</value>
+  </data>
+  <data name="SnippetPlaceholderKeyword" xml:space="preserve">
+    <value>키워드 (예: loop)</value>
+  </data>
+  <data name="SnippetPlaceholderDesc" xml:space="preserve">
+    <value>간단한 설명</value>
+  </data>
+  <data name="SnippetPlaceholderContent" xml:space="preserve">
+    <value>코드 본문 입력...</value>
+  </data>
+  <data name="SnippetLabelName" xml:space="preserve">
+    <value>스니펫 이름</value>
+  </data>
+  <data name="SnippetLabelKeyword" xml:space="preserve">
+    <value>자동완성 키워드</value>
+  </data>
+  <data name="SnippetLabelDesc" xml:space="preserve">
+    <value>설명</value>
+  </data>
+  <data name="SnippetLabelContent" xml:space="preserve">
+    <value>템플릿 내용</value>
+  </data>
+  <data name="SnippetCancel" xml:space="preserve">
+    <value>취소</value>
+  </data>
+  <data name="CompareSelectFromTab" xml:space="preserve">
+    <value>탭에서 선택...</value>
+  </data>
+  <data name="CompareTabPrefix" xml:space="preserve">
+    <value>탭</value>
+  </data>
+  <data name="CompareOriginalPathPlaceholder" xml:space="preserve">
+    <value>원본 파일 경로...</value>
+  </data>
+  <data name="CompareBrowse" xml:space="preserve">
+    <value>찾아보기...</value>
+  </data>
+  <data name="CompareModifiedPathPlaceholder" xml:space="preserve">
+    <value>비교 대상 파일 경로...</value>
+  </data>
+  <data name="CompareOriginalFileLabel" xml:space="preserve">
+    <value>원본 파일 (Original File)</value>
+  </data>
+  <data name="CompareModifiedFileLabel" xml:space="preserve">
+    <value>비교 대상 파일 (Modified File)</value>
+  </data>
+  <data name="CompareDialogTitle" xml:space="preserve">
+    <value>파일 비교 (File Compare)</value>
+  </data>
+  <data name="CompareDialogCompareButton" xml:space="preserve">
+    <value>비교하기</value>
+  </data>
+  <data name="CompareDialogCancelButton" xml:space="preserve">
+    <value>취소</value>
+  </data>
+  <data name="TextColorPickerTitle" xml:space="preserve">
+    <value>글자색 선택</value>
+  </data>
+  <data name="TextColorApplyButton" xml:space="preserve">
+    <value>적용</value>
+  </data>
+  <data name="TabMenuAddBookmark" xml:space="preserve">
+    <value>북마크 추가</value>
+  </data>
+  <data name="TabMenuOpenFolder" xml:space="preserve">
+    <value>해당 폴더로 이동</value>
+  </data>
+  <data name="TabMenuCloseRight" xml:space="preserve">
+    <value>오른쪽 탭 닫기</value>
+  </data>
+  <data name="TabMenuCloseLeft" xml:space="preserve">
+    <value>왼쪽 탭 닫기</value>
+  </data>
+  <data name="EditorContextMenuCut" xml:space="preserve">
+    <value>잘라내기</value>
+  </data>
+  <data name="EditorContextMenuCopy" xml:space="preserve">
+    <value>복사</value>
+  </data>
+  <data name="EditorContextMenuPaste" xml:space="preserve">
+    <value>붙여넣기</value>
+  </data>
+  <data name="EditorContextMenuDelete" xml:space="preserve">
+    <value>삭제</value>
+  </data>
+  <data name="EditorContextMenuSelectAll" xml:space="preserve">
+    <value>모두 선택</value>
+  </data>
+  <data name="EditorContextMenuToggleComment" xml:space="preserve">
+    <value>주석 토글</value>
+  </data>
+  <data name="EditorContextMenuIndent" xml:space="preserve">
+    <value>들여쓰기</value>
+  </data>
+  <data name="EditorContextMenuOutdent" xml:space="preserve">
+    <value>내여쓰기</value>
+  </data>
+  <data name="EditorContextMenuLineCleanup" xml:space="preserve">
+    <value>줄 정리</value>
+  </data>
+  <data name="EditorContextMenuSortAsc" xml:space="preserve">
+    <value>오름차순 정렬</value>
+  </data>
+  <data name="EditorContextMenuSortDesc" xml:space="preserve">
+    <value>내림차순 정렬</value>
+  </data>
+  <data name="EditorContextMenuRemoveDuplicates" xml:space="preserve">
+    <value>중복 줄 제거</value>
+  </data>
+  <data name="EditorContextMenuRemoveEmptyLines" xml:space="preserve">
+    <value>빈 줄 제거</value>
+  </data>
+  <data name="EditorContextMenuCollapseConsecutiveEmptyLines" xml:space="preserve">
+    <value>연속 빈줄 하나로 줄이기</value>
+  </data>
+  <data name="EditorContextMenuTrimSpaces" xml:space="preserve">
+    <value>앞뒤 공백 제거</value>
+  </data>
+  <data name="EditorContextMenuConvert" xml:space="preserve">
+    <value>변환</value>
+  </data>
+  <data name="EditorContextMenuToUpperCase" xml:space="preserve">
+    <value>대문자로</value>
+  </data>
+  <data name="EditorContextMenuToLowerCase" xml:space="preserve">
+    <value>소문자로</value>
+  </data>
+  <data name="EditorContextMenuToSentenceCase" xml:space="preserve">
+    <value>Sentence case</value>
+  </data>
+  <data name="EditorContextMenuToTitleCase" xml:space="preserve">
+    <value>Title case</value>
+  </data>
+  <data name="EditorContextMenuUrlEncode" xml:space="preserve">
+    <value>URL Encode</value>
+  </data>
+  <data name="EditorContextMenuUrlDecode" xml:space="preserve">
+    <value>URL Decode</value>
+  </data>
+  <data name="EditorContextMenuBase64Encode" xml:space="preserve">
+    <value>Base64 Encode</value>
+  </data>
+  <data name="EditorContextMenuBase64Decode" xml:space="preserve">
+    <value>Base64 Decode</value>
+  </data>
+  <data name="EditorContextMenuHexToDec" xml:space="preserve">
+    <value>HEX → DEC</value>
+  </data>
+  <data name="EditorContextMenuDecToHex" xml:space="preserve">
+    <value>DEC → HEX</value>
+  </data>
+  <data name="EditorContextMenuFormatText" xml:space="preserve">
+    <value>Format text</value>
+  </data>
+  <data name="EditorContextMenuScrollSync" xml:space="preserve">
+    <value>스크롤 동기화</value>
+  </data>
+  <data name="EditorAutocompleteSnippet" xml:space="preserve">
+    <value>스니펫</value>
+  </data>
+  <data name="EditorAutocompleteSnippetPrefix" xml:space="preserve">
+    <value>스니펫: </value>
+  </data>
+  <data name="DiffCompareToolTitle" xml:space="preserve">
+    <value>Ueditor 파일 비교 도구 (File Compare)</value>
+  </data>
+  <data name="DiffStatsGathering" xml:space="preserve">
+    <value>수집 중...</value>
+  </data>
+  <data name="DiffOriginalFileLabel" xml:space="preserve">
+    <value>원본 파일 (Original)</value>
+  </data>
+  <data name="DiffModifiedFileLabel" xml:space="preserve">
+    <value>비교 대상 파일 (Modified)</value>
+  </data>
+  <data name="DiffOriginalPrefix" xml:space="preserve">
+    <value>원본: </value>
+  </data>
+  <data name="DiffModifiedPrefix" xml:space="preserve">
+    <value>수정본: </value>
+  </data>
+  <data name="DiffStatsFormat" xml:space="preserve">
+    <value>변경사항: 추가 {0}줄, 삭제 {1}줄</value>
+  </data>
 </root>

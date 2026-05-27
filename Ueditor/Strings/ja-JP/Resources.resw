@@ -652,4 +652,265 @@
   <data name="StatusSelectionStatsFormat" xml:space="preserve">
     <value>選択済: {0}文字 / {1}単語 / {2}行</value>
   </data>
+  <data name="UnsavedChangesAppCloseTitle" xml:space="preserve">
+    <value>保存されていない変更</value>
+  </data>
+  <data name="UnsavedChangesAppCloseMessage" xml:space="preserve">
+    <value>保存されていないタブが {0} 個あります。終了する前に保存しますか？</value>
+  </data>
+  <data name="UnsavedChangesAppCloseDiscard" xml:space="preserve">
+    <value>保存せずに終了</value>
+  </data>
+  <data name="UnsavedChangesAppCloseSave" xml:space="preserve">
+    <value>保存して終了</value>
+  </data>
+  <data name="UnsavedChangesTabCloseTitle" xml:space="preserve">
+    <value>変更の保存</value>
+  </data>
+  <data name="UnsavedChangesTabCloseMessage" xml:space="preserve">
+    <value>ファイル '{0}' の変更は保存されていません。閉じますか？</value>
+  </data>
+  <data name="UnsavedChangesTabCloseDiscard" xml:space="preserve">
+    <value>保存せずに閉じる</value>
+  </data>
+  <data name="UnsavedChangesTabCloseSave" xml:space="preserve">
+    <value>保存</value>
+  </data>
+  <data name="UnsavedChangesCancel" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="GitHistoryItemDialogTitle" xml:space="preserve">
+    <value>コミット情報 [{0}]</value>
+  </data>
+  <data name="GitHistoryItemClose" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
+  <data name="GitHistoryItemDialogHeader" xml:space="preserve">
+    <value>変更されたファイルの一覧 (ダブルクリックで比較ビューを開く):</value>
+  </data>
+  <data name="GitCommitSuccessTitle" xml:space="preserve">
+    <value>Git コミット</value>
+  </data>
+  <data name="GitCommitSuccessMessage" xml:space="preserve">
+    <value>正常にコミットが完了しました！</value>
+  </data>
+  <data name="UntitledNewTab" xml:space="preserve">
+    <value>無題</value>
+  </data>
+  <data name="GoToLinePlaceholder" xml:space="preserve">
+    <value>移動する行番号を入力...</value>
+  </data>
+  <data name="GoToLineTitle" xml:space="preserve">
+    <value>行へ移動</value>
+  </data>
+  <data name="GoToLineButton" xml:space="preserve">
+    <value>移動</value>
+  </data>
+  <data name="GoToLineCancel" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="SnippetInsertErrorTitle" xml:space="preserve">
+    <value>スニペット挿入エラー</value>
+  </data>
+  <data name="SnippetInsertErrorMessage" xml:space="preserve">
+    <value>アクティブなテキストエディタウィンドウが見つかりません。</value>
+  </data>
+  <data name="SnippetAddTitle" xml:space="preserve">
+    <value>新しいコード/数式スニペットの追加</value>
+  </data>
+  <data name="SnippetAddButton" xml:space="preserve">
+    <value>追加</value>
+  </data>
+  <data name="SnippetEditTitle" xml:space="preserve">
+    <value>スニペットの編集</value>
+  </data>
+  <data name="SnippetEditSave" xml:space="preserve">
+    <value>保存</value>
+  </data>
+  <data name="SnippetPlaceholderName" xml:space="preserve">
+    <value>スニペット名 (例: C# Loop)</value>
+  </data>
+  <data name="SnippetPlaceholderKeyword" xml:space="preserve">
+    <value>キーワード (例: loop)</value>
+  </data>
+  <data name="SnippetPlaceholderDesc" xml:space="preserve">
+    <value>簡単な説明</value>
+  </data>
+  <data name="SnippetPlaceholderContent" xml:space="preserve">
+    <value>コード本文を入力...</value>
+  </data>
+  <data name="SnippetLabelName" xml:space="preserve">
+    <value>スニペット名</value>
+  </data>
+  <data name="SnippetLabelKeyword" xml:space="preserve">
+    <value>自動補完キーワード</value>
+  </data>
+  <data name="SnippetLabelDesc" xml:space="preserve">
+    <value>説明</value>
+  </data>
+  <data name="SnippetLabelContent" xml:space="preserve">
+    <value>テンプレート内容</value>
+  </data>
+  <data name="SnippetCancel" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="CompareSelectFromTab" xml:space="preserve">
+    <value>タブから選択...</value>
+  </data>
+  <data name="CompareTabPrefix" xml:space="preserve">
+    <value>タブ</value>
+  </data>
+  <data name="CompareOriginalPathPlaceholder" xml:space="preserve">
+    <value>元のファイルのパス...</value>
+  </data>
+  <data name="CompareBrowse" xml:space="preserve">
+    <value>参照...</value>
+  </data>
+  <data name="CompareModifiedPathPlaceholder" xml:space="preserve">
+    <value>比較対象ファイルのパス...</value>
+  </data>
+  <data name="CompareOriginalFileLabel" xml:space="preserve">
+    <value>元のファイル (Original File)</value>
+  </data>
+  <data name="CompareModifiedFileLabel" xml:space="preserve">
+    <value>比較対象ファイル (Modified File)</value>
+  </data>
+  <data name="CompareDialogTitle" xml:space="preserve">
+    <value>ファイル比較 (File Compare)</value>
+  </data>
+  <data name="CompareDialogCompareButton" xml:space="preserve">
+    <value>比較する</value>
+  </data>
+  <data name="CompareDialogCancelButton" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="TextColorPickerTitle" xml:space="preserve">
+    <value>文字色の選択</value>
+  </data>
+  <data name="TextColorApplyButton" xml:space="preserve">
+    <value>適用</value>
+  </data>
+  <data name="TabMenuAddBookmark" xml:space="preserve">
+    <value>ブックマークに追加</value>
+  </data>
+  <data name="TabMenuOpenFolder" xml:space="preserve">
+    <value>このフォルダを開く</value>
+  </data>
+  <data name="TabMenuCloseRight" xml:space="preserve">
+    <value>右側のタブを閉じる</value>
+  </data>
+  <data name="TabMenuCloseLeft" xml:space="preserve">
+    <value>左側のタブを閉じる</value>
+  </data>
+  <data name="EditorContextMenuCut" xml:space="preserve">
+    <value>切り取り</value>
+  </data>
+  <data name="EditorContextMenuCopy" xml:space="preserve">
+    <value>コピー</value>
+  </data>
+  <data name="EditorContextMenuPaste" xml:space="preserve">
+    <value>貼り付け</value>
+  </data>
+  <data name="EditorContextMenuDelete" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="EditorContextMenuSelectAll" xml:space="preserve">
+    <value>すべて選択</value>
+  </data>
+  <data name="EditorContextMenuToggleComment" xml:space="preserve">
+    <value>コメントの切り替え</value>
+  </data>
+  <data name="EditorContextMenuIndent" xml:space="preserve">
+    <value>インデント</value>
+  </data>
+  <data name="EditorContextMenuOutdent" xml:space="preserve">
+    <value>アウトデント</value>
+  </data>
+  <data name="EditorContextMenuLineCleanup" xml:space="preserve">
+    <value>行のクリーンアップ</value>
+  </data>
+  <data name="EditorContextMenuSortAsc" xml:space="preserve">
+    <value>昇順で並べ替え</value>
+  </data>
+  <data name="EditorContextMenuSortDesc" xml:space="preserve">
+    <value>降順で並べ替え</value>
+  </data>
+  <data name="EditorContextMenuRemoveDuplicates" xml:space="preserve">
+    <value>重複行の削除</value>
+  </data>
+  <data name="EditorContextMenuRemoveEmptyLines" xml:space="preserve">
+    <value>空行の削除</value>
+  </data>
+  <data name="EditorContextMenuCollapseConsecutiveEmptyLines" xml:space="preserve">
+    <value>連続する空行をまとめる</value>
+  </data>
+  <data name="EditorContextMenuTrimSpaces" xml:space="preserve">
+    <value>前後の空白をトリミング</value>
+  </data>
+  <data name="EditorContextMenuConvert" xml:space="preserve">
+    <value>変換</value>
+  </data>
+  <data name="EditorContextMenuToUpperCase" xml:space="preserve">
+    <value>大文字にする</value>
+  </data>
+  <data name="EditorContextMenuToLowerCase" xml:space="preserve">
+    <value>小文字にする</value>
+  </data>
+  <data name="EditorContextMenuToSentenceCase" xml:space="preserve">
+    <value>文頭のみ大文字にする</value>
+  </data>
+  <data name="EditorContextMenuToTitleCase" xml:space="preserve">
+    <value>各単語の先頭を大文字にする</value>
+  </data>
+  <data name="EditorContextMenuUrlEncode" xml:space="preserve">
+    <value>URLエンコード</value>
+  </data>
+  <data name="EditorContextMenuUrlDecode" xml:space="preserve">
+    <value>URLデコード</value>
+  </data>
+  <data name="EditorContextMenuBase64Encode" xml:space="preserve">
+    <value>Base64エンコード</value>
+  </data>
+  <data name="EditorContextMenuBase64Decode" xml:space="preserve">
+    <value>Base64デコード</value>
+  </data>
+  <data name="EditorContextMenuHexToDec" xml:space="preserve">
+    <value>16進数 → 10進数</value>
+  </data>
+  <data name="EditorContextMenuDecToHex" xml:space="preserve">
+    <value>10進数 → 16進数</value>
+  </data>
+  <data name="EditorContextMenuFormatText" xml:space="preserve">
+    <value>テキストの整形</value>
+  </data>
+  <data name="EditorContextMenuScrollSync" xml:space="preserve">
+    <value>スクロール同期</value>
+  </data>
+  <data name="EditorAutocompleteSnippet" xml:space="preserve">
+    <value>スニペット</value>
+  </data>
+  <data name="EditorAutocompleteSnippetPrefix" xml:space="preserve">
+    <value>スニペット: </value>
+  </data>
+  <data name="DiffCompareToolTitle" xml:space="preserve">
+    <value>Ueditor ファイル比較ツール (File Compare)</value>
+  </data>
+  <data name="DiffStatsGathering" xml:space="preserve">
+    <value>収集中...</value>
+  </data>
+  <data name="DiffOriginalFileLabel" xml:space="preserve">
+    <value>元のファイル (Original)</value>
+  </data>
+  <data name="DiffModifiedFileLabel" xml:space="preserve">
+    <value>比較対象ファイル (Modified)</value>
+  </data>
+  <data name="DiffOriginalPrefix" xml:space="preserve">
+    <value>元のファイル: </value>
+  </data>
+  <data name="DiffModifiedPrefix" xml:space="preserve">
+    <value>修正ファイル: </value>
+  </data>
+  <data name="DiffStatsFormat" xml:space="preserve">
+    <value>変更箇所: 追加 {0} 行, 削除 {1} 行</value>
+  </data>
 </root>

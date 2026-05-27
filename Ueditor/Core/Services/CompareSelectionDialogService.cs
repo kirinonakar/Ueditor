@@ -19,31 +19,31 @@ namespace Ueditor.Core.Services
 
     public sealed class CompareSelectionDialogService
     {
-        public async Task<CompareFileSelection?> ShowAsync(Window owner, XamlRoot xamlRoot, IReadOnlyList<OpenedTab> tabs, ElementTheme theme)
+        public async Task<CompareFileSelection?> ShowAsync(Window owner, XamlRoot xamlRoot, IReadOnlyList<OpenedTab> tabs, ElementTheme theme, Func<string, string, string> getString)
         {
             var panel = new StackPanel { Spacing = 12, Width = 400, RequestedTheme = theme };
 
-            var tabChoices = new List<string> { "탭에서 선택..." };
+            var tabChoices = new List<string> { getString("CompareSelectFromTab", "탭에서 선택...") };
             foreach (var tab in tabs)
             {
-                tabChoices.Add($"[탭] {tab.Title}");
+                tabChoices.Add($"[{getString("CompareTabPrefix", "탭")}] {tab.Title}");
             }
 
             var originalCombo = CreateSourceCombo(tabChoices);
-            var originalPathBox = new TextBox { PlaceholderText = "원본 파일 경로...", IsReadOnly = true };
-            var originalBrowseButton = new Button { Content = "찾아보기..." };
+            var originalPathBox = new TextBox { PlaceholderText = getString("CompareOriginalPathPlaceholder", "원본 파일 경로..."), IsReadOnly = true };
+            var originalBrowseButton = new Button { Content = getString("CompareBrowse", "찾아보기...") };
             var originalRow = CreatePathRow(originalPathBox, originalBrowseButton);
 
             var modifiedCombo = CreateSourceCombo(tabChoices);
-            var modifiedPathBox = new TextBox { PlaceholderText = "비교 대상 파일 경로...", IsReadOnly = true };
-            var modifiedBrowseButton = new Button { Content = "찾아보기..." };
+            var modifiedPathBox = new TextBox { PlaceholderText = getString("CompareModifiedPathPlaceholder", "비교 대상 파일 경로..."), IsReadOnly = true };
+            var modifiedBrowseButton = new Button { Content = getString("CompareBrowse", "찾아보기...") };
             var modifiedRow = CreatePathRow(modifiedPathBox, modifiedBrowseButton);
 
-            panel.Children.Add(new TextBlock { Text = "원본 파일 (Original File)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            panel.Children.Add(new TextBlock { Text = getString("CompareOriginalFileLabel", "원본 파일 (Original File)"), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
             panel.Children.Add(originalCombo);
             panel.Children.Add(originalRow);
             panel.Children.Add(new MenuFlyoutSeparator());
-            panel.Children.Add(new TextBlock { Text = "비교 대상 파일 (Modified File)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            panel.Children.Add(new TextBlock { Text = getString("CompareModifiedFileLabel", "비교 대상 파일 (Modified File)"), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
             panel.Children.Add(modifiedCombo);
             panel.Children.Add(modifiedRow);
 
@@ -55,10 +55,10 @@ namespace Ueditor.Core.Services
 
             var dialog = new ContentDialog
             {
-                Title = "파일 비교 (File Compare)",
+                Title = getString("CompareDialogTitle", "파일 비교 (File Compare)"),
                 Content = panel,
-                PrimaryButtonText = "비교하기",
-                CloseButtonText = "취소",
+                PrimaryButtonText = getString("CompareDialogCompareButton", "비교하기"),
+                CloseButtonText = getString("CompareDialogCancelButton", "취소"),
                 XamlRoot = xamlRoot,
                 RequestedTheme = theme
             };

@@ -611,7 +611,7 @@
                 data-requires-edit="true">내여쓰기</button>
             <div class="context-menu-item has-submenu">
                 <button class="context-menu-button" type="button">
-                    <span>줄 정리</span>
+                    <span data-label="lineCleanup">줄 정리</span>
                     <span class="arrow">▶</span>
                 </button>
                 <div class="submenu">
@@ -631,7 +631,7 @@
             </div>
             <div class="context-menu-item has-submenu">
                 <button class="context-menu-button" type="button">
-                    <span>변환</span>
+                    <span data-label="convert">변환</span>
                     <span class="arrow">▶</span>
                 </button>
                 <div class="submenu">
@@ -883,6 +883,47 @@
             if (msg.findCloseTooltip !== undefined) {
                 const el = document.getElementById('find-close');
                 if (el) el.title = msg.findCloseTooltip;
+            }
+
+            if (msg.autocompleteSnippet !== undefined) {
+                state.autocompleteSnippet = msg.autocompleteSnippet;
+            }
+            if (msg.autocompleteSnippetPrefix !== undefined) {
+                state.autocompleteSnippetPrefix = msg.autocompleteSnippetPrefix;
+            }
+            if (msg.menuScrollSync !== undefined) {
+                state.menuScrollSync = msg.menuScrollSync;
+            }
+
+            // Apply localized context menu text
+            const actions = [
+                'cut', 'copy', 'paste', 'delete', 'selectAll', 'toggleComment',
+                'sortAsc', 'sortDesc', 'removeDuplicates', 'removeEmptyLines', 'collapseConsecutiveEmptyLines', 'trimSpaces',
+                'toUpperCase', 'toLowerCase', 'toSentenceCase', 'toTitleCase', 'urlEncode', 'urlDecode',
+                'base64Encode', 'base64Decode', 'hexToDec', 'decToHex', 'formatText'
+            ];
+            actions.forEach(action => {
+                const key = 'menu' + action.charAt(0).toUpperCase() + action.slice(1);
+                if (msg[key] !== undefined) {
+                    const el = contextMenu.querySelector(`[data-action="${action}"]`);
+                    if (el) el.textContent = msg[key];
+                }
+            });
+            if (msg.menuIndent !== undefined) {
+                const el = contextMenu.querySelector('[data-action="indentLines"]');
+                if (el) el.textContent = msg.menuIndent;
+            }
+            if (msg.menuOutdent !== undefined) {
+                const el = contextMenu.querySelector('[data-action="outdentLines"]');
+                if (el) el.textContent = msg.menuOutdent;
+            }
+            if (msg.menuLineCleanup !== undefined) {
+                const el = contextMenu.querySelector('[data-label="lineCleanup"]');
+                if (el) el.textContent = msg.menuLineCleanup;
+            }
+            if (msg.menuConvert !== undefined) {
+                const el = contextMenu.querySelector('[data-label="convert"]');
+                if (el) el.textContent = msg.menuConvert;
             }
 
             setupVirtualHeight();
@@ -3246,7 +3287,7 @@
 
             const scrollSyncBtn = contextMenu.querySelector('[data-action="toggleScrollSync"]');
             if (scrollSyncBtn) {
-                scrollSyncBtn.textContent = (state.scrollSyncEnabled ? '✓ ' : '') + '스크롤 동기화';
+                scrollSyncBtn.textContent = (state.scrollSyncEnabled ? '✓ ' : '') + (state.menuScrollSync || '스크롤 동기화');
             }
 
             contextMenu.hidden = false;
@@ -3363,11 +3404,13 @@
                 const key = `snippet:${lowerKeyword}`;
                 if (seen.has(key)) continue;
                 seen.add(key);
+                const prefixText = state.autocompleteSnippetPrefix || '스니펫: ';
+                const defaultText = state.autocompleteSnippet || '스니펫';
                 candidates.push({
                     kind: 'snippet',
                     label: keyword,
                     insertText: content,
-                    detail: title ? `스니펫: ${title}` : '스니펫',
+                    detail: title ? `${prefixText}${title}` : defaultText,
                     extraPrefixLen
                 });
             }

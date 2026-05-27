@@ -60,6 +60,9 @@ namespace Ueditor.Controls
             ToolTipService.SetToolTip(MarkdownCharMapButton, getText("CharMap", "문자표"));
             ToolTipService.SetToolTip(MarkdownCurrentDateButton, getText("CurrentDate", "현재 날짜"));
             ToolTipService.SetToolTip(MarkdownLinkButton, getText("Link", "링크"));
+
+            TextColorPickerTitle.Text = getText("TextColorPickerTitle", "글자색 선택");
+            TextColorApplyButton.Content = getText("TextColorApplyButton", "적용");
         }
 
         private void OnCommandButtonClick(object sender, RoutedEventArgs e)

@@ -226,7 +226,7 @@
 <body>
     <div id="container">
         <div id="title-bar">
-            <span>Ueditor 파일 비교 도구 (File Compare)</span>
+            <span id="diff-title">Ueditor 파일 비교 도구 (File Compare)</span>
             <span id="diff-stats" style="font-weight: normal; color: var(--gutter-fg);">수집 중...</span>
         </div>
         <div id="diff-panels">
@@ -404,8 +404,19 @@
         function renderDiff(data) {
             const { diffA, diffB } = computeLineDiff(data.textA, data.textB);
 
-            document.getElementById('left-header').textContent  = `원본: ${data.titleA || '원본 파일'}`;
-            document.getElementById('right-header').textContent = `수정본: ${data.titleB || '비교 대상 파일'}`;
+            // Update title
+            const diffTitleEl = document.getElementById('diff-title');
+            if (diffTitleEl && data.compareToolTitle) {
+                diffTitleEl.textContent = data.compareToolTitle;
+            }
+
+            const prefixA = data.originalPrefix || '원본: ';
+            const prefixB = data.modifiedPrefix || '수정본: ';
+            const defaultLabelA = data.originalFileLabel || '원본 파일 (Original)';
+            const defaultLabelB = data.modifiedFileLabel || '비교 대상 파일 (Modified)';
+
+            document.getElementById('left-header').textContent  = `${prefixA}${data.titleA || defaultLabelA}`;
+            document.getElementById('right-header').textContent = `${prefixB}${data.titleB || defaultLabelB}`;
 
             let leftHtml  = '';
             let rightHtml = '';
@@ -440,8 +451,10 @@
             leftView.innerHTML  = leftHtml;
             rightView.innerHTML = rightHtml;
 
-            document.getElementById('diff-stats').textContent =
-                `변경사항: 추가 ${additions}줄, 삭제 ${deletions}줄`;
+            const formatStr = data.diffStatsFormat || '변경사항: 추가 {0}줄, 삭제 {1}줄';
+            document.getElementById('diff-stats').textContent = formatStr
+                .replace('{0}', additions)
+                .replace('{1}', deletions);
 
             // Build scrollmaps after a paint cycle so offsetTop values are ready
             requestAnimationFrame(() => {
@@ -527,6 +540,9 @@
             window.chrome.webview.addEventListener('message', event => {
                 const msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
                 if (msg.action === 'compare') {
+                    if (msg.statsGathering) {
+                        document.getElementById('diff-stats').textContent = msg.statsGathering;
+                    }
                     applyThemeSettings(msg.theme || 'Dark', msg.uiFontFamily, null);
                     renderDiff(msg);
                 } else if (msg.action === 'updateOptions') {

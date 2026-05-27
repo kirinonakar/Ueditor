@@ -235,7 +235,9 @@ namespace Ueditor.Controls
             {
                 _leftSidebar.GitCommitMessage.Text = string.Empty;
                 await RefreshAsync(repoPath);
-                _showError("Git 커밋", "성공적으로 커밋 완료되었습니다!");
+                _showError(
+                    _getString("GitCommitSuccessTitle", "Git 커밋"),
+                    _getString("GitCommitSuccessMessage", "성공적으로 커밋 완료되었습니다!"));
             }
             else
             {

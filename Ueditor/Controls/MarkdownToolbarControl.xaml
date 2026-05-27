@@ -120,9 +120,9 @@
                                 </Style>
                             </Flyout.FlyoutPresenterStyle>
                             <StackPanel Spacing="8" Padding="4" HorizontalAlignment="Stretch">
-                                <TextBlock Text="글자색 선택" FontWeight="SemiBold" FontSize="13"/>
+                                <TextBlock x:Name="TextColorPickerTitle" Text="글자색 선택" FontWeight="SemiBold" FontSize="13"/>
                                 <ColorPicker x:Name="TextColorPicker" IsAlphaEnabled="False" HorizontalAlignment="Stretch" IsMoreButtonVisible="False"/>
-                                <Button Content="적용" Click="OnApplyTextColorClick" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Stretch"/>
+                                <Button x:Name="TextColorApplyButton" Content="적용" Click="OnApplyTextColorClick" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Stretch"/>
                             </StackPanel>
                         </Flyout>
                     </Button.ContextFlyout>

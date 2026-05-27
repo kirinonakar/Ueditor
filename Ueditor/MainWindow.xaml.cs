@@ -222,7 +222,8 @@ namespace Ueditor
                 () => this.Content.XamlRoot,
                 InsertTextIntoActiveEditorAsync,
                 SyncSnippetsToOpenEditorsAsync,
-                ShowErrorMessage);
+                ShowErrorMessage,
+                GetLocalizedString);
             _llmAssistantController = new LlmAssistantController(
                 _llmService,
                 _settingsService,
@@ -754,7 +755,7 @@ namespace Ueditor
             }
             else
             {
-                tab.Title = "제목 없음";
+                tab.Title = GetLocalizedString("UntitledNewTab", "제목 없음");
                 tab.Content = "";
             }
 
@@ -790,21 +791,21 @@ namespace Ueditor
 
             // Tab right-click context menu
             var tabContextMenu = new MenuFlyout();
-            var bookmarkItem = new MenuFlyoutItem { Text = "북마크 추가" };
+            var bookmarkItem = new MenuFlyoutItem { Text = GetLocalizedString("TabMenuAddBookmark", "북마크 추가") };
             bookmarkItem.Click += (s, args) => OnTabAddBookmark(tab);
             tabContextMenu.Items.Add(bookmarkItem);
 
-            var openFolderItem = new MenuFlyoutItem { Text = "해당 폴더로 이동" };
+            var openFolderItem = new MenuFlyoutItem { Text = GetLocalizedString("TabMenuOpenFolder", "해당 폴더로 이동") };
             openFolderItem.Click += (s, args) => OnTabOpenFolder(tab);
             tabContextMenu.Items.Add(openFolderItem);
 
             tabContextMenu.Items.Add(new MenuFlyoutSeparator());
 
-            var closeRightItem = new MenuFlyoutItem { Text = "오른쪽 탭 닫기" };
+            var closeRightItem = new MenuFlyoutItem { Text = GetLocalizedString("TabMenuCloseRight", "오른쪽 탭 닫기") };
             closeRightItem.Click += (s, args) => OnCloseRightTabs(tab, tabItem, targetTabView);
             tabContextMenu.Items.Add(closeRightItem);
 
-            var closeLeftItem = new MenuFlyoutItem { Text = "왼쪽 탭 닫기" };
+            var closeLeftItem = new MenuFlyoutItem { Text = GetLocalizedString("TabMenuCloseLeft", "왼쪽 탭 닫기") };
             closeLeftItem.Click += (s, args) => OnCloseLeftTabs(tab, tabItem, targetTabView);
             tabContextMenu.Items.Add(closeLeftItem);
 
@@ -2686,10 +2687,10 @@ namespace Ueditor
         {
             var dialogTheme = GetCurrentElementTheme();
             var result = await ShowUnsavedChangesDialogAsync(
-                "변경 내용 저장",
-                $"파일 '{tab.Title}'의 변경 내용이 저장되지 않았습니다. 닫으시겠습니까?",
-                "저장하지 않고 닫기",
-                "저장",
+                GetLocalizedString("UnsavedChangesTabCloseTitle", "변경 내용 저장"),
+                string.Format(GetLocalizedString("UnsavedChangesTabCloseMessage", "파일 '{0}'의 변경 내용이 저장되지 않았습니다. 닫으시겠습니까?"), tab.Title),
+                GetLocalizedString("UnsavedChangesTabCloseDiscard", "저장하지 않고 닫기"),
+                GetLocalizedString("UnsavedChangesTabCloseSave", "저장"),
                 dialogTheme);
 
             if (result == UnsavedChangesDialogResult.Discard)
@@ -3461,10 +3462,10 @@ namespace Ueditor
 
             var dialogTheme = GetCurrentElementTheme();
             var result = await ShowUnsavedChangesDialogAsync(
-                "저장되지 않은 변경 사항",
-                $"저장되지 않은 탭이 {dirtyTabs.Count}개 있습니다. 종료하기 전에 저장하시겠습니까?",
-                "저장하지 않고 종료",
-                "저장하고 종료",
+                GetLocalizedString("UnsavedChangesAppCloseTitle", "저장되지 않은 변경 사항"),
+                string.Format(GetLocalizedString("UnsavedChangesAppCloseMessage", "저장되지 않은 탭이 {0}개 있습니다. 종료하기 전에 저장하시겠습니까?"), dirtyTabs.Count),
+                GetLocalizedString("UnsavedChangesAppCloseDiscard", "저장하지 않고 종료"),
+                GetLocalizedString("UnsavedChangesAppCloseSave", "저장하고 종료"),
                 dialogTheme);
 
             if (result == UnsavedChangesDialogResult.Discard)
@@ -3499,10 +3500,13 @@ namespace Ueditor
                 XamlRoot = this.Content.XamlRoot
             };
 
+            string cancelText = GetLocalizedString("UnsavedChangesCancel", "취소");
+
             dialog.Content = CreateUnsavedChangesDialogContent(
                 message,
                 discardButtonText,
                 saveButtonText,
+                cancelText,
                 theme,
                 () =>
                 {
@@ -3554,6 +3558,7 @@ namespace Ueditor
             string message,
             string discardButtonText,
             string saveButtonText,
+            string cancelButtonText,
             ElementTheme theme,
             Action discardAction,
             Action saveAction,
@@ -3595,7 +3600,7 @@ namespace Ueditor
 
             var cancelButton = new Button
             {
-                Content = "취소",
+                Content = cancelButtonText,
                 MinWidth = 90,
                 Height = 32,
                 Padding = new Thickness(12, 0, 12, 0),
@@ -3787,7 +3792,7 @@ namespace Ueditor
 
         private async void OnCompareFilesClick(object sender, RoutedEventArgs e)
         {
-            var selection = await _compareSelectionDialogService.ShowAsync(this, this.Content.XamlRoot, _viewModel.Tabs, GetCurrentElementTheme());
+            var selection = await _compareSelectionDialogService.ShowAsync(this, this.Content.XamlRoot, _viewModel.Tabs, GetCurrentElementTheme(), GetLocalizedString);
             if (selection == null)
             {
                 return;
@@ -3881,7 +3886,14 @@ namespace Ueditor
                     textA = contentA,
                     textB = contentB,
                     theme = _settingsService.CurrentSettings.Theme,
-                    uiFontFamily = _settingsService.CurrentSettings.UiFontFamily
+                    uiFontFamily = _settingsService.CurrentSettings.UiFontFamily,
+                    compareToolTitle = GetLocalizedString("DiffCompareToolTitle", "Ueditor 파일 비교 도구 (File Compare)"),
+                    statsGathering = GetLocalizedString("DiffStatsGathering", "수집 중..."),
+                    originalFileLabel = GetLocalizedString("DiffOriginalFileLabel", "원본 파일 (Original)"),
+                    modifiedFileLabel = GetLocalizedString("DiffModifiedFileLabel", "비교 대상 파일 (Modified)"),
+                    originalPrefix = GetLocalizedString("DiffOriginalPrefix", "원본: "),
+                    modifiedPrefix = GetLocalizedString("DiffModifiedPrefix", "수정본: "),
+                    diffStatsFormat = GetLocalizedString("DiffStatsFormat", "변경사항: 추가 {0}줄, 삭제 {1}줄")
                 };
                 string json = System.Text.Json.JsonSerializer.Serialize(msg);
                 diffWebView.CoreWebView2.PostWebMessageAsJson(json);
@@ -4005,15 +4017,15 @@ namespace Ueditor
         {
             var activeTab = GetActiveTab();
             if (activeTab == null) return;
-            var lineBox = new TextBox { PlaceholderText = "이동할 줄 번호 입력...", Width = 200 };
+            var lineBox = new TextBox { PlaceholderText = GetLocalizedString("GoToLinePlaceholder", "이동할 줄 번호 입력..."), Width = 200 };
             int currentLine = int.TryParse(StatusLine.Text, out int line) ? line : 1;
             lineBox.Text = currentLine.ToString();
             var dialog = new ContentDialog
             {
-                Title = "줄 이동 (Go to Line)",
+                Title = GetLocalizedString("GoToLineTitle", "줄 이동 (Go to Line)"),
                 Content = lineBox,
-                PrimaryButtonText = "이동",
-                CloseButtonText = "취소",
+                PrimaryButtonText = GetLocalizedString("GoToLineButton", "이동"),
+                CloseButtonText = GetLocalizedString("GoToLineCancel", "취소"),
                 XamlRoot = this.Content.XamlRoot,
                 RequestedTheme = GetCurrentElementTheme()
             };
