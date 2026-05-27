@@ -3460,11 +3460,18 @@ namespace Ueditor
         }
 
         private bool _isClosingConfirmed = false;
+        private bool _isUnsavedChangesDialogShowing = false;
         private async void OnAppWindowClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
         {
             if (_isClosingConfirmed)
             {
                 await SaveUiLayoutSettingsAsync();
+                return;
+            }
+
+            if (_isUnsavedChangesDialogShowing)
+            {
+                args.Cancel = true;
                 return;
             }
 
@@ -3509,42 +3516,55 @@ namespace Ueditor
             string saveButtonText,
             ElementTheme theme)
         {
-            var result = UnsavedChangesDialogResult.Cancel;
-            var dialog = new ContentDialog
+            if (_isUnsavedChangesDialogShowing)
             {
-                Title = title,
-                RequestedTheme = theme,
-                XamlRoot = this.Content.XamlRoot
-            };
+                return UnsavedChangesDialogResult.Cancel;
+            }
 
-            string cancelText = GetLocalizedString("UnsavedChangesCancel", "취소");
+            _isUnsavedChangesDialogShowing = true;
+            try
+            {
+                var result = UnsavedChangesDialogResult.Cancel;
+                var dialog = new ContentDialog
+                {
+                    Title = title,
+                    RequestedTheme = theme,
+                    XamlRoot = this.Content.XamlRoot
+                };
 
-            dialog.Content = CreateUnsavedChangesDialogContent(
-                message,
-                discardButtonText,
-                saveButtonText,
-                cancelText,
-                theme,
-                () =>
-                {
-                    result = UnsavedChangesDialogResult.Discard;
-                    dialog.Hide();
-                },
-                () =>
-                {
-                    result = UnsavedChangesDialogResult.Save;
-                    dialog.Hide();
-                },
-                () =>
-                {
-                    result = UnsavedChangesDialogResult.Cancel;
-                    dialog.Hide();
-                },
-                out var defaultButton);
+                string cancelText = GetLocalizedString("UnsavedChangesCancel", "취소");
 
-            dialog.Opened += (_, __) => defaultButton.Focus(FocusState.Programmatic);
-            await dialog.ShowAsync();
-            return result;
+                dialog.Content = CreateUnsavedChangesDialogContent(
+                    message,
+                    discardButtonText,
+                    saveButtonText,
+                    cancelText,
+                    theme,
+                    () =>
+                    {
+                        result = UnsavedChangesDialogResult.Discard;
+                        dialog.Hide();
+                    },
+                    () =>
+                    {
+                        result = UnsavedChangesDialogResult.Save;
+                        dialog.Hide();
+                    },
+                    () =>
+                    {
+                        result = UnsavedChangesDialogResult.Cancel;
+                        dialog.Hide();
+                    },
+                    out var defaultButton);
+
+                dialog.Opened += (_, __) => defaultButton.Focus(FocusState.Programmatic);
+                await dialog.ShowAsync();
+                return result;
+            }
+            finally
+            {
+                _isUnsavedChangesDialogShowing = false;
+            }
         }
 
         private enum UnsavedChangesDialogResult
