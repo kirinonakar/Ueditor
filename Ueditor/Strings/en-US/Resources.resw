@@ -537,7 +537,7 @@
     <value>Enter questions or custom instructions...</value>
   </data>
   <data name="LlmCustomRunButtonText" xml:space="preserve">
-    <value>Run</value>
+    <value>Send</value>
   </data>
   <data name="LlmInsertOutputButtonText" xml:space="preserve">
     <value>Insert</value>

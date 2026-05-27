@@ -91,7 +91,7 @@ namespace Ueditor.Controls
             LlmTargetLangGerman.Text = getString("LlmLangGerman", "독일어 (German)");
             LlmImproveButton.Content = getString("LlmImproveButtonText", "수식/마크다운 개선");
             LlmCustomPromptInput.PlaceholderText = getString("LlmCustomPromptPlaceholder", "질문이나 커스텀 지시사항 입력...");
-            LlmCustomRunButton.Content = getString("LlmCustomRunButtonText", "실행");
+            LlmCustomRunButton.Content = getString("LlmCustomRunButtonText", "전송");
             LlmInsertOutputButton.Content = getString("LlmInsertOutputButtonText", "입력");
             ToolTipService.SetToolTip(LlmInsertOutputButton, getString("LlmInsertOutputTooltip", "AI 응답을 현재 커서에 입력"));
         }

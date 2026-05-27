@@ -538,7 +538,7 @@
     <value>質問やカスタム指示を入力...</value>
   </data>
   <data name="LlmCustomRunButtonText" xml:space="preserve">
-    <value>実行</value>
+    <value>送信</value>
   </data>
   <data name="LlmInsertOutputButtonText" xml:space="preserve">
     <value>入力</value>

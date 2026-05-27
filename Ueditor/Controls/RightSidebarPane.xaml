@@ -151,9 +151,9 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBox x:Name="LlmCustomPromptInput" Grid.Column="0" PlaceholderText="질문이나 커스텀 지시사항 입력..." Height="32" KeyDown="OnLlmCustomPromptInputKeyDown"/>
+                                        <TextBox x:Name="LlmCustomPromptInput" Grid.Column="0" PlaceholderText="질문이나 커스텀 지시사항 입력..." Height="32" FontSize="12" FontFamily="Segoe UI, Malgun Gothic" VerticalContentAlignment="Center" Padding="10,8,10,0" ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollMode="Disabled" IsSpellCheckEnabled="False" IsTextPredictionEnabled="False" KeyDown="OnLlmCustomPromptInputKeyDown"/>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
-                                            <Button x:Name="LlmCustomRunButton" Content="실행" Click="OnLlmCustomClick" Style="{StaticResource AccentButtonStyle}"/>
+                                            <Button x:Name="LlmCustomRunButton" Content="전송" Click="OnLlmCustomClick" Style="{StaticResource AccentButtonStyle}"/>
                                             <Button x:Name="LlmInsertOutputButton" Content="입력" Click="OnLlmInsertOutputClick" ToolTipService.ToolTip="AI 응답을 현재 커서에 입력" Style="{StaticResource RightSidebarButtonStyle}"/>
                                         </StackPanel>
                                     </Grid>
