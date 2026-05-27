@@ -2097,7 +2097,8 @@ namespace Ueditor
                 Content = getString("LanguageChangedMessage", "You must restart the application to apply the language settings. Would you like to restart now?"),
                 PrimaryButtonText = getString("Restart", "Restart"),
                 CloseButtonText = getString("No", "Later"),
-                XamlRoot = this.Content.XamlRoot
+                XamlRoot = this.Content.XamlRoot,
+                RequestedTheme = GetCurrentElementTheme()
             };
 
             return await restartDialog.ShowAsync() == ContentDialogResult.Primary;
@@ -2970,7 +2971,8 @@ namespace Ueditor
                 PrimaryButtonText = GetLocalizedString("EncodingChangeConvert", "변환"),
                 SecondaryButtonText = GetLocalizedString("EncodingChangeReopen", "다시 읽기"),
                 CloseButtonText = GetLocalizedString("EncodingChangeCancel", "취소"),
-                XamlRoot = this.Content.XamlRoot
+                XamlRoot = this.Content.XamlRoot,
+                RequestedTheme = GetCurrentElementTheme()
             };
 
             var result = await dialog.ShowAsync();
@@ -3148,7 +3150,8 @@ namespace Ueditor
                 Title = title,
                 Content = message,
                 CloseButtonText = "확인",
-                XamlRoot = this.Content.XamlRoot
+                XamlRoot = this.Content.XamlRoot,
+                RequestedTheme = GetCurrentElementTheme()
             };
             await dialog.ShowAsync();
         }
@@ -4011,7 +4014,8 @@ namespace Ueditor
                 Content = lineBox,
                 PrimaryButtonText = "이동",
                 CloseButtonText = "취소",
-                XamlRoot = this.Content.XamlRoot
+                XamlRoot = this.Content.XamlRoot,
+                RequestedTheme = GetCurrentElementTheme()
             };
 
             lineBox.KeyDown += async (s, args) =>
@@ -4093,7 +4097,8 @@ namespace Ueditor
                 Content = string.Format(contentFormat, targetEnding),
                 PrimaryButtonText = GetLocalizedString("LineEndingChangeConvert", "변환"),
                 CloseButtonText = GetLocalizedString("LineEndingChangeCancel", "취소"),
-                XamlRoot = this.Content.XamlRoot
+                XamlRoot = this.Content.XamlRoot,
+                RequestedTheme = GetCurrentElementTheme()
             };
 
             var result = await dialog.ShowAsync();
