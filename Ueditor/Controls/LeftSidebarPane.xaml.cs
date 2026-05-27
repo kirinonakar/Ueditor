@@ -41,6 +41,7 @@ namespace Ueditor.Controls
         public event KeyEventHandler? SearchQueryInputKeyDown;
         public event RoutedEventHandler? SearchAllFilesClick;
         public event RoutedEventHandler? ReplaceAllClick;
+        public event RoutedEventHandler? ReplaceOneClick;
         public event DoubleTappedEventHandler? SearchResultDoubleTapped;
         public event DoubleTappedEventHandler? RecentFileItemDoubleTapped;
         public event RoutedEventHandler? RemoveRecentFileClick;
@@ -222,6 +223,7 @@ namespace Ueditor.Controls
         private void OnSearchQueryInputKeyDown(object sender, KeyRoutedEventArgs e) => SearchQueryInputKeyDown?.Invoke(sender, e);
         private void OnSearchAllFilesClick(object sender, RoutedEventArgs e) => SearchAllFilesClick?.Invoke(sender, e);
         private void OnReplaceAllClick(object sender, RoutedEventArgs e) => ReplaceAllClick?.Invoke(sender, e);
+        private void OnReplaceOneClick(object sender, RoutedEventArgs e) => ReplaceOneClick?.Invoke(sender, e);
         private void OnSearchResultDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => SearchResultDoubleTapped?.Invoke(sender, e);
         private void OnRecentFileItemDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => RecentFileItemDoubleTapped?.Invoke(sender, e);
         private void OnRemoveRecentFileClick(object sender, RoutedEventArgs e) => RemoveRecentFileClick?.Invoke(sender, e);

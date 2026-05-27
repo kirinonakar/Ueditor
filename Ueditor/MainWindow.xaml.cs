@@ -192,6 +192,7 @@ namespace Ueditor
                 ShowErrorMessage,
                 LoadFileIntoTabAndHighlightAsync,
                 RefreshGitStatusUIAsync);
+            _searchReplaceController.FileModified += OnSearchReplaceFileModifiedAsync;
             _gitPanelController = new GitPanelController(
                 _gitService,
                 _fileService,
@@ -321,6 +322,7 @@ namespace Ueditor
             LeftSidebarTabView.SearchQueryInputKeyDown += OnSearchQueryInputKeyDown;
             LeftSidebarTabView.SearchAllFilesClick += OnSearchAllFilesClick;
             LeftSidebarTabView.ReplaceAllClick += OnReplaceAllClick;
+            LeftSidebarTabView.ReplaceOneClick += OnReplaceOneClick;
             LeftSidebarTabView.SearchResultDoubleTapped += OnSearchResultDoubleTapped;
         }
 
@@ -3283,6 +3285,54 @@ namespace Ueditor
         private async void OnReplaceAllClick(object sender, RoutedEventArgs e)
         {
             await _searchReplaceController.ReplaceAllAsync();
+        }
+
+        private async void OnReplaceOneClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is SearchResultItem item)
+            {
+                await _searchReplaceController.ReplaceOneAsync(item);
+            }
+        }
+
+        private async Task OnSearchReplaceFileModifiedAsync(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath)) return;
+
+            var matchedTabs = _viewModel.Tabs.Where(t => string.Equals(t.FilePath, filePath, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (matchedTabs.Count == 0) return;
+
+            try
+            {
+                var readResult = await LineArrayTextModel.LoadFromFileAsync(filePath, "Auto");
+                
+                foreach (var tab in matchedTabs)
+                {
+                    if (_editorSessions.TryGetValue(tab.Id, out var session))
+                    {
+                        session.UpdateContentFromSync(readResult.Model.GetText());
+                    }
+
+                    tab.Content = readResult.Model.GetText();
+                    tab.IsDirty = false;
+
+                    if (_tabBridges.TryGetValue(tab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
+                    {
+                        await bridgeGroup.Bridge.SetTextAsync(tab.Content, shouldFocus: false);
+                    }
+
+                    var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id)
+                               ?? EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id);
+                    if (tabItem != null)
+                    {
+                        CleanDirtyStateOnOtherTabs(tab);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to hot-reload replaced file '{filePath}': {ex.Message}");
+            }
         }
 
         private async void OnSearchResultDoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)

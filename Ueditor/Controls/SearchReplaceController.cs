@@ -28,6 +28,7 @@ namespace Ueditor.Controls
         private readonly Func<SearchResultItem, string, Task> _loadAndHighlightResultAsync;
         private readonly Func<Task> _refreshGitStatusAsync;
         private string _lastSearchQuery = string.Empty;
+        public event Func<string, Task>? FileModified;
 
         public SearchReplaceController(
             IFileSearchService fileSearchService,
@@ -174,6 +175,11 @@ namespace Ueditor.Controls
 
                         await File.WriteAllLinesAsync(filePath, lines);
                     }
+
+                    if (FileModified != null)
+                    {
+                        await FileModified.Invoke(filePath);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -184,6 +190,65 @@ namespace Ueditor.Controls
             _viewModel.SearchResults.Clear();
             _showError("바꾸기 완료", "모든 매칭 항목의 바꾸기 처리가 완료되었습니다.");
             await _refreshGitStatusAsync();
+        }
+
+        public async Task ReplaceOneAsync(SearchResultItem item)
+        {
+            if (item == null)
+            {
+                return;
+            }
+
+            string query = _searchQueryInput.Text;
+            string replace = _replaceQueryInput.Text;
+            if (string.IsNullOrEmpty(query))
+            {
+                return;
+            }
+
+            var options = GetSearchOptions();
+            try
+            {
+                _fileSearchService.BuildSearchRegex(query, options);
+            }
+            catch (ArgumentException ex)
+            {
+                _showError("바꾸기 실패", $"정규식이 올바르지 않습니다.\n{ex.Message}");
+                return;
+            }
+
+            long thresholdBytes = _largeFileThresholdBytesProvider();
+            string filePath = item.Path;
+            try
+            {
+                var info = new FileInfo(filePath);
+                if (info.Length > thresholdBytes)
+                {
+                    await _fileSearchService.ReplaceInLargeFileAsync(filePath, new[] { item }, query, replace, options);
+                }
+                else
+                {
+                    var lines = File.ReadAllLines(filePath).ToList();
+                    int index = item.LineNumber - 1;
+                    if (index >= 0 && index < lines.Count)
+                    {
+                        lines[index] = _fileSearchService.ReplaceSearchMatches(lines[index], query, replace, options);
+                    }
+                    await File.WriteAllLinesAsync(filePath, lines);
+                }
+
+                if (FileModified != null)
+                {
+                    await FileModified.Invoke(filePath);
+                }
+
+                _viewModel.SearchResults.Remove(item);
+                await _refreshGitStatusAsync();
+            }
+            catch (Exception ex)
+            {
+                _showError("바꾸기 실패", $"대체 실패: {ex.Message}");
+            }
         }
 
         public async Task OpenSearchResultAsync(object originalSource)
