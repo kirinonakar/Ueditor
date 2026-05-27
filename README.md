@@ -56,7 +56,9 @@ Designed for developers, writers, and power users, Ueditor provides a fluid, dis
 *   **Multi-Provider:** Connect with Gemini, OpenAI, or local LM Studio endpoints.
 *   **Secure Storage:** API keys are securely saved via native Windows Credential Manager.
 *   **AI Translation:** Fast translation of selected text to/from Korean, English, Japanese, Chinese, French, Spanish, German, etc. while safely preserving code structure, markdown formatting, and commands.
-*   **AI Custom Commands:** Execute custom prompts, instructions, and arbitrary questions directly on selected editor blocks or file contexts.
+*   **AI Custom Commands:** Ask questions or give instructions to the AI.
+    *   **Direct Input:** Type a short prompt in the input box and press Send.
+    *   **Instruction Tabs (up to 4):** Type your instruction in the editor, then click the **＋** button to save it as a reusable tab. After creating a tab, click **Add File Context** to attach the current file's content to that tab. Each tab stores its own instruction text and optional file context. Click a tab to switch, click **×** to delete.
 *   **Context Actions:** Quick AI actions (Explain, Refactor, Summarize, Fix) on selected text.
 
 ### 💻 Embedded Native Terminal
