@@ -579,19 +579,19 @@
     <value>입력할 AI 응답이 없습니다.</value>
   </data>
   <data name="LlmActionExplain" xml:space="preserve">
-    <value>선택 영역 설명 (Explain)</value>
+    <value>설명</value>
   </data>
   <data name="LlmActionSummarize" xml:space="preserve">
-    <value>선택 영역 요약 (Summarize)</value>
+    <value>요약</value>
   </data>
   <data name="LlmActionTranslate" xml:space="preserve">
-    <value>선택 영역 번역 (Translate)</value>
+    <value>번역</value>
   </data>
   <data name="LlmActionImprove" xml:space="preserve">
-    <value>수식 및 마크다운 개선</value>
+    <value>개선</value>
   </data>
   <data name="LlmActionCustom" xml:space="preserve">
-    <value>커스텀 지시사항 실행</value>
+    <value>커스텀 전송</value>
   </data>
   <data name="LlmPreflightTitle" xml:space="preserve">
     <value>AI 전송 사전 확인 (Pre-flight Check)</value>

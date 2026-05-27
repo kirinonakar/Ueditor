@@ -580,19 +580,19 @@
     <value>入力するAIの応答がありません。</value>
   </data>
   <data name="LlmActionExplain" xml:space="preserve">
-    <value>選択範囲の解説 (Explain)</value>
+    <value>解説</value>
   </data>
   <data name="LlmActionSummarize" xml:space="preserve">
-    <value>選択範囲の要約 (Summarize)</value>
+    <value>要約</value>
   </data>
   <data name="LlmActionTranslate" xml:space="preserve">
-    <value>選択範囲の翻訳 (Translate)</value>
+    <value>翻訳</value>
   </data>
   <data name="LlmActionImprove" xml:space="preserve">
-    <value>数式とマークダウンの改善</value>
+    <value>改善</value>
   </data>
   <data name="LlmActionCustom" xml:space="preserve">
-    <value>カスタム指示の実行</value>
+    <value>カスタム送信</value>
   </data>
   <data name="LlmPreflightTitle" xml:space="preserve">
     <value>AI送信前の確認 (Pre-flight Check)</value>

@@ -579,19 +579,19 @@
     <value>No AI response to insert.</value>
   </data>
   <data name="LlmActionExplain" xml:space="preserve">
-    <value>Explain Selection</value>
+    <value>Explain</value>
   </data>
   <data name="LlmActionSummarize" xml:space="preserve">
-    <value>Summarize Selection</value>
+    <value>Summarize</value>
   </data>
   <data name="LlmActionTranslate" xml:space="preserve">
-    <value>Translate Selection</value>
+    <value>Translate</value>
   </data>
   <data name="LlmActionImprove" xml:space="preserve">
-    <value>Improve Formulas &amp; Markdown</value>
+    <value>Improve</value>
   </data>
   <data name="LlmActionCustom" xml:space="preserve">
-    <value>Execute Custom Instructions</value>
+    <value>Custom Send</value>
   </data>
   <data name="LlmPreflightTitle" xml:space="preserve">
     <value>AI Pre-flight Check</value>
