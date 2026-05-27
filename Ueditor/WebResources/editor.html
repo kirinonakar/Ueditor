@@ -1077,6 +1077,12 @@
             if (rangeKey === state.lastRangeKey) return;
             state.lastRangeKey = rangeKey;
 
+            // Save active element, focus, and caret position before re-rendering
+            const activeEl = document.activeElement;
+            const isFocused = activeEl && activeEl.closest('.line-text') && activeEl.getAttribute('contenteditable') === 'true';
+            const activeLine = isFocused ? Number(activeEl.dataset.line) : null;
+            const activeCaret = isFocused ? getCaretOffset(activeEl) : 0;
+
             const offsetY = lineTop(range.start);
             viewport.style.transform = `translateY(${offsetY}px)`;
             const rows = [];
@@ -1102,6 +1108,14 @@
 
             viewport.innerHTML = rows.join('');
             measureRenderedRows();
+
+            // Restore focus and caret position if the line is still rendered in the viewport
+            if (isFocused && activeLine !== null) {
+                const element = viewport.querySelector(`.line-text[data-line="${activeLine}"]`);
+                if (element && element.getAttribute('contenteditable') === 'true') {
+                    setCaret(element, activeCaret);
+                }
+            }
         }
 
         function measureRenderedRows() {
