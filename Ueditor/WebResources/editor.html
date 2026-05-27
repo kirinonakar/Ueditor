@@ -98,6 +98,7 @@
         }
 
         .line-row {
+            position: relative;
             display: grid;
             grid-template-columns: var(--gutter-width) max-content;
             min-width: 100%;
@@ -194,6 +195,13 @@
         .selection-fragment {
             background: var(--selection);
             color: inherit;
+        }
+
+        .editable-selection-overlay {
+            position: absolute;
+            z-index: 3;
+            pointer-events: none;
+            background: var(--selection);
         }
 
         .column-cursor {
@@ -1153,6 +1161,115 @@
                     setCaret(element, activeCaret);
                 }
             }
+
+            drawEditableSelectionOverlays();
+        }
+
+        function drawEditableSelectionOverlays() {
+            viewport.querySelectorAll('.editable-selection-overlay').forEach(el => el.remove());
+
+            const selection = normalizeSelection();
+            if (!selection || !hasCustomSelection()) return;
+
+            const activeElement = document.activeElement?.closest?.('.line-text') || null;
+            for (const element of viewport.querySelectorAll('.line-text[contenteditable="true"]')) {
+                const lineNumber = Number(element.dataset.line || 0);
+                if (!lineNumber) continue;
+
+                // 편집 중인 줄은 contenteditable 내부에 span을 넣지 않기 때문에
+                // 커스텀 선택 음영을 별도 overlay로 그린다. 이렇게 해야 현재 커서 줄도
+                // 음영이 보이면서 Backspace/Delete/한글 IME 안정성을 유지할 수 있다.
+                if (state.editingLine !== lineNumber && activeElement !== element) continue;
+
+                const text = lineTextFromElement(element);
+                const bounds = selectionBoundsForLine(lineNumber, text.length);
+                if (!bounds) continue;
+
+                const start = Math.max(0, Math.min(bounds.start, text.length));
+                const end = Math.max(0, Math.min(bounds.end, text.length));
+
+                if (start === end) {
+                    drawEditableColumnCursorOverlay(element, start);
+                    continue;
+                }
+
+                drawEditableSelectionRangeOverlay(element, start, end);
+            }
+        }
+
+        function drawEditableSelectionRangeOverlay(element, start, end) {
+            const row = element.closest('.line-row');
+            const textNode = [...element.childNodes].find(node => node.nodeType === Node.TEXT_NODE);
+            if (!row || !textNode) return;
+
+            const length = textNode.textContent.length;
+            const safeStart = Math.max(0, Math.min(start, length));
+            const safeEnd = Math.max(safeStart, Math.min(end, length));
+            if (safeStart === safeEnd) return;
+
+            const range = document.createRange();
+            range.setStart(textNode, safeStart);
+            range.setEnd(textNode, safeEnd);
+
+            const rowRect = row.getBoundingClientRect();
+            const rects = [...range.getClientRects()].filter(rect => rect.width > 0 && rect.height > 0);
+            for (const rect of rects) {
+                appendEditableSelectionOverlay(row, rect.left - rowRect.left, rect.top - rowRect.top, rect.width, rect.height);
+            }
+
+            range.detach?.();
+        }
+
+        function drawEditableColumnCursorOverlay(element, column) {
+            const selection = normalizeSelection();
+            if (!selection?.isColumn) return;
+
+            const row = element.closest('.line-row');
+            if (!row) return;
+
+            const textNode = [...element.childNodes].find(node => node.nodeType === Node.TEXT_NODE);
+            const rowRect = row.getBoundingClientRect();
+            const lineRect = element.getBoundingClientRect();
+            const height = Math.max(1, Math.min(lineRect.height, state.lineHeight));
+
+            if (!textNode || textNode.textContent.length === 0) {
+                appendEditableSelectionOverlay(row, lineRect.left - rowRect.left, lineRect.top - rowRect.top, 2, height, 'column-cursor-overlay');
+                return;
+            }
+
+            const length = textNode.textContent.length;
+            const safeColumn = Math.max(0, Math.min(column, length));
+            const range = document.createRange();
+            range.setStart(textNode, safeColumn);
+            range.setEnd(textNode, safeColumn);
+
+            let rect = range.getBoundingClientRect();
+            if ((!rect || (rect.width === 0 && rect.height === 0)) && safeColumn > 0) {
+                range.setStart(textNode, safeColumn - 1);
+                range.setEnd(textNode, safeColumn);
+                const prevRect = range.getBoundingClientRect();
+                rect = {
+                    left: prevRect.right,
+                    top: prevRect.top,
+                    height: prevRect.height || state.lineHeight
+                };
+            }
+
+            if (rect && rect.height > 0) {
+                appendEditableSelectionOverlay(row, rect.left - rowRect.left, rect.top - rowRect.top, 2, rect.height, 'column-cursor-overlay');
+            }
+
+            range.detach?.();
+        }
+
+        function appendEditableSelectionOverlay(row, left, top, width, height, extraClass = '') {
+            const overlay = document.createElement('div');
+            overlay.className = `editable-selection-overlay${extraClass ? ' ' + extraClass : ''}`;
+            overlay.style.left = `${Math.max(0, left)}px`;
+            overlay.style.top = `${Math.max(0, top)}px`;
+            overlay.style.width = `${Math.max(1, width)}px`;
+            overlay.style.height = `${Math.max(1, height)}px`;
+            row.appendChild(overlay);
         }
 
         function measureRenderedRows(renderOnChange = true) {
