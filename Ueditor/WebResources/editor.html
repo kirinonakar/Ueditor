@@ -196,6 +196,13 @@
             color: inherit;
         }
 
+        .column-cursor {
+            border-left: 2px solid #0078d4; /* Premium Windows Blue Caret */
+            margin-left: -2px;
+            position: relative;
+            z-index: 2;
+        }
+
         #find-panel {
             position: absolute;
             top: 10px;
@@ -1505,7 +1512,18 @@
             const selectionBounds = selectionBoundsForLine(lineNumber, text.length);
             if (selectionBounds) {
                 const { start, end } = selectionBounds;
+                const selection = normalizeSelection();
+
                 if (start === end) {
+                    if (selection && selection.isColumn) {
+                        if (start < text.length) {
+                            return escapeHtml(text.slice(0, start)) +
+                                `<span class="column-cursor">${escapeHtml(text[start])}</span>` +
+                                escapeHtml(text.slice(start + 1));
+                        } else {
+                            return escapeHtml(text) + `<span class="column-cursor">&nbsp;</span>`;
+                        }
+                    }
                     return escapeHtml(text);
                 }
 
@@ -2027,7 +2045,12 @@
             }
             if (hasCustomSelection()) {
                 const sel = normalizeSelection();
-                if (sel) replaceSelectionWith(sel, '');
+                if (sel) {
+                    if (sel.isColumn && sel.start.column === sel.end.column) {
+                        sel.end.column = sel.end.column + 1;
+                    }
+                    replaceSelectionWith(sel, '');
+                }
                 return;
             }
 
@@ -2048,7 +2071,12 @@
             }
             if (hasCustomSelection()) {
                 const sel = normalizeSelection();
-                if (sel) replaceSelectionWith(sel, '');
+                if (sel) {
+                    if (sel.isColumn && sel.start.column === sel.end.column) {
+                        sel.start.column = Math.max(0, sel.start.column - 1);
+                    }
+                    replaceSelectionWith(sel, '');
+                }
                 return;
             }
 
@@ -2089,14 +2117,21 @@
             }
 
             post({ type: 'contentChanged' });
-            state.selection = null;
-            state.selectionAnchor = { line: end.line, column: maxCaretCol };
+
+            // Maintain column selection editing state
+            const nextCol = startCol + (useLineByLinePaste ? lines[0].length : text.length);
+            state.selection = {
+                start: { line: start.line, column: nextCol },
+                end: { line: end.line, column: nextCol },
+                isColumn: true
+            };
+            state.selectionAnchor = state.selection.start;
             state.currentLine = end.line;
-            state.currentColumn = maxCaretCol + 1;
+            state.currentColumn = nextCol + 1;
 
             queueRender(true);
             setTimeout(() => {
-                focusLine(state.currentLine, maxCaretCol);
+                focusLine(state.currentLine, nextCol);
             }, 0);
         }
 
@@ -4340,6 +4375,13 @@
                 replaceSelectionWith(sel, event.data || '');
             } else if (event.inputType === 'deleteContentBackward' || event.inputType === 'deleteContentForward') {
                 event.preventDefault();
+                if (sel.isColumn && sel.start.column === sel.end.column) {
+                    if (event.inputType === 'deleteContentBackward') {
+                        sel.start.column = Math.max(0, sel.start.column - 1);
+                    } else {
+                        sel.end.column = sel.end.column + 1;
+                    }
+                }
                 replaceSelectionWith(sel, '');
             } else if (event.inputType === 'insertLineBreak' || event.inputType === 'insertParagraph') {
                 event.preventDefault();
