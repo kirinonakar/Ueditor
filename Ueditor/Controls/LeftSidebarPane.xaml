@@ -334,7 +334,7 @@
     
                                 <StackPanel Grid.Row="2" Spacing="8" Margin="0,10,0,0">
                                     <TextBox x:Name="GitCommitMessageInput" PlaceholderText="커밋 메시지 입력..." Height="32" FontSize="12" FontFamily="Segoe UI, Malgun Gothic" VerticalContentAlignment="Center" Padding="10,8,10,0" ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollMode="Disabled" IsSpellCheckEnabled="False" IsTextPredictionEnabled="False"/>
-                                    <Button x:Name="GitCommitButton" Content="커밋 (Commit)" HorizontalAlignment="Stretch" Click="OnGitCommitClick" Style="{StaticResource AccentButtonStyle}"/>
+                                    <Button x:Name="GitCommitButton" Content="커밋 (Commit)" HorizontalAlignment="Stretch" Click="OnGitCommitClick" Style="{StaticResource AccentButtonStyle}" FontSize="11"/>
                                 </StackPanel>
     
                                 <StackPanel Grid.Row="3" Spacing="8" Margin="0,8,0,0">
@@ -343,16 +343,16 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <Button x:Name="GitStageAllButton" Content="전체 Stage" HorizontalAlignment="Stretch" Click="OnGitStageAllClick"/>
-                                    <Button x:Name="GitRestoreAllButton" Grid.Column="1" Content="전체 Restore" HorizontalAlignment="Stretch" Click="OnGitRestoreAllClick"/>
+                                        <Button x:Name="GitStageAllButton" Content="전체 Stage" HorizontalAlignment="Stretch" Click="OnGitStageAllClick" FontSize="11"/>
+                                    <Button x:Name="GitRestoreAllButton" Grid.Column="1" Content="전체 Restore" HorizontalAlignment="Stretch" Click="OnGitRestoreAllClick" FontSize="11"/>
                                     </Grid>
                                     <Grid ColumnSpacing="6">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <Button x:Name="GitPushButton" Content="Push" HorizontalAlignment="Stretch" Click="OnGitPushClick"/>
-                                    <Button x:Name="GitRefreshButton" Grid.Column="1" Content="새로고침" HorizontalAlignment="Stretch" Click="OnGitRefreshClick"/>
+                                        <Button x:Name="GitPushButton" Content="Push" HorizontalAlignment="Stretch" Click="OnGitPushClick" FontSize="11"/>
+                                    <Button x:Name="GitRefreshButton" Grid.Column="1" Content="새로고침" HorizontalAlignment="Stretch" Click="OnGitRefreshClick" FontSize="11"/>
                                     </Grid>
                                 </StackPanel>
     
