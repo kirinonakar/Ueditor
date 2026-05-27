@@ -8,7 +8,7 @@
     xmlns:local="using:Ueditor"
     mc:Ignorable="d">
 
-    <Grid Background="{ThemeResource SystemControlBackgroundAltHighBrush}">
+    <Grid Background="{ThemeResource TabBarBackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
             <RowDefinition x:Name="TerminalSplitterRow" Height="0"/>
@@ -28,6 +28,7 @@
 
             <Grid Grid.Row="0" Grid.Column="0">
                 <TabView x:Name="EditorTabView"
+                         Background="{ThemeResource TabBarBackgroundBrush}"
                          VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
                          AddTabButtonClick="OnEditorTabViewAddTabClick"
                          TabCloseRequested="OnEditorTabViewTabCloseRequested"
@@ -70,6 +71,7 @@
 
             <Grid x:Name="EditorPane2" Grid.Row="0" Grid.Column="2" Visibility="{Binding ElementName=EditorTabView2, Path=Visibility}">
                 <TabView x:Name="EditorTabView2"
+                         Background="{ThemeResource TabBarBackgroundBrush}"
                          VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
                          Visibility="Collapsed"
                          AddTabButtonClick="OnEditorTabView2AddTabClick"

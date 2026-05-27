@@ -19,6 +19,7 @@
                     <SolidColorBrush x:Key="StatusBarForegroundBrush" Color="#1F2937"/>
                     <SolidColorBrush x:Key="SplitterBackgroundBrush" Color="#E0E2E6"/>
                     <SolidColorBrush x:Key="SplitterHoverBackgroundBrush" Color="#C8CCD0"/>
+                    <SolidColorBrush x:Key="TabBarBackgroundBrush" Color="#FFFFFF"/>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#18191B"/>
@@ -34,7 +35,7 @@
                     <SolidColorBrush x:Key="SplitterHoverBackgroundBrush" Color="#4B4E54"/>
 
                     <!-- TabView & TabViewItem lightweight style overrides for Dark Theme -->
-                    <SolidColorBrush x:Key="TabViewTabStripBackground" Color="#18191B"/>
+                    <SolidColorBrush x:Key="TabViewTabStripBackground" Color="#181818"/>
                     
                     <!-- Inactive Tab Background & Foreground -->
                     <SolidColorBrush x:Key="TabViewItemHeaderBackground" Color="#141517"/>
@@ -59,6 +60,7 @@
                     <!-- Tab Borders -->
                     <SolidColorBrush x:Key="TabViewItemHeaderBorderBrush" Color="Transparent"/>
                     <SolidColorBrush x:Key="TabViewBorderBrush" Color="#2E3033"/>
+                    <SolidColorBrush x:Key="TabBarBackgroundBrush" Color="#181818"/>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
             <ResourceDictionary.MergedDictionaries>
