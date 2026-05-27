@@ -99,22 +99,40 @@
                                 <!-- Row 1: Insert Output Button -->
                                 <Button x:Name="LlmInsertOutputButton" Grid.Row="1" Content="입력" HorizontalAlignment="Stretch" Height="32" Click="OnLlmInsertOutputClick" ToolTipService.ToolTip="AI 응답을 현재 커서에 입력 (선택한 경우 선택부위만)" Style="{StaticResource AccentButtonStyle}"/>
     
-                                <!-- Row 2: Selected Context Info visualizer -->
+                                <!-- Row 2: Selected Context Info + Instruction tabs + File context -->
                                 <Border Grid.Row="2" Background="{ThemeResource ToolbarBackgroundBrush}" Padding="8" CornerRadius="4">
-                                    <StackPanel Spacing="8">
+                                    <StackPanel Spacing="6">
+                                        <!-- Selection stats -->
                                         <StackPanel Orientation="Horizontal" Spacing="10">
                                             <FontIcon Glyph="&#xE94A;" FontSize="14" VerticalAlignment="Center"/>
                                             <TextBlock x:Name="SelectionStatsText" Text="선택 영역: 없음 (전체 전송 차단 활성화)" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
                                         </StackPanel>
+
+                                        <!-- Instruction tabs -->
+                                        <ScrollViewer x:Name="InstructionTabScrollViewer" HorizontalScrollMode="Auto" VerticalScrollMode="Disabled" HorizontalScrollBarVisibility="Hidden" MaxHeight="28" Visibility="Collapsed">
+                                            <StackPanel x:Name="InstructionTabPanel" Orientation="Horizontal" Spacing="4"/>
+                                        </ScrollViewer>
+
+                                        <!-- File context display -->
                                         <Grid ColumnSpacing="8">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBox x:Name="LlmFileContextInput" PlaceholderText="파일 맥락 없음" IsReadOnly="True" Height="30" FontSize="11"/>
-                                            <Button x:Name="LlmAddFileContextButton" Grid.Column="1" Content="파일 맥락 추가" Click="OnLlmAddFileContextClick" Style="{StaticResource RightSidebarButtonStyle}"/>
-                                            <Button x:Name="LlmRemoveFileContextButton" Grid.Column="2" Content="삭제" Click="OnLlmRemoveFileContextClick" Style="{StaticResource RightSidebarButtonStyle}"/>
+                                            <TextBox x:Name="LlmFileContextInput" PlaceholderText="파일 맥락 없음" IsReadOnly="True" Height="26" FontSize="11" Padding="6,2,6,2"/>
+                                            <Button x:Name="LlmRemoveFileContextButton" Grid.Column="1" Content="삭제" Height="26" FontSize="11" Padding="8,0,8,0" Click="OnLlmRemoveFileContextClick" Style="{StaticResource RightSidebarButtonStyle}"/>
+                                        </Grid>
+
+                                        <!-- Add instruction + Add file context -->
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Button x:Name="LlmAddInstructionButton" Grid.Column="0" Width="32" Height="26" Padding="0" Click="OnLlmAddInstructionClick" Style="{StaticResource RightSidebarButtonStyle}" ToolTipService.ToolTip="새 커스텀 지시문 추가">
+                                                <FontIcon Glyph="&#xE109;" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Button>
+                                            <Button x:Name="LlmAddFileContextButton" Grid.Column="1" Content="파일 맥락 추가" Height="26" FontSize="11" Padding="8,0,8,0" HorizontalAlignment="Stretch" Click="OnLlmAddFileContextClick" Style="{StaticResource RightSidebarButtonStyle}"/>
                                         </Grid>
                                     </StackPanel>
                                 </Border>

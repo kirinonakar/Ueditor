@@ -622,6 +622,12 @@
   <data name="LlmExceptionFormat" xml:space="preserve">
     <value>AI 실행 도중 예외가 터졌습니다: {0}</value>
   </data>
+  <data name="LlmInstructionDefaultName" xml:space="preserve">
+    <value>지시문</value>
+  </data>
+  <data name="LlmAddInstructionTooltip" xml:space="preserve">
+    <value>새 커스텀 지시문 추가</value>
+  </data>
   <data name="MoveTabLeftTooltip" xml:space="preserve">
     <value>왼쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)</value>
   </data>

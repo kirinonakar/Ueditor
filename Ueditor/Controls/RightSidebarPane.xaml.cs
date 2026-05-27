@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 
 namespace Ueditor.Controls
 {
@@ -24,6 +26,7 @@ namespace Ueditor.Controls
         private string _currentTargetLanguage = "Korean";
         public event RoutedEventHandler? LlmCustomClick;
         public event RoutedEventHandler? LlmInsertOutputClick;
+        public event RoutedEventHandler? LlmAddInstructionClick;
 
         public TabView RightTabs => RightTabView;
         public ComboBox PreviewMode => PreviewModeCombo;
@@ -50,6 +53,8 @@ namespace Ueditor.Controls
         public Button LlmImproveBtn => LlmImproveButton;
         public Button LlmCustomRunBtn => LlmCustomRunButton;
         public Button LlmInsertOutputBtn => LlmInsertOutputButton;
+        public Button LlmAddInstructionBtn => LlmAddInstructionButton;
+        public ScrollViewer InstructionTabScroller => InstructionTabScrollViewer;
 
         public void Localize(Func<string, string, string> getString)
         {
@@ -94,6 +99,7 @@ namespace Ueditor.Controls
             LlmCustomRunButton.Content = getString("LlmCustomRunButtonText", "전송");
             LlmInsertOutputButton.Content = getString("LlmInsertOutputButtonText", "입력");
             ToolTipService.SetToolTip(LlmInsertOutputButton, getString("LlmInsertOutputTooltip", "AI 응답을 현재 커서에 입력 (선택한 경우 선택부위만)"));
+            ToolTipService.SetToolTip(LlmAddInstructionButton, getString("LlmAddInstructionTooltip", "새 커스텀 지시문 추가"));
         }
 
         private void OnPreviewModeComboSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -159,6 +165,11 @@ namespace Ueditor.Controls
             LlmInsertOutputClick?.Invoke(sender, e);
         }
 
+        private void OnLlmAddInstructionClick(object sender, RoutedEventArgs e)
+        {
+            LlmAddInstructionClick?.Invoke(sender, e);
+        }
+
         private void OnLlmTargetLangClick(object sender, RoutedEventArgs e)
         {
             if (sender is MenuFlyoutItem item && item.Tag is string lang)
@@ -192,6 +203,73 @@ namespace Ueditor.Controls
             };
 
             LlmTranslateButton.Content = $"{baseText} ({shortCode})";
+        }
+
+        public void UpdateInstructionTabs(IReadOnlyList<(string Name, bool IsActive)> tabs, Action<int> onTabClick, Action<int> onTabDelete)
+        {
+            InstructionTabPanel.Children.Clear();
+            for (int i = 0; i < tabs.Count; i++)
+            {
+                var (name, isActive) = tabs[i];
+                int index = i;
+
+                var tabBorder = new Border
+                {
+                    CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(8, 2, 4, 2),
+                    BorderThickness = new Thickness(1),
+                };
+
+                if (isActive)
+                {
+                    tabBorder.Background = (Brush)Application.Current.Resources["AccentButtonBackground"];
+                    tabBorder.BorderBrush = (Brush)Application.Current.Resources["AccentButtonBackground"];
+                }
+                else
+                {
+                    tabBorder.Background = (Brush)Application.Current.Resources["ButtonBackground"];
+                    tabBorder.BorderBrush = (Brush)Application.Current.Resources["ButtonBorderBrush"];
+                }
+
+                var innerStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+
+                var nameBlock = new TextBlock
+                {
+                    Text = name,
+                    FontSize = 11,
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+
+                if (isActive)
+                {
+                    nameBlock.Foreground = (Brush)Application.Current.Resources["SystemControlForegroundChromeWhiteBrush"];
+                }
+                else
+                {
+                    nameBlock.Foreground = (Brush)Application.Current.Resources["SystemControlForegroundBaseHighBrush"];
+                }
+
+                innerStack.Children.Add(nameBlock);
+
+                var closeBtn = new Button
+                {
+                    Content = "×",
+                    FontSize = 10,
+                    Width = 18,
+                    Height = 18,
+                    Padding = new Thickness(0),
+                    Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0)),
+                    BorderThickness = new Thickness(0),
+                };
+                closeBtn.Click += (s, args) => onTabDelete(index);
+                innerStack.Children.Add(closeBtn);
+
+                tabBorder.Child = innerStack;
+
+                tabBorder.Tapped += (s, args) => onTabClick(index);
+
+                InstructionTabPanel.Children.Add(tabBorder);
+            }
         }
     }
 }

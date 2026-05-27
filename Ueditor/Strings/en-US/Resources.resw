@@ -622,6 +622,12 @@ Please check for any sensitive information or unintended token usage before send
   <data name="LlmExceptionFormat" xml:space="preserve">
     <value>An exception occurred during AI execution: {0}</value>
   </data>
+  <data name="LlmInstructionDefaultName" xml:space="preserve">
+    <value>Instruction</value>
+  </data>
+  <data name="LlmAddInstructionTooltip" xml:space="preserve">
+    <value>Add new custom instruction</value>
+  </data>
   <data name="MoveTabLeftTooltip" xml:space="preserve">
     <value>Move to left tab (Ctrl/Shift + Click to move tab position)</value>
   </data>

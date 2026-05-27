@@ -623,6 +623,12 @@
   <data name="LlmExceptionFormat" xml:space="preserve">
     <value>AIの実行中に例外が発生しました: {0}</value>
   </data>
+  <data name="LlmInstructionDefaultName" xml:space="preserve">
+    <value>指示</value>
+  </data>
+  <data name="LlmAddInstructionTooltip" xml:space="preserve">
+    <value>新しいカスタム指示を追加</value>
+  </data>
   <data name="MoveTabLeftTooltip" xml:space="preserve">
     <value>左のタブへ移動 (Ctrl/Shiftキーを押しながらクリックでタブ位置を変更)</value>
   </data>

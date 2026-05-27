@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -23,6 +25,19 @@ namespace Ueditor.Controls
 
         private string _lastSelectionText = string.Empty;
         private string _fileContextText = string.Empty;
+        private string _fileContextDisplay = string.Empty;
+
+        private class CustomInstruction
+        {
+            public string Name { get; set; } = "";
+            public string Prompt { get; set; } = "";
+            public string FileContext { get; set; } = "";
+            public string FileContextDisplay { get; set; } = "";
+        }
+
+        private List<CustomInstruction> _instructions = new();
+        private int _activeInstructionIndex = -1;
+        private int _instructionNameCounter = 0;
 
         public LlmAssistantController(
             ILLMService llmService,
@@ -49,7 +64,6 @@ namespace Ueditor.Controls
 
             WireEvents();
 
-            // Set initial target language on sidebar
             var initialTargetLang = _settingsService.CurrentSettings?.LlmTargetLanguage ?? "Korean";
             _rightSidebar.UpdateTranslateLanguage(initialTargetLang);
         }
@@ -80,6 +94,7 @@ namespace Ueditor.Controls
             _rightSidebar.LlmCustomClick += OnLlmCustomClick;
             _rightSidebar.LlmInsertOutputClick += OnLlmInsertOutputClick;
             _rightSidebar.LlmTargetLanguageSelected += OnLlmTargetLanguageSelected;
+            _rightSidebar.LlmAddInstructionClick += OnLlmAddInstructionClick;
         }
 
         private string GetActiveSelectionLanguage()
@@ -105,7 +120,7 @@ namespace Ueditor.Controls
 
         private async void OnLlmExplainClick(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(_lastSelectionText) && string.IsNullOrEmpty(_fileContextText))
+            if (string.IsNullOrEmpty(_lastSelectionText) && string.IsNullOrEmpty(GetActiveFileContext()))
             {
                 _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmNoSelectionCustom", "선택 영역이나 파일 맥락이 없습니다. 텍스트를 선택하거나 파일 맥락을 추가하십시오."));
                 return;
@@ -119,7 +134,7 @@ namespace Ueditor.Controls
 
         private async void OnLlmSummarizeClick(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(_lastSelectionText) && string.IsNullOrEmpty(_fileContextText))
+            if (string.IsNullOrEmpty(_lastSelectionText) && string.IsNullOrEmpty(GetActiveFileContext()))
             {
                 _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmNoSelectionCustom", "선택 영역이나 파일 맥락이 없습니다. 텍스트를 선택하거나 파일 맥락을 추가하십시오."));
                 return;
@@ -132,7 +147,7 @@ namespace Ueditor.Controls
 
         private async void OnLlmTranslateClick(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(_lastSelectionText) && string.IsNullOrEmpty(_fileContextText))
+            if (string.IsNullOrEmpty(_lastSelectionText) && string.IsNullOrEmpty(GetActiveFileContext()))
             {
                 _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmNoSelectionCustom", "선택 영역이나 파일 맥락이 없습니다. 텍스트를 선택하거나 파일 맥락을 추가하십시오."));
                 return;
@@ -145,7 +160,7 @@ namespace Ueditor.Controls
 
         private async void OnLlmImproveClick(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(_lastSelectionText) && string.IsNullOrEmpty(_fileContextText))
+            if (string.IsNullOrEmpty(_lastSelectionText) && string.IsNullOrEmpty(GetActiveFileContext()))
             {
                 _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmNoSelectionCustom", "선택 영역이나 파일 맥락이 없습니다. 텍스트를 선택하거나 파일 맥락을 추가하십시오."));
                 return;
@@ -158,14 +173,11 @@ namespace Ueditor.Controls
 
         private async void OnLlmCustomClick(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(_lastSelectionText) && string.IsNullOrEmpty(_fileContextText))
-            {
-                _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmNoSelectionCustom", "선택 영역이나 파일 맥락이 없습니다. 텍스트를 선택하거나 파일 맥락을 추가하십시오."));
-                return;
-            }
+            SaveActivePrompt();
 
-            string prompt = _rightSidebar.LlmCustomPrompt.Text;
-            if (string.IsNullOrEmpty(prompt))
+            string prompt = GetActivePrompt();
+
+            if (_activeInstructionIndex < 0 && string.IsNullOrEmpty(prompt))
             {
                 _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmEmptyCustomPrompt", "커스텀 지시사항 입력란이 비어 있습니다."));
                 return;
@@ -193,13 +205,36 @@ namespace Ueditor.Controls
                 content = content.Substring(0, maxChars) + "\n\n[파일 맥락이 길어 앞부분만 포함됨]";
             }
 
-            _fileContextText = $"[파일 맥락: {title}]\n{content}";
-            _rightSidebar.LlmFileContext.Text = $"{Path.GetFileName(title)} · {_fileContextText.Length:N0} 글자";
+            string fileContext = $"[파일 맥락: {title}]\n{content}";
+            string display = $"{Path.GetFileName(title)} · {fileContext.Length:N0} 글자";
+
+            if (_activeInstructionIndex >= 0 && _activeInstructionIndex < _instructions.Count)
+            {
+                _instructions[_activeInstructionIndex].FileContext = fileContext;
+                _instructions[_activeInstructionIndex].FileContextDisplay = display;
+            }
+            else
+            {
+                _fileContextText = fileContext;
+                _fileContextDisplay = display;
+            }
+
+            _rightSidebar.LlmFileContext.Text = display;
         }
 
         private void OnLlmRemoveFileContextClick(object sender, RoutedEventArgs e)
         {
-            _fileContextText = string.Empty;
+            if (_activeInstructionIndex >= 0 && _activeInstructionIndex < _instructions.Count)
+            {
+                _instructions[_activeInstructionIndex].FileContext = string.Empty;
+                _instructions[_activeInstructionIndex].FileContextDisplay = string.Empty;
+            }
+            else
+            {
+                _fileContextText = string.Empty;
+                _fileContextDisplay = string.Empty;
+            }
+
             _rightSidebar.LlmFileContext.Text = string.Empty;
         }
 
@@ -220,19 +255,130 @@ namespace Ueditor.Controls
             await _insertIntoActiveEditorAsync(output);
         }
 
+        private void OnLlmAddInstructionClick(object sender, RoutedEventArgs e)
+        {
+            SaveActivePrompt();
+
+            _instructionNameCounter++;
+            string defaultPrefix = _getString("LlmInstructionDefaultName", "지시문");
+            var name = $"{defaultPrefix} {_instructionNameCounter}";
+
+            _instructions.Add(new CustomInstruction
+            {
+                Name = name,
+                Prompt = string.Empty,
+                FileContext = string.Empty,
+                FileContextDisplay = string.Empty
+            });
+            _activeInstructionIndex = _instructions.Count - 1;
+
+            LoadActiveInstruction();
+            RebuildInstructionTabsUI();
+        }
+
+        private void OnInstructionTabClick(int index)
+        {
+            if (index < 0 || index >= _instructions.Count) return;
+
+            SaveActivePrompt();
+            _activeInstructionIndex = index;
+            LoadActiveInstruction();
+            RebuildInstructionTabsUI();
+        }
+
+        private void OnInstructionTabDelete(int index)
+        {
+            if (index < 0 || index >= _instructions.Count) return;
+
+            _instructions.RemoveAt(index);
+
+            if (_activeInstructionIndex >= _instructions.Count)
+            {
+                _activeInstructionIndex = _instructions.Count - 1;
+            }
+            else if (_activeInstructionIndex == index)
+            {
+                _activeInstructionIndex = Math.Min(index, _instructions.Count - 1);
+            }
+            else if (_activeInstructionIndex > index)
+            {
+                _activeInstructionIndex--;
+            }
+
+            if (_instructions.Count == 0)
+            {
+                _activeInstructionIndex = -1;
+                _instructionNameCounter = 0;
+            }
+
+            LoadActiveInstruction();
+            RebuildInstructionTabsUI();
+        }
+
+        private void SaveActivePrompt()
+        {
+            if (_activeInstructionIndex >= 0 && _activeInstructionIndex < _instructions.Count)
+            {
+                _instructions[_activeInstructionIndex].Prompt = _rightSidebar.LlmCustomPrompt.Text;
+            }
+        }
+
+        private void LoadActiveInstruction()
+        {
+            if (_activeInstructionIndex >= 0 && _activeInstructionIndex < _instructions.Count)
+            {
+                var inst = _instructions[_activeInstructionIndex];
+                _rightSidebar.LlmCustomPrompt.Text = inst.Prompt;
+                _rightSidebar.LlmFileContext.Text = inst.FileContextDisplay;
+            }
+            else
+            {
+                _rightSidebar.LlmFileContext.Text = _fileContextDisplay;
+            }
+        }
+
+        private void RebuildInstructionTabsUI()
+        {
+            var tabs = _instructions.Select((inst, idx) => (inst.Name, IsActive: idx == _activeInstructionIndex)).ToList();
+            _rightSidebar.UpdateInstructionTabs(tabs, OnInstructionTabClick, OnInstructionTabDelete);
+
+            var hasTabs = _instructions.Count > 0;
+            _rightSidebar.InstructionTabScroller.Visibility = hasTabs ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private string GetActivePrompt()
+        {
+            if (_activeInstructionIndex >= 0 && _activeInstructionIndex < _instructions.Count)
+            {
+                return _instructions[_activeInstructionIndex].Prompt;
+            }
+            return _rightSidebar.LlmCustomPrompt.Text;
+        }
+
+        private string GetActiveFileContext()
+        {
+            if (_activeInstructionIndex >= 0 && _activeInstructionIndex < _instructions.Count)
+            {
+                return _instructions[_activeInstructionIndex].FileContext;
+            }
+            return _fileContextText;
+        }
+
         private string BuildLlmContext(string selectedText)
         {
-            if (string.IsNullOrEmpty(_fileContextText))
+            string fileContext = GetActiveFileContext();
+
+            if (string.IsNullOrEmpty(fileContext))
             {
                 return selectedText;
             }
 
             if (string.IsNullOrEmpty(selectedText))
             {
-                return _fileContextText;
+                return fileContext;
             }
 
-            return $"{_fileContextText}\n\n[선택 영역]\n{selectedText}";
+            return $"{fileContext}\n\n[선택 영역]\n{selectedText}";
         }
 
         private async Task PreflightCheckAndRunAsync(string actionName, string contentText, Func<Task<string>> llmCall)
@@ -240,14 +386,14 @@ namespace Ueditor.Controls
             if (_settingsService.CurrentSettings.LlmConfirmBeforeSending)
             {
                 var textPreview = contentText.Length > 200 ? contentText.Substring(0, 200) + "..." : contentText;
-                
+
                 string format = _getString("LlmPreflightContentFormat", "액션: {0}\n\n전송될 AI 공급자: {1} ({2})\n전송 텍스트 크기: {3:N0} 자 (약 {4:N0} 토큰 소모)\n\n[전송 내용 미리보기]\n{5}\n\n보안상의 문제나 의도하지 않은 토큰 대량 유실이 없는지 확인 후 전송해 주십시오.");
-                string dialogContent = string.Format(format, 
-                    actionName, 
-                    _settingsService.CurrentSettings.LlmProvider, 
-                    _settingsService.CurrentSettings.LlmModel, 
-                    contentText.Length, 
-                    contentText.Length / 4, 
+                string dialogContent = string.Format(format,
+                    actionName,
+                    _settingsService.CurrentSettings.LlmProvider,
+                    _settingsService.CurrentSettings.LlmModel,
+                    contentText.Length,
+                    contentText.Length / 4,
                     textPreview);
 
                 var dialog = new ContentDialog
@@ -290,8 +436,7 @@ namespace Ueditor.Controls
 
             settings.LlmTargetLanguage = targetLanguage;
             await _settingsService.SaveSettingsAsync(settings);
-            
-            // Update the UI
+
             _rightSidebar.UpdateTranslateLanguage(targetLanguage);
         }
     }
