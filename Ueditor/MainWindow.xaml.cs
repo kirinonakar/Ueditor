@@ -1024,6 +1024,11 @@ namespace Ueditor
                 await bridge.SetTextAsync(updatedText, shouldFocus: false);
                 await SyncEditsToOtherTabsAsync(tab);
                 await bridge.SendFindAllResultsAsync(session.FindAll(query, matchCase, isRegex), query);
+
+                MarkTabDirty(tab, tabItem);
+                PropagateDirtyStateToOtherTabs(tab);
+                SchedulePreview(tab);
+                UpdateTotalLines(tab);
             };
 
             bridge.ContentChanged += (_) =>
