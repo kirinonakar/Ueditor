@@ -271,6 +271,26 @@
         window.addEventListener('dragover', e => e.preventDefault());
         window.addEventListener('drop',     e => e.preventDefault());
 
+        // ── Keyboard shortcut forwarding ──────────────────────────────────
+        function post(msg) {
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage(msg);
+            }
+        }
+
+        window.addEventListener('keydown', event => {
+            if (event.key === 'F9') {
+                event.preventDefault();
+                post({ type: 'shortcut', name: 'f9' });
+            } else if (event.key === 'F10') {
+                event.preventDefault();
+                post({ type: 'shortcut', name: 'f10' });
+            } else if (event.key === 'F12') {
+                event.preventDefault();
+                post({ type: 'shortcut', name: 'f12' });
+            }
+        });
+
         // ── LCS diff comparison logic ──────────────────────────────────────
         function computeLineDiff(textA, textB) {
             const linesA = textA.split(/\r?\n/);

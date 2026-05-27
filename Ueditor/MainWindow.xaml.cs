@@ -657,11 +657,19 @@ namespace Ueditor
                 string type = typeProp.GetString() ?? string.Empty;
                 if (string.Equals(type, "shortcut", StringComparison.Ordinal))
                 {
-                    if (root.TryGetProperty("name", out var nameProp) && string.Equals(nameProp.GetString(), "find", StringComparison.Ordinal))
+                    if (root.TryGetProperty("name", out var nameProp))
                     {
+                        string name = nameProp.GetString() ?? string.Empty;
                         this.DispatcherQueue.TryEnqueue(() =>
                         {
-                            OnFindClick(null!, null!);
+                            if (string.Equals(name, "find", StringComparison.Ordinal))
+                                OnFindClick(null!, null!);
+                            else if (string.Equals(name, "f9", StringComparison.Ordinal))
+                                ToggleTopMostShortcut();
+                            else if (string.Equals(name, "f10", StringComparison.Ordinal))
+                                OnToggleThemeClick(this, new RoutedEventArgs());
+                            else if (string.Equals(name, "f12", StringComparison.Ordinal))
+                                OnStickyNoteClick(this, new RoutedEventArgs());
                         });
                     }
                     return;
@@ -855,6 +863,15 @@ namespace Ueditor
                 {
                     switch (shortcutName)
                     {
+                        case "f9":
+                            ToggleTopMostShortcut();
+                            break;
+                        case "f10":
+                            OnToggleThemeClick(this, new RoutedEventArgs());
+                            break;
+                        case "f12":
+                            OnStickyNoteClick(this, new RoutedEventArgs());
+                            break;
                         case "toggleLeftPanel":
                             _ = ToggleLeftPanelAsync();
                             break;
@@ -3874,6 +3891,33 @@ namespace Ueditor
             coreWebView.Settings.AreDefaultContextMenusEnabled = false;
             coreWebView.Settings.AreDevToolsEnabled = false;
 
+            diffWebView.WebMessageReceived += (s, args) =>
+            {
+                try
+                {
+                    string json = NormalizeWebMessageJson(args);
+                    using var doc = System.Text.Json.JsonDocument.Parse(json);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("type", out var typeProp) && string.Equals(typeProp.GetString(), "shortcut", StringComparison.Ordinal))
+                    {
+                        if (root.TryGetProperty("name", out var nameProp))
+                        {
+                            string name = nameProp.GetString() ?? string.Empty;
+                            this.DispatcherQueue.TryEnqueue(() =>
+                            {
+                                if (string.Equals(name, "f9", StringComparison.Ordinal))
+                                    ToggleTopMostShortcut();
+                                else if (string.Equals(name, "f10", StringComparison.Ordinal))
+                                    OnToggleThemeClick(this, new RoutedEventArgs());
+                                else if (string.Equals(name, "f12", StringComparison.Ordinal))
+                                    OnStickyNoteClick(this, new RoutedEventArgs());
+                            });
+                        }
+                    }
+                }
+                catch { }
+            };
+
             diffWebView.Source = new Uri("http://ueditor.local/diff.html");
 
             diffWebView.NavigationCompleted += (s, e) =>
@@ -4239,8 +4283,13 @@ namespace Ueditor
             switch (key)
             {
                 case Windows.System.VirtualKey.F9:
+                    ToggleTopMostShortcut();
+                    return true;
                 case Windows.System.VirtualKey.F10:
+                    OnToggleThemeClick(this, new RoutedEventArgs());
+                    return true;
                 case Windows.System.VirtualKey.F12:
+                    OnStickyNoteClick(this, new RoutedEventArgs());
                     return true;
             }
 

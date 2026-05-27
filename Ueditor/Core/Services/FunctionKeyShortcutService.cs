@@ -13,9 +13,11 @@ namespace Ueditor.Core.Services
 
         private readonly DispatcherTimer _pollTimer;
         private readonly IntPtr _ownerHwnd;
+#pragma warning disable CS0414
         private bool _f9WasDown;
         private bool _f10WasDown;
         private bool _f12WasDown;
+#pragma warning restore CS0414
 
         public FunctionKeyShortcutService(IntPtr ownerHwnd)
         {
@@ -27,9 +29,11 @@ namespace Ueditor.Core.Services
             _pollTimer.Tick += OnPollTimerTick;
         }
 
+#pragma warning disable CS0067
         public event EventHandler? TopMostRequested;
         public event EventHandler? ThemeRequested;
         public event EventHandler? StickyNoteRequested;
+#pragma warning restore CS0067
 
         public void Start()
         {
@@ -67,15 +71,8 @@ namespace Ueditor.Core.Services
 
         private void OnPollTimerTick(object? sender, object e)
         {
-            if (!IsAppForeground())
-            {
-                ResetPressedState();
-                return;
-            }
-
-            PollKey(F9VirtualKey, ref _f9WasDown, TopMostRequested);
-            PollKey(F10VirtualKey, ref _f10WasDown, ThemeRequested);
-            PollKey(F12VirtualKey, ref _f12WasDown, StickyNoteRequested);
+            // Polling disabled: F9, F10, and F12 are now handled instantly via event-driven mechanisms
+            // (OnRootKeyDown for native focus, and AcceleratorKeyPressed for WebView2 focus).
         }
 
         private static void PollKey(int virtualKey, ref bool wasDown, EventHandler? requested)
