@@ -1585,6 +1585,42 @@ namespace Ueditor
                     await RefreshGitStatusUIAsync();
                 }
 
+                // Check if file is already open in an existing tab
+                var existingTab = _viewModel.Tabs.FirstOrDefault(t => string.Equals(t.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+                if (existingTab != null)
+                {
+                    var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == existingTab.Id);
+                    if (tabItem != null)
+                    {
+                        EditorTabView.SelectedItem = tabItem;
+                    }
+                    else
+                    {
+                        tabItem = EditorTabView2.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == existingTab.Id);
+                        if (tabItem != null)
+                        {
+                            EditorTabView2.SelectedItem = tabItem;
+                        }
+                    }
+
+                    if (tabItem != null)
+                    {
+                        if (_tabBridges.TryGetValue(existingTab.Id, out var bridgeGroup))
+                        {
+                            if (bridgeGroup.WebView != null)
+                            {
+                                bridgeGroup.WebView.Focus(Microsoft.UI.Xaml.FocusState.Programmatic);
+                            }
+                            if (bridgeGroup.Bridge != null)
+                            {
+                                _ = bridgeGroup.Bridge.FocusAsync();
+                            }
+                        }
+                    }
+
+                    return;
+                }
+
                 var readResult = await LineArrayTextModel.LoadFromFileAsync(filePath, "Auto");
                 OpenNewTab(
                     filePath,
