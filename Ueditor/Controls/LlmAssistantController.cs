@@ -105,9 +105,9 @@ namespace Ueditor.Controls
 
         private async void OnLlmExplainClick(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(_lastSelectionText))
+            if (string.IsNullOrEmpty(_lastSelectionText) && string.IsNullOrEmpty(_fileContextText))
             {
-                _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmNoSelectionExplain", "선택된 텍스트가 없습니다. 에디터에서 분석할 범위를 드래그한 후 실행하십시오."));
+                _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmNoSelectionCustom", "선택 영역이나 파일 맥락이 없습니다. 텍스트를 선택하거나 파일 맥락을 추가하십시오."));
                 return;
             }
 
@@ -119,9 +119,9 @@ namespace Ueditor.Controls
 
         private async void OnLlmSummarizeClick(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(_lastSelectionText))
+            if (string.IsNullOrEmpty(_lastSelectionText) && string.IsNullOrEmpty(_fileContextText))
             {
-                _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmNoSelectionSummarize", "선택된 텍스트가 없습니다. 요약할 범위를 드래그하십시오."));
+                _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmNoSelectionCustom", "선택 영역이나 파일 맥락이 없습니다. 텍스트를 선택하거나 파일 맥락을 추가하십시오."));
                 return;
             }
 
@@ -132,9 +132,9 @@ namespace Ueditor.Controls
 
         private async void OnLlmTranslateClick(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(_lastSelectionText))
+            if (string.IsNullOrEmpty(_lastSelectionText) && string.IsNullOrEmpty(_fileContextText))
             {
-                _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmNoSelectionTranslate", "선택된 텍스트가 없습니다. 번역할 범위를 드래그하십시오."));
+                _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmNoSelectionCustom", "선택 영역이나 파일 맥락이 없습니다. 텍스트를 선택하거나 파일 맥락을 추가하십시오."));
                 return;
             }
 
@@ -145,9 +145,9 @@ namespace Ueditor.Controls
 
         private async void OnLlmImproveClick(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(_lastSelectionText))
+            if (string.IsNullOrEmpty(_lastSelectionText) && string.IsNullOrEmpty(_fileContextText))
             {
-                _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmNoSelectionImprove", "선택된 텍스트가 없습니다. 개선할 범위를 드래그하십시오."));
+                _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmNoSelectionCustom", "선택 영역이나 파일 맥락이 없습니다. 텍스트를 선택하거나 파일 맥락을 추가하십시오."));
                 return;
             }
 
