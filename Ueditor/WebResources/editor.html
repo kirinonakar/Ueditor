@@ -3584,7 +3584,28 @@
 
             if (indexOfMatch + matchLength > originalText.length) return;
 
-            const nextText = originalText.slice(0, indexOfMatch) + replaceText + originalText.slice(indexOfMatch + matchLength);
+            let nextText = originalText;
+            if (state.findRegex) {
+                try {
+                    const regex = new RegExp(query, state.findMatchCase ? 'g' : 'gi');
+                    let replaced = false;
+                    nextText = originalText.replace(regex, (m, ...args) => {
+                        const offset = args[args.length - 2];
+                        if (offset === indexOfMatch && !replaced) {
+                            replaced = true;
+                            const cleanQuery = query.replace(/^\^/, '').replace(/\$$/, '');
+                            const cleanRegex = new RegExp(cleanQuery, state.findMatchCase ? '' : 'i');
+                            return m.replace(cleanRegex, replaceText);
+                        }
+                        return m;
+                    });
+                } catch (e) {
+                    nextText = originalText.slice(0, indexOfMatch) + replaceText + originalText.slice(indexOfMatch + matchLength);
+                }
+            } else {
+                nextText = originalText.slice(0, indexOfMatch) + replaceText + originalText.slice(indexOfMatch + matchLength);
+            }
+
             state.cache.set(lineNumber, nextText);
             post({ type: 'lineChanged', lineNumber: lineNumber, text: nextText });
             post({ type: 'contentChanged' });
@@ -3604,42 +3625,13 @@
             if (!query) return;
 
             const replaceText = replaceInput.value || '';
-
-            const lineMatches = new Map();
-            for (const match of state.searchMatches) {
-                if (!lineMatches.has(match.lineNumber)) {
-                    lineMatches.set(match.lineNumber, []);
-                }
-                lineMatches.get(match.lineNumber).push(match);
-            }
-
-            let changed = false;
-            for (const [lineNumber, matches] of lineMatches.entries()) {
-                const originalText = state.cache.get(lineNumber);
-                if (originalText === undefined) continue;
-
-                matches.sort((a, b) => b.indexOfMatch - a.indexOfMatch);
-
-                let nextText = originalText;
-                for (const match of matches) {
-                    const idx = match.indexOfMatch;
-                    const len = match.matchLength;
-                    if (idx + len <= nextText.length) {
-                        nextText = nextText.slice(0, idx) + replaceText + nextText.slice(idx + len);
-                    }
-                }
-
-                if (nextText !== originalText) {
-                    state.cache.set(lineNumber, nextText);
-                    post({ type: 'lineChanged', lineNumber: lineNumber, text: nextText });
-                    changed = true;
-                }
-            }
-
-            if (changed) {
-                post({ type: 'contentChanged' });
-                post({ type: 'findAll', query: query, matchCase: state.findMatchCase, isRegex: state.findRegex });
-            }
+            post({
+                type: 'replaceAll',
+                query: query,
+                replace: replaceText,
+                matchCase: state.findMatchCase,
+                isRegex: state.findRegex
+            });
         }
 
         function closeFindPanel() {

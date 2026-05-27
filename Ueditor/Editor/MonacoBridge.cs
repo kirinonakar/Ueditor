@@ -32,6 +32,7 @@ namespace Ueditor.Editor
         public event Action<int>? DeleteLineRequested;
         public event Action<string, int, int, bool, bool, bool>? FindRequested;
         public event Action<string, bool, bool>? FindAllRequested;
+        public event Action<string, string, bool, bool>? ReplaceAllRequested;
         public event Action<int, double>? ScrollChanged;
         public event Action<bool>? ScrollSyncChanged;
 
@@ -505,6 +506,22 @@ namespace Ueditor.Editor
                                     findAllQueryProp.GetString() ?? string.Empty,
                                     findAllMatchCase,
                                     isRegex);
+                            }
+                            break;
+
+                        case "replaceAll":
+                            if (root.TryGetProperty("query", out JsonElement replaceAllQueryProp) &&
+                                root.TryGetProperty("replace", out JsonElement replaceValProp))
+                            {
+                                bool replaceMatchCase = root.TryGetProperty("matchCase", out JsonElement replaceMatchCaseProp) &&
+                                    replaceMatchCaseProp.GetBoolean();
+                                bool replaceIsRegex = root.TryGetProperty("isRegex", out JsonElement replaceIsRegexProp) &&
+                                    replaceIsRegexProp.GetBoolean();
+                                ReplaceAllRequested?.Invoke(
+                                    replaceAllQueryProp.GetString() ?? string.Empty,
+                                    replaceValProp.GetString() ?? string.Empty,
+                                    replaceMatchCase,
+                                    replaceIsRegex);
                             }
                             break;
 

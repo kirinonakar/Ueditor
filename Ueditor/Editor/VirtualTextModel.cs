@@ -710,6 +710,67 @@ namespace Ueditor.Editor
             return Model.FindAll(query, matchCase, isRegex);
         }
 
+        public void ReplaceAll(string query, string replace, bool matchCase, bool isRegex)
+        {
+            PushUndo();
+            if (isRegex)
+            {
+                try
+                {
+                    var options = matchCase ? RegexOptions.None : RegexOptions.IgnoreCase;
+                    var regex = new Regex(query, options);
+                    for (int i = 1; i <= Model.LineCount; i++)
+                    {
+                        string original = Model.GetLine(i);
+                        string nextText = regex.Replace(original, replace);
+                        if (nextText != original)
+                        {
+                            Model.ReplaceLine(i, nextText);
+                        }
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    // Ignore invalid regex
+                }
+            }
+            else
+            {
+                var comparison = matchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+                for (int i = 1; i <= Model.LineCount; i++)
+                {
+                    string original = Model.GetLine(i);
+                    string nextText = ReplaceString(original, query, replace, comparison);
+                    if (nextText != original)
+                    {
+                        Model.ReplaceLine(i, nextText);
+                    }
+                }
+            }
+            RefreshTabContentPreview();
+        }
+
+        private static string ReplaceString(string str, string oldValue, string newValue, StringComparison comparison)
+        {
+            if (string.IsNullOrEmpty(oldValue))
+            {
+                return str;
+            }
+
+            StringBuilder sb = new StringBuilder();
+            int previousIndex = 0;
+            int index = str.IndexOf(oldValue, comparison);
+            while (index != -1)
+            {
+                sb.Append(str.Substring(previousIndex, index - previousIndex));
+                sb.Append(newValue);
+                previousIndex = index + oldValue.Length;
+                index = str.IndexOf(oldValue, previousIndex, comparison);
+            }
+            sb.Append(str.Substring(previousIndex));
+            return sb.ToString();
+        }
+
         public Task SaveAsync(string filePath, string encodingName, CancellationToken cancellationToken = default)
         {
             return Model.SaveAsync(filePath, encodingName, cancellationToken);

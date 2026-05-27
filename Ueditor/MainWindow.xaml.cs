@@ -1017,6 +1017,15 @@ namespace Ueditor
                 await bridge.SendFindAllResultsAsync(results, query);
             };
 
+            bridge.ReplaceAllRequested += async (query, replace, matchCase, isRegex) =>
+            {
+                session.ReplaceAll(query, replace, matchCase, isRegex);
+                string updatedText = session.GetText();
+                await bridge.SetTextAsync(updatedText, shouldFocus: false);
+                await SyncEditsToOtherTabsAsync(tab);
+                await bridge.SendFindAllResultsAsync(session.FindAll(query, matchCase, isRegex), query);
+            };
+
             bridge.ContentChanged += (_) =>
             {
                 MarkTabDirty(tab, tabItem);
