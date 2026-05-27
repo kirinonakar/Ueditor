@@ -213,25 +213,7 @@ namespace Ueditor.Controls
                 var (name, isActive) = tabs[i];
                 int index = i;
 
-                var tabBorder = new Border
-                {
-                    CornerRadius = new CornerRadius(4),
-                    Padding = new Thickness(8, 2, 4, 2),
-                    BorderThickness = new Thickness(1),
-                };
-
-                if (isActive)
-                {
-                    tabBorder.Background = (Brush)Application.Current.Resources["AccentButtonBackground"];
-                    tabBorder.BorderBrush = (Brush)Application.Current.Resources["AccentButtonBackground"];
-                }
-                else
-                {
-                    tabBorder.Background = (Brush)Application.Current.Resources["ButtonBackground"];
-                    tabBorder.BorderBrush = (Brush)Application.Current.Resources["ButtonBorderBrush"];
-                }
-
-                var innerStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+                var innerStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
 
                 var nameBlock = new TextBlock
                 {
@@ -239,16 +221,6 @@ namespace Ueditor.Controls
                     FontSize = 11,
                     VerticalAlignment = VerticalAlignment.Center,
                 };
-
-                if (isActive)
-                {
-                    nameBlock.Foreground = (Brush)Application.Current.Resources["SystemControlForegroundChromeWhiteBrush"];
-                }
-                else
-                {
-                    nameBlock.Foreground = (Brush)Application.Current.Resources["SystemControlForegroundBaseHighBrush"];
-                }
-
                 innerStack.Children.Add(nameBlock);
 
                 var closeBtn = new Button
@@ -257,18 +229,66 @@ namespace Ueditor.Controls
                     FontSize = 10,
                     Width = 18,
                     Height = 18,
+                    MinHeight = 18,
+                    MinWidth = 18,
                     Padding = new Thickness(0),
+                    Margin = new Thickness(0),
                     Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0)),
                     BorderThickness = new Thickness(0),
+                    HorizontalContentAlignment = HorizontalAlignment.Center,
+                    VerticalContentAlignment = VerticalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center,
                 };
                 closeBtn.Click += (s, args) => onTabDelete(index);
+                closeBtn.Tapped += (s, args) => args.Handled = true;
                 innerStack.Children.Add(closeBtn);
 
-                tabBorder.Child = innerStack;
+                var tabBorder = new Border
+                {
+                    CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(8, 0, 4, 0),
+                    BorderThickness = new Thickness(1),
+                    MinHeight = 24,
+                    Height = 24,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    UseLayoutRounding = true,
+                    Child = innerStack,
+                };
 
-                tabBorder.Tapped += (s, args) => onTabClick(index);
+                ApplyTabTheme(tabBorder, nameBlock, isActive);
+
+                tabBorder.ActualThemeChanged += (_, _) => ApplyTabTheme(tabBorder, nameBlock, isActive);
+                tabBorder.Tapped += (_, _) => onTabClick(index);
 
                 InstructionTabPanel.Children.Add(tabBorder);
+            }
+        }
+
+        private static void ApplyTabTheme(Border tabBorder, TextBlock nameBlock, bool isActive)
+        {
+            if (isActive)
+            {
+                tabBorder.Background = (Brush)Application.Current.Resources["AccentButtonBackground"];
+                tabBorder.BorderBrush = (Brush)Application.Current.Resources["AccentButtonBackground"];
+                nameBlock.Foreground = (Brush)Application.Current.Resources["SystemControlForegroundChromeWhiteBrush"];
+            }
+            else
+            {
+                tabBorder.Background = (Brush)Application.Current.Resources["ButtonBackground"];
+                tabBorder.BorderBrush = (Brush)Application.Current.Resources["ButtonBorderBrush"];
+                nameBlock.Foreground = (Brush)Application.Current.Resources["SystemControlForegroundBaseHighBrush"];
+            }
+
+            // Update close button foregrounds in children
+            foreach (var child in ((StackPanel)tabBorder.Child).Children)
+            {
+                if (child is Button btn && btn.Content is string s && s == "×")
+                {
+                    btn.Foreground = isActive
+                        ? (Brush)Application.Current.Resources["SystemControlForegroundChromeWhiteBrush"]
+                        : (Brush)Application.Current.Resources["SystemControlForegroundBaseMediumBrush"];
+                }
             }
         }
     }

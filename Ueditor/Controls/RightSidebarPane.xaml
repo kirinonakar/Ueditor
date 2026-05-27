@@ -109,8 +109,8 @@
                                         </StackPanel>
 
                                         <!-- Instruction tabs -->
-                                        <ScrollViewer x:Name="InstructionTabScrollViewer" HorizontalScrollMode="Auto" VerticalScrollMode="Disabled" HorizontalScrollBarVisibility="Hidden" MaxHeight="28" Visibility="Collapsed">
-                                            <StackPanel x:Name="InstructionTabPanel" Orientation="Horizontal" Spacing="4"/>
+                                        <ScrollViewer x:Name="InstructionTabScrollViewer" HorizontalScrollMode="Auto" VerticalScrollMode="Disabled" HorizontalScrollBarVisibility="Hidden" Height="24" Visibility="Collapsed">
+                                            <StackPanel x:Name="InstructionTabPanel" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center"/>
                                         </ScrollViewer>
 
                                         <!-- File context display -->
