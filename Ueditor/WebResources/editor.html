@@ -825,7 +825,7 @@
             document.documentElement.style.setProperty('--font-size', `${fontSize}px`);
             document.documentElement.style.setProperty('--font-family', msg.fontFamily || 'Consolas, "Courier New", monospace');
             document.documentElement.style.setProperty('--line-height', `${state.lineHeight}px`);
-            document.documentElement.style.setProperty('--wrap', state.wordWrap ? 'pre-wrap' : 'pre');
+            document.documentElement.style.setProperty('--wrap', state.wordWrap ? 'break-spaces' : 'pre');
             document.body.classList.toggle('wrap-enabled', state.wordWrap);
 
             const replaceRow = document.getElementById('replace-row');
@@ -1891,6 +1891,13 @@
             post({ type: 'lineChanged', lineNumber, text });
             post({ type: 'contentChanged' });
             reportCursorAndSelection(element);
+
+            if (state.wordWrap) {
+                // native input 경로로 들어온 일반 문자 입력도 wrap 높이를 즉시 반영한다.
+                // 그렇지 않으면 DOM은 줄바꿈되지만 가상 스크롤 높이가 늦게 갱신되어
+                // Space를 길게 누를 때 한 줄이 wrap된 뒤 입력이 멈춘 것처럼 보일 수 있다.
+                measureRenderedRows(false);
+            }
         }
 
         function shiftCachedLines(fromLine, delta) {
@@ -2041,8 +2048,7 @@
                 return;
             }
 
-            document.execCommand('insertText', false, normalized);
-            commitLine(element);
+            insertPlainTextByModel(element, normalized);
         }
 
         function activeEditableElement() {
@@ -2055,18 +2061,24 @@
         function isModelRepeatKey(event) {
             if (!event) return false;
             if (event.ctrlKey || event.metaKey || event.altKey) return false;
+            // Space는 Backspace/Delete처럼 keydown 반복 타이머로 처리하지 않는다.
+            // keydown에서 Space를 preventDefault 하면 WebView2/Chromium의 beforeinput 흐름과
+            // word wrap 높이 갱신이 어긋나 Space가 tabSize만큼 들어가거나 wrap 뒤에
+            // 반복 입력이 멈추는 현상이 생길 수 있다.
             return event.key === 'Backspace' ||
-                event.key === 'Delete' ||
-                event.key === ' ' ||
-                event.code === 'Space' ||
-                event.key === 'Spacebar';
+                event.key === 'Delete';
         }
 
         function normalizedModelRepeatKey(event) {
             if (event.key === 'Backspace') return 'Backspace';
             if (event.key === 'Delete') return 'Delete';
-            if (event.key === ' ' || event.code === 'Space' || event.key === 'Spacebar') return 'Space';
             return event.key;
+        }
+
+        function isSpaceInputEvent(event) {
+            if (!event) return false;
+            const inputType = event.inputType || '';
+            return (inputType === 'insertText' || inputType === 'insertSpace') && event.data === ' ';
         }
 
         function markNativeBeforeInputHandled(inputTypes, durationMs = 120) {
@@ -2162,8 +2174,6 @@
                 deleteBackwardAtCaret(element);
             } else if (key === 'Delete') {
                 deleteForwardAtCaret(element);
-            } else if (key === 'Space') {
-                insertPlainTextByModel(element, ' ');
             }
         }
 
@@ -4656,32 +4666,41 @@
                 return;
             }
 
+            if ((event.key === ' ' || event.code === 'Space') && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                // Chromium/WebView2 can miss or visually hide native Space insertion at the
+                // beginning of a soft-wrapped visual line. Handle Space through the editor
+                // model so one physical key press always inserts exactly one U+0020 at the
+                // logical caret offset.
+                event.preventDefault();
+                markNativeBeforeInputHandled(['insertSpace'], 80);
+                insertPlainTextByModel(element, ' ');
+                return;
+            }
+
             if (event.key === 'Tab') {
                 event.preventDefault();
                 if (event.shiftKey || hasCustomSelection()) {
                     changeLineIndent(event.shiftKey ? -1 : 1);
                     return;
                 }
-                insertTextAtCaret(' '.repeat(state.tabSize));
+                // Avoid execCommand here. At the first column of a soft-wrapped visual line,
+                // native insertion can be dropped by contenteditable/white-space handling.
+                insertPlainTextByModel(element, ' '.repeat(state.tabSize));
                 return;
             }
 
             if (isModelRepeatKey(event)) {
                 event.preventDefault();
                 const keyName = normalizedModelRepeatKey(event);
-                state.lastDeleteKeyDown = keyName === 'Backspace' || keyName === 'Delete'
-                    ? {
-                        key: keyName,
-                        line: Number(element.dataset.line || state.currentLine || 1),
-                        column: getCaretOffset(element),
-                        time: performance.now()
-                    }
-                    : state.lastDeleteKeyDown;
+                state.lastDeleteKeyDown = {
+                    key: keyName,
+                    line: Number(element.dataset.line || state.currentLine || 1),
+                    column: getCaretOffset(element),
+                    time: performance.now()
+                };
                 markNativeBeforeInputHandled(keyName === 'Backspace'
                     ? ['deleteContentBackward']
-                    : keyName === 'Delete'
-                        ? ['deleteContentForward']
-                        : ['insertText', 'insertSpace']);
+                    : ['deleteContentForward']);
                 scheduleModelRepeatEdit(keyName, event.repeat);
                 return;
             }
@@ -4707,6 +4726,26 @@
 
             if (shouldSuppressNativeBeforeInput(event)) {
                 event.preventDefault();
+                return;
+            }
+
+            if (isSpaceInputEvent(event)) {
+                event.preventDefault();
+                const target = element || activeEditableElement();
+                if (!target || target.getAttribute('contenteditable') !== 'true') return;
+
+                if (hasCustomSelection()) {
+                    const sel = normalizeSelection();
+                    if (sel) replaceSelectionWith(sel, ' ');
+                    return;
+                }
+
+                const text = lineTextFromElement(target);
+                const range = inputRangeInElement(event, target);
+                const start = range ? range.start : getCaretOffset(target);
+                const end = range ? range.end : start;
+                makeEditablePlainText(target, start);
+                updateSingleLine(target, text.slice(0, start) + ' ' + text.slice(end), start + 1);
                 return;
             }
 
