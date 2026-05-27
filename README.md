@@ -75,6 +75,13 @@ Designed for developers, writers, and power users, Ueditor provides a fluid, dis
 *   **Global Lookup:** Folder-wide multi-file search with Match Case, Whole Word, and Regex filtering.
 *   **Jump-to-Source:** Double-click search results to open the file and focus the exact line.
 
+### 📑 Table of Contents (TOC) & Document Outline
+*   **Smart Outline Generator:** Automatically parses and generates a structural document outline based on the active file:
+    *   **Markdown:** Maps H1 through H6 headings (`#` to `######`) to hierarchical tree levels.
+    *   **Aozora Bunko:** Supports Japanese Aozora text files, parsing block/inline/wrapped headings while cleaning ruby markup (`《...》`, `｜`) and tags for a distraction-free overview.
+    *   **Code Outline:** Builds structural trees of classes, methods, structs, or functions for major languages including **C#**, **Python**, **JavaScript/TypeScript**, and **Go** (with a general signature fallback for others).
+*   **Interactive Jump:** Double-clicking any outline item instantly scrolls the viewport to focus the target line.
+
 ### 🌐 Multilingual Support
 * Native support for English (`en-US`), Korean (`ko-KR`), and Japanese (`ja-JP`). The user interface automatically adapts to your system language or preferred settings for a fully localized desktop experience.
 
@@ -106,6 +113,12 @@ Ueditor is designed for speed and productivity, packing standard IDE shortcuts a
 | `F9` | Toggle Always on Top |
 | `F10` | Toggle Theme (Dark / Light) |
 | `F12` | Toggle Sticky Note Mode |
+
+### 🖱️ Column Selection (Multi-Cursor Selection)
+
+*   **Column Drag Selection:**
+    *   Hold **`Alt` + Mouse Drag** (or **`Shift + Alt` + Mouse Drag**) to select text in a vertical block or column.
+    *   This places cursors on multiple consecutive lines, enabling you to edit, write, or delete text across multiple rows simultaneously.
 
 ### 🛠️ Interactive Tool Buttons
 
