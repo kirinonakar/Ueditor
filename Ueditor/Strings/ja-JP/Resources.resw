@@ -263,6 +263,9 @@
   <data name="SettingsBracketPair" xml:space="preserve">
     <value>ブラケットペアのカラー表示</value>
   </data>
+  <data name="SettingsAutocomplete" xml:space="preserve">
+    <value>自動補完機能を使用する</value>
+  </data>
   <data name="SettingsAutoSave" xml:space="preserve">
     <value>自動保存を使用する</value>
   </data>
@@ -558,6 +561,9 @@
   </data>
   <data name="SettingsAboutProjectGitHub" xml:space="preserve">
     <value>Project GitHub</value>
+  </data>
+  <data name="SettingsAboutThirdPartyNotices" xml:space="preserve">
+    <value>オープンソース ライセンス通知 (Third-Party Notices)</value>
   </data>
   <data name="SettingsShortcuts" xml:space="preserve">
     <value>ショートカット</value>

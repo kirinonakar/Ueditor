@@ -263,6 +263,9 @@
   <data name="SettingsBracketPair" xml:space="preserve">
     <value>Bracket Pair Colorization</value>
   </data>
+  <data name="SettingsAutocomplete" xml:space="preserve">
+    <value>Enable Autocomplete</value>
+  </data>
   <data name="SettingsAutoSave" xml:space="preserve">
     <value>Use Autosave</value>
   </data>
@@ -557,6 +560,9 @@ Supports live preview, code &amp; formula templates, terminal interface, Git int
   </data>
   <data name="SettingsAboutProjectGitHub" xml:space="preserve">
     <value>Project GitHub</value>
+  </data>
+  <data name="SettingsAboutThirdPartyNotices" xml:space="preserve">
+    <value>Open Source Licenses (Third-Party Notices)</value>
   </data>
   <data name="SettingsShortcuts" xml:space="preserve">
     <value>Shortcuts</value>
