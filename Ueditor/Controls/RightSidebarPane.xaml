@@ -121,14 +121,19 @@
     
                                 <!-- Row 3: Quick Action Buttons -->
                                 <StackPanel Grid.Row="3" Spacing="8">
-                                    <Button x:Name="LlmExplainButton" Content="설명" HorizontalAlignment="Stretch" Click="OnLlmExplainClick" Style="{StaticResource AccentButtonStyle}"/>
-                                    <Grid ColumnSpacing="8">
+                                    <Grid ColumnSpacing="8" RowSpacing="8">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <Button x:Name="LlmSummarizeButton" Content="요약" Grid.Column="0" HorizontalAlignment="Stretch" Click="OnLlmSummarizeClick" Style="{StaticResource RightSidebarButtonStyle}"/>
-                                        <Button x:Name="LlmTranslateButton" Content="번역" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnLlmTranslateClick" Style="{StaticResource RightSidebarButtonStyle}">
+                                        
+                                        <!-- Line 1: 요약 / 번역 -->
+                                        <Button x:Name="LlmSummarizeButton" Content="요약" Grid.Row="0" Grid.Column="0" HorizontalAlignment="Stretch" Click="OnLlmSummarizeClick" Style="{StaticResource RightSidebarButtonStyle}"/>
+                                        <Button x:Name="LlmTranslateButton" Content="번역" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnLlmTranslateClick" Style="{StaticResource RightSidebarButtonStyle}">
                                             <Button.ContextFlyout>
                                                 <MenuFlyout>
                                                     <MenuFlyoutItem x:Name="LlmTargetLangKorean" Text="한국어 (Korean)" Click="OnLlmTargetLangClick" Tag="Korean"/>
@@ -141,13 +146,10 @@
                                                 </MenuFlyout>
                                             </Button.ContextFlyout>
                                         </Button>
-                                    </Grid>
-    
-                                    <Grid ColumnSpacing="8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Button x:Name="LlmImproveButton" Content="수식/마크다운 개선" HorizontalAlignment="Stretch" Click="OnLlmImproveClick" Style="{StaticResource RightSidebarButtonStyle}"/>
+                                        
+                                        <!-- Line 2: 설명 / 개선 -->
+                                        <Button x:Name="LlmExplainButton" Content="설명" Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch" Click="OnLlmExplainClick" Style="{StaticResource RightSidebarButtonStyle}"/>
+                                        <Button x:Name="LlmImproveButton" Content="개선" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" Click="OnLlmImproveClick" Style="{StaticResource RightSidebarButtonStyle}"/>
                                     </Grid>
                                     
                                     <Grid ColumnSpacing="8" Margin="0,5,0,0">
