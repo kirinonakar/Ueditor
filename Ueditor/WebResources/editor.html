@@ -2097,7 +2097,17 @@
             const text = lineTextFromElement(element);
             const caret = getCaretOffset(element);
             if (caret > 0) {
-                updateSingleLine(element, text.slice(0, caret - 1) + text.slice(caret), caret - 1);
+                // Smart tab backspace: if cursor is preceded only by spaces and aligns
+                // to a tab stop, delete the whole tab (up to tabSize spaces at once).
+                const tabSize = state.tabSize || 4;
+                const prefix = text.slice(0, caret);
+                const onlySpacesBefore = prefix.length > 0 && /^ *$/.test(prefix);
+                if (onlySpacesBefore && prefix.length % tabSize === 0) {
+                    const deleteCount = tabSize;
+                    updateSingleLine(element, text.slice(0, caret - deleteCount) + text.slice(caret), caret - deleteCount);
+                } else {
+                    updateSingleLine(element, text.slice(0, caret - 1) + text.slice(caret), caret - 1);
+                }
                 return;
             }
 
