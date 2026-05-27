@@ -722,7 +722,11 @@
             scrollSyncEnabled: true,
             dragStartPosition: null,
             isComposing: false,
-            compositionLine: null
+            compositionLine: null,
+            suppressNextBeforeInputType: null,
+            lastManualDeleteAt: 0,
+            editingLine: null,
+            lastDeleteKeyDown: null
         };
 
         function post(msg) {
@@ -951,10 +955,22 @@
         function receiveLineBlock(startLine, lines) {
             const start = Number(startLine || 1);
             const safeLines = Array.isArray(lines) ? lines : [];
+            let changed = false;
             for (let i = 0; i < safeLines.length; i++) {
-                state.cache.set(start + i, safeLines[i] ?? '');
+                const lineNumber = start + i;
+                // 분할 뷰에서 한글 IME 조합 중일 때 호스트가 보내는 이전 줄 내용으로
+                // 현재 조합 중인 DOM/캐시를 덮어쓰면 직전 자소가 사라진다.
+                // 조합 중인 줄은 compositionend에서 최종 문자열을 커밋하므로 여기서는 보호한다.
+                if ((state.isComposing && (!state.compositionLine || state.compositionLine === lineNumber)) ||
+                    (state.editingLine === lineNumber && document.activeElement?.closest?.('.line-text')?.dataset.line === String(lineNumber))) {
+                    continue;
+                }
+                state.cache.set(lineNumber, safeLines[i] ?? '');
+                changed = true;
             }
-            state.cacheVersion++;
+            if (changed) {
+                state.cacheVersion++;
+            }
             for (const key of [...state.pending]) {
                 const [pendingStart, pendingCount] = key.split(':').map(Number);
                 const pendingEnd = pendingStart + pendingCount - 1;
@@ -1066,6 +1082,13 @@
         function render() {
             if (!state.initialized) return;
 
+            // IME 조합 중 viewport를 통째로 다시 그리면 조합 중인 contenteditable 노드가
+            // 교체되어 한글 자소가 유실될 수 있다. 조합이 끝난 뒤 다시 렌더링한다.
+            if (state.isComposing) {
+                state.lastRangeKey = '';
+                return;
+            }
+
             const printContainer = document.getElementById('print-container');
             if (printContainer && printContainer.style.display === 'block') {
                 return;
@@ -1098,10 +1121,14 @@
                 const isInSelection = !!selectionBounds;
                 const isSelectedEmptyLine = isInSelection && displayText.length === 0 && hasCustomSelection();
                 const textClass = `line-text${hasLine ? '' : ' loading'}${isLong ? ' long-line' : ''}`;
+                const renderAsPlainEditable = isFocused && activeLine === line && contentEditable === 'true';
+                const lineContent = renderAsPlainEditable
+                    ? escapeHtml(displayText)
+                    : renderLineContent(line, displayText);
                 rows.push(
                     `<div class="line-row${isInSelection ? ' selected-row' : ''}${isSelectedEmptyLine ? ' selected-empty-row' : ''}" data-line="${line}">` +
                     `<div class="line-number">${line}</div>` +
-                    `<div class="${textClass}" contenteditable="${contentEditable}" spellcheck="false" data-line="${line}">${renderLineContent(line, displayText)}</div>` +
+                    `<div class="${textClass}" contenteditable="${contentEditable}" spellcheck="false" data-line="${line}">${lineContent}</div>` +
                     `</div>`
                 );
             }
@@ -1523,6 +1550,14 @@
         }
 
         function renderLineContent(lineNumber, text) {
+            // 편집 중인 줄은 syntax/search highlight span 없이 단일 텍스트 노드로 렌더링한다.
+            // contenteditable 내부에 span/mark가 섞이면 WebView2/Chromium의 Backspace/Delete
+            // target range와 한글 IME 조합 범위가 어긋나 뒤쪽 글자나 이전 자소가 지워질 수 있다.
+            if (state.editingLine === lineNumber ||
+                (state.isComposing && state.compositionLine === lineNumber)) {
+                return escapeHtml(text);
+            }
+
             const selectionBounds = selectionBoundsForLine(lineNumber, text.length);
             if (selectionBounds) {
                 const { start, end } = selectionBounds;
@@ -1625,15 +1660,64 @@
             return (element.textContent || '').replace(/\u00a0/g, ' ');
         }
 
+        function makeEditablePlainText(element, caretColumn = null, restoreCaret = true) {
+            if (!element || element.getAttribute('contenteditable') !== 'true') return null;
+            const text = lineTextFromElement(element);
+            const column = caretColumn === null
+                ? getCaretOffset(element)
+                : Math.max(0, Math.min(Number(caretColumn || 0), text.length));
+            const lineNumber = Number(element.dataset.line || state.currentLine || 1);
+            state.editingLine = lineNumber;
+
+            // Syntax/search highlight span이 들어간 contenteditable에서 IME 조합을 시작하면
+            // WebView2/Chromium이 조합 문자열 주변 노드를 잘못 갱신해 이전 한글 자소가
+            // 사라질 수 있다. 단, 이미 단일 텍스트 노드인 경우에는 Selection을 다시
+            // 만지지 않는다. compositionstart 도중 setCaret을 호출하는 것만으로도
+            // 한글 조합 범위가 깨질 수 있기 때문이다.
+            const needsFlatten = element.childNodes.length !== 1 ||
+                element.firstChild?.nodeType !== Node.TEXT_NODE ||
+                element.textContent !== text;
+            if (needsFlatten) {
+                element.textContent = text;
+            }
+
+            if (restoreCaret && (needsFlatten || caretColumn !== null)) {
+                setCaret(element, column);
+            }
+            return { text, column };
+        }
+
         function getCaretOffset(element) {
             const selection = window.getSelection();
             if (!selection || selection.rangeCount === 0) return 0;
             const range = selection.getRangeAt(0);
             if (!element.contains(range.startContainer)) return 0;
-            const before = range.cloneRange();
+            return offsetFromNodeInElement(element, range.startContainer, range.startOffset);
+        }
+
+        function offsetFromNodeInElement(element, node, offset) {
+            if (!element || !node || !element.contains(node)) return 0;
+            const before = document.createRange();
             before.selectNodeContents(element);
-            before.setEnd(range.startContainer, range.startOffset);
-            return before.toString().length;
+            try {
+                before.setEnd(node, offset);
+                return before.toString().length;
+            } catch {
+                return 0;
+            }
+        }
+
+        function inputRangeInElement(event, element) {
+            if (!element || typeof event.getTargetRanges !== 'function') return null;
+            const ranges = event.getTargetRanges();
+            if (!ranges || ranges.length === 0) return null;
+            const range = ranges[0];
+            if (!element.contains(range.startContainer) || !element.contains(range.endContainer)) {
+                return null;
+            }
+            const start = offsetFromNodeInElement(element, range.startContainer, range.startOffset);
+            const end = offsetFromNodeInElement(element, range.endContainer, range.endOffset);
+            return { start: Math.min(start, end), end: Math.max(start, end) };
         }
 
         function getCaretOffsetFromPoint(element, clientX, clientY) {
@@ -1738,6 +1822,7 @@
         }
 
         function setCaret(element, offset) {
+            state.editingLine = Number(element.dataset.line || state.currentLine || 1);
             element.focus({ preventScroll: true });
             const selection = window.getSelection();
             const range = document.createRange();
@@ -1773,14 +1858,26 @@
         function commitLine(element) {
             const lineNumber = Number(element.dataset.line || 1);
             const text = lineTextFromElement(element);
-            const isComposing = state.isComposing;
+            const isComposing = state.isComposing &&
+                (!state.compositionLine || state.compositionLine === lineNumber);
             state.cache.set(lineNumber, text);
+            if (!isComposing) {
+                state.cacheVersion++;
+            }
             state.currentLine = lineNumber;
             state.currentColumn = getCaretOffset(element) + 1;
-            post({ type: 'lineChanged', lineNumber, text, isComposing });
-            if (!isComposing) {
-                post({ type: 'contentChanged' });
+
+            // IME 조합 중인 텍스트는 아직 확정된 문자가 아니다.
+            // 분할 뷰/호스트 모델로 중간 조합 문자열을 보내면 다른 뷰의 동기화가
+            // 다시 들어오면서 이전 한글 자소가 지워지는 문제가 생길 수 있으므로
+            // 로컬 캐시와 커서 상태만 갱신하고 compositionend에서 최종 문자열만 전송한다.
+            if (isComposing) {
+                reportCursorAndSelection(element);
+                return;
             }
+
+            post({ type: 'lineChanged', lineNumber, text });
+            post({ type: 'contentChanged' });
             reportCursorAndSelection(element);
         }
 
@@ -1835,6 +1932,7 @@
         }
 
         function focusLine(lineNumber, columnZeroBased = 0) {
+            state.editingLine = Math.min(Math.max(1, Number(lineNumber || 1)), state.lineCount);
             const wrappedTargetTop = lineTop(lineNumber);
             if (wrappedTargetTop < scrollContainer.scrollTop ||
                 wrappedTargetTop > scrollContainer.scrollTop + scrollContainer.clientHeight - state.lineHeight) {
@@ -1944,16 +2042,30 @@
         function updateSingleLine(element, text, caretColumn) {
             const lineNumber = Number(element.dataset.line || 1);
             const nextText = String(text ?? '');
+            const nextColumn = Math.max(0, Math.min(Number(caretColumn || 0), nextText.length));
+
             state.cache.set(lineNumber, nextText);
+            state.cacheVersion++;
             element.textContent = nextText;
             state.selection = null;
-            state.selectionAnchor = { line: lineNumber, column: Math.max(0, Math.min(caretColumn, nextText.length)) };
+            state.selectionAnchor = { line: lineNumber, column: nextColumn };
             state.currentLine = lineNumber;
-            state.currentColumn = state.selectionAnchor.column + 1;
+            state.currentColumn = nextColumn + 1;
+
+            // textContent를 직접 바꾸면 브라우저 Selection이 줄 처음으로 접히는 경우가 있다.
+            // Backspace/Delete 키 반복 중 다음 keydown이 그 잘못된 Selection을 읽으면
+            // 줄 병합 또는 앞쪽 삭제가 발생하므로, DOM을 바꾼 즉시 커서를 복원한다.
+            setCaret(element, nextColumn);
+
             post({ type: 'lineChanged', lineNumber, text: nextText });
             post({ type: 'contentChanged' });
-            queueRender(true);
-            setTimeout(() => focusLine(lineNumber, state.selectionAnchor.column), 0);
+
+            if (state.wordWrap) {
+                measureRenderedRows();
+            }
+            // DOM은 이미 이 줄만 정확히 갱신되어 있으므로 매 키 입력마다 viewport를
+            // 다시 그리지 않는다. 즉시 리렌더하면 key-repeat 중 beforeinput target range가
+            // 교체된 노드를 가리켜 Backspace가 뒤쪽 글자를 지우는 현상이 생길 수 있다.
         }
 
         function applyMergeLineForward(lineNumber, text, nextText) {
@@ -2057,6 +2169,7 @@
             if (document.activeElement !== element) {
                 setCaret(element, Math.max(0, state.currentColumn - 1));
             }
+            makeEditablePlainText(element);
             if (hasCustomSelection()) {
                 const sel = normalizeSelection();
                 if (sel) {
@@ -2083,6 +2196,7 @@
             if (document.activeElement !== element) {
                 setCaret(element, Math.max(0, state.currentColumn - 1));
             }
+            makeEditablePlainText(element);
             if (hasCustomSelection()) {
                 const sel = normalizeSelection();
                 if (sel) {
@@ -3833,6 +3947,9 @@
                     break;
                 case 'setText':
                     {
+                        if (state.isComposing) {
+                            break;
+                        }
                         const text = msg.text || '';
                         const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
                         state.selection = null;
@@ -3850,7 +3967,9 @@
                     {
                         receiveLineBlock(msg.startLine || 1, msg.lines || []);
                         runPendingLineActions();
-                        queueRender(true);
+                        if (!state.isComposing) {
+                            queueRender(true);
+                        }
                     }
                     break;
                 case 'lineCountChanged':
@@ -4008,19 +4127,51 @@
             }
         });
 
-        viewport.addEventListener('compositionstart', event => {
+        viewport.addEventListener('focusin', event => {
             const element = lineElementFromEvent(event);
+            if (element && element.getAttribute('contenteditable') === 'true') {
+                state.editingLine = Number(element.dataset.line || state.currentLine || 1);
+                makeEditablePlainText(element);
+            }
+        });
+
+        viewport.addEventListener('focusout', () => {
+            setTimeout(() => {
+                if (!document.activeElement?.closest?.('.line-text')) {
+                    state.editingLine = null;
+                    queueRender(true);
+                }
+            }, 0);
+        });
+
+        viewport.addEventListener('compositionstart', event => {
+            const element = lineElementFromEvent(event) || activeEditableElement();
             state.isComposing = true;
             state.compositionLine = element ? Number(element.dataset.line || 1) : state.currentLine;
+            if (element && element.getAttribute('contenteditable') === 'true') {
+                state.editingLine = state.compositionLine;
+                // 조합 시작 시점에는 Selection을 다시 설정하지 않는다. 이미 plain text가
+                // 아니면 최소한의 평탄화만 시도하되 setCaret은 호출하지 않는다.
+                makeEditablePlainText(element, null, false);
+            }
         });
 
         viewport.addEventListener('compositionend', event => {
             const element = lineElementFromEvent(event) || activeEditableElement();
+            const lineNumber = element ? Number(element.dataset.line || state.compositionLine || state.currentLine) : state.compositionLine;
             state.isComposing = false;
             state.compositionLine = null;
             if (element && element.getAttribute('contenteditable') === 'true') {
                 state.selection = null;
-                commitLine(element);
+                state.editingLine = lineNumber;
+                // Chromium/WebView2는 compositionend 직후에 최종 input을 한 번 더 보낼 수 있다.
+                // 바로 textContent를 다시 쓰거나 리렌더하지 말고 다음 task에서 최종 DOM을 커밋한다.
+                setTimeout(() => {
+                    const current = viewport.querySelector(`.line-text[data-line="${lineNumber}"]`) || element;
+                    if (current && current.getAttribute('contenteditable') === 'true') {
+                        commitLine(current);
+                    }
+                }, 0);
             }
         });
 
@@ -4110,7 +4261,7 @@
             state.currentLine = position.line;
             state.currentColumn = position.column + 1;
             if (isEditable) {
-                setCaret(position.element, position.column);
+                makeEditablePlainText(position.element, position.column);
             }
             if (event.shiftKey || hadSelection) {
                 queueRender(true);
@@ -4386,43 +4537,90 @@
                 return;
             }
 
-            if (event.key === 'Backspace') {
-                event.preventDefault();
-                deleteBackwardAtCaret(element);
-                return;
-            }
-
-            if (event.key === 'Delete') {
-                event.preventDefault();
-                deleteForwardAtCaret(element);
+            if (event.key === 'Backspace' || event.key === 'Delete') {
+                // 삭제는 keydown에서 직접 처리하지 않고 beforeinput에서만 처리한다.
+                // keydown에서 textContent를 바꾼 뒤 Chromium이 이어서 beforeinput/input을
+                // 보내면 한 번은 앞쪽, 한 번은 뒤쪽이 삭제될 수 있다.
+                state.lastDeleteKeyDown = {
+                    key: event.key,
+                    line: Number(element.dataset.line || state.currentLine || 1),
+                    column: getCaretOffset(element),
+                    time: performance.now()
+                };
                 return;
             }
         });
 
         viewport.addEventListener('beforeinput', event => {
+            const element = lineElementFromEvent(event);
+
             if (event.isComposing || state.isComposing ||
                 event.inputType === 'insertCompositionText' ||
                 event.inputType === 'deleteCompositionText') {
+                // 조합 중에는 Selection을 건드리지 않는다. compositionstart/focusin에서
+                // 이미 줄을 plain text로 평탄화했으므로 여기서 setCaret을 반복하면
+                // 오히려 Chromium IME 조합 범위가 깨질 수 있다.
                 return;
             }
 
-            if (!hasCustomSelection()) return;
+            // Backspace/Delete는 beforeinput의 target range를 기준으로 한 번만 처리한다.
+            // keydown에서 먼저 지우고 여기서 또 지우면 커서 뒤쪽 글자까지 사라질 수 있다.
+            if (event.inputType === 'deleteContentBackward' || event.inputType === 'deleteContentForward') {
+                event.preventDefault();
+                const target = element || activeEditableElement();
+                if (!target || target.getAttribute('contenteditable') !== 'true') return;
+
+                if (hasCustomSelection()) {
+                    const sel = normalizeSelection();
+                    if (sel) replaceSelectionWith(sel, '');
+                    return;
+                }
+
+                const text = lineTextFromElement(target);
+                const range = inputRangeInElement(event, target);
+                if (range && range.start !== range.end) {
+                    makeEditablePlainText(target, range.start);
+                    updateSingleLine(target, text.slice(0, range.start) + text.slice(range.end), range.start);
+                    return;
+                }
+
+                const caret = range ? range.start : getCaretOffset(target);
+                makeEditablePlainText(target, caret);
+                if (event.inputType === 'deleteContentBackward') {
+                    if (caret > 0) {
+                        const tabSize = state.tabSize || 4;
+                        const prefix = text.slice(0, caret);
+                        const onlySpacesBefore = prefix.length > 0 && /^ *$/.test(prefix);
+                        const deleteCount = onlySpacesBefore && prefix.length % tabSize === 0
+                            ? Math.min(tabSize, caret)
+                            : 1;
+                        updateSingleLine(target, text.slice(0, caret - deleteCount) + text.slice(caret), caret - deleteCount);
+                    } else {
+                        mergeLineBackward(target);
+                    }
+                } else {
+                    if (caret < text.length) {
+                        updateSingleLine(target, text.slice(0, caret) + text.slice(caret + 1), caret);
+                    } else {
+                        mergeLineForward(target);
+                    }
+                }
+                return;
+            }
+
+            if (!hasCustomSelection()) {
+                if (element && element.getAttribute('contenteditable') === 'true' && event.inputType?.startsWith('insert')) {
+                    makeEditablePlainText(element);
+                }
+                return;
+            }
+
             const sel = normalizeSelection();
             if (!sel) return;
 
             if (event.inputType === 'insertText') {
                 event.preventDefault();
                 replaceSelectionWith(sel, event.data || '');
-            } else if (event.inputType === 'deleteContentBackward' || event.inputType === 'deleteContentForward') {
-                event.preventDefault();
-                if (sel.isColumn && sel.start.column === sel.end.column) {
-                    if (event.inputType === 'deleteContentBackward') {
-                        sel.start.column = Math.max(0, sel.start.column - 1);
-                    } else {
-                        sel.end.column = sel.end.column + 1;
-                    }
-                }
-                replaceSelectionWith(sel, '');
             } else if (event.inputType === 'insertLineBreak' || event.inputType === 'insertParagraph') {
                 event.preventDefault();
                 replaceSelectionWith(sel, '\n');
@@ -4443,7 +4641,7 @@
                 const ignoredKeys = [
                     'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
                     'Enter', 'Escape', 'Tab', 'Shift', 'Control', 'Alt', 'Meta',
-                    'CapsLock', 'Home', 'End', 'PageUp', 'PageDown'
+                    'CapsLock', 'Home', 'End', 'PageUp', 'PageDown', 'Backspace', 'Delete'
                 ];
                 if (!ignoredKeys.includes(event.key)) {
                     triggerAutocomplete(element);
@@ -4453,6 +4651,10 @@
 
         viewport.addEventListener('click', event => {
             const element = lineElementFromEvent(event);
+            if (element && element.getAttribute('contenteditable') === 'true') {
+                state.editingLine = Number(element.dataset.line || state.currentLine || 1);
+                makeEditablePlainText(element);
+            }
             reportCursorAndSelection(element || document.activeElement);
         });
 
