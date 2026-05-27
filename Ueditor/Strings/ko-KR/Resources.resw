@@ -522,16 +522,16 @@
     <value>삭제</value>
   </data>
   <data name="LlmExplainButtonText" xml:space="preserve">
-    <value>선택 영역 설명 (Explain)</value>
+    <value>설명</value>
   </data>
   <data name="LlmSummarizeButtonText" xml:space="preserve">
-    <value>선택 영역 요약</value>
+    <value>요약</value>
   </data>
   <data name="LlmTranslateButtonText" xml:space="preserve">
-    <value>선택 영역 번역</value>
+    <value>번역</value>
   </data>
   <data name="LlmImproveButtonText" xml:space="preserve">
-    <value>수식/마크다운 개선</value>
+    <value>개선</value>
   </data>
   <data name="LlmCustomPromptPlaceholder" xml:space="preserve">
     <value>질문이나 커스텀 지시사항 입력...</value>
@@ -543,7 +543,7 @@
     <value>입력</value>
   </data>
   <data name="LlmInsertOutputTooltip" xml:space="preserve">
-    <value>AI 응답을 현재 커서에 입력</value>
+    <value>AI 응답을 현재 커서에 입력 (선택한 경우 선택부위만)</value>
   </data>
   <data name="MoveTabLeftTooltip" xml:space="preserve">
     <value>왼쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)</value>

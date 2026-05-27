@@ -522,16 +522,16 @@
     <value>Delete</value>
   </data>
   <data name="LlmExplainButtonText" xml:space="preserve">
-    <value>Explain Selection</value>
+    <value>Explain</value>
   </data>
   <data name="LlmSummarizeButtonText" xml:space="preserve">
-    <value>Summarize Selection</value>
+    <value>Summarize</value>
   </data>
   <data name="LlmTranslateButtonText" xml:space="preserve">
-    <value>Translate Selection</value>
+    <value>Translate</value>
   </data>
   <data name="LlmImproveButtonText" xml:space="preserve">
-    <value>Improve Math/MD</value>
+    <value>Improve</value>
   </data>
   <data name="LlmCustomPromptPlaceholder" xml:space="preserve">
     <value>Enter questions or custom instructions...</value>
@@ -543,7 +543,7 @@
     <value>Insert</value>
   </data>
   <data name="LlmInsertOutputTooltip" xml:space="preserve">
-    <value>Insert AI response at current cursor</value>
+    <value>Insert AI response at current cursor (Selected part only, if selected)</value>
   </data>
   <data name="MoveTabLeftTooltip" xml:space="preserve">
     <value>Move to left tab (Ctrl/Shift + Click to move tab position)</value>

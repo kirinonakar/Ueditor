@@ -78,8 +78,8 @@ namespace Ueditor.Controls
             LlmFileContextInput.PlaceholderText = getString("LlmFileContextPlaceholder", "파일 맥락 없음");
             LlmAddFileContextButton.Content = getString("LlmAddFileContextButtonText", "파일 맥락 추가");
             LlmRemoveFileContextButton.Content = getString("LlmRemoveFileContextButtonText", "삭제");
-            LlmExplainButton.Content = getString("LlmExplainButtonText", "선택 영역 설명 (Explain)");
-            LlmSummarizeButton.Content = getString("LlmSummarizeButtonText", "선택 영역 요약");
+            LlmExplainButton.Content = getString("LlmExplainButtonText", "설명");
+            LlmSummarizeButton.Content = getString("LlmSummarizeButtonText", "요약");
             _getString = getString;
             UpdateTranslateButtonText();
             LlmTargetLangKorean.Text = getString("LlmLangKorean", "한국어 (Korean)");
@@ -89,11 +89,11 @@ namespace Ueditor.Controls
             LlmTargetLangFrench.Text = getString("LlmLangFrench", "프랑스어 (French)");
             LlmTargetLangSpanish.Text = getString("LlmLangSpanish", "스페인어 (Spanish)");
             LlmTargetLangGerman.Text = getString("LlmLangGerman", "독일어 (German)");
-            LlmImproveButton.Content = getString("LlmImproveButtonText", "수식/마크다운 개선");
+            LlmImproveButton.Content = getString("LlmImproveButtonText", "개선");
             LlmCustomPromptInput.PlaceholderText = getString("LlmCustomPromptPlaceholder", "질문이나 커스텀 지시사항 입력...");
             LlmCustomRunButton.Content = getString("LlmCustomRunButtonText", "전송");
             LlmInsertOutputButton.Content = getString("LlmInsertOutputButtonText", "입력");
-            ToolTipService.SetToolTip(LlmInsertOutputButton, getString("LlmInsertOutputTooltip", "AI 응답을 현재 커서에 입력"));
+            ToolTipService.SetToolTip(LlmInsertOutputButton, getString("LlmInsertOutputTooltip", "AI 응답을 현재 커서에 입력 (선택한 경우 선택부위만)"));
         }
 
         private void OnPreviewModeComboSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -177,7 +177,7 @@ namespace Ueditor.Controls
         {
             if (_getString == null) return;
 
-            string baseText = _getString("LlmTranslateButtonText", "선택 영역 번역");
+            string baseText = _getString("LlmTranslateButtonText", "번역");
             
             string shortCode = _currentTargetLanguage switch
             {

@@ -523,16 +523,16 @@
     <value>削除</value>
   </data>
   <data name="LlmExplainButtonText" xml:space="preserve">
-    <value>選択範囲の解説 (Explain)</value>
+    <value>解説</value>
   </data>
   <data name="LlmSummarizeButtonText" xml:space="preserve">
-    <value>選択範囲の要約</value>
+    <value>要約</value>
   </data>
   <data name="LlmTranslateButtonText" xml:space="preserve">
-    <value>選択範囲の翻訳</value>
+    <value>翻訳</value>
   </data>
   <data name="LlmImproveButtonText" xml:space="preserve">
-    <value>数式・Markdown改善</value>
+    <value>改善</value>
   </data>
   <data name="LlmCustomPromptPlaceholder" xml:space="preserve">
     <value>質問やカスタム指示を入力...</value>
@@ -544,7 +544,7 @@
     <value>入力</value>
   </data>
   <data name="LlmInsertOutputTooltip" xml:space="preserve">
-    <value>AIの応答を現在のカーソルに入力</value>
+    <value>AIの応答を現在のカーソルに入力 (選択された場合は選択部分のみ)</value>
   </data>
   <data name="MoveTabLeftTooltip" xml:space="preserve">
     <value>左のタブへ移動 (Ctrl/Shiftキーを押しながらクリックでタブ位置を変更)</value>
