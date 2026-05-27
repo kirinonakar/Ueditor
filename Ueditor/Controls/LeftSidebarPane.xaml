@@ -333,7 +333,7 @@
                                 </ListView>
     
                                 <StackPanel Grid.Row="2" Spacing="8" Margin="0,10,0,0">
-                                    <TextBox x:Name="GitCommitMessageInput" PlaceholderText="커밋 메시지 입력..." Height="60" AcceptsReturn="True" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                                    <TextBox x:Name="GitCommitMessageInput" PlaceholderText="커밋 메시지 입력..." Height="32" FontSize="12" FontFamily="Segoe UI, Malgun Gothic" VerticalContentAlignment="Center" Padding="10,8,10,0" ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollMode="Disabled" IsSpellCheckEnabled="False" IsTextPredictionEnabled="False"/>
                                     <Button x:Name="GitCommitButton" Content="커밋 (Commit)" HorizontalAlignment="Stretch" Click="OnGitCommitClick" Style="{StaticResource AccentButtonStyle}"/>
                                 </StackPanel>
     
