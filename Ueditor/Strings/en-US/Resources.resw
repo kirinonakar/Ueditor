@@ -1010,4 +1010,7 @@ Supports live preview, code &amp; formula templates, terminal interface, Git int
   <data name="GitCurrentChangesFormat" xml:space="preserve">
     <value>{0} (Current Changes)</value>
   </data>
+  <data name="SearchReplaceOneTooltip" xml:space="preserve">
+    <value>Replace only this item</value>
+  </data>
 </root>

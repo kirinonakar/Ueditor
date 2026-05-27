@@ -8,6 +8,19 @@ namespace Ueditor.Controls
 {
     public sealed partial class LeftSidebarPane : UserControl
     {
+        public static readonly DependencyProperty ReplaceOneTooltipProperty =
+            DependencyProperty.Register(
+                nameof(ReplaceOneTooltip),
+                typeof(string),
+                typeof(LeftSidebarPane),
+                new PropertyMetadata("이 항목만 바꾸기"));
+
+        public string ReplaceOneTooltip
+        {
+            get => (string)GetValue(ReplaceOneTooltipProperty);
+            set => SetValue(ReplaceOneTooltipProperty, value);
+        }
+
         public LeftSidebarPane()
         {
             InitializeComponent();
@@ -144,6 +157,7 @@ namespace Ueditor.Controls
             ToolTipService.SetToolTip(SearchRegexToggle, getString("SearchRegexTooltip", "정규식 검색"));
             SearchAllButton.Content = getString("SearchAllFiles", "전체 검색");
             ReplaceAllButton.Content = getString("ReplaceAllFiles", "모두 바꾸기");
+            ReplaceOneTooltip = getString("SearchReplaceOneTooltip", "이 항목만 바꾸기");
 
             GitHeaderText.Text = getString("GitRepoHeader", "Git 저장소 관리");
             GitBranchesCombo.PlaceholderText = getString("GitBranchPlaceholder", "브랜치 목록");
