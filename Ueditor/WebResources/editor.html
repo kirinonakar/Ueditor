@@ -726,7 +726,17 @@
             suppressNextBeforeInputType: null,
             lastManualDeleteAt: 0,
             editingLine: null,
-            lastDeleteKeyDown: null
+            lastDeleteKeyDown: null,
+            repeatEdit: {
+                lastRunAt: 0,
+                timer: 0,
+                pending: null,
+                intervalMs: 28,
+                lineBoundaryHoldMs: 65,
+                lineBoundaryUntil: 0,
+                suppressBeforeInputUntil: 0,
+                suppressBeforeInputTypes: new Set()
+            }
         };
 
         function post(msg) {
@@ -1145,7 +1155,7 @@
             }
         }
 
-        function measureRenderedRows() {
+        function measureRenderedRows(renderOnChange = true) {
             if (!state.wordWrap) return;
 
             let changed = false;
@@ -1161,8 +1171,10 @@
 
             if (changed) {
                 setupVirtualHeight();
-                state.lastRangeKey = '';
-                requestAnimationFrame(() => render());
+                if (renderOnChange) {
+                    state.lastRangeKey = '';
+                    requestAnimationFrame(() => render());
+                }
             }
         }
 
@@ -1914,6 +1926,7 @@
             setupVirtualHeight();
             post({ type: 'splitLine', lineNumber, before, after });
             post({ type: 'contentChanged' });
+            markLineBoundaryTransition(lineNumber + 1, 0);
             queueRender(true);
             setTimeout(() => focusLine(lineNumber + 1, 0), 0);
         }
@@ -2039,6 +2052,121 @@
             return current && current.getAttribute('contenteditable') === 'true' ? current : null;
         }
 
+        function isModelRepeatKey(event) {
+            if (!event) return false;
+            if (event.ctrlKey || event.metaKey || event.altKey) return false;
+            return event.key === 'Backspace' ||
+                event.key === 'Delete' ||
+                event.key === ' ' ||
+                event.code === 'Space' ||
+                event.key === 'Spacebar';
+        }
+
+        function normalizedModelRepeatKey(event) {
+            if (event.key === 'Backspace') return 'Backspace';
+            if (event.key === 'Delete') return 'Delete';
+            if (event.key === ' ' || event.code === 'Space' || event.key === 'Spacebar') return 'Space';
+            return event.key;
+        }
+
+        function markNativeBeforeInputHandled(inputTypes, durationMs = 120) {
+            state.repeatEdit.suppressBeforeInputUntil = performance.now() + durationMs;
+            state.repeatEdit.suppressBeforeInputTypes = new Set(inputTypes);
+        }
+
+        function shouldSuppressNativeBeforeInput(event) {
+            if (!event || performance.now() > state.repeatEdit.suppressBeforeInputUntil) return false;
+            const inputType = event.inputType || '';
+            const types = state.repeatEdit.suppressBeforeInputTypes;
+            if (types.has(inputType)) return true;
+            if (types.has('insertSpace') && inputType.startsWith('insert') && event.data === ' ') return true;
+            return false;
+        }
+
+        function markLineBoundaryTransition(targetLine, targetColumn) {
+            state.currentLine = Math.min(Math.max(1, Number(targetLine || 1)), state.lineCount);
+            state.currentColumn = Math.max(1, Number(targetColumn || 0) + 1);
+            state.repeatEdit.lineBoundaryUntil = Math.max(
+                state.repeatEdit.lineBoundaryUntil,
+                performance.now() + state.repeatEdit.lineBoundaryHoldMs
+            );
+        }
+
+        function clearPendingRepeatEdit() {
+            if (state.repeatEdit.timer) {
+                clearTimeout(state.repeatEdit.timer);
+                state.repeatEdit.timer = 0;
+            }
+            state.repeatEdit.pending = null;
+        }
+
+        function scheduleModelRepeatEdit(key, isRepeat) {
+            if (state.readOnly || state.isComposing) return;
+
+            const now = performance.now();
+            if (!isRepeat) {
+                clearPendingRepeatEdit();
+                state.repeatEdit.lastRunAt = now;
+                runModelRepeatEdit(key);
+                return;
+            }
+
+            const boundaryWait = Math.max(0, state.repeatEdit.lineBoundaryUntil - now);
+            const intervalWait = Math.max(0, state.repeatEdit.intervalMs - (now - state.repeatEdit.lastRunAt));
+            const wait = Math.max(boundaryWait, intervalWait);
+            state.repeatEdit.pending = key;
+
+            if (wait <= 0) {
+                clearPendingRepeatEdit();
+                state.repeatEdit.lastRunAt = now;
+                runModelRepeatEdit(key);
+                return;
+            }
+
+            if (state.repeatEdit.timer) return;
+            state.repeatEdit.timer = setTimeout(() => {
+                const pending = state.repeatEdit.pending;
+                state.repeatEdit.timer = 0;
+                state.repeatEdit.pending = null;
+                if (!pending || state.readOnly || state.isComposing) return;
+                state.repeatEdit.lastRunAt = performance.now();
+                runModelRepeatEdit(pending);
+            }, wait);
+        }
+
+        function insertPlainTextByModel(element, text) {
+            if (!element || element.getAttribute('contenteditable') !== 'true') return;
+            if (hasCustomSelection()) {
+                const sel = normalizeSelection();
+                if (sel) replaceSelectionWith(sel, text || '');
+                return;
+            }
+
+            makeEditablePlainText(element);
+            const current = lineTextFromElement(element);
+            const caret = getCaretOffset(element);
+            const nextText = current.slice(0, caret) + text + current.slice(caret);
+            updateSingleLine(element, nextText, caret + String(text || '').length);
+        }
+
+        function runModelRepeatEdit(key) {
+            if (state.readOnly || state.isComposing) return;
+            let element = activeEditableElement();
+            if (!element || element.getAttribute('contenteditable') !== 'true') {
+                focusLine(state.currentLine, Math.max(0, state.currentColumn - 1));
+                return;
+            }
+
+            makeEditablePlainText(element);
+            if (key === 'Backspace') {
+                deleteBackwardAtCaret(element);
+            } else if (key === 'Delete') {
+                deleteForwardAtCaret(element);
+            } else if (key === 'Space') {
+                insertPlainTextByModel(element, ' ');
+            }
+        }
+
         function updateSingleLine(element, text, caretColumn) {
             const lineNumber = Number(element.dataset.line || 1);
             const nextText = String(text ?? '');
@@ -2061,7 +2189,9 @@
             post({ type: 'contentChanged' });
 
             if (state.wordWrap) {
-                measureRenderedRows();
+                // 키 반복 중 줄바꿈 높이가 바뀌어도 viewport를 즉시 통째로 교체하지 않는다.
+                // DOM의 현재 줄은 그대로 커지고, 가상 스페이서 높이만 갱신한다.
+                measureRenderedRows(false);
             }
             // DOM은 이미 이 줄만 정확히 갱신되어 있으므로 매 키 입력마다 viewport를
             // 다시 그리지 않는다. 즉시 리렌더하면 key-repeat 중 beforeinput target range가
@@ -2080,6 +2210,7 @@
             post({ type: 'mergeLineWithPrevious', lineNumber: lineNumber + 1 });
             post({ type: 'contentChanged' });
             state.selection = null;
+            markLineBoundaryTransition(lineNumber, text.length);
             queueRender(true);
             setTimeout(() => focusLine(lineNumber, text.length), 0);
         }
@@ -2096,6 +2227,7 @@
             post({ type: 'mergeLineWithPrevious', lineNumber });
             post({ type: 'contentChanged' });
             state.selection = null;
+            markLineBoundaryTransition(lineNumber - 1, previous.length);
             queueRender(true);
             setTimeout(() => focusLine(lineNumber - 1, previous.length), 0);
         }
@@ -4120,6 +4252,9 @@
         }
 
         viewport.addEventListener('input', event => {
+            if (shouldSuppressNativeBeforeInput(event)) {
+                return;
+            }
             const element = lineElementFromEvent(event);
             if (element) {
                 state.selection = null;
@@ -4531,22 +4666,29 @@
                 return;
             }
 
-            if (event.key === 'Enter') {
+            if (isModelRepeatKey(event)) {
                 event.preventDefault();
-                splitCurrentLine(element);
+                const keyName = normalizedModelRepeatKey(event);
+                state.lastDeleteKeyDown = keyName === 'Backspace' || keyName === 'Delete'
+                    ? {
+                        key: keyName,
+                        line: Number(element.dataset.line || state.currentLine || 1),
+                        column: getCaretOffset(element),
+                        time: performance.now()
+                    }
+                    : state.lastDeleteKeyDown;
+                markNativeBeforeInputHandled(keyName === 'Backspace'
+                    ? ['deleteContentBackward']
+                    : keyName === 'Delete'
+                        ? ['deleteContentForward']
+                        : ['insertText', 'insertSpace']);
+                scheduleModelRepeatEdit(keyName, event.repeat);
                 return;
             }
 
-            if (event.key === 'Backspace' || event.key === 'Delete') {
-                // 삭제는 keydown에서 직접 처리하지 않고 beforeinput에서만 처리한다.
-                // keydown에서 textContent를 바꾼 뒤 Chromium이 이어서 beforeinput/input을
-                // 보내면 한 번은 앞쪽, 한 번은 뒤쪽이 삭제될 수 있다.
-                state.lastDeleteKeyDown = {
-                    key: event.key,
-                    line: Number(element.dataset.line || state.currentLine || 1),
-                    column: getCaretOffset(element),
-                    time: performance.now()
-                };
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                splitCurrentLine(element);
                 return;
             }
         });
@@ -4560,6 +4702,11 @@
                 // 조합 중에는 Selection을 건드리지 않는다. compositionstart/focusin에서
                 // 이미 줄을 plain text로 평탄화했으므로 여기서 setCaret을 반복하면
                 // 오히려 Chromium IME 조합 범위가 깨질 수 있다.
+                return;
+            }
+
+            if (shouldSuppressNativeBeforeInput(event)) {
+                event.preventDefault();
                 return;
             }
 
@@ -4633,6 +4780,10 @@
         });
 
         viewport.addEventListener('keyup', event => {
+            if (isModelRepeatKey(event)) {
+                clearPendingRepeatEdit();
+            }
+
             const element = lineElementFromEvent(event);
             reportCursorAndSelection(element || document.activeElement);
 
