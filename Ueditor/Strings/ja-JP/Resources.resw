@@ -546,6 +546,80 @@
   <data name="LlmInsertOutputTooltip" xml:space="preserve">
     <value>AIの応答を現在のカーソルに入力 (選択された場合は選択部分のみ)</value>
   </data>
+  <data name="LlmErrorTitle" xml:space="preserve">
+    <value>AI エラー</value>
+  </data>
+  <data name="LlmNoSelectionExplain" xml:space="preserve">
+    <value>選択されたテキストがありません。エディタで分析する範囲を選択してから実行してください。</value>
+  </data>
+  <data name="LlmNoSelectionSummarize" xml:space="preserve">
+    <value>選択されたテキストがありません。要約する範囲を選択してください。</value>
+  </data>
+  <data name="LlmNoSelectionTranslate" xml:space="preserve">
+    <value>選択されたテキストがありません。翻訳する範囲を選択してください。</value>
+  </data>
+  <data name="LlmNoSelectionImprove" xml:space="preserve">
+    <value>選択されたテキストがありません。改善する範囲を選択してください。</value>
+  </data>
+  <data name="LlmNoSelectionCustom" xml:space="preserve">
+    <value>選択範囲またはファイルコンテキストがありません。テキストを選択するか、ファイルコンテキストを追加してください。</value>
+  </data>
+  <data name="LlmEmptyCustomPrompt" xml:space="preserve">
+    <value>カスタム指示の入力欄が空です。</value>
+  </data>
+  <data name="LlmFileContextTitle" xml:space="preserve">
+    <value>AI ファイルコンテキスト</value>
+  </data>
+  <data name="LlmNoActiveTabForFileContext" xml:space="preserve">
+    <value>ファイルコンテキストとして追加するアクティブなタブがありません。</value>
+  </data>
+  <data name="LlmInsertTitle" xml:space="preserve">
+    <value>AI 応答入力</value>
+  </data>
+  <data name="LlmNoOutputToInsert" xml:space="preserve">
+    <value>入力するAIの応答がありません。</value>
+  </data>
+  <data name="LlmActionExplain" xml:space="preserve">
+    <value>選択範囲の解説 (Explain)</value>
+  </data>
+  <data name="LlmActionSummarize" xml:space="preserve">
+    <value>選択範囲の要約 (Summarize)</value>
+  </data>
+  <data name="LlmActionTranslate" xml:space="preserve">
+    <value>選択範囲の翻訳 (Translate)</value>
+  </data>
+  <data name="LlmActionImprove" xml:space="preserve">
+    <value>数式とマークダウンの改善</value>
+  </data>
+  <data name="LlmActionCustom" xml:space="preserve">
+    <value>カスタム指示の実行</value>
+  </data>
+  <data name="LlmPreflightTitle" xml:space="preserve">
+    <value>AI送信前の確認 (Pre-flight Check)</value>
+  </data>
+  <data name="LlmPreflightContentFormat" xml:space="preserve">
+    <value>アクション: {0}
+
+送信先AIプロバイダー: {1} ({2})
+送信テキストサイズ: {3:N0} 文字 (約 {4:N0} トークン消費)
+
+[送信内容のプレビュー]
+{5}
+
+セキュリティ上の問題や意図しないトークンの大量消費がないか確認してから送信してください。</value>
+  </data>
+  <data name="LlmPreflightApprove" xml:space="preserve">
+    <value>API送信を承認</value>
+  </data>
+  <data name="LlmPreflightCancel" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="LlmRunningMessage" xml:space="preserve">
+    <value>AI分析および応答の生成が非同期で実行されています。しばらくお待ちください...</value>
+  </data>
+  <data name="LlmExceptionFormat" xml:space="preserve">
+    <value>AIの実行中に例外が発生しました: {0}</value>
+  </data>
   <data name="MoveTabLeftTooltip" xml:space="preserve">
     <value>左のタブへ移動 (Ctrl/Shiftキーを押しながらクリックでタブ位置を変更)</value>
   </data>

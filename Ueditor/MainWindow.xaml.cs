@@ -233,7 +233,8 @@ namespace Ueditor
                 GetActiveTab,
                 GetTabTextForLlmContext,
                 InsertTextIntoActiveEditorAsync,
-                ShowErrorMessage);
+                ShowErrorMessage,
+                GetLocalizedString);
             _tocController = new TocController(
                 _viewModel,
                 LeftSidebarTabView,

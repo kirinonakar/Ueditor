@@ -19,6 +19,7 @@ namespace Ueditor.Controls
         private readonly Func<OpenedTab, int, string> _getTabText;
         private readonly Func<string, Task<bool>> _insertIntoActiveEditorAsync;
         private readonly Action<string, string> _showError;
+        private readonly Func<string, string, string> _getString;
 
         private string _lastSelectionText = string.Empty;
         private string _fileContextText = string.Empty;
@@ -32,7 +33,8 @@ namespace Ueditor.Controls
             Func<OpenedTab?> activeTabProvider,
             Func<OpenedTab, int, string> getTabText,
             Func<string, Task<bool>> insertIntoActiveEditorAsync,
-            Action<string, string> showError)
+            Action<string, string> showError,
+            Func<string, string, string> getString)
         {
             _llmService = llmService;
             _settingsService = settingsService;
@@ -43,6 +45,7 @@ namespace Ueditor.Controls
             _getTabText = getTabText;
             _insertIntoActiveEditorAsync = insertIntoActiveEditorAsync;
             _showError = showError;
+            _getString = getString;
 
             WireEvents();
 
@@ -104,13 +107,13 @@ namespace Ueditor.Controls
         {
             if (string.IsNullOrEmpty(_lastSelectionText))
             {
-                _showError("AI 오류", "선택된 텍스트가 없습니다. 에디터에서 분석할 범위를 드래그한 후 실행하십시오.");
+                _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmNoSelectionExplain", "선택된 텍스트가 없습니다. 에디터에서 분석할 범위를 드래그한 후 실행하십시오."));
                 return;
             }
 
             string language = GetActiveSelectionLanguage();
             string context = BuildLlmContext(_lastSelectionText);
-            await PreflightCheckAndRunAsync("선택 영역 설명 (Explain)", context,
+            await PreflightCheckAndRunAsync(_getString("LlmActionExplain", "선택 영역 설명 (Explain)"), context,
                 () => _llmService.ExplainCodeAsync(context, language));
         }
 
@@ -118,12 +121,12 @@ namespace Ueditor.Controls
         {
             if (string.IsNullOrEmpty(_lastSelectionText))
             {
-                _showError("AI 오류", "선택된 텍스트가 없습니다. 요약할 범위를 드래그하십시오.");
+                _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmNoSelectionSummarize", "선택된 텍스트가 없습니다. 요약할 범위를 드래그하십시오."));
                 return;
             }
 
             string context = BuildLlmContext(_lastSelectionText);
-            await PreflightCheckAndRunAsync("선택 영역 요약 (Summarize)", context,
+            await PreflightCheckAndRunAsync(_getString("LlmActionSummarize", "선택 영역 요약 (Summarize)"), context,
                 () => _llmService.SummarizeTextAsync(context));
         }
 
@@ -131,12 +134,12 @@ namespace Ueditor.Controls
         {
             if (string.IsNullOrEmpty(_lastSelectionText))
             {
-                _showError("AI 오류", "선택된 텍스트가 없습니다. 번역할 범위를 드래그하십시오.");
+                _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmNoSelectionTranslate", "선택된 텍스트가 없습니다. 번역할 범위를 드래그하십시오."));
                 return;
             }
 
             string context = BuildLlmContext(_lastSelectionText);
-            await PreflightCheckAndRunAsync("선택 영역 번역 (Translate)", context,
+            await PreflightCheckAndRunAsync(_getString("LlmActionTranslate", "선택 영역 번역 (Translate)"), context,
                 () => _llmService.TranslateTextAsync(context));
         }
 
@@ -144,12 +147,12 @@ namespace Ueditor.Controls
         {
             if (string.IsNullOrEmpty(_lastSelectionText))
             {
-                _showError("AI 오류", "선택된 텍스트가 없습니다. 개선할 범위를 드래그하십시오.");
+                _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmNoSelectionImprove", "선택된 텍스트가 없습니다. 개선할 범위를 드래그하십시오."));
                 return;
             }
 
             string context = BuildLlmContext(_lastSelectionText);
-            await PreflightCheckAndRunAsync("수식 및 마크다운 개선", context,
+            await PreflightCheckAndRunAsync(_getString("LlmActionImprove", "수식 및 마크다운 개선"), context,
                 () => _llmService.ImproveTextAsync(context));
         }
 
@@ -157,19 +160,19 @@ namespace Ueditor.Controls
         {
             if (string.IsNullOrEmpty(_lastSelectionText) && string.IsNullOrEmpty(_fileContextText))
             {
-                _showError("AI 오류", "선택 영역이나 파일 맥락이 없습니다. 텍스트를 선택하거나 파일 맥락을 추가하십시오.");
+                _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmNoSelectionCustom", "선택 영역이나 파일 맥락이 없습니다. 텍스트를 선택하거나 파일 맥락을 추가하십시오."));
                 return;
             }
 
             string prompt = _rightSidebar.LlmCustomPrompt.Text;
             if (string.IsNullOrEmpty(prompt))
             {
-                _showError("AI 오류", "커스텀 지시사항 입력란이 비어 있습니다.");
+                _showError(_getString("LlmErrorTitle", "AI 오류"), _getString("LlmEmptyCustomPrompt", "커스텀 지시사항 입력란이 비어 있습니다."));
                 return;
             }
 
             string context = BuildLlmContext(_lastSelectionText);
-            await PreflightCheckAndRunAsync("커스텀 지시사항 실행", context,
+            await PreflightCheckAndRunAsync(_getString("LlmActionCustom", "커스텀 지시사항 실행"), context,
                 () => _llmService.CustomPromptAsync(prompt, context));
         }
 
@@ -178,7 +181,7 @@ namespace Ueditor.Controls
             var tab = _activeTabProvider();
             if (tab == null)
             {
-                _showError("AI 파일 맥락", "파일 맥락으로 추가할 활성 탭이 없습니다.");
+                _showError(_getString("LlmFileContextTitle", "AI 파일 맥락"), _getString("LlmNoActiveTabForFileContext", "파일 맥락으로 추가할 활성 탭이 없습니다."));
                 return;
             }
 
@@ -208,9 +211,9 @@ namespace Ueditor.Controls
                 output = _rightSidebar.LlmOutput.Text;
             }
 
-            if (string.IsNullOrWhiteSpace(output) || output.StartsWith("대기 중", StringComparison.Ordinal))
+            if (string.IsNullOrWhiteSpace(output) || output.StartsWith("대기 중", StringComparison.Ordinal) || output.StartsWith("Waiting...", StringComparison.Ordinal) || output.StartsWith("待機中...", StringComparison.Ordinal))
             {
-                _showError("AI 응답 입력", "입력할 AI 응답이 없습니다.");
+                _showError(_getString("LlmInsertTitle", "AI 응답 입력"), _getString("LlmNoOutputToInsert", "입력할 AI 응답이 없습니다."));
                 return;
             }
 
@@ -237,12 +240,22 @@ namespace Ueditor.Controls
             if (_settingsService.CurrentSettings.LlmConfirmBeforeSending)
             {
                 var textPreview = contentText.Length > 200 ? contentText.Substring(0, 200) + "..." : contentText;
+                
+                string format = _getString("LlmPreflightContentFormat", "액션: {0}\n\n전송될 AI 공급자: {1} ({2})\n전송 텍스트 크기: {3:N0} 자 (약 {4:N0} 토큰 소모)\n\n[전송 내용 미리보기]\n{5}\n\n보안상의 문제나 의도하지 않은 토큰 대량 유실이 없는지 확인 후 전송해 주십시오.");
+                string dialogContent = string.Format(format, 
+                    actionName, 
+                    _settingsService.CurrentSettings.LlmProvider, 
+                    _settingsService.CurrentSettings.LlmModel, 
+                    contentText.Length, 
+                    contentText.Length / 4, 
+                    textPreview);
+
                 var dialog = new ContentDialog
                 {
-                    Title = "AI 전송 사전 확인 (Pre-flight Check)",
-                    Content = $"액션: {actionName}\n\n전송될 AI 공급자: {_settingsService.CurrentSettings.LlmProvider} ({_settingsService.CurrentSettings.LlmModel})\n전송 텍스트 크기: {contentText.Length:N0} 자 (약 {contentText.Length / 4:N0} 토큰 소모)\n\n[전송 내용 미리보기]\n{textPreview}\n\n보안상의 문제나 의도하지 않은 토큰 대량 유실이 없는지 확인 후 전송해 주십시오.",
-                    PrimaryButtonText = "API 전송 승인",
-                    CloseButtonText = "취소",
+                    Title = _getString("LlmPreflightTitle", "AI 전송 사전 확인 (Pre-flight Check)"),
+                    Content = dialogContent,
+                    PrimaryButtonText = _getString("LlmPreflightApprove", "API 전송 승인"),
+                    CloseButtonText = _getString("LlmPreflightCancel", "취소"),
                     XamlRoot = _xamlRootProvider()
                 };
 
@@ -253,7 +266,7 @@ namespace Ueditor.Controls
                 }
             }
 
-            _rightSidebar.LlmOutput.Text = "AI 분석 및 응답 생성이 비동기 구동 중입니다. 잠시만 대기해 주십시오...";
+            _rightSidebar.LlmOutput.Text = _getString("LlmRunningMessage", "AI 분석 및 응답 생성이 비동기 구동 중입니다. 잠시만 대기해 주십시오...");
             _rightSidebar.RightTabs.SelectedIndex = 1;
 
             try
@@ -262,7 +275,8 @@ namespace Ueditor.Controls
             }
             catch (Exception ex)
             {
-                _rightSidebar.LlmOutput.Text = $"AI 실행 도중 예외가 터졌습니다: {ex.Message}";
+                string exceptionFormat = _getString("LlmExceptionFormat", "AI 실행 도중 예외가 터졌습니다: {0}");
+                _rightSidebar.LlmOutput.Text = string.Format(exceptionFormat, ex.Message);
             }
         }
 

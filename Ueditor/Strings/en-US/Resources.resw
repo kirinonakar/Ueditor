@@ -545,6 +545,80 @@
   <data name="LlmInsertOutputTooltip" xml:space="preserve">
     <value>Insert AI response at current cursor (Selected part only, if selected)</value>
   </data>
+  <data name="LlmErrorTitle" xml:space="preserve">
+    <value>AI Error</value>
+  </data>
+  <data name="LlmNoSelectionExplain" xml:space="preserve">
+    <value>No text selected. Please select a range in the editor to analyze and try again.</value>
+  </data>
+  <data name="LlmNoSelectionSummarize" xml:space="preserve">
+    <value>No text selected. Please select a range to summarize.</value>
+  </data>
+  <data name="LlmNoSelectionTranslate" xml:space="preserve">
+    <value>No text selected. Please select a range to translate.</value>
+  </data>
+  <data name="LlmNoSelectionImprove" xml:space="preserve">
+    <value>No text selected. Please select a range to improve.</value>
+  </data>
+  <data name="LlmNoSelectionCustom" xml:space="preserve">
+    <value>No selection or file context. Please select text or add a file context.</value>
+  </data>
+  <data name="LlmEmptyCustomPrompt" xml:space="preserve">
+    <value>Custom instruction input is empty.</value>
+  </data>
+  <data name="LlmFileContextTitle" xml:space="preserve">
+    <value>AI File Context</value>
+  </data>
+  <data name="LlmNoActiveTabForFileContext" xml:space="preserve">
+    <value>No active tab to add as file context.</value>
+  </data>
+  <data name="LlmInsertTitle" xml:space="preserve">
+    <value>Insert AI Response</value>
+  </data>
+  <data name="LlmNoOutputToInsert" xml:space="preserve">
+    <value>No AI response to insert.</value>
+  </data>
+  <data name="LlmActionExplain" xml:space="preserve">
+    <value>Explain Selection</value>
+  </data>
+  <data name="LlmActionSummarize" xml:space="preserve">
+    <value>Summarize Selection</value>
+  </data>
+  <data name="LlmActionTranslate" xml:space="preserve">
+    <value>Translate Selection</value>
+  </data>
+  <data name="LlmActionImprove" xml:space="preserve">
+    <value>Improve Formulas &amp; Markdown</value>
+  </data>
+  <data name="LlmActionCustom" xml:space="preserve">
+    <value>Execute Custom Instructions</value>
+  </data>
+  <data name="LlmPreflightTitle" xml:space="preserve">
+    <value>AI Pre-flight Check</value>
+  </data>
+  <data name="LlmPreflightContentFormat" xml:space="preserve">
+    <value>Action: {0}
+
+AI Provider: {1} ({2})
+Text Length: {3:N0} chars (approx. {4:N0} tokens)
+
+[Content Preview]
+{5}
+
+Please check for any sensitive information or unintended token usage before sending.</value>
+  </data>
+  <data name="LlmPreflightApprove" xml:space="preserve">
+    <value>Approve API Send</value>
+  </data>
+  <data name="LlmPreflightCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="LlmRunningMessage" xml:space="preserve">
+    <value>AI analysis and response generation is running asynchronously. Please wait...</value>
+  </data>
+  <data name="LlmExceptionFormat" xml:space="preserve">
+    <value>An exception occurred during AI execution: {0}</value>
+  </data>
   <data name="MoveTabLeftTooltip" xml:space="preserve">
     <value>Move to left tab (Ctrl/Shift + Click to move tab position)</value>
   </data>

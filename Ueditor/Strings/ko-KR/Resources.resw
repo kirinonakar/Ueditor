@@ -545,6 +545,80 @@
   <data name="LlmInsertOutputTooltip" xml:space="preserve">
     <value>AI 응답을 현재 커서에 입력 (선택한 경우 선택부위만)</value>
   </data>
+  <data name="LlmErrorTitle" xml:space="preserve">
+    <value>AI 오류</value>
+  </data>
+  <data name="LlmNoSelectionExplain" xml:space="preserve">
+    <value>선택된 텍스트가 없습니다. 에디터에서 분석할 범위를 드래그한 후 실행하십시오.</value>
+  </data>
+  <data name="LlmNoSelectionSummarize" xml:space="preserve">
+    <value>선택된 텍스트가 없습니다. 요약할 범위를 드래그하십시오.</value>
+  </data>
+  <data name="LlmNoSelectionTranslate" xml:space="preserve">
+    <value>선택된 텍스트가 없습니다. 번역할 범위를 드래그하십시오.</value>
+  </data>
+  <data name="LlmNoSelectionImprove" xml:space="preserve">
+    <value>선택된 텍스트가 없습니다. 개선할 범위를 드래그하십시오.</value>
+  </data>
+  <data name="LlmNoSelectionCustom" xml:space="preserve">
+    <value>선택 영역이나 파일 맥락이 없습니다. 텍스트를 선택하거나 파일 맥락을 추가하십시오.</value>
+  </data>
+  <data name="LlmEmptyCustomPrompt" xml:space="preserve">
+    <value>커스텀 지시사항 입력란이 비어 있습니다.</value>
+  </data>
+  <data name="LlmFileContextTitle" xml:space="preserve">
+    <value>AI 파일 맥락</value>
+  </data>
+  <data name="LlmNoActiveTabForFileContext" xml:space="preserve">
+    <value>파일 맥락으로 추가할 활성 탭이 없습니다.</value>
+  </data>
+  <data name="LlmInsertTitle" xml:space="preserve">
+    <value>AI 응답 입력</value>
+  </data>
+  <data name="LlmNoOutputToInsert" xml:space="preserve">
+    <value>입력할 AI 응답이 없습니다.</value>
+  </data>
+  <data name="LlmActionExplain" xml:space="preserve">
+    <value>선택 영역 설명 (Explain)</value>
+  </data>
+  <data name="LlmActionSummarize" xml:space="preserve">
+    <value>선택 영역 요약 (Summarize)</value>
+  </data>
+  <data name="LlmActionTranslate" xml:space="preserve">
+    <value>선택 영역 번역 (Translate)</value>
+  </data>
+  <data name="LlmActionImprove" xml:space="preserve">
+    <value>수식 및 마크다운 개선</value>
+  </data>
+  <data name="LlmActionCustom" xml:space="preserve">
+    <value>커스텀 지시사항 실행</value>
+  </data>
+  <data name="LlmPreflightTitle" xml:space="preserve">
+    <value>AI 전송 사전 확인 (Pre-flight Check)</value>
+  </data>
+  <data name="LlmPreflightContentFormat" xml:space="preserve">
+    <value>액션: {0}
+
+전송될 AI 공급자: {1} ({2})
+전송 텍스트 크기: {3:N0} 자 (약 {4:N0} 토큰 소모)
+
+[전송 내용 미리보기]
+{5}
+
+보안상의 문제나 의도하지 않은 토큰 대량 유실이 없는지 확인 후 전송해 주십시오.</value>
+  </data>
+  <data name="LlmPreflightApprove" xml:space="preserve">
+    <value>API 전송 승인</value>
+  </data>
+  <data name="LlmPreflightCancel" xml:space="preserve">
+    <value>취소</value>
+  </data>
+  <data name="LlmRunningMessage" xml:space="preserve">
+    <value>AI 분석 및 응답 생성이 비동기 구동 중입니다. 잠시만 대기해 주십시오...</value>
+  </data>
+  <data name="LlmExceptionFormat" xml:space="preserve">
+    <value>AI 실행 도중 예외가 터졌습니다: {0}</value>
+  </data>
   <data name="MoveTabLeftTooltip" xml:space="preserve">
     <value>왼쪽 탭으로 이동 (Ctrl/Shift 누르고 클릭하면 탭 위치 이동)</value>
   </data>
