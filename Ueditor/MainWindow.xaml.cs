@@ -3198,6 +3198,14 @@ namespace Ueditor
             }
 
             await bridgeGroup.Bridge.InsertTextAsync(text);
+
+            var tab = _viewModel.Tabs.FirstOrDefault(t => t.Id == tabId);
+            if (tab != null)
+            {
+                MarkTabDirty(tab, activeTabItem);
+                PropagateDirtyStateToOtherTabs(tab);
+            }
+
             return true;
         }
 

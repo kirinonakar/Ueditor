@@ -28,7 +28,7 @@ namespace Ueditor.Controls
         public TabView RightTabs => RightTabView;
         public ComboBox PreviewMode => PreviewModeCombo;
         public WebView2 PreviewWebViewControl => PreviewWebView;
-        public TextBlock LlmOutput => LlmOutputText;
+        public TextBox LlmOutput => LlmOutputText;
         public TextBlock SelectionStats => SelectionStatsText;
         public TextBox LlmFileContext => LlmFileContextInput;
         public TextBox LlmCustomPrompt => LlmCustomPromptInput;

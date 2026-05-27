@@ -202,7 +202,12 @@ namespace Ueditor.Controls
 
         private async void OnLlmInsertOutputClick(object sender, RoutedEventArgs e)
         {
-            string output = _rightSidebar.LlmOutput.Text;
+            string output = _rightSidebar.LlmOutput.SelectedText;
+            if (string.IsNullOrEmpty(output))
+            {
+                output = _rightSidebar.LlmOutput.Text;
+            }
+
             if (string.IsNullOrWhiteSpace(output) || output.StartsWith("대기 중", StringComparison.Ordinal))
             {
                 _showError("AI 응답 입력", "입력할 AI 응답이 없습니다.");
