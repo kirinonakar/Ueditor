@@ -912,4 +912,22 @@ Supports live preview, code &amp; formula templates, terminal interface, Git int
   <data name="DiffStatsFormat" xml:space="preserve">
     <value>Changes: {0} additions, {1} deletions</value>
   </data>
+  <data name="GitPreviousCommitFormat" xml:space="preserve">
+    <value>{0} (Previous Commit)</value>
+  </data>
+  <data name="GitCommitHashFormat" xml:space="preserve">
+    <value>{0} (Commit {1})</value>
+  </data>
+  <data name="GitCompareTitleFormat" xml:space="preserve">
+    <value>Compare [{0}]: {1}</value>
+  </data>
+  <data name="GitCompareDiffTitleFormat" xml:space="preserve">
+    <value>Git Compare: {0}</value>
+  </data>
+  <data name="GitPreviousVersionFormat" xml:space="preserve">
+    <value>{0} (Previous Version)</value>
+  </data>
+  <data name="GitCurrentChangesFormat" xml:space="preserve">
+    <value>{0} (Current Changes)</value>
+  </data>
 </root>

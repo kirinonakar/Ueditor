@@ -913,4 +913,22 @@
   <data name="DiffStatsFormat" xml:space="preserve">
     <value>変更箇所: 追加 {0} 行, 削除 {1} 行</value>
   </data>
+  <data name="GitPreviousCommitFormat" xml:space="preserve">
+    <value>{0} (前回のコミット)</value>
+  </data>
+  <data name="GitCommitHashFormat" xml:space="preserve">
+    <value>{0} (コミット {1})</value>
+  </data>
+  <data name="GitCompareTitleFormat" xml:space="preserve">
+    <value>比較 [{0}]: {1}</value>
+  </data>
+  <data name="GitCompareDiffTitleFormat" xml:space="preserve">
+    <value>Git 比較: {0}</value>
+  </data>
+  <data name="GitPreviousVersionFormat" xml:space="preserve">
+    <value>{0} (以前のバージョン)</value>
+  </data>
+  <data name="GitCurrentChangesFormat" xml:space="preserve">
+    <value>{0} (現在の変更点)</value>
+  </data>
 </root>

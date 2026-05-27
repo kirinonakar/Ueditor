@@ -912,4 +912,22 @@
   <data name="DiffStatsFormat" xml:space="preserve">
     <value>변경사항: 추가 {0}줄, 삭제 {1}줄</value>
   </data>
+  <data name="GitPreviousCommitFormat" xml:space="preserve">
+    <value>{0} (이전 커밋)</value>
+  </data>
+  <data name="GitCommitHashFormat" xml:space="preserve">
+    <value>{0} (커밋 {1})</value>
+  </data>
+  <data name="GitCompareTitleFormat" xml:space="preserve">
+    <value>비교 [{0}]: {1}</value>
+  </data>
+  <data name="GitCompareDiffTitleFormat" xml:space="preserve">
+    <value>Git 비교: {0}</value>
+  </data>
+  <data name="GitPreviousVersionFormat" xml:space="preserve">
+    <value>{0} (이전 버전)</value>
+  </data>
+  <data name="GitCurrentChangesFormat" xml:space="preserve">
+    <value>{0} (현재 변경 사항)</value>
+  </data>
 </root>
