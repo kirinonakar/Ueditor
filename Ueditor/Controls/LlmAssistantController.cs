@@ -257,6 +257,8 @@ namespace Ueditor.Controls
 
         private void OnLlmAddInstructionClick(object sender, RoutedEventArgs e)
         {
+            if (_instructions.Count >= 4) return;
+
             SaveActivePrompt();
 
             _instructionNameCounter++;
