@@ -42,8 +42,8 @@ namespace Ueditor.Editor
         void DeleteLine(int lineNumber);
         void SplitLine(int lineNumber, string before, string after);
         void MergeLineWithPrevious(int lineNumber);
-        TextSearchResult? Find(string query, int startLine, int startColumn, bool reverse, bool matchCase);
-        List<TextSearchResult> FindAll(string query, bool matchCase);
+        TextSearchResult? Find(string query, int startLine, int startColumn, bool reverse, bool matchCase, bool isRegex = false);
+        List<TextSearchResult> FindAll(string query, bool matchCase, bool isRegex = false);
         Task SaveAsync(string filePath, string encodingName, CancellationToken cancellationToken = default);
     }
 
@@ -312,19 +312,79 @@ namespace Ueditor.Editor
             EnsureAtLeastOneLine();
         }
 
-        public TextSearchResult? Find(string query, int startLine, int startColumn, bool reverse, bool matchCase)
+        public TextSearchResult? Find(string query, int startLine, int startColumn, bool reverse, bool matchCase, bool isRegex = false)
         {
             if (string.IsNullOrEmpty(query))
             {
                 return null;
             }
 
+            if (isRegex)
+            {
+                Regex regex;
+                try
+                {
+                    var regexOptions = matchCase ? RegexOptions.None : RegexOptions.IgnoreCase;
+                    regex = new Regex(query, regexOptions);
+                }
+                catch (ArgumentException)
+                {
+                    return null;
+                }
+
+                int safeLine = Math.Clamp(startLine, 1, _lines.Count);
+
+                if (reverse)
+                {
+                    for (int lineNumber = safeLine; lineNumber >= 1; lineNumber--)
+                    {
+                        string line = _lines[lineNumber - 1];
+                        if (line.Length == 0) continue;
+
+                        int searchStart = lineNumber == safeLine
+                            ? Math.Clamp(startColumn - 2, 0, line.Length)
+                            : line.Length;
+
+                        var matches = regex.Matches(line);
+                        for (int i = matches.Count - 1; i >= 0; i--)
+                        {
+                            var match = matches[i];
+                            if (match.Index <= searchStart && match.Length > 0)
+                            {
+                                return new TextSearchResult(lineNumber, match.Index, match.Length, line);
+                            }
+                        }
+                    }
+                    return null;
+                }
+                else
+                {
+                    for (int lineNumber = safeLine; lineNumber <= _lines.Count; lineNumber++)
+                    {
+                        string line = _lines[lineNumber - 1];
+                        int searchStart = lineNumber == safeLine
+                            ? Math.Clamp(startColumn - 1, 0, line.Length)
+                            : 0;
+
+                        var matches = regex.Matches(line);
+                        foreach (Match match in matches)
+                        {
+                            if (match.Index >= searchStart && match.Length > 0)
+                            {
+                                return new TextSearchResult(lineNumber, match.Index, match.Length, line);
+                            }
+                        }
+                    }
+                    return null;
+                }
+            }
+
             var comparison = matchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-            int safeLine = Math.Clamp(startLine, 1, _lines.Count);
+            int safeLineNormal = Math.Clamp(startLine, 1, _lines.Count);
 
             if (reverse)
             {
-                for (int lineNumber = safeLine; lineNumber >= 1; lineNumber--)
+                for (int lineNumber = safeLineNormal; lineNumber >= 1; lineNumber--)
                 {
                     string line = _lines[lineNumber - 1];
                     if (line.Length == 0)
@@ -332,7 +392,7 @@ namespace Ueditor.Editor
                         continue;
                     }
 
-                    int searchStart = lineNumber == safeLine
+                    int searchStart = lineNumber == safeLineNormal
                         ? Math.Clamp(startColumn - 2, 0, line.Length - 1)
                         : line.Length - 1;
                     int index = line.LastIndexOf(query, searchStart, comparison);
@@ -345,10 +405,10 @@ namespace Ueditor.Editor
                 return null;
             }
 
-            for (int lineNumber = safeLine; lineNumber <= _lines.Count; lineNumber++)
+            for (int lineNumber = safeLineNormal; lineNumber <= _lines.Count; lineNumber++)
             {
                 string line = _lines[lineNumber - 1];
-                int searchStart = lineNumber == safeLine
+                int searchStart = lineNumber == safeLineNormal
                     ? Math.Clamp(startColumn - 1, 0, line.Length)
                     : 0;
                 int index = line.IndexOf(query, searchStart, comparison);
@@ -361,15 +421,46 @@ namespace Ueditor.Editor
             return null;
         }
 
-        public List<TextSearchResult> FindAll(string query, bool matchCase)
+        public List<TextSearchResult> FindAll(string query, bool matchCase, bool isRegex = false)
         {
             if (string.IsNullOrEmpty(query))
             {
                 return new List<TextSearchResult>();
             }
 
+            if (isRegex)
+            {
+                Regex regex;
+                try
+                {
+                    var regexOptions = matchCase ? RegexOptions.None : RegexOptions.IgnoreCase;
+                    regex = new Regex(query, regexOptions);
+                }
+                catch (ArgumentException)
+                {
+                    return new List<TextSearchResult>();
+                }
+
+                var results = new List<TextSearchResult>();
+                for (int lineNumber = 1; lineNumber <= _lines.Count; lineNumber++)
+                {
+                    string line = _lines[lineNumber - 1];
+                    if (line.Length == 0) continue;
+
+                    var matches = regex.Matches(line);
+                    foreach (Match match in matches)
+                    {
+                        if (match.Length > 0)
+                        {
+                            results.Add(new TextSearchResult(lineNumber, match.Index, match.Length, line));
+                        }
+                    }
+                }
+                return results;
+            }
+
             var comparison = matchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-            var results = new List<TextSearchResult>();
+            var resultsNormal = new List<TextSearchResult>();
 
             for (int lineNumber = 1; lineNumber <= _lines.Count; lineNumber++)
             {
@@ -382,12 +473,12 @@ namespace Ueditor.Editor
                     int index = line.IndexOf(query, searchStart, comparison);
                     if (index < 0) break;
 
-                    results.Add(new TextSearchResult(lineNumber, index, query.Length, line));
+                    resultsNormal.Add(new TextSearchResult(lineNumber, index, query.Length, line));
                     searchStart = index + 1;
                 }
             }
 
-            return results;
+            return resultsNormal;
         }
 
         public async Task SaveAsync(string filePath, string encodingName, CancellationToken cancellationToken = default)
@@ -609,14 +700,14 @@ namespace Ueditor.Editor
             return text;
         }
 
-        public TextSearchResult? Find(string query, int startLine, int startColumn, bool reverse, bool matchCase)
+        public TextSearchResult? Find(string query, int startLine, int startColumn, bool reverse, bool matchCase, bool isRegex = false)
         {
-            return Model.Find(query, startLine, startColumn, reverse, matchCase);
+            return Model.Find(query, startLine, startColumn, reverse, matchCase, isRegex);
         }
 
-        public List<TextSearchResult> FindAll(string query, bool matchCase)
+        public List<TextSearchResult> FindAll(string query, bool matchCase, bool isRegex = false)
         {
-            return Model.FindAll(query, matchCase);
+            return Model.FindAll(query, matchCase, isRegex);
         }
 
         public Task SaveAsync(string filePath, string encodingName, CancellationToken cancellationToken = default)

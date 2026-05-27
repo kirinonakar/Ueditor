@@ -30,8 +30,8 @@ namespace Ueditor.Editor
         public event Action<int, string, string>? LineSplitRequested;
         public event Action<int>? MergeLineWithPreviousRequested;
         public event Action<int>? DeleteLineRequested;
-        public event Action<string, int, int, bool, bool>? FindRequested;
-        public event Action<string, bool>? FindAllRequested;
+        public event Action<string, int, int, bool, bool, bool>? FindRequested;
+        public event Action<string, bool, bool>? FindAllRequested;
         public event Action<int, double>? ScrollChanged;
         public event Action<bool>? ScrollSyncChanged;
 
@@ -481,13 +481,16 @@ namespace Ueditor.Editor
                                     reverseProp.GetBoolean();
                                 bool matchCase = root.TryGetProperty("matchCase", out JsonElement matchCaseProp) &&
                                     matchCaseProp.GetBoolean();
+                                bool isRegex = root.TryGetProperty("isRegex", out JsonElement isRegexProp) &&
+                                    isRegexProp.GetBoolean();
 
                                 FindRequested?.Invoke(
                                     queryProp.GetString() ?? string.Empty,
                                     startLine,
                                     startColumn,
                                     reverse,
-                                    matchCase);
+                                    matchCase,
+                                    isRegex);
                             }
                             break;
 
@@ -496,9 +499,12 @@ namespace Ueditor.Editor
                             {
                                 bool findAllMatchCase = root.TryGetProperty("matchCase", out JsonElement findAllMatchCaseProp) &&
                                     findAllMatchCaseProp.GetBoolean();
+                                bool isRegex = root.TryGetProperty("isRegex", out JsonElement isRegexProp) &&
+                                    isRegexProp.GetBoolean();
                                 FindAllRequested?.Invoke(
                                     findAllQueryProp.GetString() ?? string.Empty,
-                                    findAllMatchCase);
+                                    findAllMatchCase,
+                                    isRegex);
                             }
                             break;
 

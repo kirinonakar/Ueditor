@@ -408,6 +408,36 @@
             flex: 1;
         }
 
+        .find-option-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--fg);
+            opacity: 0.5;
+            cursor: pointer;
+            padding: 2px 4px;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 3px;
+            transition: opacity 0.1s, background-color 0.1s, border-color 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+        }
+
+        .find-option-btn:hover {
+            opacity: 0.8;
+            background: rgba(127, 127, 127, 0.16);
+        }
+
+        .find-option-btn.active {
+            background: rgba(0, 120, 212, 0.25) !important;
+            opacity: 1 !important;
+            border: 1px solid rgba(0, 120, 212, 0.4) !important;
+            color: var(--fg) !important;
+        }
+
         .find-button {
             min-width: 28px;
             height: 28px;
@@ -537,8 +567,14 @@
         <div id="find-panel" hidden>
             <div style="display: flex; gap: 8px; width: 100%;">
                 <div style="display: flex; flex-direction: column; gap: 6px; flex: 1;">
-                    <input id="find-input" type="text" placeholder="찾기" autocomplete="off" spellcheck="false"
-                        style="width: 100%;">
+                    <div style="position: relative; display: flex; align-items: center; width: 100%;">
+                        <input id="find-input" type="text" placeholder="찾기" autocomplete="off" spellcheck="false"
+                            style="width: 100%; padding-right: 60px;">
+                        <div style="position: absolute; right: 5px; display: flex; gap: 2px; z-index: 10;">
+                            <button id="find-match-case" class="find-option-btn" type="button" title="대소문자 구분 (Aa)">Aa</button>
+                            <button id="find-regex" class="find-option-btn" type="button" title="정규식 사용 (.*)">.*</button>
+                        </div>
+                    </div>
                     <div id="replace-row" style="display: flex; width: 100%;">
                         <input id="replace-input" type="text" placeholder="바꾸기" autocomplete="off" spellcheck="false"
                             style="width: 100%;">
@@ -662,6 +698,8 @@
             searchMatches: [],
             searchIndex: -1,
             activeSearch: null,
+            findMatchCase: false,
+            findRegex: false,
             selection: null,
             selectionAnchor: null,
             isSelecting: false,
@@ -1442,7 +1480,8 @@
                 const activeMatchOnLine = active && active.lineNumber === lineNumber
                     ? active
                     : null;
-                return renderSearchMatches(text, state.searchQuery, activeMatchOnLine);
+                const matchesOnLine = state.searchMatches.filter(m => m.lineNumber === lineNumber);
+                return renderSearchMatchesForLine(lineNumber, text, matchesOnLine, activeMatchOnLine);
             }
 
             return highlightLine(text, state.language);
@@ -1453,9 +1492,9 @@
             const a = selection.start;
             const b = selection.end;
             if (a.line < b.line || (a.line === b.line && a.column <= b.column)) {
-                return { start: a, end: b };
+                return { start: a, end: b, isColumn: !!selection.isColumn };
             }
-            return { start: b, end: a };
+            return { start: b, end: a, isColumn: !!selection.isColumn };
         }
 
         function hasCustomSelection() {
@@ -1482,6 +1521,15 @@
             const selection = normalizeSelection();
             if (!selection || lineNumber < selection.start.line || lineNumber > selection.end.line) {
                 return null;
+            }
+
+            if (selection.isColumn) {
+                const start = Math.min(selection.start.column, selection.end.column);
+                const end = Math.max(selection.start.column, selection.end.column);
+                return {
+                    start: Math.max(0, Math.min(start, textLength)),
+                    end: Math.max(0, Math.min(end, textLength))
+                };
             }
 
             const start = lineNumber === selection.start.line ? selection.start.column : 0;
@@ -1746,9 +1794,15 @@
                 const parts = [];
                 for (let line = selection.start.line; line <= selection.end.line; line++) {
                     const text = state.cache.get(line) || '';
-                    const start = line === selection.start.line ? selection.start.column : 0;
-                    const end = line === selection.end.line ? selection.end.column : text.length;
-                    parts.push(text.slice(Math.max(0, start), Math.max(0, end)));
+                    if (selection.isColumn) {
+                        const start = Math.min(selection.start.column, selection.end.column);
+                        const end = Math.max(selection.start.column, selection.end.column);
+                        parts.push(text.slice(Math.max(0, start), Math.max(0, end)));
+                    } else {
+                        const start = line === selection.start.line ? selection.start.column : 0;
+                        const end = line === selection.end.line ? selection.end.column : text.length;
+                        parts.push(text.slice(Math.max(0, start), Math.max(0, end)));
+                    }
                 }
                 return parts.join('\n');
             }
@@ -1967,7 +2021,49 @@
             mergeLineBackward(element);
         }
 
+        function replaceColumnSelectionWith(selection, text) {
+            const { start, end } = selection;
+            const startLine = Math.min(start.line, end.line);
+            const endLine = Math.max(start.line, end.line);
+            const startCol = Math.min(start.column, end.column);
+            const endCol = Math.max(start.column, end.column);
+
+            const lines = text.split('\n');
+            const useLineByLinePaste = lines.length === (endLine - startLine + 1);
+
+            let maxCaretCol = startCol;
+
+            for (let line = startLine; line <= endLine; line++) {
+                const originalText = state.cache.get(line) || '';
+                const replaceText = useLineByLinePaste ? lines[line - startLine] : text;
+
+                const sCol = Math.max(0, Math.min(startCol, originalText.length));
+                const eCol = Math.max(0, Math.min(endCol, originalText.length));
+
+                const nextText = originalText.slice(0, sCol) + replaceText + originalText.slice(eCol);
+                state.cache.set(line, nextText);
+                post({ type: 'lineChanged', lineNumber: line, text: nextText });
+
+                maxCaretCol = Math.max(maxCaretCol, sCol + replaceText.length);
+            }
+
+            post({ type: 'contentChanged' });
+            state.selection = null;
+            state.selectionAnchor = { line: end.line, column: maxCaretCol };
+            state.currentLine = end.line;
+            state.currentColumn = maxCaretCol + 1;
+
+            queueRender(true);
+            setTimeout(() => {
+                focusLine(state.currentLine, maxCaretCol);
+            }, 0);
+        }
+
         function replaceSelectionWith(selection, text, editSelection = null) {
+            if (selection.isColumn) {
+                replaceColumnSelectionWith(selection, text);
+                return;
+            }
             const { start, end } = selection;
             const prefix = (state.cache.get(start.line) || '').slice(0, start.column);
             const suffix = (state.cache.get(end.line) || '').slice(end.column);
@@ -3486,8 +3582,7 @@
             const originalText = state.cache.get(lineNumber);
             if (originalText === undefined) return;
 
-            const targetSub = originalText.slice(indexOfMatch, indexOfMatch + matchLength);
-            if (targetSub.toLowerCase() !== query.toLowerCase()) return;
+            if (indexOfMatch + matchLength > originalText.length) return;
 
             const nextText = originalText.slice(0, indexOfMatch) + replaceText + originalText.slice(indexOfMatch + matchLength);
             state.cache.set(lineNumber, nextText);
@@ -3496,7 +3591,7 @@
 
             const currentQuery = findInput.value;
             if (currentQuery) {
-                post({ type: 'findAll', query: currentQuery, matchCase: false });
+                post({ type: 'findAll', query: currentQuery, matchCase: state.findMatchCase, isRegex: state.findRegex });
             } else {
                 queueRender(true);
             }
@@ -3529,8 +3624,7 @@
                 for (const match of matches) {
                     const idx = match.indexOfMatch;
                     const len = match.matchLength;
-                    const targetSub = nextText.slice(idx, idx + len);
-                    if (targetSub.toLowerCase() === query.toLowerCase()) {
+                    if (idx + len <= nextText.length) {
                         nextText = nextText.slice(0, idx) + replaceText + nextText.slice(idx + len);
                     }
                 }
@@ -3544,7 +3638,7 @@
 
             if (changed) {
                 post({ type: 'contentChanged' });
-                post({ type: 'findAll', query: query, matchCase: false });
+                post({ type: 'findAll', query: query, matchCase: state.findMatchCase, isRegex: state.findRegex });
             }
         }
 
@@ -3569,7 +3663,7 @@
                 return;
             }
             state.searchQuery = query;
-            post({ type: 'findAll', query, matchCase: false });
+            post({ type: 'findAll', query, matchCase: state.findMatchCase, isRegex: state.findRegex });
         }
 
         function requestFind(reverse = false) {
@@ -3594,26 +3688,34 @@
             revealLine(match.lineNumber, match.indexOfMatch, match.matchLength, query, true);
         }
 
-        function renderSearchMatches(text, query, activeMatch) {
-            const lowerText = text.toLowerCase();
-            const lowerQuery = query.toLowerCase();
+        function renderSearchMatchesForLine(lineNumber, text, matches, activeMatch) {
+            if (matches.length === 0) {
+                return highlightLine(text, state.language);
+            }
+
+            matches = [...matches].sort((a, b) => a.indexOfMatch - b.indexOfMatch);
+
             const parts = [];
             let pos = 0;
 
-            while (pos <= text.length) {
-                const idx = lowerText.indexOf(lowerQuery, pos);
-                if (idx < 0) break;
+            for (const match of matches) {
+                const idx = match.indexOfMatch;
+                const len = match.matchLength;
+
+                if (idx < pos || idx >= text.length) continue;
 
                 if (idx > pos) {
                     parts.push(highlightLine(text.slice(pos, idx), state.language));
                 }
 
-                const isActive = activeMatch && idx === activeMatch.indexOfMatch &&
-                    text.slice(idx, idx + query.length) === text.slice(activeMatch.indexOfMatch, activeMatch.indexOfMatch + activeMatch.matchLength);
-                const matchText = text.slice(idx, idx + query.length);
+                const isActive = activeMatch && 
+                    idx === activeMatch.indexOfMatch && 
+                    lineNumber === activeMatch.lineNumber;
+
+                const matchText = text.slice(idx, idx + len);
                 const cls = isActive ? 'search-match active-match' : 'search-match';
                 parts.push(`<mark class="${cls}">${escapeHtml(matchText)}</mark>`);
-                pos = idx + query.length;
+                pos = idx + len;
             }
 
             if (pos < text.length) {
@@ -3900,12 +4002,13 @@
                 clientX: event.clientX,
                 clientY: event.clientY
             };
+            const isColumnSelect = event.altKey;
             const anchor = event.shiftKey && state.selectionAnchor
                 ? state.selectionAnchor
                 : { line: position.line, column: position.column };
             state.selectionAnchor = anchor;
             state.selection = event.shiftKey
-                ? { start: anchor, end: { line: position.line, column: position.column } }
+                ? { start: anchor, end: { line: position.line, column: position.column }, isColumn: isColumnSelect }
                 : null;
             state.isSelecting = true;
             state.isLineSelecting = false;
@@ -3977,7 +4080,8 @@
             } else {
                 newSelection = {
                     start: state.selectionAnchor || { line: position.line, column: position.column },
-                    end: { line: position.line, column: position.column }
+                    end: { line: position.line, column: position.column },
+                    isColumn: event.altKey
                 };
             }
 
@@ -4266,6 +4370,9 @@
         });
 
         document.addEventListener('copy', event => {
+            if (event.target && (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.closest('#find-panel'))) {
+                return;
+            }
             const text = selectedText();
             if (text) {
                 event.clipboardData?.setData('text/plain', text);
@@ -4274,6 +4381,9 @@
         });
 
         document.addEventListener('cut', event => {
+            if (event.target && (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.closest('#find-panel'))) {
+                return;
+            }
             const text = selectedText();
             if (!text) return;
 
@@ -4296,6 +4406,9 @@
         });
 
         document.addEventListener('paste', event => {
+            if (event.target && (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.closest('#find-panel'))) {
+                return;
+            }
             event.preventDefault();
             const clipboardText = (event.clipboardData?.getData('text/plain') || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
             const element = document.activeElement?.closest?.('.line-text');
@@ -4450,6 +4563,21 @@
         findPrev.addEventListener('click', () => requestFind(true));
         findNextButton.addEventListener('click', () => requestFind(false));
         findClose.addEventListener('click', closeFindPanel);
+
+        const findMatchCase = document.getElementById('find-match-case');
+        const findRegex = document.getElementById('find-regex');
+
+        findMatchCase.addEventListener('click', () => {
+            state.findMatchCase = !state.findMatchCase;
+            findMatchCase.classList.toggle('active', state.findMatchCase);
+            requestFindAll();
+        });
+
+        findRegex.addEventListener('click', () => {
+            state.findRegex = !state.findRegex;
+            findRegex.classList.toggle('active', state.findRegex);
+            requestFindAll();
+        });
 
         replaceBtn.addEventListener('click', () => executeReplace());
         replaceAllBtn.addEventListener('click', () => executeReplaceAll());

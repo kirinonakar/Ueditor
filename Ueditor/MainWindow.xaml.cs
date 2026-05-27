@@ -1005,15 +1005,15 @@ namespace Ueditor
                 UpdateTotalLines(tab);
             };
 
-            bridge.FindRequested += async (query, startLine, startColumn, reverse, matchCase) =>
+            bridge.FindRequested += async (query, startLine, startColumn, reverse, matchCase, isRegex) =>
             {
-                var result = session.Find(query, startLine, startColumn, reverse, matchCase);
+                var result = session.Find(query, startLine, startColumn, reverse, matchCase, isRegex);
                 await bridge.SendFindResultAsync(result, query);
             };
 
-            bridge.FindAllRequested += async (query, matchCase) =>
+            bridge.FindAllRequested += async (query, matchCase, isRegex) =>
             {
-                var results = session.FindAll(query, matchCase);
+                var results = session.FindAll(query, matchCase, isRegex);
                 await bridge.SendFindAllResultsAsync(results, query);
             };
 
