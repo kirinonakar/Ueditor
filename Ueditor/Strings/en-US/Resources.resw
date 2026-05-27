@@ -212,6 +212,9 @@
   <data name="CharMap" xml:space="preserve">
     <value>Character Map</value>
   </data>
+  <data name="Emoji" xml:space="preserve">
+    <value>Emoji</value>
+  </data>
   <data name="CurrentDate" xml:space="preserve">
     <value>Current Date</value>
   </data>

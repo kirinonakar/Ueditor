@@ -2906,6 +2906,22 @@ namespace Ueditor
                 }
                 return;
             }
+            else if (e.Command == "emoji")
+            {
+                try
+                {
+                    string emojiFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "md", "standard-unicode-emoji-17-no-private.md");
+                    if (File.Exists(emojiFilePath))
+                    {
+                        await LoadFileIntoTabAsync(emojiFilePath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ShowErrorMessage("이모지 파일 열기 실패", ex.Message);
+                }
+                return;
+            }
             else if (e.Command == "currentDate")
             {
                 string dateStr = DateTime.Now.ToString("yyyy-MM-dd");

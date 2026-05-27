@@ -29,6 +29,7 @@
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
     <Content Include="Strings\**\Resources.resw" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="WebResources\**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="md\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

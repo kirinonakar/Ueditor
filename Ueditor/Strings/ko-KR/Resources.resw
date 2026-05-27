@@ -212,6 +212,9 @@
   <data name="CharMap" xml:space="preserve">
     <value>문자표</value>
   </data>
+  <data name="Emoji" xml:space="preserve">
+    <value>이모지</value>
+  </data>
   <data name="CurrentDate" xml:space="preserve">
     <value>현재 날짜</value>
   </data>
