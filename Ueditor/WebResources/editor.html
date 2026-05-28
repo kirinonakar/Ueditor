@@ -762,6 +762,49 @@
                 .replace(/'/g, '&#039;');
         }
 
+        function graphemeDeleteStart(text, caret) {
+            if (caret <= 0) return 0;
+            if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+                try {
+                    const s = new Intl.Segmenter('en', { granularity: 'grapheme' });
+                    const segs = [...s.segment(text.slice(0, caret))];
+                    return segs.length > 0 ? segs[segs.length - 1].index : 0;
+                } catch { }
+            }
+            let pos = caret - 1;
+            if (pos >= 0) {
+                const c = text.charCodeAt(pos);
+                if (c >= 0xDC00 && c <= 0xDFFF && pos > 0) {
+                    const p = text.charCodeAt(pos - 1);
+                    if (p >= 0xD800 && p <= 0xDBFF) pos--;
+                }
+            }
+            return pos;
+        }
+
+        function graphemeDeleteEnd(text, caret) {
+            if (caret >= text.length) return text.length;
+            if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+                try {
+                    const s = new Intl.Segmenter('en', { granularity: 'grapheme' });
+                    const segs = [...s.segment(text.slice(caret))];
+                    if (segs.length > 0) return caret + segs[0].segment.length;
+                } catch { }
+            }
+            let pos = caret;
+            if (pos < text.length) {
+                const c = text.charCodeAt(pos);
+                if (c >= 0xD800 && c <= 0xDBFF && pos + 1 < text.length) {
+                    const n = text.charCodeAt(pos + 1);
+                    if (n >= 0xDC00 && n <= 0xDFFF) pos += 2;
+                    else pos++;
+                } else {
+                    pos++;
+                }
+            }
+            return pos;
+        }
+
         function parseHexColor(value) {
             if (!value || typeof value !== 'string') return null;
             const match = value.trim().match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
@@ -1676,11 +1719,10 @@
         }
 
         function renderLineContent(lineNumber, text) {
-            // 편집 중인 줄은 syntax/search highlight span 없이 단일 텍스트 노드로 렌더링한다.
-            // contenteditable 내부에 span/mark가 섞이면 WebView2/Chromium의 Backspace/Delete
-            // target range와 한글 IME 조합 범위가 어긋나 뒤쪽 글자나 이전 자소가 지워질 수 있다.
-            if (state.editingLine === lineNumber ||
-                (state.isComposing && state.compositionLine === lineNumber)) {
+            // IME 조합 중인 줄은 beforeinput/compositionstart 핸들러가 이미 DOM을 평탄화하지만
+            // render()가 IME 조합 중에는 실행되지 않아 이 줄이 renderLineContent()를 거치지 않는다.
+            // 만에 하나 조합 중에 도달하면 plain text로 렌더링한다.
+            if (state.isComposing && state.compositionLine === lineNumber) {
                 return escapeHtml(text);
             }
 
@@ -2515,7 +2557,8 @@
             const text = lineTextFromElement(element);
             const caret = getCaretOffset(element);
             if (caret < text.length) {
-                updateSingleLine(element, text.slice(0, caret) + text.slice(caret + 1), caret);
+                const delEnd = graphemeDeleteEnd(text, caret);
+                updateSingleLine(element, text.slice(0, caret) + text.slice(delEnd), caret);
                 return;
             }
 
@@ -2542,16 +2585,15 @@
             const text = lineTextFromElement(element);
             const caret = getCaretOffset(element);
             if (caret > 0) {
-                // Smart tab backspace: if cursor is preceded only by spaces and aligns
-                // to a tab stop, delete the whole tab (up to tabSize spaces at once).
                 const tabSize = state.tabSize || 4;
                 const prefix = text.slice(0, caret);
                 const onlySpacesBefore = prefix.length > 0 && /^ *$/.test(prefix);
                 if (onlySpacesBefore && prefix.length % tabSize === 0) {
-                    const deleteCount = tabSize;
-                    updateSingleLine(element, text.slice(0, caret - deleteCount) + text.slice(caret), caret - deleteCount);
+                    const deleteStart = caret - Math.min(tabSize, caret);
+                    updateSingleLine(element, text.slice(0, deleteStart) + text.slice(caret), deleteStart);
                 } else {
-                    updateSingleLine(element, text.slice(0, caret - 1) + text.slice(caret), caret - 1);
+                    const deleteStart = graphemeDeleteStart(text, caret);
+                    updateSingleLine(element, text.slice(0, deleteStart) + text.slice(caret), deleteStart);
                 }
                 return;
             }
@@ -4468,7 +4510,7 @@
             const element = lineElementFromEvent(event);
             if (element && element.getAttribute('contenteditable') === 'true') {
                 state.editingLine = Number(element.dataset.line || state.currentLine || 1);
-                makeEditablePlainText(element);
+                queueRender();
             }
         });
 
@@ -4598,7 +4640,7 @@
             state.currentLine = position.line;
             state.currentColumn = position.column + 1;
             if (isEditable) {
-                makeEditablePlainText(position.element, position.column);
+                setCaret(position.element, position.column);
             }
             if (event.shiftKey || hadSelection) {
                 queueRender(true);
@@ -4977,16 +5019,20 @@
                         const tabSize = state.tabSize || 4;
                         const prefix = text.slice(0, caret);
                         const onlySpacesBefore = prefix.length > 0 && /^ *$/.test(prefix);
-                        const deleteCount = onlySpacesBefore && prefix.length % tabSize === 0
-                            ? Math.min(tabSize, caret)
-                            : 1;
-                        updateSingleLine(target, text.slice(0, caret - deleteCount) + text.slice(caret), caret - deleteCount);
+                        if (onlySpacesBefore && prefix.length % tabSize === 0) {
+                            const deleteStart = caret - Math.min(tabSize, caret);
+                            updateSingleLine(target, text.slice(0, deleteStart) + text.slice(caret), deleteStart);
+                        } else {
+                            const deleteStart = graphemeDeleteStart(text, caret);
+                            updateSingleLine(target, text.slice(0, deleteStart) + text.slice(caret), deleteStart);
+                        }
                     } else {
                         mergeLineBackward(target);
                     }
                 } else {
                     if (caret < text.length) {
-                        updateSingleLine(target, text.slice(0, caret) + text.slice(caret + 1), caret);
+                        const delEnd = graphemeDeleteEnd(text, caret);
+                        updateSingleLine(target, text.slice(0, caret) + text.slice(delEnd), caret);
                     } else {
                         mergeLineForward(target);
                     }
@@ -5043,7 +5089,6 @@
             const element = lineElementFromEvent(event);
             if (element && element.getAttribute('contenteditable') === 'true') {
                 state.editingLine = Number(element.dataset.line || state.currentLine || 1);
-                makeEditablePlainText(element);
             }
             reportCursorAndSelection(element || document.activeElement);
         });
