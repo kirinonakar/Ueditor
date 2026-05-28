@@ -70,6 +70,7 @@ namespace Ueditor.Controls
             _leftSidebar.AddSnippetClick += OnAddSnippetClick;
             _leftSidebar.ExportSnippetsClick += OnExportSnippetsClick;
             _leftSidebar.ImportSnippetsClick += OnImportSnippetsClick;
+            _leftSidebar.ResetSnippetsClick += OnResetSnippetsClick;
         }
 
         private async void OnSnippetItemDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
@@ -239,6 +240,26 @@ namespace Ueditor.Controls
                     _getString("SnippetImportErrorTitle", "스니펫 가져오기 오류"),
                     string.Format(_getString("SnippetImportErrorMessage", "파일을 가져오는 중 오류가 발생했습니다: {0}"), ex.Message));
             }
+        }
+
+        private async void OnResetSnippetsClick(object sender, RoutedEventArgs e)
+        {
+            var dialog = new ContentDialog
+            {
+                Title = _getString("SnippetResetTitle", "스니펫 초기화"),
+                Content = _getString("SnippetResetConfirm", "기본 스니펫으로 초기화하시겠습니까?\n추가한 스니펫이 모두 삭제됩니다."),
+                PrimaryButtonText = _getString("SnippetResetConfirmButton", "초기화"),
+                CloseButtonText = _getString("SnippetCancel", "취소"),
+                XamlRoot = _xamlRootProvider(),
+                RequestedTheme = _leftSidebar.ActualTheme
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result != ContentDialogResult.Primary) return;
+
+            await _snippetService.ResetSnippetsAsync();
+            Refresh();
+            await NotifySnippetsChangedAsync();
         }
 
         private Task NotifySnippetsChangedAsync()

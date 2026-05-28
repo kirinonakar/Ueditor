@@ -116,7 +116,17 @@ namespace Ueditor.Core.Services
                 NormalizeSnippet(item);
             }
 
-            _snippets = items;
+            foreach (var item in items)
+            {
+                _snippets.RemoveAll(s => s.Title.Equals(item.Title, StringComparison.OrdinalIgnoreCase));
+                _snippets.Add(item);
+            }
+            await SaveSnippetsAsync();
+        }
+
+        public async Task ResetSnippetsAsync()
+        {
+            _snippets = GetDefaultSnippets();
             await SaveSnippetsAsync();
         }
 
@@ -155,35 +165,35 @@ namespace Ueditor.Core.Services
                 new SnippetItem
                 {
                     Title = "Markdown Table",
-                    Keyword = "table",
+                    Keyword = "!table",
                     Description = "기본 마크다운 표 템플릿",
                     Content = "| 열 이름 1 | 열 이름 2 | 열 이름 3 |\n| :--- | :---: | ---: |\n| 왼쪽 정렬 | 중앙 정렬 | 오른쪽 정렬 |\n| 내용 A | 내용 B | 내용 C |"
                 },
                 new SnippetItem
                 {
                     Title = "LaTeX Matrix Block",
-                    Keyword = "matrix",
+                    Keyword = "!matrix",
                     Description = "KaTeX 2x2 행렬 수식 블록",
                     Content = "$$\n\\begin{pmatrix}\na_{11} & a_{12} \\\\\na_{21} & a_{22}\n\\end{pmatrix}\n$$"
                 },
                 new SnippetItem
                 {
                     Title = "HTML5 Document Shell",
-                    Keyword = "html5",
+                    Keyword = "!html5",
                     Description = "표준 HTML5 기본 뼈대 코드",
                     Content = "<!DOCTYPE html>\n<html lang=\"ko\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>문서 제목</title>\n</head>\n<body>\n    <h1>Hello, World!</h1>\n</body>\n</html>"
                 },
                 new SnippetItem
                 {
                     Title = "LaTeX Integral Math",
-                    Keyword = "integral",
+                    Keyword = "!integral",
                     Description = "적분 수식 표준 예시",
                     Content = "$$ \\int_{a}^{b} x^2 \\, dx = \\left[ \\frac{1}{3}x^3 \\right]_{a}^{b} $$"
                 },
                 new SnippetItem
                 {
                     Title = "C# Property Snippet",
-                    Keyword = "propnotify",
+                    Keyword = "!propnotify",
                     Description = "변경 통지 프로퍼티",
                     Content = "private string _fieldName;\npublic string FieldName\n{\n    get => _fieldName;\n    set\n    {\n        if (_fieldName != value)\n        {\n            _fieldName = value;\n            // OnPropertyChanged();\n        }\n    }\n}"
                 }

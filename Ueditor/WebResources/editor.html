@@ -1139,10 +1139,7 @@
                 const isInSelection = !!selectionBounds;
                 const isSelectedEmptyLine = isInSelection && displayText.length === 0 && hasCustomSelection();
                 const textClass = `line-text${hasLine ? '' : ' loading'}${isLong ? ' long-line' : ''}`;
-                const renderAsPlainEditable = isFocused && activeLine === line && contentEditable === 'true';
-                const lineContent = renderAsPlainEditable
-                    ? escapeHtml(displayText)
-                    : renderLineContent(line, displayText);
+                const lineContent = renderLineContent(line, displayText);
                 rows.push(
                     `<div class="line-row${isInSelection ? ' selected-row' : ''}${isSelectedEmptyLine ? ' selected-empty-row' : ''}" data-line="${line}">` +
                     `<div class="line-number">${line}</div>` +
@@ -1695,21 +1692,21 @@
                 if (start === end) {
                     if (selection && selection.isColumn) {
                         if (start < text.length) {
-                            return escapeHtml(text.slice(0, start)) +
+                            return highlightLine(text.slice(0, start), state.language) +
                                 `<span class="column-cursor">${escapeHtml(text[start])}</span>` +
-                                escapeHtml(text.slice(start + 1));
+                                highlightLine(text.slice(start + 1), state.language);
                         } else {
-                            return escapeHtml(text) + `<span class="column-cursor">&nbsp;</span>`;
+                            return highlightLine(text, state.language) + `<span class="column-cursor">&nbsp;</span>`;
                         }
                     }
-                    return escapeHtml(text);
+                    return highlightLine(text, state.language);
                 }
 
                 const selected = text.slice(start, end);
-                const selectedHtml = selected.length > 0 ? escapeHtml(selected) : '&nbsp;';
-                return escapeHtml(text.slice(0, start)) +
+                const selectedHtml = selected.length > 0 ? highlightLine(selected, state.language) : '&nbsp;';
+                return highlightLine(text.slice(0, start), state.language) +
                     `<span class="selection-fragment">${selectedHtml}</span>` +
-                    escapeHtml(text.slice(end));
+                    highlightLine(text.slice(end), state.language);
             }
 
             if (state.searchQuery && state.searchMatches.length > 0) {

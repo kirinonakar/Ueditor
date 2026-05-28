@@ -1046,4 +1046,16 @@ Supports live preview, code &amp; formula templates, terminal interface, Git int
   <data name="SnippetImportErrorMessage" xml:space="preserve">
     <value>An error occurred while importing the file: {0}</value>
   </data>
+  <data name="SnippetReset" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+  <data name="SnippetResetTitle" xml:space="preserve">
+    <value>Reset Snippets</value>
+  </data>
+  <data name="SnippetResetConfirm" xml:space="preserve">
+    <value>Reset to default snippets? All custom snippets will be deleted.</value>
+  </data>
+  <data name="SnippetResetConfirmButton" xml:space="preserve">
+    <value>Reset</value>
+  </data>
 </root>

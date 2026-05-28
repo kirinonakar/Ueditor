@@ -412,6 +412,7 @@
                                         <Button x:Name="ExportSnippetsButton" Grid.Column="0" Content="내보내기" Click="OnExportSnippetsClick" HorizontalAlignment="Stretch" FontSize="11"/>
                                         <Button x:Name="ImportSnippetsButton" Grid.Column="1" Content="가져오기" Click="OnImportSnippetsClick" HorizontalAlignment="Stretch" FontSize="11"/>
                                     </Grid>
+                                    <Button x:Name="ResetSnippetsButton" Content="초기화" Click="OnResetSnippetsClick" HorizontalAlignment="Stretch" FontSize="11"/>
                                 </StackPanel>
                         </Grid>
 

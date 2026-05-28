@@ -1046,4 +1046,16 @@
   <data name="SnippetImportErrorMessage" xml:space="preserve">
     <value>파일을 가져오는 중 오류가 발생했습니다: {0}</value>
   </data>
+  <data name="SnippetReset" xml:space="preserve">
+    <value>초기화</value>
+  </data>
+  <data name="SnippetResetTitle" xml:space="preserve">
+    <value>스니펫 초기화</value>
+  </data>
+  <data name="SnippetResetConfirm" xml:space="preserve">
+    <value>기본 스니펫으로 초기화하시겠습니까? 추가한 스니펫이 모두 삭제됩니다.</value>
+  </data>
+  <data name="SnippetResetConfirmButton" xml:space="preserve">
+    <value>초기화</value>
+  </data>
 </root>

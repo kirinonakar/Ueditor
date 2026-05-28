@@ -21,5 +21,6 @@ namespace Ueditor.Core.Interfaces
         Task DeleteSnippetAsync(string title);
         Task ExportSnippetsAsync(string filePath);
         Task ImportSnippetsAsync(string filePath);
+        Task ResetSnippetsAsync();
     }
 }
