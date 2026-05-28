@@ -1,14 +1,15 @@
+using System;
 using System.Threading.Tasks;
 
 namespace Ueditor.Core.Interfaces
 {
     public interface ILLMService
     {
-        Task<string> ExplainCodeAsync(string code, string language);
-        Task<string> SummarizeTextAsync(string text);
-        Task<string> TranslateTextAsync(string text);
-        Task<string> ImproveTextAsync(string text);
-        Task<string> CustomPromptAsync(string prompt, string context);
+        Task<string> ExplainCodeAsync(string code, string language, Func<string, Task>? onChunk = null);
+        Task<string> SummarizeTextAsync(string text, Func<string, Task>? onChunk = null);
+        Task<string> TranslateTextAsync(string text, Func<string, Task>? onChunk = null);
+        Task<string> ImproveTextAsync(string text, Func<string, Task>? onChunk = null);
+        Task<string> CustomPromptAsync(string prompt, string fileContext, string selectedText, Func<string, Task>? onChunk = null);
         
         // Secure API Key handling
         Task SaveApiKeyAsync(string provider, string apiKey);

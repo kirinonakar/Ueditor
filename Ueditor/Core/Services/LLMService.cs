@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using System.Threading.Tasks;
 using Ueditor.Core.Interfaces;
 using Ueditor.Core.Services.LLM;
@@ -39,7 +40,7 @@ namespace Ueditor.Core.Services
             return "en-US";
         }
 
-        public async Task<string> ExplainCodeAsync(string code, string language)
+        public async Task<string> ExplainCodeAsync(string code, string language, Func<string, Task>? onChunk = null)
         {
             string langCode = GetActiveLanguage();
             string systemPrompt = langCode switch
@@ -56,10 +57,10 @@ namespace Ueditor.Core.Services
                 _ => $"[선택 영역 언어 또는 파일 유형]\n{language}\n\n[선택 영역]\n{code}"
             };
 
-            return await ExecuteLlmAsync(systemPrompt, userContent);
+            return await ExecuteLlmAsync(systemPrompt, userContent, onChunk);
         }
 
-        public async Task<string> SummarizeTextAsync(string text)
+        public async Task<string> SummarizeTextAsync(string text, Func<string, Task>? onChunk = null)
         {
             string langCode = GetActiveLanguage();
             string systemPrompt = langCode switch
@@ -76,10 +77,10 @@ namespace Ueditor.Core.Services
                 _ => $"[중요 지침: 반드시 아래의 '요약할 선택 영역'의 텍스트가 작성된 실제 언어와 '동일한 언어'로만 요약 결과를 출력하십시오. 절대 다른 언어로 번역하지 마십시오.]\n\n[요약할 선택 영역]\n{text}"
             };
 
-            return await ExecuteLlmAsync(systemPrompt, userContent);
+            return await ExecuteLlmAsync(systemPrompt, userContent, onChunk);
         }
 
-        public async Task<string> TranslateTextAsync(string text)
+        public async Task<string> TranslateTextAsync(string text, Func<string, Task>? onChunk = null)
         {
             var settings = _settingsService.CurrentSettings;
             string srcLang = settings.LlmSourceLanguage ?? "Auto";
@@ -123,10 +124,10 @@ namespace Ueditor.Core.Services
                 _ => $"[번역할 선택 영역]\n{text}"
             };
 
-            return await ExecuteLlmAsync(systemPrompt, userContent);
+            return await ExecuteLlmAsync(systemPrompt, userContent, onChunk);
         }
 
-        public async Task<string> ImproveTextAsync(string text)
+        public async Task<string> ImproveTextAsync(string text, Func<string, Task>? onChunk = null)
         {
             string langCode = GetActiveLanguage();
             string systemPrompt = langCode switch
@@ -143,27 +144,35 @@ namespace Ueditor.Core.Services
                 _ => $"[중요 지침: 반드시 아래의 '개선할 선택 영역'의 텍스트가 작성된 실제 언어와 '동일한 언어'로만 정제된 결과물을 출력하십시오. 절대 다른 언어로 번역하지 마십시오.]\n\n[개선할 선택 영역]\n{text}"
             };
 
-            return await ExecuteLlmAsync(systemPrompt, userContent);
+            return await ExecuteLlmAsync(systemPrompt, userContent, onChunk);
         }
 
-        public async Task<string> CustomPromptAsync(string prompt, string context)
+        public async Task<string> CustomPromptAsync(string prompt, string fileContext, string selectedText, Func<string, Task>? onChunk = null)
         {
             string langCode = GetActiveLanguage();
             string systemPrompt = langCode switch
             {
-                "ja-JP" => "あなたは正確な開発アシスタントです。提供された選択範囲を根拠に、ユーザーの指示に回答します。選択範囲にない事実を断定せず、必要に応じて不確実性を明記してください。日本語で回答してください。",
-                "en-US" => "You are an accurate developer assistant. Answer the user's instructions based strictly on the provided text selection. Do not assume facts outside the selection, and state any uncertainty clearly. Write your response in English.",
-                _ => "당신은 정확한 개발 보조자입니다. 제공된 선택 영역을 근거로 사용자의 지시사항에 답합니다. 선택 영역에 없는 사실을 단정하지 말고, 필요한 경우 불확실성을 명시합니다. 답변은 한국어로 작성합니다."
+                "ja-JP" => "あなたは正確な開発アシスタントです。提供された選択範囲とファイルのコンテキストを根拠に、ユーザーの指示に回答します。選択範囲にない事実を断定せず、必要に応じて不確実性を明記してください。必ず指示に対する回答のみを出力し、挨拶や前置き、補足説明は一切含めないでください。回答は日本語で出力します。",
+                "en-US" => "You are an accurate developer assistant. Answer the user's instructions based strictly on the provided text selection and file context. Do not assume facts outside the provided context, and state any uncertainty clearly. Output ONLY the direct answer to the instruction — no greetings, no introductory phrases, no meta-commentary. Write your response in English.",
+                _ => "당신은 정확한 개발 보조자입니다. 제공된 선택 영역과 파일 컨텍스트를 근거로 사용자의 지시사항에 답합니다. 제공된 맥락에 없는 사실을 단정하지 말고, 필요한 경우 불확실성을 명시합니다. 반드시 지시에 대한 답변만 출력하고, 인사말이나 전제 설명, 부가 해설 등은 일절 포함하지 마십시오. 답변은 한국어로 작성합니다."
             };
 
-            string userContent = langCode switch
+            var userContentBuilder = new StringBuilder();
+            userContentBuilder.Append($"[사용자 지시사항]\n{prompt}");
+
+            if (!string.IsNullOrEmpty(fileContext))
             {
-                "ja-JP" => $"[コンテキストテキスト]\n{context}\n\n[ユーザーの指示]\n{prompt}",
-                "en-US" => $"[Context Text]\n{context}\n\n[User Instructions]\n{prompt}",
-                _ => $"[컨텍스트 텍스트]\n{context}\n\n[사용자 지시사항]\n{prompt}"
-            };
+                userContentBuilder.Append($"\n\n{fileContext}");
+            }
 
-            return await ExecuteLlmAsync(systemPrompt, userContent);
+            if (!string.IsNullOrEmpty(selectedText))
+            {
+                userContentBuilder.Append($"\n\n[선택 영역]\n{selectedText}");
+            }
+
+            string userContent = userContentBuilder.ToString();
+
+            return await ExecuteLlmAsync(systemPrompt, userContent, onChunk);
         }
 
         public Task SaveApiKeyAsync(string provider, string apiKey)
@@ -206,13 +215,13 @@ namespace Ueditor.Core.Services
         // Private dynamic Provider Dispatcher
         // ----------------------------------------------------
 
-        private async Task<string> ExecuteLlmAsync(string systemPrompt, string userContent)
+        private async Task<string> ExecuteLlmAsync(string systemPrompt, string userContent, Func<string, Task>? onChunk = null)
         {
             var settings = _settingsService.CurrentSettings;
             string providerName = settings.LlmProvider;
             string apiKey = await GetApiKeyAsync(providerName);
             bool requiresApiKey = !providerName.Equals("LM Studio", StringComparison.OrdinalIgnoreCase) &&
-                                   !providerName.Equals("LMStudio", StringComparison.OrdinalIgnoreCase);
+                                    !providerName.Equals("LMStudio", StringComparison.OrdinalIgnoreCase);
 
             string langCode = GetActiveLanguage();
             if (requiresApiKey && string.IsNullOrEmpty(apiKey))
@@ -235,13 +244,33 @@ namespace Ueditor.Core.Services
 
             try
             {
-                return await provider.GenerateCompletionAsync(
-                    settings.LlmEndpoint,
-                    apiKey,
-                    settings.LlmModel,
-                    systemPrompt,
-                    userContent
-                );
+                if (onChunk != null)
+                {
+                    var fullResponse = new StringBuilder();
+                    await provider.GenerateCompletionStreamAsync(
+                        settings.LlmEndpoint,
+                        apiKey,
+                        settings.LlmModel,
+                        systemPrompt,
+                        userContent,
+                        async chunk =>
+                        {
+                            fullResponse.Append(chunk);
+                            await onChunk(chunk);
+                        }
+                    );
+                    return fullResponse.ToString();
+                }
+                else
+                {
+                    return await provider.GenerateCompletionAsync(
+                        settings.LlmEndpoint,
+                        apiKey,
+                        settings.LlmModel,
+                        systemPrompt,
+                        userContent
+                    );
+                }
             }
             catch (Exception ex)
             {

@@ -129,7 +129,7 @@ namespace Ueditor.Controls
             string language = GetActiveSelectionLanguage();
             string context = BuildLlmContext(_lastSelectionText);
             await PreflightCheckAndRunAsync(_getString("LlmActionExplain", "선택 영역 설명 (Explain)"), context,
-                () => _llmService.ExplainCodeAsync(context, language));
+                onChunk => _llmService.ExplainCodeAsync(context, language, onChunk));
         }
 
         private async void OnLlmSummarizeClick(object sender, RoutedEventArgs e)
@@ -142,7 +142,7 @@ namespace Ueditor.Controls
 
             string context = BuildLlmContext(_lastSelectionText);
             await PreflightCheckAndRunAsync(_getString("LlmActionSummarize", "선택 영역 요약 (Summarize)"), context,
-                () => _llmService.SummarizeTextAsync(context));
+                onChunk => _llmService.SummarizeTextAsync(context, onChunk));
         }
 
         private async void OnLlmTranslateClick(object sender, RoutedEventArgs e)
@@ -155,7 +155,7 @@ namespace Ueditor.Controls
 
             string context = BuildLlmContext(_lastSelectionText);
             await PreflightCheckAndRunAsync(_getString("LlmActionTranslate", "선택 영역 번역 (Translate)"), context,
-                () => _llmService.TranslateTextAsync(context));
+                onChunk => _llmService.TranslateTextAsync(context, onChunk));
         }
 
         private async void OnLlmImproveClick(object sender, RoutedEventArgs e)
@@ -168,7 +168,7 @@ namespace Ueditor.Controls
 
             string context = BuildLlmContext(_lastSelectionText);
             await PreflightCheckAndRunAsync(_getString("LlmActionImprove", "수식 및 마크다운 개선"), context,
-                () => _llmService.ImproveTextAsync(context));
+                onChunk => _llmService.ImproveTextAsync(context, onChunk));
         }
 
         private async void OnLlmCustomClick(object sender, RoutedEventArgs e)
@@ -183,9 +183,13 @@ namespace Ueditor.Controls
                 return;
             }
 
-            string context = BuildLlmContext(_lastSelectionText);
-            await PreflightCheckAndRunAsync(_getString("LlmActionCustom", "커스텀 지시사항 실행"), context,
-                () => _llmService.CustomPromptAsync(prompt, context));
+            string fileContext = GetActiveFileContext();
+            string selectedText = _lastSelectionText;
+            string actionName = _getString("LlmActionCustom", "커스텀 지시사항 실행");
+
+            await PreflightCheckAndRunAsync(actionName, $"{fileContext}\n\n{selectedText}",
+                onChunk => _llmService.CustomPromptAsync(prompt, fileContext, selectedText, onChunk),
+                customInstruction: prompt);
         }
 
         private void OnLlmAddFileContextClick(object sender, RoutedEventArgs e)
@@ -383,19 +387,24 @@ namespace Ueditor.Controls
             return $"{fileContext}\n\n[선택 영역]\n{selectedText}";
         }
 
-        private async Task PreflightCheckAndRunAsync(string actionName, string contentText, Func<Task<string>> llmCall)
+        private async Task PreflightCheckAndRunAsync(string actionName, string contentText, Func<Func<string, Task>, Task<string>> streamingCall, string customInstruction = "")
         {
             if (_settingsService.CurrentSettings.LlmConfirmBeforeSending)
             {
-                var textPreview = contentText.Length > 200 ? contentText.Substring(0, 200) + "..." : contentText;
+                string previewText = contentText;
+                if (!string.IsNullOrEmpty(customInstruction))
+                {
+                    previewText = $"[사용자 지시사항]\n{customInstruction}\n\n{contentText}";
+                }
+                var textPreview = previewText.Length > 200 ? previewText.Substring(0, 200) + "..." : previewText;
 
                 string format = _getString("LlmPreflightContentFormat", "액션: {0}\n\n전송될 AI 공급자: {1} ({2})\n전송 텍스트 크기: {3:N0} 자 (약 {4:N0} 토큰 소모)\n\n[전송 내용 미리보기]\n{5}\n\n보안상의 문제나 의도하지 않은 토큰 대량 유실이 없는지 확인 후 전송해 주십시오.");
                 string dialogContent = string.Format(format,
                     actionName,
                     _settingsService.CurrentSettings.LlmProvider,
                     _settingsService.CurrentSettings.LlmModel,
-                    contentText.Length,
-                    contentText.Length / 4,
+                    previewText.Length,
+                    previewText.Length / 4,
                     textPreview);
 
                 var dialog = new ContentDialog
@@ -414,12 +423,21 @@ namespace Ueditor.Controls
                 }
             }
 
-            _rightSidebar.LlmOutput.Text = _getString("LlmRunningMessage", "AI 분석 및 응답 생성이 비동기 구동 중입니다. 잠시만 대기해 주십시오...");
+            _rightSidebar.LlmOutput.Text = "";
             _rightSidebar.RightTabs.SelectedIndex = 1;
 
             try
             {
-                _rightSidebar.LlmOutput.Text = await llmCall();
+                await streamingCall(async chunk =>
+                {
+                    _rightSidebar.DispatcherQueue.TryEnqueue(() =>
+                    {
+                        _rightSidebar.LlmOutput.Text += chunk;
+                        _rightSidebar.LlmOutput.SelectionStart = _rightSidebar.LlmOutput.Text.Length;
+                        _rightSidebar.LlmOutput.SelectionLength = 0;
+                    });
+                    await Task.CompletedTask;
+                });
             }
             catch (Exception ex)
             {
