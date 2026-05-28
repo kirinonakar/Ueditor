@@ -1298,13 +1298,6 @@
         function render() {
             if (!state.initialized) return;
 
-            // IME 조합 중 viewport를 통째로 다시 그리면 조합 중인 contenteditable 노드가
-            // 교체되어 한글 자소가 유실될 수 있다. 조합이 끝난 뒤 다시 렌더링한다.
-            if (state.isComposing) {
-                state.lastRangeKey = '';
-                return;
-            }
-
             const printContainer = document.getElementById('print-container');
             if (printContainer && printContainer.style.display === 'block') {
                 return;
@@ -1324,10 +1317,20 @@
             const activeLine = isFocused ? Number(activeEl.dataset.line) : null;
             const activeCaret = isFocused ? getCaretOffset(activeEl) : 0;
 
+            // Stash the active composing row DOM element to protect the active IME composition session
+            const composingRow = state.isComposing && state.compositionLine
+                ? viewport.querySelector(`.line-row[data-line="${state.compositionLine}"]`)
+                : null;
+
             const offsetY = lineTop(range.start);
             viewport.style.transform = `translateY(${offsetY}px)`;
             const rows = [];
             for (let line = range.start; line <= range.end; line++) {
+                if (composingRow && line === state.compositionLine) {
+                    rows.push(`<div class="line-row-placeholder" data-line="${line}"></div>`);
+                    continue;
+                }
+
                 const hasLine = state.cache.has(line);
                 const text = hasLine ? state.cache.get(line) : '로딩 중...';
                 const isLong = hasLine && text.length > MAX_RENDER_CHARS;
@@ -1353,6 +1356,15 @@
             }
 
             viewport.innerHTML = rows.join('');
+
+            // Restore the stashed composing row in place of its placeholder
+            if (composingRow) {
+                const placeholder = viewport.querySelector(`.line-row-placeholder[data-line="${state.compositionLine}"]`);
+                if (placeholder) {
+                    placeholder.replaceWith(composingRow);
+                }
+            }
+
             measureRenderedRows();
 
             // Restore focus and caret position if the line is still rendered in the viewport
@@ -2926,17 +2938,7 @@
             const nextText = prefix + suffix;
             const removedLineCount = Math.max(0, end.line - start.line);
 
-            state.cache.set(start.line, nextText);
-            for (let line = start.line + 1; line <= end.line; line++) {
-                state.cache.delete(line);
-            }
-            if (removedLineCount > 0) {
-                shiftCachedLines(end.line + 1, -removedLineCount);
-                state.lineCount = Math.max(1, state.lineCount - removedLineCount);
-                setupVirtualHeight();
-            }
-
-            state.cacheVersion++;
+            // 1. Synchronously collapse custom selection state to keep focus and browser range alive
             state.selection = null;
             state.selectionAnchor = { line: start.line, column: start.column };
             state.currentLine = start.line;
@@ -2944,6 +2946,7 @@
             state.editingLine = start.line;
             syncCustomSelectionClass();
             clearCustomSelectionVisuals();
+
             state.manualCompositionReplacement = {
                 line: start.line,
                 column: Math.max(0, Math.min(start.column, nextText.length)),
@@ -2953,27 +2956,56 @@
                 isMultiLine: true
             };
 
-            post({ type: 'lineChanged', lineNumber: start.line, text: nextText, isComposing: true });
-            for (let line = end.line; line > start.line; line--) {
-                post({ type: 'deleteLine', lineNumber: line, isComposing: true });
+            // 2. Find target start element and synchronously focus & collapse caret on it
+            const startRow = viewport.querySelector(`.line-row[data-line="${start.line}"]`);
+            let startTextElement = startRow?.querySelector('.line-text');
+            if (startTextElement && startTextElement.getAttribute('contenteditable') === 'true') {
+                startTextElement.focus({ preventScroll: true });
+                const textNode = startTextElement.firstChild;
+                const range = document.createRange();
+                if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+                    range.setStart(textNode, Math.max(0, Math.min(start.column, textNode.textContent.length)));
+                } else {
+                    range.setStart(startTextElement, 0);
+                }
+                range.collapse(true);
+                const sel = window.getSelection();
+                if (sel) {
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                }
             }
-            post({ type: 'contentChanged', isComposing: true });
 
-            let target = syncRenderedRowsAfterCompositionSelectionCollapse(
-                start.line,
-                end.line,
-                nextText,
-                Math.max(0, Math.min(start.column, nextText.length)),
-                element
-            );
+            // 3. Defer destructive DOM and cache operations to allow native IME to bind stably on the next tick
+            setTimeout(() => {
+                state.cache.set(start.line, nextText);
+                for (let line = start.line + 1; line <= end.line; line++) {
+                    state.cache.delete(line);
+                }
+                if (removedLineCount > 0) {
+                    shiftCachedLines(end.line + 1, -removedLineCount);
+                    state.lineCount = Math.max(1, state.lineCount - removedLineCount);
+                    setupVirtualHeight();
+                }
 
-            if (!target || target.getAttribute('contenteditable') !== 'true') {
-                target = element;
-                focusLine(start.line, Math.max(0, Math.min(start.column, nextText.length)));
-                target = viewport.querySelector(`.line-text[data-line="${start.line}"]`) || target;
-            }
+                state.cacheVersion++;
 
-            return target;
+                post({ type: 'lineChanged', lineNumber: start.line, text: nextText, isComposing: true });
+                for (let line = end.line; line > start.line; line--) {
+                    post({ type: 'deleteLine', lineNumber: line, isComposing: true });
+                }
+                post({ type: 'contentChanged', isComposing: true });
+
+                syncRenderedRowsAfterCompositionSelectionCollapse(
+                    start.line,
+                    end.line,
+                    nextText,
+                    Math.max(0, Math.min(start.column, nextText.length)),
+                    startTextElement
+                );
+            }, 0);
+
+            return startTextElement || element;
         }
 
         function isCompositionInputEvent(event) {
