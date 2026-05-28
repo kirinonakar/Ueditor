@@ -134,9 +134,9 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                    <Button x:Name="ExplorerUpButton" Content="↑" Click="OnExplorerUpClick" ToolTipService.ToolTip="상위 폴더" Padding="8,2,8,2" FontSize="11"/>
-                                    <Button x:Name="ExplorerSelectFolderButton" Grid.Column="1" Content="폴더 선택..." HorizontalAlignment="Stretch" Click="OnSelectFolderClick" Style="{StaticResource AccentButtonStyle}" FontSize="11"/>
-                                    <Button x:Name="ExplorerTerminalButton" Grid.Column="2" Click="OnOpenTerminalClick" ToolTipService.ToolTip="현재 폴더에서 터미널 열기" Padding="8,2,8,2">
+                                    <Button x:Name="ExplorerUpButton" Content="↑" Click="OnExplorerUpClick" ToolTipService.ToolTip="상위 폴더" Padding="8,0" FontSize="11" Height="32"/>
+                                    <Button x:Name="ExplorerSelectFolderButton" Grid.Column="1" Content="폴더 선택..." HorizontalAlignment="Stretch" Click="OnSelectFolderClick" Style="{StaticResource AccentButtonStyle}" FontSize="11" Height="32"/>
+                                    <Button x:Name="ExplorerTerminalButton" Grid.Column="2" Click="OnOpenTerminalClick" ToolTipService.ToolTip="현재 폴더에서 터미널 열기" Padding="8,0" Height="32">
                                             <FontIcon Glyph="&#xE756;" FontSize="12"/>
                                         </Button>
                                     </Grid>
