@@ -78,8 +78,7 @@ namespace Ueditor.Core.Services
             previewFgCheck.Unchecked += (_, __) => previewFgDropdown.IsEnabled = false;
 
             var wordWrapCheck = new CheckBox { Content = getString("SettingsWordWrap", "기본 Word Wrap 켜기"), IsChecked = settings.WordWrap };
-            var minimapCheck = new CheckBox { Content = getString("SettingsMinimap", "미니맵 표시 (로컬 Monaco 번들 사용 시)"), IsChecked = settings.MinimapEnabled };
-            var bracketPairCheck = new CheckBox { Content = getString("SettingsBracketPair", "Bracket pair colorization (로컬 Monaco 번들 사용 시)"), IsChecked = settings.BracketPairColorizationEnabled };
+            var bracketColorCheck = new CheckBox { Content = getString("SettingsBracketPair", "괄호 쌍 색상화 활성화"), IsChecked = settings.BracketPairColorization };
             var autocompleteEnterCheck = new CheckBox { Content = getString("SettingsAutocompleteEnter", "Enter로 자동완성"), IsChecked = settings.AutocompleteOnEnter };
             var autocompleteTabCheck = new CheckBox { Content = getString("SettingsAutocompleteTab", "Tab으로 자동완성"), IsChecked = settings.AutocompleteOnTab };
             var autoSaveCheck = new CheckBox { Content = getString("SettingsAutoSave", "Autosave 사용"), IsChecked = settings.AutoSave };
@@ -345,8 +344,7 @@ namespace Ueditor.Core.Services
 
             var editorSection = CreateSection();
             editorSection.Children.Add(wordWrapCheck);
-            editorSection.Children.Add(minimapCheck);
-            editorSection.Children.Add(bracketPairCheck);
+            editorSection.Children.Add(bracketColorCheck);
             editorSection.Children.Add(autocompleteEnterCheck);
             editorSection.Children.Add(autocompleteTabCheck);
             editorSection.Children.Add(autoSaveCheck);
@@ -733,8 +731,7 @@ SOFTWARE.",
             settings.PreviewCustomBackgroundColor = previewBgCheck.IsChecked == true ? ColorToHex(previewBgPicker.Color) : string.Empty;
             settings.PreviewCustomForegroundColor = previewFgCheck.IsChecked == true ? ColorToHex(previewFgPicker.Color) : string.Empty;
             settings.WordWrap = wordWrapCheck.IsChecked == true;
-            settings.MinimapEnabled = minimapCheck.IsChecked == true;
-            settings.BracketPairColorizationEnabled = bracketPairCheck.IsChecked == true;
+            settings.BracketPairColorization = bracketColorCheck.IsChecked == true;
             settings.AutocompleteOnEnter = autocompleteEnterCheck.IsChecked == true;
             settings.AutocompleteOnTab = autocompleteTabCheck.IsChecked == true;
             settings.AutoSave = autoSaveCheck.IsChecked == true;

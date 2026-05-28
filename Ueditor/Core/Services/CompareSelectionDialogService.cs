@@ -30,13 +30,13 @@ namespace Ueditor.Core.Services
             }
 
             var originalCombo = CreateSourceCombo(tabChoices);
-            var originalPathBox = new TextBox { PlaceholderText = getString("CompareOriginalPathPlaceholder", "원본 파일 경로..."), IsReadOnly = true };
-            var originalBrowseButton = new Button { Content = getString("CompareBrowse", "찾아보기...") };
+            var originalPathBox = new TextBox { PlaceholderText = getString("CompareOriginalPathPlaceholder", "원본 파일 경로..."), IsReadOnly = true, Height = 32, TextWrapping = TextWrapping.NoWrap };
+            var originalBrowseButton = new Button { Content = getString("CompareBrowse", "찾아보기..."), Height = 32 };
             var originalRow = CreatePathRow(originalPathBox, originalBrowseButton);
 
             var modifiedCombo = CreateSourceCombo(tabChoices);
-            var modifiedPathBox = new TextBox { PlaceholderText = getString("CompareModifiedPathPlaceholder", "비교 대상 파일 경로..."), IsReadOnly = true };
-            var modifiedBrowseButton = new Button { Content = getString("CompareBrowse", "찾아보기...") };
+            var modifiedPathBox = new TextBox { PlaceholderText = getString("CompareModifiedPathPlaceholder", "비교 대상 파일 경로..."), IsReadOnly = true, Height = 32, TextWrapping = TextWrapping.NoWrap };
+            var modifiedBrowseButton = new Button { Content = getString("CompareBrowse", "찾아보기..."), Height = 32 };
             var modifiedRow = CreatePathRow(modifiedPathBox, modifiedBrowseButton);
 
             panel.Children.Add(new TextBlock { Text = getString("CompareOriginalFileLabel", "원본 파일 (Original File)"), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
@@ -86,6 +86,8 @@ namespace Ueditor.Core.Services
             var combo = new ComboBox
             {
                 HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Center,
+                Height = 32,
                 Margin = new Thickness(0, 0, 0, 4),
                 SelectedIndex = 0
             };
@@ -100,7 +102,7 @@ namespace Ueditor.Core.Services
 
         private static Grid CreatePathRow(TextBox pathBox, Button browseButton)
         {
-            var row = new Grid();
+            var row = new Grid { Height = 32 };
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             Grid.SetColumn(pathBox, 0);

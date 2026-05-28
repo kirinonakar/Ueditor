@@ -821,8 +821,11 @@
         }
 
         function renderMarkdownTableCell(content, tag, align) {
-            const style = align ? ` style="text-align:${align}"` : '';
-            return `<${tag}${style}>${inlineMarkdown(content)}</${tag}>`;
+            const hasBr = /<br\s*\/?>/i.test(content);
+            const style = align ? ` style="text-align:${align}${hasBr ? ';white-space:pre-line' : ''}"` : (hasBr ? ' style="white-space:pre-line"' : '');
+            const processed = content.replace(/<br\s*\/?>/gi, '\u0003');
+            const rendered = inlineMarkdown(processed).replace(/\u0003/g, '<br>');
+            return `<${tag}${style}>${rendered}</${tag}>`;
         }
 
         function renderMarkdownTableRow(cells, tag, alignments) {

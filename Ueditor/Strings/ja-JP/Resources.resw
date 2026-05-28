@@ -260,9 +260,6 @@
   <data name="SettingsWordWrap" xml:space="preserve">
     <value>デフォルトで右端折り返しを有効にする</value>
   </data>
-  <data name="SettingsMinimap" xml:space="preserve">
-    <value>ミニマップを表示する</value>
-  </data>
   <data name="SettingsBracketPair" xml:space="preserve">
     <value>ブラケットペアのカラー表示</value>
   </data>

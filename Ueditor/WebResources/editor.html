@@ -520,6 +520,13 @@
             color: var(--token-attr);
         }
 
+        .bracket-depth-0 { color: var(--bracket-depth-0); }
+        .bracket-depth-1 { color: var(--bracket-depth-1); }
+        .bracket-depth-2 { color: var(--bracket-depth-2); }
+        .bracket-depth-3 { color: var(--bracket-depth-3); }
+        .bracket-depth-4 { color: var(--bracket-depth-4); }
+        .bracket-depth-5 { color: var(--bracket-depth-5); }
+
         @media print {
 
             html,
@@ -750,6 +757,86 @@
             }
         };
 
+        state.lineEndStacks = new Map();
+
+        const originalSet = state.cache.set;
+        state.cache.set = function(key, value) {
+            originalSet.call(state.cache, key, value);
+            invalidateLineEndStacks(key);
+            return this;
+        };
+        const originalDelete = state.cache.delete;
+        state.cache.delete = function(key) {
+            const res = originalDelete.call(state.cache, key);
+            invalidateLineEndStacks(key);
+            return res;
+        };
+        const originalClear = state.cache.clear;
+        state.cache.clear = function() {
+            originalClear.call(state.cache);
+            if (state.lineEndStacks) state.lineEndStacks.clear();
+        };
+
+        function invalidateLineEndStacks(startLine) {
+            if (!state.lineEndStacks) return;
+            for (let l = startLine; l <= state.lineCount + 5; l++) {
+                state.lineEndStacks.delete(l);
+            }
+        }
+
+        function cleanLineForBrackets(text) {
+            let clean = text.replace(/\/\/.*/g, '');
+            clean = clean.replace(/"(?:\\.|[^"\\])*"/g, '');
+            clean = clean.replace(/'(?:\\.|[^'\\])*'/g, '');
+            clean = clean.replace(/`(?:\\.|[^`\\])*`/g, '');
+            clean = clean.replace(/\/\*[\s\S]*?\*\//g, '');
+            return clean;
+        }
+
+        function getBracketsFromText(text) {
+            const clean = cleanLineForBrackets(text);
+            const matches = clean.match(/[(){}\[\]]/g);
+            return matches || [];
+        }
+
+        function computeLineEndStack(lineNumber, startStack) {
+            const text = state.cache.get(lineNumber) || '';
+            const brackets = getBracketsFromText(text);
+            const stack = [...startStack];
+            const matching = { ')': '(', '}': '{', ']': '[' };
+            for (const ch of brackets) {
+                if (ch === '(' || ch === '{' || ch === '[') {
+                    stack.push(ch);
+                } else if (ch === ')' || ch === '}' || ch === ']') {
+                    const target = matching[ch];
+                    if (stack.length > 0 && stack[stack.length - 1] === target) {
+                        stack.pop();
+                    } else {
+                        stack.pop();
+                    }
+                }
+            }
+            return stack;
+        }
+
+        function getLineStartStack(lineNumber) {
+            if (lineNumber <= 1) return [];
+            const prev = state.lineEndStacks.get(lineNumber - 1);
+            if (prev) return prev;
+
+            let startLine = lineNumber - 1;
+            while (startLine > 1 && !state.lineEndStacks.has(startLine)) {
+                startLine--;
+            }
+
+            let currentStack = startLine > 1 ? [...state.lineEndStacks.get(startLine)] : [];
+            for (let l = startLine + 1; l < lineNumber; l++) {
+                currentStack = computeLineEndStack(l, currentStack);
+                state.lineEndStacks.set(l, currentStack);
+            }
+            return currentStack;
+        }
+
         function post(msg) {
             if (window.chrome && window.chrome.webview) {
                 window.chrome.webview.postMessage(msg);
@@ -866,6 +953,7 @@
             state.tabSize = Number(msg.tabSize || 4);
             state.readOnly = !!msg.readOnly;
             state.wordWrap = !!msg.wordWrap;
+            state.bracketPairColorization = msg.hasOwnProperty('bracketPairColorization') ? !!msg.bracketPairColorization : true;
             state.autocompleteOnEnter = msg.hasOwnProperty('autocompleteOnEnter') ? !!msg.autocompleteOnEnter : true;
             state.autocompleteOnTab = msg.hasOwnProperty('autocompleteOnTab') ? !!msg.autocompleteOnTab : true;
 
@@ -903,6 +991,12 @@
                 document.documentElement.style.setProperty('--token-punctuation', '#3b3b3b');
                 document.documentElement.style.setProperty('--token-tag', '#800000');
                 document.documentElement.style.setProperty('--token-attr', '#ff0000');
+                document.documentElement.style.setProperty('--bracket-depth-0', '#111111');
+                document.documentElement.style.setProperty('--bracket-depth-1', '#0000ff');
+                document.documentElement.style.setProperty('--bracket-depth-2', '#795e26');
+                document.documentElement.style.setProperty('--bracket-depth-3', '#a31515');
+                document.documentElement.style.setProperty('--bracket-depth-4', '#267f99');
+                document.documentElement.style.setProperty('--bracket-depth-5', '#af00db');
             } else {
                 document.documentElement.style.setProperty('--token-comment', '#6a9955');
                 document.documentElement.style.setProperty('--token-keyword', '#569cd6');
@@ -916,6 +1010,12 @@
                 document.documentElement.style.setProperty('--token-punctuation', '#808080');
                 document.documentElement.style.setProperty('--token-tag', '#569cd6');
                 document.documentElement.style.setProperty('--token-attr', '#9cdcfe');
+                document.documentElement.style.setProperty('--bracket-depth-0', '#d4d4d4');
+                document.documentElement.style.setProperty('--bracket-depth-1', '#569cd6');
+                document.documentElement.style.setProperty('--bracket-depth-2', '#dcdcaa');
+                document.documentElement.style.setProperty('--bracket-depth-3', '#ce9178');
+                document.documentElement.style.setProperty('--bracket-depth-4', '#4ec9b0');
+                document.documentElement.style.setProperty('--bracket-depth-5', '#c586c0');
             }
 
             if (!state.wordWrap) {
@@ -1452,7 +1552,7 @@
             }
         }
 
-        function highlightLine(text, language) {
+        function highlightLine(text, language, lineNumber = null, startCharIndex = 0) {
             if (!language || language === 'plaintext') {
                 return escapeHtml(text);
             }
@@ -1465,6 +1565,28 @@
             }
 
             let workingText = text;
+
+            let currentLineStack = [];
+            if (state.bracketPairColorization && lineNumber !== null) {
+                const startStack = getLineStartStack(lineNumber);
+                const fullLineText = state.cache.get(lineNumber) || '';
+                const prefixText = fullLineText.slice(0, startCharIndex);
+                const prefixBrackets = getBracketsFromText(prefixText);
+                currentLineStack = [...startStack];
+                const matchingBrackets = { ')': '(', '}': '{', ']': '[' };
+                for (const ch of prefixBrackets) {
+                    if (ch === '(' || ch === '{' || ch === '[') {
+                        currentLineStack.push(ch);
+                    } else if (ch === ')' || ch === '}' || ch === ']') {
+                        const target = matchingBrackets[ch];
+                        if (currentLineStack.length > 0 && currentLineStack[currentLineStack.length - 1] === target) {
+                            currentLineStack.pop();
+                        } else {
+                            currentLineStack.pop();
+                        }
+                    }
+                }
+            }
 
             // Check language category
             const isClike = ['csharp', 'javascript', 'typescript', 'cpp', 'java', 'go', 'rust', 'php', 'swift', 'dart', 'kotlin'].includes(language);
@@ -1826,9 +1948,44 @@
 
             // Default escaping of the remaining text (plain parts) and restoring placeholders
             let escapedText = escapeHtml(workingText);
+
+            // Bracket pair colorization: colorize bracket characters in stashed tokens in sequential occurrence order
+            const matchingBrackets = { ')': '(', '}': '{', ']': '[' };
+            function colorizeBrackets(html, stack) {
+                if (html.includes('token-comment') || html.includes('token-string')) {
+                    return html;
+                }
+                const opening = { '(': '(', '{': '{', '[': '[' };
+                const closing = { ')': '(', '}': '{', ']': '[' };
+                return html.replace(/[(){}\[\]]/g, ch => {
+                    if (opening[ch]) {
+                        const depth = stack.length;
+                        stack.push(ch);
+                        const cls = `bracket-depth-${depth % 6}`;
+                        return `<span class="${cls}">${ch}</span>`;
+                    }
+                    if (closing[ch]) {
+                        const target = matchingBrackets[ch];
+                        if (stack.length > 0 && stack[stack.length - 1] === target) {
+                            stack.pop();
+                        } else {
+                            stack.pop();
+                        }
+                        const depth = stack.length;
+                        const cls = `bracket-depth-${depth % 6}`;
+                        return `<span class="${cls}">${ch}</span>`;
+                    }
+                    return ch;
+                });
+            }
+
             while (escapedText.includes('\u0002_TOKEN_')) {
                 escapedText = escapedText.replace(/\u0002_TOKEN_(\d+)_\u0002/g, (match, idx) => {
-                    return tokens[Number(idx)];
+                    let tokenHtml = tokens[Number(idx)];
+                    if (state.bracketPairColorization && lineNumber !== null) {
+                        tokenHtml = colorizeBrackets(tokenHtml, currentLineStack);
+                    }
+                    return tokenHtml;
                 });
             }
 
@@ -1853,21 +2010,21 @@
                 if (start === end) {
                     if (selection && selection.isColumn) {
                         if (start < text.length) {
-                            return highlightLine(text.slice(0, start), state.language) +
+                            return highlightLine(text.slice(0, start), state.language, lineNumber, 0) +
                                 `<span class="column-cursor">${escapeHtml(text[start])}</span>` +
-                                highlightLine(text.slice(start + 1), state.language);
+                                highlightLine(text.slice(start + 1), state.language, lineNumber, start + 1);
                         } else {
-                            return highlightLine(text, state.language) + `<span class="column-cursor">&nbsp;</span>`;
+                            return highlightLine(text, state.language, lineNumber, 0) + `<span class="column-cursor">&nbsp;</span>`;
                         }
                     }
-                    return highlightLine(text, state.language);
+                    return highlightLine(text, state.language, lineNumber, 0);
                 }
 
                 const selected = text.slice(start, end);
-                const selectedHtml = selected.length > 0 ? highlightLine(selected, state.language) : '&nbsp;';
-                return highlightLine(text.slice(0, start), state.language) +
+                const selectedHtml = selected.length > 0 ? highlightLine(selected, state.language, lineNumber, start) : '&nbsp;';
+                return highlightLine(text.slice(0, start), state.language, lineNumber, 0) +
                     `<span class="selection-fragment">${selectedHtml}</span>` +
-                    highlightLine(text.slice(end), state.language);
+                    highlightLine(text.slice(end), state.language, lineNumber, end);
             }
 
             if (state.searchQuery && state.searchMatches.length > 0) {
@@ -1879,7 +2036,7 @@
                 return renderSearchMatchesForLine(lineNumber, text, matchesOnLine, activeMatchOnLine);
             }
 
-            return highlightLine(text, state.language);
+            return highlightLine(text, state.language, lineNumber, 0);
         }
 
         function normalizeSelection(selection = state.selection) {
@@ -4648,7 +4805,7 @@
 
         function renderSearchMatchesForLine(lineNumber, text, matches, activeMatch) {
             if (matches.length === 0) {
-                return highlightLine(text, state.language);
+                return highlightLine(text, state.language, lineNumber, 0);
             }
 
             matches = [...matches].sort((a, b) => a.indexOfMatch - b.indexOfMatch);
@@ -4663,7 +4820,7 @@
                 if (idx < pos || idx >= text.length) continue;
 
                 if (idx > pos) {
-                    parts.push(highlightLine(text.slice(pos, idx), state.language));
+                    parts.push(highlightLine(text.slice(pos, idx), state.language, lineNumber, pos));
                 }
 
                 const isActive = activeMatch && 
@@ -4677,7 +4834,7 @@
             }
 
             if (pos < text.length) {
-                parts.push(highlightLine(text.slice(pos), state.language));
+                parts.push(highlightLine(text.slice(pos), state.language, lineNumber, pos));
             }
 
             return parts.join('');
@@ -5517,7 +5674,7 @@
                     'Enter', 'Escape', 'Tab', 'Shift', 'Control', 'Alt', 'Meta',
                     'CapsLock', 'Home', 'End', 'PageUp', 'PageDown', 'Backspace', 'Delete'
                 ];
-                if (!ignoredKeys.includes(event.key)) {
+                if (!ignoredKeys.includes(event.key) && !event.ctrlKey && !event.metaKey) {
                     triggerAutocomplete(element);
                 }
             }

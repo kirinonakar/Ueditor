@@ -10,10 +10,9 @@ namespace Ueditor.Core.Models
         public double FontSize { get; set; } = 14.0;
         public bool WordWrap { get; set; } = true;
         public int TabSize { get; set; } = 4;
-        public bool MinimapEnabled { get; set; } = true;
-        public bool BracketPairColorizationEnabled { get; set; } = true;
         public bool AutocompleteOnEnter { get; set; } = true;
         public bool AutocompleteOnTab { get; set; } = true;
+        public bool BracketPairColorization { get; set; } = true;
         public long LargeFileThresholdMB { get; set; } = 50;
         
         // Personalization Settings

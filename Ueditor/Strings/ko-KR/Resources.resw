@@ -260,11 +260,8 @@
   <data name="SettingsWordWrap" xml:space="preserve">
     <value>기본 Word Wrap 켜기</value>
   </data>
-  <data name="SettingsMinimap" xml:space="preserve">
-    <value>미니맵 표시 (로컬 Monaco 번들 사용 시)</value>
-  </data>
   <data name="SettingsBracketPair" xml:space="preserve">
-    <value>Bracket pair colorization (로컬 Monaco 번들 사용 시)</value>
+    <value>괄호 쌍 색상화 활성화</value>
   </data>
   <data name="SettingsAutocompleteEnter" xml:space="preserve">
     <value>Enter로 자동완성</value>

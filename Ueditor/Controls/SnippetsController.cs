@@ -144,31 +144,34 @@ namespace Ueditor.Controls
             {
                 PlaceholderText = _getString("SnippetPlaceholderName", "스니펫 이름 (예: C# Loop)"),
                 Text = existing?.Title ?? string.Empty,
-                Width = 300
+                HorizontalAlignment = HorizontalAlignment.Stretch
             };
             var keywordBox = new TextBox
             {
                 PlaceholderText = _getString("SnippetPlaceholderKeyword", "키워드 (예: loop)"),
                 Text = existing?.Keyword ?? string.Empty,
-                Width = 300
+                HorizontalAlignment = HorizontalAlignment.Stretch
             };
             var descBox = new TextBox
             {
                 PlaceholderText = _getString("SnippetPlaceholderDesc", "간단한 설명"),
                 Text = existing?.Description ?? string.Empty,
-                Width = 300
+                HorizontalAlignment = HorizontalAlignment.Stretch
             };
             var contentBox = new TextBox
             {
                 PlaceholderText = _getString("SnippetPlaceholderContent", "코드 본문 입력..."),
                 Text = existing?.Content ?? string.Empty,
                 AcceptsReturn = true,
-                Height = 150,
-                Width = 300,
+                TextWrapping = TextWrapping.Wrap,
+                MinHeight = 200,
+                MaxHeight = 400,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
                 FontFamily = new FontFamily("Consolas")
             };
+            ScrollViewer.SetVerticalScrollBarVisibility(contentBox, ScrollBarVisibility.Auto);
 
-            var stack = new StackPanel { Spacing = 10 };
+            var stack = new StackPanel { Spacing = 10, Width = 450 };
             stack.Children.Add(new TextBlock { Text = _getString("SnippetLabelName", "스니펫 이름") });
             stack.Children.Add(titleBox);
             stack.Children.Add(new TextBlock { Text = _getString("SnippetLabelKeyword", "자동완성 키워드") });

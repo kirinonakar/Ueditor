@@ -260,9 +260,6 @@
   <data name="SettingsWordWrap" xml:space="preserve">
     <value>Enable Word Wrap by Default</value>
   </data>
-  <data name="SettingsMinimap" xml:space="preserve">
-    <value>Show Minimap</value>
-  </data>
   <data name="SettingsBracketPair" xml:space="preserve">
     <value>Bracket Pair Colorization</value>
   </data>
