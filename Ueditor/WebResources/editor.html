@@ -725,7 +725,8 @@
             renderQueued: false,
             clipboardRequests: new Map(),
             pendingLineActions: [],
-            autocompleteEnabled: true,
+            autocompleteOnEnter: true,
+            autocompleteOnTab: true,
             snippets: [],
             scrollSyncEnabled: true,
             dragStartPosition: null,
@@ -863,10 +864,8 @@
             state.tabSize = Number(msg.tabSize || 4);
             state.readOnly = !!msg.readOnly;
             state.wordWrap = !!msg.wordWrap;
-            state.autocompleteEnabled = msg.hasOwnProperty('autocompleteEnabled') ? !!msg.autocompleteEnabled : true;
-            if (!state.autocompleteEnabled) {
-                hideAutocomplete();
-            }
+            state.autocompleteOnEnter = msg.hasOwnProperty('autocompleteOnEnter') ? !!msg.autocompleteOnEnter : true;
+            state.autocompleteOnTab = msg.hasOwnProperty('autocompleteOnTab') ? !!msg.autocompleteOnTab : true;
 
             document.documentElement.style.setProperty('--bg', bg);
             document.documentElement.style.setProperty('--fg', fg);
@@ -4005,7 +4004,7 @@
         }
 
         function triggerAutocomplete(element) {
-            if (!state.autocompleteEnabled) return;
+            if (!state.autocompleteOnEnter && !state.autocompleteOnTab) return;
             if (hasCustomSelection()) {
                 hideAutocomplete();
                 return;
@@ -4803,7 +4802,12 @@
                     renderAutocomplete();
                     return;
                 }
-                if (event.key === 'Enter' || event.key === 'Tab') {
+                if (event.key === 'Enter' && state.autocompleteOnEnter) {
+                    event.preventDefault();
+                    insertSelectedCandidate();
+                    return;
+                }
+                if (event.key === 'Tab' && state.autocompleteOnTab) {
                     event.preventDefault();
                     insertSelectedCandidate();
                     return;
@@ -5073,7 +5077,7 @@
             reportCursorAndSelection(element || document.activeElement);
 
             if (!state.isComposing && !event.isComposing &&
-                state.autocompleteEnabled && element && element.getAttribute('contenteditable') === 'true') {
+                (state.autocompleteOnEnter || state.autocompleteOnTab) && element && element.getAttribute('contenteditable') === 'true') {
                 const ignoredKeys = [
                     'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
                     'Enter', 'Escape', 'Tab', 'Shift', 'Control', 'Alt', 'Meta',

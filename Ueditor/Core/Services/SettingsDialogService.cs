@@ -80,7 +80,8 @@ namespace Ueditor.Core.Services
             var wordWrapCheck = new CheckBox { Content = getString("SettingsWordWrap", "기본 Word Wrap 켜기"), IsChecked = settings.WordWrap };
             var minimapCheck = new CheckBox { Content = getString("SettingsMinimap", "미니맵 표시 (로컬 Monaco 번들 사용 시)"), IsChecked = settings.MinimapEnabled };
             var bracketPairCheck = new CheckBox { Content = getString("SettingsBracketPair", "Bracket pair colorization (로컬 Monaco 번들 사용 시)"), IsChecked = settings.BracketPairColorizationEnabled };
-            var autocompleteCheck = new CheckBox { Content = getString("SettingsAutocomplete", "자동완성 기능 사용"), IsChecked = settings.AutocompleteEnabled };
+            var autocompleteEnterCheck = new CheckBox { Content = getString("SettingsAutocompleteEnter", "Enter로 자동완성"), IsChecked = settings.AutocompleteOnEnter };
+            var autocompleteTabCheck = new CheckBox { Content = getString("SettingsAutocompleteTab", "Tab으로 자동완성"), IsChecked = settings.AutocompleteOnTab };
             var autoSaveCheck = new CheckBox { Content = getString("SettingsAutoSave", "Autosave 사용"), IsChecked = settings.AutoSave };
             var defaultMarkdownCheck = new CheckBox { Content = getString("SettingsLivePreview", "실시간 미리보기 기본 활성화"), IsChecked = settings.DefaultMarkdownEnabled };
             var defaultMarkdownToolbarCheck = new CheckBox { Content = getString("SettingsMarkdownToolbar", "기본 마크다운 툴바 활성화"), IsChecked = settings.DefaultMarkdownToolbarEnabled };
@@ -346,7 +347,8 @@ namespace Ueditor.Core.Services
             editorSection.Children.Add(wordWrapCheck);
             editorSection.Children.Add(minimapCheck);
             editorSection.Children.Add(bracketPairCheck);
-            editorSection.Children.Add(autocompleteCheck);
+            editorSection.Children.Add(autocompleteEnterCheck);
+            editorSection.Children.Add(autocompleteTabCheck);
             editorSection.Children.Add(autoSaveCheck);
             editorSection.Children.Add(defaultMarkdownCheck);
             editorSection.Children.Add(defaultMarkdownToolbarCheck);
@@ -733,7 +735,8 @@ SOFTWARE.",
             settings.WordWrap = wordWrapCheck.IsChecked == true;
             settings.MinimapEnabled = minimapCheck.IsChecked == true;
             settings.BracketPairColorizationEnabled = bracketPairCheck.IsChecked == true;
-            settings.AutocompleteEnabled = autocompleteCheck.IsChecked == true;
+            settings.AutocompleteOnEnter = autocompleteEnterCheck.IsChecked == true;
+            settings.AutocompleteOnTab = autocompleteTabCheck.IsChecked == true;
             settings.AutoSave = autoSaveCheck.IsChecked == true;
             if (int.TryParse(tabSizeBox.Text.Trim(), out int tabSize))
             {

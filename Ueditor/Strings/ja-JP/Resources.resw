@@ -266,6 +266,12 @@
   <data name="SettingsBracketPair" xml:space="preserve">
     <value>ブラケットペアのカラー表示</value>
   </data>
+  <data name="SettingsAutocompleteEnter" xml:space="preserve">
+    <value>Enterで自動補完</value>
+  </data>
+  <data name="SettingsAutocompleteTab" xml:space="preserve">
+    <value>Tabで自動補完</value>
+  </data>
   <data name="SettingsAutocomplete" xml:space="preserve">
     <value>自動補完機能を使用する</value>
   </data>

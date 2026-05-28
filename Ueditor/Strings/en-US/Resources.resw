@@ -266,6 +266,12 @@
   <data name="SettingsBracketPair" xml:space="preserve">
     <value>Bracket Pair Colorization</value>
   </data>
+  <data name="SettingsAutocompleteEnter" xml:space="preserve">
+    <value>Auto-complete with Enter</value>
+  </data>
+  <data name="SettingsAutocompleteTab" xml:space="preserve">
+    <value>Auto-complete with Tab</value>
+  </data>
   <data name="SettingsAutocomplete" xml:space="preserve">
     <value>Enable Autocomplete</value>
   </data>

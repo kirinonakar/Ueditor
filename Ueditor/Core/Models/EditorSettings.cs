@@ -12,7 +12,8 @@ namespace Ueditor.Core.Models
         public int TabSize { get; set; } = 4;
         public bool MinimapEnabled { get; set; } = true;
         public bool BracketPairColorizationEnabled { get; set; } = true;
-        public bool AutocompleteEnabled { get; set; } = true;
+        public bool AutocompleteOnEnter { get; set; } = true;
+        public bool AutocompleteOnTab { get; set; } = true;
         public long LargeFileThresholdMB { get; set; } = 50;
         
         // Personalization Settings

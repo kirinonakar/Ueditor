@@ -266,6 +266,12 @@
   <data name="SettingsBracketPair" xml:space="preserve">
     <value>Bracket pair colorization (로컬 Monaco 번들 사용 시)</value>
   </data>
+  <data name="SettingsAutocompleteEnter" xml:space="preserve">
+    <value>Enter로 자동완성</value>
+  </data>
+  <data name="SettingsAutocompleteTab" xml:space="preserve">
+    <value>Tab으로 자동완성</value>
+  </data>
   <data name="SettingsAutocomplete" xml:space="preserve">
     <value>자동완성 기능 사용</value>
   </data>
