@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Ueditor.Core.Interfaces;
 using Ueditor.ViewModels;
+using Windows.Storage.Pickers;
 
 namespace Ueditor.Controls
 {
@@ -19,6 +20,7 @@ namespace Ueditor.Controls
         private readonly Func<Task>? _snippetsChangedAsync;
         private readonly Action<string, string> _showError;
         private readonly Func<string, string, string> _getString;
+        private readonly Action<object> _initializePickerWindow;
 
         public SnippetsController(
             ISnippetService snippetService,
@@ -28,7 +30,8 @@ namespace Ueditor.Controls
             Func<string, Task<bool>> insertIntoActiveEditorAsync,
             Func<Task>? snippetsChangedAsync,
             Action<string, string> showError,
-            Func<string, string, string> getString)
+            Func<string, string, string> getString,
+            Action<object> initializePickerWindow)
         {
             _snippetService = snippetService;
             _viewModel = viewModel;
@@ -38,6 +41,7 @@ namespace Ueditor.Controls
             _snippetsChangedAsync = snippetsChangedAsync;
             _showError = showError;
             _getString = getString;
+            _initializePickerWindow = initializePickerWindow;
 
             _leftSidebar.SnippetsList.ItemsSource = _viewModel.Snippets;
             WireEvents();
@@ -64,6 +68,8 @@ namespace Ueditor.Controls
             _leftSidebar.DeleteSnippetClick += OnDeleteSnippetClick;
             _leftSidebar.EditSnippetClick += OnEditSnippetClick;
             _leftSidebar.AddSnippetClick += OnAddSnippetClick;
+            _leftSidebar.ExportSnippetsClick += OnExportSnippetsClick;
+            _leftSidebar.ImportSnippetsClick += OnImportSnippetsClick;
         }
 
         private async void OnSnippetItemDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
@@ -194,6 +200,45 @@ namespace Ueditor.Controls
                 Description = descBox.Text,
                 Content = contentBox.Text
             };
+        }
+
+        private async void OnExportSnippetsClick(object sender, RoutedEventArgs e)
+        {
+            var picker = new FileSavePicker();
+            _initializePickerWindow(picker);
+            picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+            picker.FileTypeChoices.Add("JSON", new System.Collections.Generic.List<string> { ".json" });
+            picker.SuggestedFileName = "snippets.json";
+
+            var file = await picker.PickSaveFileAsync();
+            if (file == null) return;
+
+            await _snippetService.ExportSnippetsAsync(file.Path);
+        }
+
+        private async void OnImportSnippetsClick(object sender, RoutedEventArgs e)
+        {
+            var picker = new FileOpenPicker();
+            _initializePickerWindow(picker);
+            picker.ViewMode = PickerViewMode.List;
+            picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+            picker.FileTypeFilter.Add(".json");
+
+            var file = await picker.PickSingleFileAsync();
+            if (file == null) return;
+
+            try
+            {
+                await _snippetService.ImportSnippetsAsync(file.Path);
+                Refresh();
+                await NotifySnippetsChangedAsync();
+            }
+            catch (Exception ex)
+            {
+                _showError(
+                    _getString("SnippetImportErrorTitle", "스니펫 가져오기 오류"),
+                    string.Format(_getString("SnippetImportErrorMessage", "파일을 가져오는 중 오류가 발생했습니다: {0}"), ex.Message));
+            }
         }
 
         private Task NotifySnippetsChangedAsync()

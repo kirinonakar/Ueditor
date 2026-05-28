@@ -224,7 +224,8 @@ namespace Ueditor
                 InsertTextIntoActiveEditorAsync,
                 SyncSnippetsToOpenEditorsAsync,
                 ShowErrorMessage,
-                GetLocalizedString);
+                GetLocalizedString,
+                InitializePickerWindow);
             _llmAssistantController = new LlmAssistantController(
                 _llmService,
                 _settingsService,

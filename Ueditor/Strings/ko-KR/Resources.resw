@@ -1022,4 +1022,16 @@
   <data name="SearchReplaceOneTooltip" xml:space="preserve">
     <value>이 항목만 바꾸기</value>
   </data>
+  <data name="SnippetExport" xml:space="preserve">
+    <value>내보내기</value>
+  </data>
+  <data name="SnippetImport" xml:space="preserve">
+    <value>가져오기</value>
+  </data>
+  <data name="SnippetImportErrorTitle" xml:space="preserve">
+    <value>스니펫 가져오기 오류</value>
+  </data>
+  <data name="SnippetImportErrorMessage" xml:space="preserve">
+    <value>파일을 가져오는 중 오류가 발생했습니다: {0}</value>
+  </data>
 </root>

@@ -1023,4 +1023,16 @@
   <data name="SearchReplaceOneTooltip" xml:space="preserve">
     <value>この項目だけ置換</value>
   </data>
+  <data name="SnippetExport" xml:space="preserve">
+    <value>エクスポート</value>
+  </data>
+  <data name="SnippetImport" xml:space="preserve">
+    <value>インポート</value>
+  </data>
+  <data name="SnippetImportErrorTitle" xml:space="preserve">
+    <value>スニペットインポートエラー</value>
+  </data>
+  <data name="SnippetImportErrorMessage" xml:space="preserve">
+    <value>ファイルのインポート中にエラーが発生しました: {0}</value>
+  </data>
 </root>

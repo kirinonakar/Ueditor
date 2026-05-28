@@ -98,6 +98,28 @@ namespace Ueditor.Core.Services
             await SaveSnippetsAsync();
         }
 
+        public async Task ExportSnippetsAsync(string filePath)
+        {
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            string json = JsonSerializer.Serialize(_snippets, options);
+            await File.WriteAllTextAsync(filePath, json);
+        }
+
+        public async Task ImportSnippetsAsync(string filePath)
+        {
+            string json = await File.ReadAllTextAsync(filePath);
+            var items = JsonSerializer.Deserialize<List<SnippetItem>>(json);
+            if (items == null) return;
+
+            foreach (var item in items)
+            {
+                NormalizeSnippet(item);
+            }
+
+            _snippets = items;
+            await SaveSnippetsAsync();
+        }
+
         private void NormalizeSnippets()
         {
             foreach (var snippet in _snippets)

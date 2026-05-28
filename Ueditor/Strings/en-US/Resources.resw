@@ -1022,4 +1022,16 @@ Supports live preview, code &amp; formula templates, terminal interface, Git int
   <data name="SearchReplaceOneTooltip" xml:space="preserve">
     <value>Replace only this item</value>
   </data>
+  <data name="SnippetExport" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="SnippetImport" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="SnippetImportErrorTitle" xml:space="preserve">
+    <value>Snippet Import Error</value>
+  </data>
+  <data name="SnippetImportErrorMessage" xml:space="preserve">
+    <value>An error occurred while importing the file: {0}</value>
+  </data>
 </root>

@@ -42,6 +42,8 @@ namespace Ueditor.Controls
         public event RoutedEventHandler? DeleteSnippetClick;
         public event RoutedEventHandler? EditSnippetClick;
         public event RoutedEventHandler? AddSnippetClick;
+        public event RoutedEventHandler? ExportSnippetsClick;
+        public event RoutedEventHandler? ImportSnippetsClick;
         public event DoubleTappedEventHandler? GitFileDoubleTapped;
         public event RoutedEventHandler? GitStageToggleClick;
         public event RoutedEventHandler? GitRestoreFileClick;
@@ -80,6 +82,8 @@ namespace Ueditor.Controls
         public TextBlock FavoritesHeader => FavoritesHeaderText;
         public TextBlock SnippetsHeader => SnippetsHeaderText;
         public Button AddSnippet => AddSnippetButton;
+        public Button ExportSnippets => ExportSnippetsButton;
+        public Button ImportSnippets => ImportSnippetsButton;
 
         public TextBlock SearchHeaderLabel => SearchHeaderText;
         public Button SearchAllFilesBtn => SearchAllButton;
@@ -138,6 +142,8 @@ namespace Ueditor.Controls
             SnippetsHeaderText.Text = getString("SnippetsHeader", "코드 및 수식 템플릿");
             TocHeaderText.Text = getString("TOCHeader", "목차 (TOC)");
             AddSnippetButton.Content = getString("AddSnippet", "스니펫 추가...");
+            ExportSnippetsButton.Content = getString("SnippetExport", "내보내기");
+            ImportSnippetsButton.Content = getString("SnippetImport", "가져오기");
 
             ToolTipService.SetToolTip(ExplorerUpButton, getString("ExplorerUpTooltip", "상위 폴더"));
             ExplorerSelectFolderButton.Content = getString("ExplorerSelectFolder", "폴더 선택...");
@@ -225,6 +231,8 @@ namespace Ueditor.Controls
         private void OnDeleteSnippetClick(object sender, RoutedEventArgs e) => DeleteSnippetClick?.Invoke(sender, e);
         private void OnEditSnippetClick(object sender, RoutedEventArgs e) => EditSnippetClick?.Invoke(sender, e);
         private void OnAddSnippetClick(object sender, RoutedEventArgs e) => AddSnippetClick?.Invoke(sender, e);
+        private void OnExportSnippetsClick(object sender, RoutedEventArgs e) => ExportSnippetsClick?.Invoke(sender, e);
+        private void OnImportSnippetsClick(object sender, RoutedEventArgs e) => ImportSnippetsClick?.Invoke(sender, e);
         private void OnGitFileDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => GitFileDoubleTapped?.Invoke(sender, e);
         private void OnGitStageToggleClick(object sender, RoutedEventArgs e) => GitStageToggleClick?.Invoke(sender, e);
         private void OnGitRestoreFileClick(object sender, RoutedEventArgs e) => GitRestoreFileClick?.Invoke(sender, e);

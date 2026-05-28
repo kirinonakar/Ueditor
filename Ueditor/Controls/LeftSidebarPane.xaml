@@ -402,7 +402,17 @@
                                         </DataTemplate>
                                     </ListView.ItemTemplate>
                                 </ListView>
-                                <Button x:Name="AddSnippetButton" Grid.Row="2" Content="스니펫 추가..." HorizontalAlignment="Stretch" Click="OnAddSnippetClick" Margin="0,10,0,0" Style="{StaticResource AccentButtonStyle}"/>
+                                <StackPanel Grid.Row="2" Margin="0,10,0,0" Spacing="8">
+                                    <Button x:Name="AddSnippetButton" Content="스니펫 추가..." HorizontalAlignment="Stretch" Click="OnAddSnippetClick" Style="{StaticResource AccentButtonStyle}"/>
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button x:Name="ExportSnippetsButton" Grid.Column="0" Content="내보내기" Click="OnExportSnippetsClick" HorizontalAlignment="Stretch" FontSize="11"/>
+                                        <Button x:Name="ImportSnippetsButton" Grid.Column="1" Content="가져오기" Click="OnImportSnippetsClick" HorizontalAlignment="Stretch" FontSize="11"/>
+                                    </Grid>
+                                </StackPanel>
                         </Grid>
 
                         <!-- Tab 7: TOC (Table of Contents) Outline -->
