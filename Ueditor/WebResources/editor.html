@@ -2017,6 +2017,81 @@
             }
         }
 
+        function commitLineForSave(element) {
+            if (!element || element.getAttribute('contenteditable') !== 'true') {
+                return false;
+            }
+
+            const lineNumber = Number(element.dataset.line || state.compositionLine || state.currentLine || 1);
+            const text = lineTextFromElement(element);
+            state.isComposing = false;
+            state.compositionLine = null;
+            state.cache.set(lineNumber, text);
+            state.cacheVersion++;
+            state.currentLine = lineNumber;
+            state.currentColumn = Math.min(getCaretOffset(element) + 1, text.length + 1);
+
+            // 저장 직전에는 IME 조합 종료 이벤트보다 저장이 먼저 실행될 수 있다.
+            // 따라서 현재 DOM의 최종 문자열을 호스트 모델에 강제로 한 번 동기화한다.
+            post({ type: 'lineChanged', lineNumber, text });
+            post({ type: 'contentChanged' });
+            reportCursorAndSelection(element);
+
+            if (state.wordWrap) {
+                measureRenderedRows(false);
+            }
+
+            return true;
+        }
+
+        function flushPendingEditForSave(requestId) {
+            const requestedLine = Number(state.compositionLine || state.editingLine || state.currentLine || 1);
+            const focusedElement = document.activeElement?.closest?.('.line-text');
+            let element = (focusedElement && focusedElement.getAttribute('contenteditable') === 'true')
+                ? focusedElement
+                : viewport.querySelector(`.line-text[data-line="${requestedLine}"]`) || activeEditableElement();
+            const wasFocused = !!(element && document.activeElement === element);
+            const restoreColumn = element ? getCaretOffset(element) : Math.max(0, Number(state.currentColumn || 1) - 1);
+            let finished = false;
+
+            const finish = () => {
+                if (finished) return;
+                finished = true;
+
+                const lineNumber = Number(state.compositionLine || requestedLine || state.currentLine || 1);
+                element = viewport.querySelector(`.line-text[data-line="${lineNumber}"]`) ||
+                    element ||
+                    activeEditableElement();
+
+                if (element && element.getAttribute('contenteditable') === 'true') {
+                    commitLineForSave(element);
+                } else {
+                    state.isComposing = false;
+                    state.compositionLine = null;
+                }
+
+                if (wasFocused && element && element.getAttribute('contenteditable') === 'true') {
+                    const textLength = lineTextFromElement(element).length;
+                    setTimeout(() => setCaret(element, Math.min(restoreColumn, textLength)), 0);
+                }
+
+                post({ type: 'editorFlushedForSave', requestId: Number(requestId || 0) });
+            };
+
+            if (state.isComposing && element && element.getAttribute('contenteditable') === 'true') {
+                // blur는 WebView2/Chromium에서 진행 중인 한글 IME 조합을 확정시키는 가장 안정적인 트리거다.
+                try {
+                    element.blur();
+                } catch { }
+
+                // compositionend 직후 최종 input/DOM 반영이 한 task 늦게 들어올 수 있으므로 짧게 기다린다.
+                setTimeout(finish, 60);
+                return;
+            }
+
+            setTimeout(finish, 0);
+        }
+
         function shiftCachedLines(fromLine, delta) {
             shiftLineMap(state.cache, fromLine, delta);
             shiftLineMap(state.lineHeights, fromLine, delta);
@@ -4257,6 +4332,9 @@
                 case 'getSelection':
                     post({ type: 'selectionResult', text: selectedText() });
                     break;
+                case 'flushForSave':
+                    flushPendingEditForSave(msg.requestId || 0);
+                    break;
                 case 'insertText':
                     insertTextAtCaret(msg.text || '');
                     break;
@@ -4645,6 +4723,14 @@
         });
 
         document.addEventListener('keydown', event => {
+            const earlyCtrl = event.ctrlKey || event.metaKey;
+            const earlyKey = event.key ? event.key.toLowerCase() : '';
+            if (earlyCtrl && earlyKey === 's') {
+                event.preventDefault();
+                post({ type: 'shortcut', name: 'save' });
+                return;
+            }
+
             if (event.isComposing || state.isComposing || event.key === 'Process' || event.keyCode === 229) {
                 return;
             }

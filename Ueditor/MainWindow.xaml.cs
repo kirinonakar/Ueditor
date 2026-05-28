@@ -3435,6 +3435,14 @@ namespace Ueditor
             }
         }
 
+        private async Task FlushTabEditorBeforeSaveAsync(OpenedTab tab)
+        {
+            if (_tabBridges.TryGetValue(tab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
+            {
+                await bridgeGroup.Bridge.FlushPendingEditForSaveAsync();
+            }
+        }
+
         private async Task<bool> SaveTabAsync(OpenedTab tab)
         {
             var tabItem = EditorTabView.TabItems.Cast<TabViewItem>().FirstOrDefault(t => t.Tag as string == tab.Id)
@@ -3449,6 +3457,8 @@ namespace Ueditor
 
             try
             {
+                await FlushTabEditorBeforeSaveAsync(tab);
+
                 if (_editorSessions.TryGetValue(tab.Id, out var session))
                 {
                     await session.SaveAsync(tab.FilePath!, tab.EncodingName);
@@ -3508,6 +3518,8 @@ namespace Ueditor
 
             try
             {
+                await FlushTabEditorBeforeSaveAsync(tab);
+
                 if (_editorSessions.TryGetValue(tab.Id, out var session))
                 {
                     await session.SaveAsync(tab.FilePath!, tab.EncodingName);

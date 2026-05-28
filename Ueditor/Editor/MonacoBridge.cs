@@ -18,6 +18,9 @@ namespace Ueditor.Editor
         private bool _isReady = false;
         private string? _pendingText = null;
         private bool _pendingSetTextShouldFocus = true;
+        private readonly object _flushLock = new object();
+        private readonly Dictionary<int, TaskCompletionSource<bool>> _pendingFlushRequests = new Dictionary<int, TaskCompletionSource<bool>>();
+        private int _flushRequestSeq = 0;
 
         public event Action<string>? ContentChanged;
         public event Action<string>? SelectionReceived;
@@ -368,6 +371,51 @@ namespace Ueditor.Editor
             await SendMessageAsync(msg);
         }
 
+        public async Task FlushPendingEditForSaveAsync(int timeoutMs = 700)
+        {
+            if (!_isReady || _webView.CoreWebView2 == null)
+            {
+                return;
+            }
+
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int requestId;
+            lock (_flushLock)
+            {
+                requestId = ++_flushRequestSeq;
+                _pendingFlushRequests[requestId] = tcs;
+            }
+
+            try
+            {
+                await SendMessageAsync(new { action = "flushForSave", requestId = requestId });
+                var completed = await Task.WhenAny(tcs.Task, Task.Delay(Math.Max(80, timeoutMs)));
+                if (completed == tcs.Task)
+                {
+                    await tcs.Task;
+                }
+                else
+                {
+                    lock (_flushLock)
+                    {
+                        _pendingFlushRequests.Remove(requestId);
+                    }
+                }
+
+                // JS의 compositionend/input 후속 task와 WebMessageReceived의 lineChanged 처리가
+                // 저장 로직보다 먼저 끝날 수 있도록 아주 짧게 양보한다.
+                await Task.Delay(30);
+            }
+            catch (Exception ex)
+            {
+                lock (_flushLock)
+                {
+                    _pendingFlushRequests.Remove(requestId);
+                }
+                System.Diagnostics.Debug.WriteLine($"Failed to flush editor before save: {ex.Message}");
+            }
+        }
+
         public async Task RevealLineAsync(int lineNum, int indexOfMatch = 0, int matchLength = 0, string query = "")
         {
             var msg = new { action = "revealLine", lineNumber = lineNum, indexOfMatch = indexOfMatch, matchLength = matchLength, query = query };
@@ -597,6 +645,23 @@ namespace Ueditor.Editor
                             if (root.TryGetProperty("text", out JsonElement selectionProp))
                             {
                                 SelectionReceived?.Invoke(selectionProp.GetString() ?? string.Empty);
+                            }
+                            break;
+
+                        case "editorFlushedForSave":
+                            {
+                                int requestId = root.TryGetProperty("requestId", out JsonElement flushRequestIdProp)
+                                    ? flushRequestIdProp.GetInt32()
+                                    : 0;
+                                TaskCompletionSource<bool>? pending = null;
+                                lock (_flushLock)
+                                {
+                                    if (_pendingFlushRequests.TryGetValue(requestId, out pending))
+                                    {
+                                        _pendingFlushRequests.Remove(requestId);
+                                    }
+                                }
+                                pending?.TrySetResult(true);
                             }
                             break;
 
