@@ -698,7 +698,9 @@
         <div id="autocomplete-popup" class="autocomplete-popup" hidden></div>
     </div>
 
+    <script src="hangul-autocomplete.js"></script>
     <script>
+        console.log("HangulAutocomplete is:", typeof HangulAutocomplete !== 'undefined' ? 'Loaded' : 'NOT loaded');
         const scrollContainer = document.getElementById('scroll-container');
         const virtualSpacer = document.getElementById('virtual-spacer');
         const viewport = document.getElementById('viewport');
@@ -4456,6 +4458,20 @@
             const seen = new Set();
             const lowerCurrent = currentWord.toLowerCase();
 
+            // Detect if the current word has Hangul characters (either syllable or compatibility Jamo)
+            const containsHangul = /[\u3130-\u318F\uAC00-\uD7A3]/.test(currentWord);
+            let regex = null;
+            if (typeof HangulAutocomplete !== 'undefined' && containsHangul) {
+                try {
+                    const pattern = HangulAutocomplete.makeRegex(currentWord);
+                    if (pattern) {
+                        regex = new RegExp('^' + pattern, 'i');
+                    }
+                } catch (e) {
+                    console.error("HangulAutocomplete regex compile error:", e);
+                }
+            }
+
             for (const snippet of state.snippets) {
                 const keyword = String(snippet.keyword || '').trim();
                 const title = String(snippet.title || '').trim();
@@ -4463,7 +4479,6 @@
                 if (!keyword || !content) continue;
 
                 const lowerKeyword = keyword.toLowerCase();
-                const lowerTitle = title.toLowerCase();
 
                 // Check if keyword matches current word, but also try matching
                 // the special-char prefix + current word against the keyword
@@ -4471,20 +4486,41 @@
                 let matched = false;
                 let extraPrefixLen = 0;
 
-                if (lowerKeyword.startsWith(lowerCurrent)) {
-                    matched = true;
-                } else if (lowerTitle.startsWith(lowerCurrent)) {
-                    matched = true;
-                } else if (specialPrefix && fullTextBeforeCaret !== undefined) {
-                    // Check if the characters just before wordStart include the special prefix
-                    const withPrefix = specialPrefix + currentWord;
-                    const lowerWithPrefix = withPrefix.toLowerCase();
-                    if (lowerKeyword.startsWith(lowerWithPrefix)) {
-                        // Verify the text actually has this prefix before the current word
-                        const textBefore = fullTextBeforeCaret;
-                        if (textBefore.endsWith(specialPrefix + currentWord) || textBefore.slice(-specialPrefix.length) === specialPrefix) {
-                            matched = true;
-                            extraPrefixLen = specialPrefix.length;
+                if (regex) {
+                    if (regex.test(keyword)) {
+                        matched = true;
+                    } else if (regex.test(title)) {
+                        matched = true;
+                    } else if (specialPrefix && fullTextBeforeCaret !== undefined) {
+                        try {
+                            const prefixPattern = HangulAutocomplete.escapeRegExp(specialPrefix) + HangulAutocomplete.makeRegex(currentWord);
+                            const prefixRegex = new RegExp('^' + prefixPattern, 'i');
+                            if (prefixRegex.test(keyword)) {
+                                const textBefore = fullTextBeforeCaret;
+                                if (textBefore.endsWith(specialPrefix + currentWord) || textBefore.slice(-specialPrefix.length) === specialPrefix) {
+                                    matched = true;
+                                    extraPrefixLen = specialPrefix.length;
+                                }
+                            }
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    }
+                } else {
+                    const lowerTitle = title.toLowerCase();
+                    if (lowerKeyword.startsWith(lowerCurrent)) {
+                        matched = true;
+                    } else if (lowerTitle.startsWith(lowerCurrent)) {
+                        matched = true;
+                    } else if (specialPrefix && fullTextBeforeCaret !== undefined) {
+                        const withPrefix = specialPrefix + currentWord;
+                        const lowerWithPrefix = withPrefix.toLowerCase();
+                        if (lowerKeyword.startsWith(lowerWithPrefix)) {
+                            const textBefore = fullTextBeforeCaret;
+                            if (textBefore.endsWith(specialPrefix + currentWord) || textBefore.slice(-specialPrefix.length) === specialPrefix) {
+                                matched = true;
+                                extraPrefixLen = specialPrefix.length;
+                            }
                         }
                     }
                 }
@@ -4512,7 +4548,15 @@
                 for (const word of words) {
                     if (word.length <= currentWord.length) continue;
                     if (word === currentWord) continue;
-                    if (word.toLowerCase().startsWith(lowerCurrent)) {
+
+                    let isWordMatched = false;
+                    if (regex) {
+                        isWordMatched = regex.test(word);
+                    } else {
+                        isWordMatched = word.toLowerCase().startsWith(lowerCurrent);
+                    }
+
+                    if (isWordMatched) {
                         const key = `word:${word.toLowerCase()}`;
                         if (seen.has(key)) continue;
                         seen.add(key);
@@ -5056,6 +5100,7 @@
                     syncCustomSelectionClass();
                 }
                 commitLine(element);
+                triggerAutocomplete(element);
             }
         });
 
@@ -5126,6 +5171,7 @@
                     const current = viewport.querySelector(`.line-text[data-line="${lineNumber}"]`) || element;
                     if (current && current.getAttribute('contenteditable') === 'true') {
                         commitLine(current);
+                        triggerAutocomplete(current);
                     }
                 }, 0);
             }
@@ -5685,9 +5731,10 @@
                 const ignoredKeys = [
                     'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
                     'Enter', 'Escape', 'Tab', 'Shift', 'Control', 'Alt', 'Meta',
-                    'CapsLock', 'Home', 'End', 'PageUp', 'PageDown', 'Backspace', 'Delete'
+                    'CapsLock', 'Home', 'End', 'PageUp', 'PageDown', 'Backspace', 'Delete',
+                    'Process'
                 ];
-                if (!ignoredKeys.includes(event.key) && !event.ctrlKey && !event.metaKey) {
+                if (!ignoredKeys.includes(event.key) && event.keyCode !== 229 && !event.ctrlKey && !event.metaKey) {
                     triggerAutocomplete(element);
                 }
             }
