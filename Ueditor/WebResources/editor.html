@@ -4614,9 +4614,11 @@
                 return;
             }
 
+            const preserveActiveIndex = autocompleteState.isOpen && autocompleteState.word === word;
+
             autocompleteState.isOpen = true;
             autocompleteState.candidates = candidates;
-            autocompleteState.activeIndex = 0;
+            autocompleteState.activeIndex = preserveActiveIndex ? Math.min(autocompleteState.activeIndex, candidates.length - 1) : 0;
             autocompleteState.element = element;
             autocompleteState.wordStart = start;
             autocompleteState.word = word;
@@ -5399,26 +5401,6 @@
                 return;
             }
 
-            if (event.isComposing || state.isComposing || event.key === 'Process' || event.keyCode === 229) {
-                return;
-            }
-
-            if (event.key === 'F9') {
-                event.preventDefault();
-                post({ type: 'shortcut', name: 'f9' });
-                return;
-            }
-            if (event.key === 'F10') {
-                event.preventDefault();
-                post({ type: 'shortcut', name: 'f10' });
-                return;
-            }
-            if (event.key === 'F12') {
-                event.preventDefault();
-                post({ type: 'shortcut', name: 'f12' });
-                return;
-            }
-
             if (autocompleteState.isOpen) {
                 if (event.key === 'ArrowDown') {
                     event.preventDefault();
@@ -5451,6 +5433,26 @@
                     hideAutocomplete();
                     return;
                 }
+            }
+
+            if (event.isComposing || state.isComposing || event.key === 'Process' || event.keyCode === 229) {
+                return;
+            }
+
+            if (event.key === 'F9') {
+                event.preventDefault();
+                post({ type: 'shortcut', name: 'f9' });
+                return;
+            }
+            if (event.key === 'F10') {
+                event.preventDefault();
+                post({ type: 'shortcut', name: 'f10' });
+                return;
+            }
+            if (event.key === 'F12') {
+                event.preventDefault();
+                post({ type: 'shortcut', name: 'f12' });
+                return;
             }
 
             const ctrl = event.ctrlKey || event.metaKey;
