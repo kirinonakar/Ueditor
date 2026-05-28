@@ -161,15 +161,16 @@ namespace Ueditor.Controls
             var contentBox = new TextBox
             {
                 PlaceholderText = _getString("SnippetPlaceholderContent", "코드 본문 입력..."),
-                Text = existing?.Content ?? string.Empty,
                 AcceptsReturn = true,
-                TextWrapping = TextWrapping.Wrap,
+                TextWrapping = TextWrapping.NoWrap,
                 MinHeight = 200,
                 MaxHeight = 400,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 FontFamily = new FontFamily("Consolas")
             };
+            contentBox.Text = (existing?.Content ?? string.Empty).Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", "\r\n");
             ScrollViewer.SetVerticalScrollBarVisibility(contentBox, ScrollBarVisibility.Auto);
+            ScrollViewer.SetHorizontalScrollBarVisibility(contentBox, ScrollBarVisibility.Auto);
 
             var stack = new StackPanel { Spacing = 10, Width = 450 };
             stack.Children.Add(new TextBlock { Text = _getString("SnippetLabelName", "스니펫 이름") });
@@ -202,7 +203,7 @@ namespace Ueditor.Controls
                 Title = titleBox.Text,
                 Keyword = keywordBox.Text,
                 Description = descBox.Text,
-                Content = contentBox.Text
+                Content = contentBox.Text.Replace("\r\n", "\n").Replace("\r", "\n")
             };
         }
 
