@@ -5386,10 +5386,14 @@
                     renderAutocomplete();
                     return;
                 }
-                if (event.key === 'Enter' && state.autocompleteOnEnter) {
-                    event.preventDefault();
-                    insertSelectedCandidate();
-                    return;
+                if (event.key === 'Enter') {
+                    if (state.autocompleteOnEnter) {
+                        event.preventDefault();
+                        insertSelectedCandidate();
+                        return;
+                    } else {
+                        hideAutocomplete();
+                    }
                 }
                 if (event.key === 'Tab' && state.autocompleteOnTab) {
                     event.preventDefault();
