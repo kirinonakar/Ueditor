@@ -1415,6 +1415,9 @@
             const textNode = [...element.childNodes].find(node => node.nodeType === Node.TEXT_NODE);
             if (!row || !textNode) return;
 
+            // Force layout reflow/flush so browser calculates correct range client rects if DOM was just recreated
+            const _ = row.offsetHeight;
+
             const length = textNode.textContent.length;
             const safeStart = Math.max(0, Math.min(start, length));
             const safeEnd = Math.max(safeStart, Math.min(end, length));
@@ -2233,7 +2236,7 @@
             state.currentLine = lastLine;
             state.currentColumn = endColumn + 1;
             queueRender(true);
-            setTimeout(() => focusLine(lastLine, endColumn), 0);
+            setTimeout(() => focusLine(1, 0), 0);
             reportCursorAndSelection();
         }
 
@@ -2503,6 +2506,9 @@
         }
 
         function setCaret(element, offset) {
+            const oldActiveElement = document.activeElement?.closest?.('.line-text');
+            const oldActiveLine = oldActiveElement ? Number(oldActiveElement.dataset.line || 0) : null;
+
             state.editingLine = Number(element.dataset.line || state.currentLine || 1);
             element.focus({ preventScroll: true });
             const selection = window.getSelection();
@@ -2534,6 +2540,15 @@
             selection.removeAllRanges();
             selection.addRange(range);
             reportCursorAndSelection(element);
+
+            if (oldActiveLine !== null && oldActiveLine !== state.editingLine) {
+                // Focused line changed! Force a re-render so that the old focused line
+                // gets re-rendered with token spans, and the new focused line gets plain text.
+                queueRender(true);
+            } else {
+                // Redraw overlays now that focus/selection is set in a separate macro-task (clean layout)
+                drawEditableSelectionOverlays();
+            }
         }
 
         function commitLine(element) {
@@ -5907,7 +5922,9 @@
                 state.selection = null;
                 syncCustomSelectionClass();
             } else if (selection) {
-                setTimeout(() => focusLine(state.currentLine, Math.max(0, state.currentColumn - 1)), 0);
+                const targetLine = hasCustomSelection() && !selection.isColumn ? selection.start.line : state.currentLine;
+                const targetColumn = hasCustomSelection() && !selection.isColumn ? selection.start.column : Math.max(0, state.currentColumn - 1);
+                setTimeout(() => focusLine(targetLine, targetColumn), 0);
             }
             if (hadSelection || hasCustomSelection()) {
                 queueRender(true);
@@ -6414,6 +6431,16 @@
 
             const element = lineElementFromEvent(event);
             reportCursorAndSelection(element || document.activeElement);
+
+            if (event.key === 'Shift' && hasCustomSelection() && !state.isComposing) {
+                const sel = normalizeSelection();
+                if (sel && !sel.isColumn) {
+                    const startTextElement = viewport.querySelector(`.line-row[data-line="${sel.start.line}"] .line-text`);
+                    if (startTextElement && document.activeElement !== startTextElement) {
+                        focusLine(sel.start.line, sel.start.column);
+                    }
+                }
+            }
 
             if ((state.autocompleteOnEnter || state.autocompleteOnTab) && element && element.getAttribute('contenteditable') === 'true') {
                 const ignoredKeys = [
