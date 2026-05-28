@@ -11,7 +11,7 @@
   <Identity
     Name="858b50c1-2e4a-488a-8e5f-1ab4d73f9252"
     Publisher="CN=kirinonakar"
-    Version="1.1.7.0" />
+    Version="1.1.8.0" />
 
   <mp:PhoneIdentity PhoneProductId="858b50c1-2e4a-488a-8e5f-1ab4d73f9252" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
