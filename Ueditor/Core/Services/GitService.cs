@@ -349,7 +349,7 @@ namespace Ueditor.Core.Services
                 return Array.Empty<string>();
 
             // Use --graph flag with custom pretty format showing abbreviated hash, commit date/time, subject, and ref decorations
-            string output = await RunGitCommandAsync(repoPath, $"log --graph --pretty=format:\"%h - %cd : %s %d\" --date=format:\"%Y-%m-%d %H:%M\" -n {Math.Max(1, maxCount)}");
+            string output = await RunGitCommandAsync(repoPath, $"log --graph --pretty=format:\"%s - %cd %d (%h)\" --date=format:\"%Y-%m-%d %H:%M\" -n {Math.Max(1, maxCount)}");
             if (string.IsNullOrEmpty(output) || output.StartsWith("fatal:", StringComparison.OrdinalIgnoreCase))
                 return Array.Empty<string>();
 
