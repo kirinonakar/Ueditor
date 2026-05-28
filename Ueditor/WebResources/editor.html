@@ -40,7 +40,8 @@
             background: var(--selection);
         }
 
-        body.selecting ::selection {
+        body.selecting ::selection,
+        body.custom-selection-active ::selection {
             background: transparent !important;
         }
 
@@ -1154,6 +1155,8 @@
                 return;
             }
 
+            syncCustomSelectionClass();
+
             const range = visibleRange();
             const rangeKey = `${range.start}:${range.end}:${state.lineCount}:${scrollContainer.clientWidth}:${state.wordWrap}:${totalVirtualHeight()}:${state.cacheVersion}`;
             requestMissingLines(range.start, range.end);
@@ -1181,7 +1184,11 @@
                 const isInSelection = !!selectionBounds;
                 const isSelectedEmptyLine = isInSelection && displayText.length === 0 && hasCustomSelection();
                 const textClass = `line-text${hasLine ? '' : ' loading'}${isLong ? ' long-line' : ''}`;
-                const lineContent = renderLineContent(line, displayText);
+                const renderPlainForEditableSelection = hasCustomSelection() &&
+                    hasLine &&
+                    !isLong &&
+                    (line === activeLine || line === state.editingLine);
+                const lineContent = renderLineContent(line, displayText, renderPlainForEditableSelection);
                 rows.push(
                     `<div class="line-row${isInSelection ? ' selected-row' : ''}${isSelectedEmptyLine ? ' selected-empty-row' : ''}" data-line="${line}">` +
                     `<div class="line-number">${line}</div>` +
@@ -1251,12 +1258,81 @@
             range.setEnd(textNode, safeEnd);
 
             const rowRect = row.getBoundingClientRect();
+            const startBoundary = caretBoundaryRect(textNode, safeStart, false);
+            const endBoundary = caretBoundaryRect(textNode, safeEnd, true);
+            const sameVisualRow = (a, b) => a && b && Math.abs(a.top - b.top) < 2;
             const rects = [...range.getClientRects()].filter(rect => rect.width > 0 && rect.height > 0);
+
             for (const rect of rects) {
-                appendEditableSelectionOverlay(row, rect.left - rowRect.left, rect.top - rowRect.top, rect.width, rect.height);
+                let left = rect.left;
+                let right = rect.right;
+
+                // WebView2/Chromium에서 아래→위 드래그 중 활성 contenteditable 줄의 Range rect가
+                // 선택 끝 문자 뒤쪽까지 같이 잡히는 경우가 있어, 시작/끝 caret 경계로 한 번 더 잘라낸다.
+                // 특히 "내용이" 앞/뒤처럼 한글+공백 경계에서 뒤 문자열이 선택된 것처럼 보이는 현상을 막는다.
+                if (sameVisualRow(rect, startBoundary)) {
+                    left = Math.max(left, startBoundary.left);
+                }
+                if (sameVisualRow(rect, endBoundary)) {
+                    right = Math.min(right, endBoundary.left);
+                }
+
+                if (right > left) {
+                    appendEditableSelectionOverlay(row, left - rowRect.left, rect.top - rowRect.top, right - left, rect.height);
+                }
             }
 
             range.detach?.();
+        }
+
+        function caretBoundaryRect(textNode, offset, preferPrevious = false) {
+            const length = textNode?.textContent?.length || 0;
+            if (!textNode || length === 0) return null;
+
+            const safeOffset = Math.max(0, Math.min(Number(offset || 0), length));
+            const range = document.createRange();
+
+            try {
+                if (safeOffset < length && !preferPrevious) {
+                    range.setStart(textNode, safeOffset);
+                    range.setEnd(textNode, safeOffset + 1);
+                    const rect = firstUsableRect(range);
+                    if (rect) {
+                        return { left: rect.left, top: rect.top, bottom: rect.bottom, height: rect.height };
+                    }
+                }
+
+                if (safeOffset > 0) {
+                    range.setStart(textNode, safeOffset - 1);
+                    range.setEnd(textNode, safeOffset);
+                    const rect = lastUsableRect(range);
+                    if (rect) {
+                        return { left: rect.right, top: rect.top, bottom: rect.bottom, height: rect.height };
+                    }
+                }
+
+                if (safeOffset < length) {
+                    range.setStart(textNode, safeOffset);
+                    range.setEnd(textNode, safeOffset + 1);
+                    const rect = firstUsableRect(range);
+                    if (rect) {
+                        return { left: rect.left, top: rect.top, bottom: rect.bottom, height: rect.height };
+                    }
+                }
+            } finally {
+                range.detach?.();
+            }
+
+            return null;
+        }
+
+        function firstUsableRect(range) {
+            return [...range.getClientRects()].find(rect => rect.width > 0 && rect.height > 0) || null;
+        }
+
+        function lastUsableRect(range) {
+            const rects = [...range.getClientRects()].filter(rect => rect.width > 0 && rect.height > 0);
+            return rects.length ? rects[rects.length - 1] : null;
         }
 
         function drawEditableColumnCursorOverlay(element, column) {
@@ -1717,11 +1793,13 @@
             return escapedText;
         }
 
-        function renderLineContent(lineNumber, text) {
+        function renderLineContent(lineNumber, text, forcePlainText = false) {
             // IME 조합 중인 줄은 beforeinput/compositionstart 핸들러가 이미 DOM을 평탄화하지만
             // render()가 IME 조합 중에는 실행되지 않아 이 줄이 renderLineContent()를 거치지 않는다.
             // 만에 하나 조합 중에 도달하면 plain text로 렌더링한다.
-            if (state.isComposing && state.compositionLine === lineNumber) {
+            // 선택 드래그가 시작된 활성 contenteditable 줄도 plain text로 렌더링하고,
+            // 실제 선택 음영은 overlay에서 정확한 문자 경계로 그린다.
+            if (forcePlainText || (state.isComposing && state.compositionLine === lineNumber)) {
                 return escapeHtml(text);
             }
 
@@ -1779,12 +1857,17 @@
                     normalized.start.column !== normalized.end.column);
         }
 
+        function syncCustomSelectionClass() {
+            document.body.classList.toggle('custom-selection-active', hasCustomSelection());
+        }
+
         function selectAll() {
             const lastLine = state.lineCount;
             const lastText = state.cache.get(lastLine) || '';
             const endColumn = lastText.length;
             state.selectionAnchor = { line: 1, column: 0 };
             state.selection = { start: { line: 1, column: 0 }, end: { line: lastLine, column: endColumn } };
+            syncCustomSelectionClass();
             state.currentLine = lastLine;
             state.currentColumn = endColumn + 1;
             queueRender(true);
@@ -1807,12 +1890,24 @@
                 };
             }
 
-            const start = lineNumber === selection.start.line ? selection.start.column : 0;
-            const end = lineNumber === selection.end.line ? selection.end.column : textLength;
-            return {
-                start: Math.max(0, Math.min(start, textLength)),
-                end: Math.max(0, Math.min(end, textLength))
-            };
+            const rawStart = lineNumber === selection.start.line ? selection.start.column : 0;
+            const rawEnd = lineNumber === selection.end.line ? selection.end.column : textLength;
+            const start = Math.max(0, Math.min(rawStart, textLength));
+            const end = Math.max(0, Math.min(rawEnd, textLength));
+
+            // 아래에서 위로 드래그할 때 정규화된 end 줄이 column 0이면
+            // 그 줄 자체는 실제로 선택된 문자가 없다. 기존 로직은 {0, 0}도
+            // 선택된 줄로 취급해서 빈 줄/맨 아래 줄에 불필요한 선택 음영을 그렸다.
+            // 단, 선택 범위 사이에 끼어 있는 빈 줄이나 빈 줄 단독 선택은 계속 표시한다.
+            const spansMultipleLines = selection.start.line !== selection.end.line;
+            const isEndBoundaryAtLineStart = spansMultipleLines &&
+                lineNumber === selection.end.line &&
+                selection.end.column <= 0;
+            if (start === end && isEndBoundaryAtLineStart) {
+                return null;
+            }
+
+            return { start, end };
         }
 
         function lineElementFromEvent(event) {
@@ -2416,6 +2511,7 @@
             state.cacheVersion++;
             element.textContent = nextText;
             state.selection = null;
+                syncCustomSelectionClass();
             state.selectionAnchor = { line: lineNumber, column: nextColumn };
             state.currentLine = lineNumber;
             state.currentColumn = nextColumn + 1;
@@ -2450,6 +2546,7 @@
             post({ type: 'mergeLineWithPrevious', lineNumber: lineNumber + 1 });
             post({ type: 'contentChanged' });
             state.selection = null;
+                syncCustomSelectionClass();
             markLineBoundaryTransition(lineNumber, text.length);
             queueRender(true);
             setTimeout(() => focusLine(lineNumber, text.length), 0);
@@ -2467,6 +2564,7 @@
             post({ type: 'mergeLineWithPrevious', lineNumber });
             post({ type: 'contentChanged' });
             state.selection = null;
+                syncCustomSelectionClass();
             markLineBoundaryTransition(lineNumber - 1, previous.length);
             queueRender(true);
             setTimeout(() => focusLine(lineNumber - 1, previous.length), 0);
@@ -2711,6 +2809,7 @@
                 state.currentColumn = selectionEnd.column + 1;
             } else {
                 state.selection = null;
+                syncCustomSelectionClass();
                 const endLine = start.line + parts.length - 1;
                 const endColumn = parts.length === 1 ? start.column + parts[0].length : parts[parts.length - 1].length;
                 state.currentLine = endLine;
@@ -4325,6 +4424,7 @@
                         const text = msg.text || '';
                         const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
                         state.selection = null;
+                syncCustomSelectionClass();
                         const targetLine = Math.min(state.currentLine, lines.length);
                         const targetCol = Math.min(Math.max(0, state.currentColumn - 1), (lines[targetLine - 1] || '').length);
                         setupModel(Math.max(1, lines.length));
@@ -4501,6 +4601,7 @@
             const element = lineElementFromEvent(event);
             if (element) {
                 state.selection = null;
+                syncCustomSelectionClass();
                 commitLine(element);
             }
         });
@@ -4558,6 +4659,7 @@
             state.compositionLine = null;
             if (element && element.getAttribute('contenteditable') === 'true') {
                 state.selection = null;
+                syncCustomSelectionClass();
                 state.editingLine = lineNumber;
                 // Chromium/WebView2는 compositionend 직후에 최종 input을 한 번 더 보낼 수 있다.
                 // 바로 textContent를 다시 쓰거나 리렌더하지 말고 다음 task에서 최종 DOM을 커밋한다.
@@ -4590,6 +4692,7 @@
 
                     state.selectionAnchor = { line: line, column: 0 };
                     state.selection = { start: { line: line, column: 0 }, end: { line: line, column: lineLength || 1 } };
+                    syncCustomSelectionClass();
                     state.isSelecting = true;
                     state.isLineSelecting = true;
                     document.body.classList.add('selecting');
@@ -4650,6 +4753,7 @@
             state.selection = event.shiftKey
                 ? { start: anchor, end: { line: position.line, column: position.column }, isColumn: isColumnSelect }
                 : null;
+            syncCustomSelectionClass();
             state.isSelecting = true;
             state.isLineSelecting = false;
             document.body.classList.add('selecting');
@@ -4670,6 +4774,7 @@
             state.isSelecting = false;
             state.isLineSelecting = false;
             document.body.classList.remove('selecting');
+            syncCustomSelectionClass();
             if (event && event.pointerId !== undefined) {
                 try {
                     scrollContainer.releasePointerCapture?.(event.pointerId);
@@ -4680,6 +4785,7 @@
             const selection = normalizeSelection();
             if (selection && !hasCustomSelection()) {
                 state.selection = null;
+                syncCustomSelectionClass();
             } else if (selection) {
                 setTimeout(() => focusLine(state.currentLine, Math.max(0, state.currentColumn - 1)), 0);
             }
@@ -4757,6 +4863,7 @@
                 const finalSelectionIsEmpty = newSelection.start.line === newSelection.end.line &&
                     newSelection.start.column === newSelection.end.column;
                 state.selection = finalSelectionIsEmpty ? null : newSelection;
+                syncCustomSelectionClass();
                 state.currentLine = position.line;
                 state.currentColumn = position.column + 1;
                 queueRender(true);
@@ -4773,6 +4880,7 @@
             state.isSelecting = false;
             state.isLineSelecting = false;
             document.body.classList.remove('selecting');
+            syncCustomSelectionClass();
             queueRender(true);
             reportCursorAndSelection(document.activeElement);
         });
@@ -5132,6 +5240,7 @@
             if (position && !keepSelection) {
                 const hadSelection = hasCustomSelection();
                 state.selection = null;
+                syncCustomSelectionClass();
                 state.selectionAnchor = { line: position.line, column: position.column };
                 state.currentLine = position.line;
                 state.currentColumn = position.column + 1;
