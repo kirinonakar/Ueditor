@@ -93,6 +93,18 @@
             will-change: transform;
         }
 
+        #viewport::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: var(--gutter-width);
+            background: var(--gutter-bg);
+            border-right: 1px solid rgba(127, 127, 127, 0.22);
+            pointer-events: none;
+        }
+
         body:not(.wrap-enabled) #viewport {
             right: auto;
             width: max-content;
@@ -130,8 +142,6 @@
             min-height: var(--line-height);
             padding: 0 8px 0 8px;
             overflow: hidden;
-            border-right: 1px solid rgba(127, 127, 127, 0.22);
-            background: var(--gutter-bg);
             color: var(--gutter-fg);
             font-size: 12px;
             text-align: right;
