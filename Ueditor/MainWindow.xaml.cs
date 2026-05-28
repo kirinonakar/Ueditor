@@ -974,13 +974,18 @@ namespace Ueditor
             bridge.LineChanged += (lineNumber, text, isComposing) =>
             {
                 session.ReplaceLine(lineNumber, text);
+
                 if (!isComposing)
                 {
                     MarkTabDirty(tab, tabItem);
                     PropagateDirtyStateToOtherTabs(tab);
-                    SchedulePreview(tab);
                 }
-                _ = SyncEditsToOtherTabsAsync(tab, updateUi: !isComposing);
+
+                // IME 조합 중에는 반대편 split에 전체 SetTextAsync를 보내지 않는다.
+                // 전체 재초기화가 들어오면 WebView2/contenteditable의 조합 범위가 깨져 이전 자소가 삭제될 수 있다.
+                // 대신 같은 파일의 다른 pane에는 해당 줄만 live patch로 보내고, 미리보기는 debounce로 갱신한다.
+                SchedulePreview(tab);
+                _ = SyncLineChangeToOtherTabsAsync(tab, lineNumber, text, isComposing);
             };
 
             bridge.LineInsertRequested += async (lineNumber, text) =>
@@ -1053,14 +1058,18 @@ namespace Ueditor
                 UpdateTotalLines(tab);
             };
 
-            bridge.ContentChanged += (_) =>
+            bridge.ContentChanged += (isComposing) =>
             {
-                MarkTabDirty(tab, tabItem);
+                if (!isComposing)
+                {
+                    MarkTabDirty(tab, tabItem);
+                    PropagateDirtyStateToOtherTabs(tab);
+                    UpdateLanguageUI(tab);
+                    _tocController?.RefreshToc(tab);
+                    UpdateTotalLines(tab);
+                }
+
                 SchedulePreview(tab);
-                UpdateLanguageUI(tab);
-                _tocController?.RefreshToc(tab);
-                UpdateTotalLines(tab);
-                PropagateDirtyStateToOtherTabs(tab);
             };
 
             bridge.CursorChanged += (line, col) =>
@@ -3157,6 +3166,41 @@ namespace Ueditor
             });
         }
 
+        private async Task SyncLineChangeToOtherTabsAsync(OpenedTab sourceTab, int lineNumber, string text, bool isComposing)
+        {
+            if (string.IsNullOrEmpty(sourceTab.FilePath)) return;
+
+            bool sourceDirty = sourceTab.IsDirty;
+            var otherTabs = GetTabsForSameFile(sourceTab)
+                .Where(t => t.Id != sourceTab.Id)
+                .ToList();
+
+            foreach (var otherTab in otherTabs)
+            {
+                if (_editorSessions.TryGetValue(otherTab.Id, out var otherSession))
+                {
+                    otherSession.ReplaceLine(lineNumber, text);
+                    otherTab.Content = otherSession.GetText();
+                }
+                else
+                {
+                    otherTab.Content = text;
+                }
+
+                if (_tabBridges.TryGetValue(otherTab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
+                {
+                    await bridgeGroup.Bridge.UpdateLineAsync(lineNumber, text, isComposing);
+                }
+
+                if (!isComposing)
+                {
+                    SchedulePreview(otherTab);
+                }
+            }
+
+            SetDirtyStateForFileGroup(sourceTab, sourceDirty);
+        }
+
         private async Task SyncEditsToOtherTabsAsync(OpenedTab sourceTab, bool updateUi = true)
         {
             if (string.IsNullOrEmpty(sourceTab.FilePath)) return;
@@ -3177,7 +3221,7 @@ namespace Ueditor
                 }
                 otherTab.Content = updatedText;
 
-                if (_tabBridges.TryGetValue(otherTab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
+                if (updateUi && _tabBridges.TryGetValue(otherTab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
                 {
                     await bridgeGroup.Bridge.SetTextAsync(updatedText, shouldFocus: false);
                 }

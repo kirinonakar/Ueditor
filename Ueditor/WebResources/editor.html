@@ -733,6 +733,7 @@
             dragStartPosition: null,
             isComposing: false,
             compositionLine: null,
+            columnComposition: null,
             suppressNextBeforeInputType: null,
             lastManualDeleteAt: 0,
             editingLine: null,
@@ -1023,6 +1024,7 @@
                 // 현재 조합 중인 DOM/캐시를 덮어쓰면 직전 자소가 사라진다.
                 // 조합 중인 줄은 compositionend에서 최종 문자열을 커밋하므로 여기서는 보호한다.
                 if ((state.isComposing && (!state.compositionLine || state.compositionLine === lineNumber)) ||
+                    (state.isComposing && isLineInColumnComposition(lineNumber)) ||
                     (state.editingLine === lineNumber && document.activeElement?.closest?.('.line-text')?.dataset.line === String(lineNumber))) {
                     continue;
                 }
@@ -1041,6 +1043,46 @@
                 }
             }
             return safeLines.length;
+        }
+
+
+        function updateLineFromHost(lineNumber, text, isComposing = false) {
+            const line = Number(lineNumber || 1);
+            if (!line || line < 1) return false;
+
+            // 이 WebView 자신이 한글 IME 조합 중인 줄/컬럼 범위는 절대 호스트 값으로 덮어쓰지 않는다.
+            // split 반대편에서 오는 live line patch가 현재 조합 DOM을 건드리면 직전 자소가 사라질 수 있다.
+            if ((state.isComposing && (!state.compositionLine || state.compositionLine === line)) ||
+                (state.isComposing && isLineInColumnComposition(line))) {
+                return false;
+            }
+
+            const activeLineElement = document.activeElement?.closest?.('.line-text');
+            if (state.editingLine === line && activeLineElement?.dataset.line === String(line)) {
+                return false;
+            }
+
+            const nextText = String(text ?? '');
+            state.cache.set(line, nextText);
+            state.cacheVersion++;
+
+            const element = viewport.querySelector(`.line-text[data-line="${line}"]`);
+            if (element && element.getAttribute('contenteditable') === 'true') {
+                // 다른 split pane의 단일 줄만 갱신한다. setText처럼 전체 모델/viewport를 재초기화하지 않는다.
+                element.textContent = nextText;
+            }
+
+            if (state.wordWrap) {
+                measureRenderedRows(false);
+            }
+
+            if (!state.isComposing && !isComposing) {
+                queueRender();
+            } else {
+                drawEditableSelectionOverlays();
+            }
+
+            return true;
         }
 
         function setupVirtualHeight() {
@@ -1857,6 +1899,26 @@
                     normalized.start.column !== normalized.end.column);
         }
 
+        function activeColumnSelection() {
+            const selection = normalizeSelection();
+            return selection && selection.isColumn && hasCustomSelection() ? selection : null;
+        }
+
+        function cloneEditorSelection(selection) {
+            if (!selection) return null;
+            return {
+                start: { line: selection.start.line, column: selection.start.column },
+                end: { line: selection.end.line, column: selection.end.column },
+                isColumn: !!selection.isColumn
+            };
+        }
+
+        function isPlainTextKey(event) {
+            if (!event || event.ctrlKey || event.metaKey || event.altKey) return false;
+            if (event.isComposing || state.isComposing || event.key === 'Process' || event.keyCode === 229) return false;
+            return typeof event.key === 'string' && event.key.length === 1;
+        }
+
         function syncCustomSelectionClass() {
             document.body.classList.toggle('custom-selection-active', hasCustomSelection());
         }
@@ -2122,19 +2184,29 @@
             const text = lineTextFromElement(element);
             const isComposing = state.isComposing &&
                 (!state.compositionLine || state.compositionLine === lineNumber);
-            state.cache.set(lineNumber, text);
-            if (!isComposing) {
+
+            if (isComposing && state.columnComposition) {
+                updateColumnCompositionPreview(element);
+            } else {
+                state.cache.set(lineNumber, text);
                 state.cacheVersion++;
             }
+
             state.currentLine = lineNumber;
             state.currentColumn = getCaretOffset(element) + 1;
 
-            // IME 조합 중인 텍스트는 아직 확정된 문자가 아니다.
-            // 분할 뷰/호스트 모델로 중간 조합 문자열을 보내면 다른 뷰의 동기화가
-            // 다시 들어오면서 이전 한글 자소가 지워지는 문제가 생길 수 있으므로
-            // 로컬 캐시와 커서 상태만 갱신하고 compositionend에서 최종 문자열만 전송한다.
             if (isComposing) {
+                // VS Code처럼 조합 중 문자열도 즉시 호스트에 보낸다.
+                // receiveLineBlock/render 쪽에서 현재 조합 줄/컬럼 범위는 보호하므로
+                // 브라우저 IME가 들고 있는 조합 DOM을 이전 값으로 덮어쓰지 않는다.
+                if (!state.columnComposition) {
+                    post({ type: 'lineChanged', lineNumber, text, isComposing: true });
+                    post({ type: 'contentChanged', isComposing: true });
+                }
                 reportCursorAndSelection(element);
+                if (state.wordWrap) {
+                    measureRenderedRows(false);
+                }
                 return;
             }
 
@@ -2156,6 +2228,17 @@
             }
 
             const lineNumber = Number(element.dataset.line || state.compositionLine || state.currentLine || 1);
+
+            if (state.columnComposition && finishColumnComposition(element, lineNumber)) {
+                state.isComposing = false;
+                state.compositionLine = null;
+                reportCursorAndSelection(element);
+                if (state.wordWrap) {
+                    measureRenderedRows(false);
+                }
+                return true;
+            }
+
             const text = lineTextFromElement(element);
             state.isComposing = false;
             state.compositionLine = null;
@@ -2699,20 +2782,24 @@
         }
 
         function replaceColumnSelectionWith(selection, text) {
-            const { start, end } = selection;
+            const normalized = normalizeSelection(selection);
+            if (!normalized || !normalized.isColumn) return;
+
+            const { start, end } = normalized;
             const startLine = Math.min(start.line, end.line);
             const endLine = Math.max(start.line, end.line);
             const startCol = Math.min(start.column, end.column);
             const endCol = Math.max(start.column, end.column);
+            const lineCount = endLine - startLine + 1;
 
-            const lines = text.split('\n');
-            const useLineByLinePaste = lines.length === (endLine - startLine + 1);
-
-            let maxCaretCol = startCol;
+            const replacementText = String(text ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            const lines = replacementText.split('\n');
+            const useLineByLinePaste = lines.length === lineCount;
+            const insertedLengthForCaret = useLineByLinePaste ? lines[0].length : replacementText.length;
 
             for (let line = startLine; line <= endLine; line++) {
                 const originalText = state.cache.get(line) || '';
-                const replaceText = useLineByLinePaste ? lines[line - startLine] : text;
+                const replaceText = useLineByLinePaste ? lines[line - startLine] : replacementText;
 
                 const sCol = Math.max(0, Math.min(startCol, originalText.length));
                 const eCol = Math.max(0, Math.min(endCol, originalText.length));
@@ -2720,27 +2807,219 @@
                 const nextText = originalText.slice(0, sCol) + replaceText + originalText.slice(eCol);
                 state.cache.set(line, nextText);
                 post({ type: 'lineChanged', lineNumber: line, text: nextText });
-
-                maxCaretCol = Math.max(maxCaretCol, sCol + replaceText.length);
             }
 
+            state.cacheVersion++;
             post({ type: 'contentChanged' });
 
-            // Maintain column selection editing state
-            const nextCol = startCol + (useLineByLinePaste ? lines[0].length : text.length);
+            // 컬럼 편집은 입력 후에도 여러 줄 caret 상태를 유지해야 다음 글자도 모든 줄에 들어간다.
+            const nextCol = startCol + insertedLengthForCaret;
             state.selection = {
-                start: { line: start.line, column: nextCol },
-                end: { line: end.line, column: nextCol },
+                start: { line: startLine, column: nextCol },
+                end: { line: endLine, column: nextCol },
                 isColumn: true
             };
             state.selectionAnchor = state.selection.start;
-            state.currentLine = end.line;
+            state.currentLine = endLine;
             state.currentColumn = nextCol + 1;
+            syncCustomSelectionClass();
 
             queueRender(true);
             setTimeout(() => {
                 focusLine(state.currentLine, nextCol);
+                reportCursorAndSelection();
             }, 0);
+        }
+
+        function changedTextBetween(beforeText, afterText) {
+            const before = String(beforeText ?? '');
+            const after = String(afterText ?? '');
+            let prefix = 0;
+            while (prefix < before.length &&
+                prefix < after.length &&
+                before[prefix] === after[prefix]) {
+                prefix++;
+            }
+
+            let beforeEnd = before.length;
+            let afterEnd = after.length;
+            while (beforeEnd > prefix &&
+                afterEnd > prefix &&
+                before[beforeEnd - 1] === after[afterEnd - 1]) {
+                beforeEnd--;
+                afterEnd--;
+            }
+
+            return after.slice(prefix, afterEnd);
+        }
+
+        function columnCompositionBounds(selection) {
+            const normalized = normalizeSelection(selection);
+            if (!normalized || !normalized.isColumn) return null;
+            const startLine = Math.min(normalized.start.line, normalized.end.line);
+            const endLine = Math.max(normalized.start.line, normalized.end.line);
+            const startCol = Math.min(normalized.start.column, normalized.end.column);
+            const endCol = Math.max(normalized.start.column, normalized.end.column);
+            return { startLine, endLine, startCol, endCol };
+        }
+
+        function isLineInColumnComposition(lineNumber) {
+            const pending = state.columnComposition;
+            const bounds = pending ? columnCompositionBounds(pending.selection) : null;
+            if (!bounds) return false;
+            return lineNumber >= bounds.startLine && lineNumber <= bounds.endLine;
+        }
+
+        function updateVisibleLineTextDuringComposition(lineNumber, text, preserveElement = null) {
+            const element = viewport.querySelector(`.line-text[data-line="${lineNumber}"]`);
+            if (!element || element === preserveElement || element.getAttribute('contenteditable') !== 'true') return;
+            element.textContent = String(text ?? '');
+        }
+
+        function buildColumnCompositionLine(baseText, startCol, endCol, insertedText) {
+            const originalText = String(baseText ?? '');
+            const sCol = Math.max(0, Math.min(startCol, originalText.length));
+            const eCol = Math.max(0, Math.min(endCol, originalText.length));
+            return originalText.slice(0, sCol) + String(insertedText ?? '') + originalText.slice(eCol);
+        }
+
+        function applyColumnCompositionPreview(element, insertedText) {
+            const pending = state.columnComposition;
+            const bounds = pending ? columnCompositionBounds(pending.selection) : null;
+            if (!pending || !bounds) return false;
+
+            let changed = false;
+            let posted = false;
+            const previewText = String(insertedText ?? '');
+
+            for (let line = bounds.startLine; line <= bounds.endLine; line++) {
+                const baseText = pending.baseLines.get(line) ?? '';
+                const nextText = buildColumnCompositionLine(baseText, bounds.startCol, bounds.endCol, previewText);
+                const previousPreview = pending.lastPreviewLines.get(line);
+
+                state.cache.set(line, nextText);
+                pending.lastPreviewLines.set(line, nextText);
+                updateVisibleLineTextDuringComposition(line, nextText, element);
+
+                if (previousPreview !== nextText) {
+                    post({ type: 'lineChanged', lineNumber: line, text: nextText, isComposing: true, isColumnComposition: true });
+                    posted = true;
+                }
+                changed = true;
+            }
+
+            if (changed) {
+                state.cacheVersion++;
+                if (state.wordWrap) {
+                    measureRenderedRows(false);
+                }
+                drawEditableSelectionOverlays();
+            }
+
+            if (posted) {
+                post({ type: 'contentChanged', isComposing: true, isColumnComposition: true });
+            }
+
+            return changed;
+        }
+
+        function updateColumnCompositionPreview(element) {
+            const pending = state.columnComposition;
+            if (!pending || !element || element.getAttribute('contenteditable') !== 'true') return false;
+
+            const finalText = lineTextFromElement(element);
+            const insertedText = changedTextBetween(pending.beforeText, finalText);
+            return applyColumnCompositionPreview(element, insertedText);
+        }
+
+        function restoreColumnCompositionBase(pending, postChanges = false, preserveElement = null) {
+            const bounds = pending ? columnCompositionBounds(pending.selection) : null;
+            if (!pending || !bounds) return;
+
+            let posted = false;
+            for (let line = bounds.startLine; line <= bounds.endLine; line++) {
+                const baseText = pending.baseLines.get(line) ?? '';
+                const previousPreview = pending.lastPreviewLines.get(line);
+                state.cache.set(line, baseText);
+                updateVisibleLineTextDuringComposition(line, baseText, preserveElement);
+
+                if (postChanges && previousPreview !== undefined && previousPreview !== baseText) {
+                    post({ type: 'lineChanged', lineNumber: line, text: baseText, isComposing: true, isColumnComposition: true, isCompositionCancel: true });
+                    posted = true;
+                }
+            }
+
+            state.cacheVersion++;
+            if (posted) {
+                post({ type: 'contentChanged', isComposing: true, isColumnComposition: true, isCompositionCancel: true });
+            }
+        }
+
+        function beginColumnComposition(element) {
+            const selection = activeColumnSelection();
+            const bounds = selection ? columnCompositionBounds(selection) : null;
+            if (!bounds || !element || element.getAttribute('contenteditable') !== 'true') {
+                state.columnComposition = null;
+                return false;
+            }
+
+            const lineNumber = Number(element.dataset.line || state.currentLine || 1);
+            const baseLines = new Map();
+            for (let line = bounds.startLine; line <= bounds.endLine; line++) {
+                if (line === lineNumber) {
+                    baseLines.set(line, lineTextFromElement(element));
+                } else {
+                    baseLines.set(line, state.cache.get(line) ?? '');
+                }
+            }
+
+            state.columnComposition = {
+                selection: cloneEditorSelection(selection),
+                lineNumber,
+                beforeText: baseLines.get(lineNumber) ?? lineTextFromElement(element),
+                caretColumn: getCaretOffset(element),
+                baseLines,
+                lastPreviewLines: new Map()
+            };
+            return true;
+        }
+
+        function finishColumnComposition(element, lineNumber) {
+            const pending = state.columnComposition;
+            if (!pending || !pending.selection || !element || element.getAttribute('contenteditable') !== 'true') {
+                state.columnComposition = null;
+                return false;
+            }
+
+            const targetLine = Number(lineNumber || element.dataset.line || pending.lineNumber || state.currentLine || 1);
+            if (targetLine !== pending.lineNumber) {
+                restoreColumnCompositionBase(pending, true, element);
+                state.columnComposition = null;
+                return false;
+            }
+
+            const finalText = lineTextFromElement(element);
+            const insertedText = changedTextBetween(pending.beforeText, finalText);
+            const originalSelection = cloneEditorSelection(pending.selection);
+            const changed = insertedText.length > 0 || finalText !== pending.beforeText;
+
+            // 조합 preview를 매 input마다 cache/host에 반영했으므로, 확정 적용 전에
+            // 반드시 시작 시점의 base line으로 되돌린다. 그렇지 않으면 최종 문자열이
+            // 컬럼 범위에 한 번 더 삽입된다.
+            restoreColumnCompositionBase(pending, !changed, element);
+            state.columnComposition = null;
+
+            if (changed) {
+                replaceColumnSelectionWith(originalSelection, insertedText);
+            } else {
+                state.selection = originalSelection;
+                state.selectionAnchor = originalSelection.start;
+                syncCustomSelectionClass();
+                queueRender(true);
+                setTimeout(() => focusLine(state.currentLine, Math.max(0, state.currentColumn - 1)), 0);
+            }
+
+            return true;
         }
 
         function replaceSelectionWith(selection, text, editSelection = null) {
@@ -4435,6 +4714,11 @@
                         }
                     }
                     break;
+                case 'updateLine':
+                    {
+                        updateLineFromHost(msg.lineNumber || 1, msg.text || '', !!msg.isComposing);
+                    }
+                    break;
                 case 'receiveLines':
                     {
                         receiveLineBlock(msg.startLine || 1, msg.lines || []);
@@ -4600,8 +4884,10 @@
             }
             const element = lineElementFromEvent(event);
             if (element) {
-                state.selection = null;
-                syncCustomSelectionClass();
+                if (!state.columnComposition) {
+                    state.selection = null;
+                    syncCustomSelectionClass();
+                }
                 commitLine(element);
             }
         });
@@ -4649,6 +4935,9 @@
                         }
                     }
                 }
+                beginColumnComposition(element);
+            } else {
+                state.columnComposition = null;
             }
         });
 
@@ -4657,6 +4946,9 @@
             const lineNumber = element ? Number(element.dataset.line || state.compositionLine || state.currentLine) : state.compositionLine;
             state.isComposing = false;
             state.compositionLine = null;
+            if (finishColumnComposition(element, lineNumber)) {
+                return;
+            }
             if (element && element.getAttribute('contenteditable') === 'true') {
                 state.selection = null;
                 syncCustomSelectionClass();
@@ -5013,6 +5305,13 @@
             const element = activeEditableElement();
             if (!element || element.getAttribute('contenteditable') !== 'true') return;
 
+            const columnSelection = activeColumnSelection();
+            if (columnSelection && isPlainTextKey(event)) {
+                event.preventDefault();
+                replaceSelectionWith(columnSelection, event.key);
+                return;
+            }
+
             if (event.key === 'ArrowUp') {
                 event.preventDefault();
                 const lineNumber = Number(element.dataset.line || 1);
@@ -5097,6 +5396,16 @@
 
             if (shouldSuppressNativeBeforeInput(event)) {
                 event.preventDefault();
+                return;
+            }
+
+            const columnSelection = activeColumnSelection();
+            if (columnSelection && event.inputType?.startsWith('insert') &&
+                event.inputType !== 'insertCompositionText' &&
+                event.inputType !== 'insertFromPaste' &&
+                event.inputType !== 'insertFromDrop') {
+                event.preventDefault();
+                replaceSelectionWith(columnSelection, event.inputType === 'insertLineBreak' || event.inputType === 'insertParagraph' ? '\n' : (event.data || ''));
                 return;
             }
 

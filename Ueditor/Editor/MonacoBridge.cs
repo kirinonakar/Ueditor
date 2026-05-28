@@ -22,7 +22,7 @@ namespace Ueditor.Editor
         private readonly Dictionary<int, TaskCompletionSource<bool>> _pendingFlushRequests = new Dictionary<int, TaskCompletionSource<bool>>();
         private int _flushRequestSeq = 0;
 
-        public event Action<string>? ContentChanged;
+        public event Action<bool>? ContentChanged;
         public event Action<string>? SelectionReceived;
         public event Action<int, int>? CursorChanged;
         public event Action? EditorReady;
@@ -170,6 +170,17 @@ namespace Ueditor.Editor
         public async Task UpdateLineCountAsync(int lineCount)
         {
             await SendMessageAsync(new { action = "lineCountChanged", lineCount = Math.Max(1, lineCount) });
+        }
+
+        public async Task UpdateLineAsync(int lineNumber, string text, bool isComposing = false)
+        {
+            await SendMessageAsync(new
+            {
+                action = "updateLine",
+                lineNumber = Math.Max(1, lineNumber),
+                text = text ?? string.Empty,
+                isComposing = isComposing
+            });
         }
 
         public async Task SendFindResultAsync(TextSearchResult? result, string query)
@@ -520,7 +531,11 @@ namespace Ueditor.Editor
                             break;
 
                         case "contentChanged":
-                            ContentChanged?.Invoke(string.Empty);
+                            {
+                                bool isComposing = root.TryGetProperty("isComposing", out JsonElement contentComposingProp) &&
+                                    contentComposingProp.ValueKind == JsonValueKind.True;
+                                ContentChanged?.Invoke(isComposing);
+                            }
                             break;
 
                         case "requestLines":
