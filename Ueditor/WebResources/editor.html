@@ -2151,15 +2151,17 @@
                     textElement.textContent = String(nextText ?? '');
                     const column = Math.max(0, Math.min(Number(caretColumn || 0), textElement.textContent.length));
                     const textNode = textElement.firstChild;
+                    const range = document.createRange();
                     if (textNode && textNode.nodeType === Node.TEXT_NODE) {
-                        const range = document.createRange();
                         range.setStart(textNode, column);
-                        range.collapse(true);
-                        const selection = window.getSelection();
-                        if (selection) {
-                            selection.removeAllRanges();
-                            selection.addRange(range);
-                        }
+                    } else {
+                        range.setStart(textElement, 0);
+                    }
+                    range.collapse(true);
+                    const selection = window.getSelection();
+                    if (selection) {
+                        selection.removeAllRanges();
+                        selection.addRange(range);
                     }
                 }
             }
