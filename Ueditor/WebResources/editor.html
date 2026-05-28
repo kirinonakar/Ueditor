@@ -2127,6 +2127,9 @@
                 targetRow = viewport.querySelector(`.line-row[data-line="${start}"]`);
             }
 
+            // Capture the exact vertical position of targetRow relative to the viewport before any DOM changes
+            const oldTargetRect = targetRow ? targetRow.getBoundingClientRect() : null;
+
             const startRow = viewport.querySelector(`.line-row[data-line="${start}"]`);
             if (targetRow && startRow && targetRow !== startRow) {
                 viewport.insertBefore(targetRow, startRow);
@@ -2148,9 +2151,14 @@
                 const textElement = targetRow.querySelector('.line-text');
                 if (textElement) {
                     textElement.dataset.line = String(start);
-                    textElement.textContent = String(nextText ?? '');
+                    if (textElement.childNodes.length === 1 && textElement.firstChild?.nodeType === Node.TEXT_NODE) {
+                        textElement.firstChild.nodeValue = String(nextText ?? '');
+                    } else {
+                        textElement.textContent = String(nextText ?? '');
+                    }
                     const column = Math.max(0, Math.min(Number(caretColumn || 0), textElement.textContent.length));
                     const textNode = textElement.firstChild;
+                    textElement.focus({ preventScroll: true });
                     const range = document.createRange();
                     if (textNode && textNode.nodeType === Node.TEXT_NODE) {
                         range.setStart(textNode, column);
@@ -2189,6 +2197,15 @@
             clearCustomSelectionVisuals();
             if (state.wordWrap) {
                 measureRenderedRows(false);
+            }
+
+            // Adjust scrollTop to preserve the exact visual screen position of targetRow
+            if (targetRow && oldTargetRect) {
+                const newTargetRect = targetRow.getBoundingClientRect();
+                const diffY = newTargetRect.top - oldTargetRect.top;
+                if (Math.abs(diffY) > 0.5) {
+                    scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop + diffY);
+                }
             }
 
             return targetRow?.querySelector?.('.line-text') || null;
@@ -2933,7 +2950,7 @@
                 baseText: nextText,
                 text: '',
                 verifyNative: true,
-                isMultiLine: removedLineCount > 0
+                isMultiLine: true
             };
 
             post({ type: 'lineChanged', lineNumber: start.line, text: nextText, isComposing: true });
@@ -5670,10 +5687,7 @@
                 state.editingLine = state.compositionLine;
 
                 const manualMarker = state.manualCompositionReplacement;
-                const manualLine = manualMarker ? Number(manualMarker.line || 0) : 0;
-                const isManualCompositionTarget = manualLine > 0 && manualLine === state.compositionLine;
-
-                if (isManualCompositionTarget) {
+                if (manualMarker) {
                     // 여러 줄 선택을 IME 시작 직전에 이미 접은 경우에는 DOM이 plain text이고
                     // caret도 조합 시작 위치에 있다. 여기서 다시 makeEditablePlainText()나
                     // Selection 복원을 수행하면 브라우저가 잡아 둔 첫 조합 자소 범위가 깨져
