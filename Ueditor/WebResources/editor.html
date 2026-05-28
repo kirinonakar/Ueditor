@@ -4436,7 +4436,7 @@
 
         function getWordUnderCaret(text, caretOffset) {
             let start = caretOffset;
-            while (start > 0 && /[\w\-가-힣]/.test(text[start - 1])) {
+            while (start > 0 && /[\w\-ㄱ-ㅎㅏ-ㅣ가-힣]/.test(text[start - 1])) {
                 start--;
             }
             const word = text.slice(start, caretOffset);
@@ -4446,7 +4446,7 @@
         // Returns the leading special-character prefix of a snippet keyword
         // e.g. keyword="[HKEY" → prefix="[", keyword="@val" → prefix="@"
         function snippetKeywordSpecialPrefix(keyword) {
-            const match = keyword.match(/^([^\w가-힣]+)/);
+            const match = keyword.match(/^([^\wㄱ-ㅎㅏ-ㅣ가-힣]+)/);
             return match ? match[1] : '';
         }
 
@@ -4507,7 +4507,7 @@
 
             for (const text of state.cache.values()) {
                 if (!text) continue;
-                const words = text.match(/[\w\-가-힣]+/g);
+                const words = text.match(/[\w\-ㄱ-ㅎㅏ-ㅣ가-힣]+/g);
                 if (!words) continue;
                 for (const word of words) {
                     if (word.length <= currentWord.length) continue;
@@ -5677,8 +5677,7 @@
             const element = lineElementFromEvent(event);
             reportCursorAndSelection(element || document.activeElement);
 
-            if (!state.isComposing && !event.isComposing &&
-                (state.autocompleteOnEnter || state.autocompleteOnTab) && element && element.getAttribute('contenteditable') === 'true') {
+            if ((state.autocompleteOnEnter || state.autocompleteOnTab) && element && element.getAttribute('contenteditable') === 'true') {
                 const ignoredKeys = [
                     'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
                     'Enter', 'Escape', 'Tab', 'Shift', 'Control', 'Alt', 'Meta',
