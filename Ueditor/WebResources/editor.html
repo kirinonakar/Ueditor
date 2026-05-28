@@ -2930,7 +2930,8 @@
                 column: Math.max(0, Math.min(start.column, nextText.length)),
                 baseText: nextText,
                 text: '',
-                verifyNative: true
+                verifyNative: true,
+                isMultiLine: removedLineCount > 0
             };
 
             post({ type: 'lineChanged', lineNumber: start.line, text: nextText, isComposing: true });
@@ -5615,7 +5616,11 @@
 
         viewport.addEventListener('input', event => {
             if (state.manualCompositionReplacement && isCompositionInputEvent(event)) {
-                return;
+                if (state.manualCompositionReplacement.isMultiLine) {
+                    // Let native fall through to commitLine
+                } else {
+                    return;
+                }
             }
             if (shouldSuppressNativeBeforeInput(event)) {
                 return;
@@ -5703,6 +5708,10 @@
 
         viewport.addEventListener('compositionupdate', event => {
             if (!state.manualCompositionReplacement) return;
+            if (state.manualCompositionReplacement.isMultiLine) {
+                state.isComposing = true;
+                return;
+            }
             const element = lineElementFromEvent(event) || activeEditableElement();
             const marker = state.manualCompositionReplacement;
             const nextText = resolveManualCompositionText(marker, event.data, 'insertCompositionText');
@@ -6199,6 +6208,10 @@
             let element = lineElementFromEvent(event);
 
             if (state.manualCompositionReplacement && isCompositionInputEvent(event)) {
+                if (state.manualCompositionReplacement.isMultiLine) {
+                    state.isComposing = true;
+                    return;
+                }
                 event.preventDefault();
                 const marker = state.manualCompositionReplacement;
                 const target = element || activeEditableElement() || viewport.querySelector(`.line-text[data-line="${Number(marker.line || state.compositionLine || state.currentLine || 1)}"]`);
