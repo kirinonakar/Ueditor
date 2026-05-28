@@ -648,6 +648,18 @@
   <data name="SettingsAboutThirdPartyNotices" xml:space="preserve">
     <value>オープンソース ライセンス通知 (Third-Party Notices)</value>
   </data>
+  <data name="SettingsPreviewFontFamily" xml:space="preserve">
+    <value>プレビューフォント</value>
+  </data>
+  <data name="SettingsPreviewUseCustomBg" xml:space="preserve">
+    <value>カスタムプレビュー背景色を使用</value>
+  </data>
+  <data name="SettingsPreviewUseCustomFg" xml:space="preserve">
+    <value>カスタムプレビュー文字色を使用</value>
+  </data>
+  <data name="SettingsPreviewFontSize" xml:space="preserve">
+    <value>プレビューフォントサイズ</value>
+  </data>
   <data name="SettingsShortcuts" xml:space="preserve">
     <value>ショートカット</value>
   </data>

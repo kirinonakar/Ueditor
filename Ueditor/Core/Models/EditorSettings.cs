@@ -20,6 +20,10 @@ namespace Ueditor.Core.Models
         public string CustomForegroundColor { get; set; } = string.Empty;
         public string UiFontFamily { get; set; } = "Segoe UI, Malgun Gothic";
         public string MarkdownToolbarBackgroundColor { get; set; } = string.Empty;
+        public string PreviewFontFamily { get; set; } = "Segoe UI, Malgun Gothic, Arial, sans-serif";
+        public double PreviewFontSize { get; set; } = 15.0;
+        public string PreviewCustomBackgroundColor { get; set; } = string.Empty;
+        public string PreviewCustomForegroundColor { get; set; } = string.Empty;
         public bool AutoSave { get; set; } = false;
         public string PreviewMode { get; set; } = "Markdown";
         public bool LeftSidebarVisible { get; set; } = true;

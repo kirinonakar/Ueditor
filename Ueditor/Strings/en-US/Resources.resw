@@ -647,6 +647,18 @@ Supports live preview, code &amp; formula templates, terminal interface, Git int
   <data name="SettingsAboutThirdPartyNotices" xml:space="preserve">
     <value>Open Source Licenses (Third-Party Notices)</value>
   </data>
+  <data name="SettingsPreviewFontFamily" xml:space="preserve">
+    <value>Preview Font Family</value>
+  </data>
+  <data name="SettingsPreviewUseCustomBg" xml:space="preserve">
+    <value>Use Custom Preview Background Color</value>
+  </data>
+  <data name="SettingsPreviewUseCustomFg" xml:space="preserve">
+    <value>Use Custom Preview Foreground Color</value>
+  </data>
+  <data name="SettingsPreviewFontSize" xml:space="preserve">
+    <value>Preview Font Size</value>
+  </data>
   <data name="SettingsShortcuts" xml:space="preserve">
     <value>Shortcuts</value>
   </data>

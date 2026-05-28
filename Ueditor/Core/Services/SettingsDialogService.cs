@@ -49,6 +49,7 @@ namespace Ueditor.Core.Services
             themeCombo.Items.Add("Light Theme (vs)");
 
             var sizeSlider = new Slider { Minimum = 10, Maximum = 24, Value = settings.FontSize, StepFrequency = 1 };
+            var previewSizeSlider = new Slider { Minimum = 10, Maximum = 24, Value = settings.PreviewFontSize, StepFrequency = 1 };
 
             var fontFamilies = GetInstalledFontFamilies();
             var fontFamilyCombo = CreateFontComboBox(settings.FontFamily, fontFamilies);
@@ -63,6 +64,18 @@ namespace Ueditor.Core.Services
             customBgCheck.Unchecked += (_, __) => customBgDropdown.IsEnabled = false;
             customFgCheck.Checked += (_, __) => customFgDropdown.IsEnabled = true;
             customFgCheck.Unchecked += (_, __) => customFgDropdown.IsEnabled = false;
+
+            var previewFontFamilyCombo = CreateFontComboBox(settings.PreviewFontFamily, fontFamilies);
+            var previewBgCheck = new CheckBox { Content = getString("SettingsPreviewUseCustomBg", "커스텀 프리뷰 배경색 사용"), IsChecked = !string.IsNullOrWhiteSpace(settings.PreviewCustomBackgroundColor) };
+            var previewFgCheck = new CheckBox { Content = getString("SettingsPreviewUseCustomFg", "커스텀 프리뷰 글자색 사용"), IsChecked = !string.IsNullOrWhiteSpace(settings.PreviewCustomForegroundColor) };
+            var previewBgDropdown = CreateColorDropdown(getString("SettingsPreviewUseCustomBg", "프리뷰 배경색"), ResolvePickerColor(settings.PreviewCustomBackgroundColor, settings.Theme == "Light" ? "#ffffff" : "#1e1e1e"), out var previewBgPicker);
+            var previewFgDropdown = CreateColorDropdown(getString("SettingsPreviewUseCustomFg", "프리뷰 글자색"), ResolvePickerColor(settings.PreviewCustomForegroundColor, settings.Theme == "Light" ? "#111111" : "#d4d4d4"), out var previewFgPicker);
+            previewBgDropdown.IsEnabled = previewBgCheck.IsChecked == true;
+            previewFgDropdown.IsEnabled = previewFgCheck.IsChecked == true;
+            previewBgCheck.Checked += (_, __) => previewBgDropdown.IsEnabled = true;
+            previewBgCheck.Unchecked += (_, __) => previewBgDropdown.IsEnabled = false;
+            previewFgCheck.Checked += (_, __) => previewFgDropdown.IsEnabled = true;
+            previewFgCheck.Unchecked += (_, __) => previewFgDropdown.IsEnabled = false;
 
             var wordWrapCheck = new CheckBox { Content = getString("SettingsWordWrap", "기본 Word Wrap 켜기"), IsChecked = settings.WordWrap };
             var minimapCheck = new CheckBox { Content = getString("SettingsMinimap", "미니맵 표시 (로컬 Monaco 번들 사용 시)"), IsChecked = settings.MinimapEnabled };
@@ -306,16 +319,28 @@ namespace Ueditor.Core.Services
             appearanceSection.Children.Add(languageCombo);
             AddLabel(appearanceSection, getString("SettingsTheme", "앱/에디터 테마"));
             appearanceSection.Children.Add(themeCombo);
-            AddLabel(appearanceSection, getString("SettingsFontSize", "에디터 글자 크기") + $" ({settings.FontSize:0}pt)");
-            appearanceSection.Children.Add(sizeSlider);
-            AddLabel(appearanceSection, getString("SettingsFontFamily", "에디터 폰트"));
-            appearanceSection.Children.Add(fontFamilyCombo);
             AddLabel(appearanceSection, getString("SettingsUiFontFamily", "UI 쉘 폰트"));
             appearanceSection.Children.Add(uiFontFamilyCombo);
+            AddLabel(appearanceSection, getString("SettingsFontFamily", "에디터 폰트"));
+            appearanceSection.Children.Add(fontFamilyCombo);
+            var fontSizeLabel = new TextBlock { Text = getString("SettingsFontSize", "에디터 글자 크기") + $" ({settings.FontSize:0}pt)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+            appearanceSection.Children.Add(fontSizeLabel);
+            appearanceSection.Children.Add(sizeSlider);
+            sizeSlider.ValueChanged += (_, args) => fontSizeLabel.Text = getString("SettingsFontSize", "에디터 글자 크기") + $" ({args.NewValue:0}pt)";
             appearanceSection.Children.Add(customBgCheck);
             appearanceSection.Children.Add(customBgDropdown);
             appearanceSection.Children.Add(customFgCheck);
             appearanceSection.Children.Add(customFgDropdown);
+            AddLabel(appearanceSection, getString("SettingsPreviewFontFamily", "프리뷰 폰트"));
+            appearanceSection.Children.Add(previewFontFamilyCombo);
+            var previewSizeLabel = new TextBlock { Text = getString("SettingsPreviewFontSize", "프리뷰 글자 크기") + $" ({settings.PreviewFontSize:0}pt)", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+            appearanceSection.Children.Add(previewSizeLabel);
+            appearanceSection.Children.Add(previewSizeSlider);
+            previewSizeSlider.ValueChanged += (_, args) => previewSizeLabel.Text = getString("SettingsPreviewFontSize", "프리뷰 글자 크기") + $" ({args.NewValue:0}pt)";
+            appearanceSection.Children.Add(previewBgCheck);
+            appearanceSection.Children.Add(previewBgDropdown);
+            appearanceSection.Children.Add(previewFgCheck);
+            appearanceSection.Children.Add(previewFgDropdown);
 
             var editorSection = CreateSection();
             editorSection.Children.Add(wordWrapCheck);
@@ -701,6 +726,10 @@ SOFTWARE.",
             settings.CustomForegroundColor = customFgCheck.IsChecked == true ? ColorToHex(customFgPicker.Color) : string.Empty;
             settings.FontFamily = GetSelectedComboText(fontFamilyCombo, settings.FontFamily);
             settings.UiFontFamily = GetSelectedComboText(uiFontFamilyCombo, settings.UiFontFamily);
+            settings.PreviewFontFamily = GetSelectedComboText(previewFontFamilyCombo, settings.PreviewFontFamily);
+            settings.PreviewFontSize = previewSizeSlider.Value;
+            settings.PreviewCustomBackgroundColor = previewBgCheck.IsChecked == true ? ColorToHex(previewBgPicker.Color) : string.Empty;
+            settings.PreviewCustomForegroundColor = previewFgCheck.IsChecked == true ? ColorToHex(previewFgPicker.Color) : string.Empty;
             settings.WordWrap = wordWrapCheck.IsChecked == true;
             settings.MinimapEnabled = minimapCheck.IsChecked == true;
             settings.BracketPairColorizationEnabled = bracketPairCheck.IsChecked == true;

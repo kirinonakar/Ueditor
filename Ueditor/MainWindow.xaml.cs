@@ -1358,6 +1358,10 @@ namespace Ueditor
                     customBackgroundColor = _settingsService.CurrentSettings.CustomBackgroundColor,
                     customForegroundColor = _settingsService.CurrentSettings.CustomForegroundColor,
                     uiFontFamily = _settingsService.CurrentSettings.UiFontFamily,
+                    previewFontFamily = _settingsService.CurrentSettings.PreviewFontFamily,
+                    previewFontSize = _settingsService.CurrentSettings.PreviewFontSize,
+                    previewCustomBackgroundColor = _settingsService.CurrentSettings.PreviewCustomBackgroundColor,
+                    previewCustomForegroundColor = _settingsService.CurrentSettings.PreviewCustomForegroundColor,
                     scrollSyncEnabled = _scrollSyncEnabled
                 };
 

@@ -647,6 +647,18 @@
   <data name="SettingsAboutThirdPartyNotices" xml:space="preserve">
     <value>오픈소스 라이선스 고지 (Third-Party Notices)</value>
   </data>
+  <data name="SettingsPreviewFontFamily" xml:space="preserve">
+    <value>프리뷰 폰트</value>
+  </data>
+  <data name="SettingsPreviewUseCustomBg" xml:space="preserve">
+    <value>커스텀 프리뷰 배경색 사용</value>
+  </data>
+  <data name="SettingsPreviewUseCustomFg" xml:space="preserve">
+    <value>커스텀 프리뷰 글자색 사용</value>
+  </data>
+  <data name="SettingsPreviewFontSize" xml:space="preserve">
+    <value>프리뷰 글자 크기</value>
+  </data>
   <data name="SettingsShortcuts" xml:space="preserve">
     <value>단축키</value>
   </data>
