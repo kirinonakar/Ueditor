@@ -98,6 +98,16 @@ namespace Ueditor
             new Dictionary<string, (WebView2 WebView, MonacoBridge Bridge)>();
         private readonly Dictionary<string, EditorDocumentSession> _editorSessions =
             new Dictionary<string, EditorDocumentSession>();
+        private readonly Dictionary<string, PendingSplitImeSyncState> _pendingSplitImeSyncStates =
+            new Dictionary<string, PendingSplitImeSyncState>();
+        private const int SplitImeDeferredUiSyncDelayMs = 260;
+
+        private sealed class PendingSplitImeSyncState
+        {
+            public Dictionary<int, string> Lines { get; } = new Dictionary<int, string>();
+            public DispatcherTimer? DeferredSyncTimer { get; set; }
+            public bool IsColumnEdit { get; set; }
+        }
 
         // Timer for debouncing live preview renders
         private readonly DispatcherTimer _previewDebounceTimer;
@@ -387,6 +397,10 @@ namespace Ueditor
                 _previewDebounceTimer.Stop();
                 _autoSaveTimer.Stop();
                 _gitAutoRefreshTimer.Stop();
+                foreach (var tabId in _pendingSplitImeSyncStates.Keys.ToList())
+                {
+                    ClearPendingSplitImeSync(tabId);
+                }
             }
             catch { }
 
@@ -431,6 +445,10 @@ namespace Ueditor
             _previewDebounceTimer.Stop();
             _autoSaveTimer.Stop();
             _gitAutoRefreshTimer.Stop();
+            foreach (var tabId in _pendingSplitImeSyncStates.Keys.ToList())
+            {
+                ClearPendingSplitImeSync(tabId);
+            }
 
             EditorWorkspace.StopAllTerminalSessions();
 
@@ -971,7 +989,7 @@ namespace Ueditor
                 }
             };
 
-            bridge.LineChanged += (lineNumber, text, isComposing) =>
+            bridge.LineChanged += async (lineNumber, text, isComposing) =>
             {
                 session.ReplaceLine(lineNumber, text);
 
@@ -981,11 +999,24 @@ namespace Ueditor
                     PropagateDirtyStateToOtherTabs(tab);
                 }
 
-                // IME 조합 중에는 반대편 split에 전체 SetTextAsync를 보내지 않는다.
-                // 전체 재초기화가 들어오면 WebView2/contenteditable의 조합 범위가 깨져 이전 자소가 삭제될 수 있다.
-                // 대신 같은 파일의 다른 pane에는 해당 줄만 live patch로 보내고, 미리보기는 debounce로 갱신한다.
                 SchedulePreview(tab);
-                _ = SyncLineChangeToOtherTabsAsync(tab, lineNumber, text, isComposing);
+
+                // Split 상태의 같은 파일 IME 조합 중에는 반대편 pane에 live patch를 보내지 않는다.
+                // 특히 컬럼 입력은 첫 줄과 나머지 줄 이벤트 간격이 일정하지 않아 짧은 타이머로는
+                // 컬럼 여부를 안전하게 판정할 수 없다. 따라서 조합 중에는 현재 pane의 session만 갱신하고,
+                // composition 완료(isComposing=false) 후 보류된 줄을 한 번에 동기화한다.
+                // split이 아니거나 같은 파일 반대편 탭이 없는 경우, 그리고 IME 조합 중이 아닌 일반 입력은 기존 경로를 유지한다.
+                if (isComposing && QueuePendingSplitImeLineSyncIfNeeded(tab, lineNumber, text))
+                {
+                    return;
+                }
+
+                if (!isComposing && SchedulePendingSplitImeCompletionSyncIfNeeded(tab, lineNumber, text))
+                {
+                    return;
+                }
+
+                await SyncLineChangeToOtherTabsAsync(tab, lineNumber, text, isComposing);
             };
 
             bridge.LineInsertRequested += async (lineNumber, text) =>
@@ -1058,7 +1089,7 @@ namespace Ueditor
                 UpdateTotalLines(tab);
             };
 
-            bridge.ContentChanged += (isComposing) =>
+            bridge.ContentChanged += async (isComposing) =>
             {
                 if (!isComposing)
                 {
@@ -1067,6 +1098,7 @@ namespace Ueditor
                     UpdateLanguageUI(tab);
                     _tocController?.RefreshToc(tab);
                     UpdateTotalLines(tab);
+                    ScheduleDeferredPendingSplitImeSyncIfNeeded(tab);
                 }
 
                 SchedulePreview(tab);
@@ -2779,6 +2811,7 @@ namespace Ueditor
 
         private void CloseTabAndCleanup(OpenedTab tab, TabViewItem tabItem)
         {
+            ClearPendingSplitImeSync(tab.Id);
             _viewModel.Tabs.Remove(tab);
             if (EditorTabView.TabItems.Contains(tabItem))
             {
@@ -3166,6 +3199,153 @@ namespace Ueditor
             });
         }
 
+        private bool QueuePendingSplitImeLineSyncIfNeeded(OpenedTab sourceTab, int lineNumber, string text)
+        {
+            if (string.IsNullOrEmpty(sourceTab.FilePath)) return false;
+            if (!HasOtherTabForSameFile(sourceTab)) return false;
+
+            if (!_pendingSplitImeSyncStates.TryGetValue(sourceTab.Id, out var state))
+            {
+                state = new PendingSplitImeSyncState();
+                _pendingSplitImeSyncStates[sourceTab.Id] = state;
+            }
+
+            // A new IME composition has started. If the previous completed syllable had
+            // already scheduled a split-pane UI update, cancel it so the other WebView is
+            // not patched while the new Hangul syllable is composing.
+            StopPendingSplitImeTimer(state);
+            state.Lines[lineNumber] = text;
+
+            // Only defer split UI synchronization after this IME batch is proven to be
+            // a column edit. A normal single-caret IME composition must keep the existing
+            // immediate live synchronization behavior.
+            if (state.Lines.Count > 1)
+            {
+                state.IsColumnEdit = true;
+            }
+
+            return state.IsColumnEdit;
+        }
+
+        private bool SchedulePendingSplitImeCompletionSyncIfNeeded(OpenedTab sourceTab, int lineNumber, string text)
+        {
+            if (!_pendingSplitImeSyncStates.TryGetValue(sourceTab.Id, out var state))
+            {
+                return false;
+            }
+
+            state.Lines[lineNumber] = text;
+            if (!state.IsColumnEdit && state.Lines.Count <= 1)
+            {
+                // The IME composition affected only one line, so this is not a column edit.
+                // Clear the candidate state and let the caller perform the normal immediate
+                // split synchronization path.
+                ClearPendingSplitImeSync(sourceTab.Id);
+                return false;
+            }
+
+            state.IsColumnEdit = true;
+
+            // Keep the committed lines in the pending set, but do not touch the other split
+            // WebView immediately. Updating the opposite pane right after compositionend can
+            // overlap with the next compositionstart and remove the first jamo of the next
+            // Korean syllable during column editing.
+            ScheduleDeferredPendingSplitImeSync(sourceTab, state);
+            return true;
+        }
+
+        private bool ScheduleDeferredPendingSplitImeSyncIfNeeded(OpenedTab sourceTab)
+        {
+            if (!_pendingSplitImeSyncStates.TryGetValue(sourceTab.Id, out var state))
+            {
+                return false;
+            }
+
+            if (!state.IsColumnEdit && state.Lines.Count <= 1)
+            {
+                ClearPendingSplitImeSync(sourceTab.Id);
+                return false;
+            }
+
+            state.IsColumnEdit = true;
+            ScheduleDeferredPendingSplitImeSync(sourceTab, state);
+            return true;
+        }
+
+        private void ScheduleDeferredPendingSplitImeSync(OpenedTab sourceTab, PendingSplitImeSyncState state)
+        {
+            StopPendingSplitImeTimer(state);
+
+            var timer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(SplitImeDeferredUiSyncDelayMs)
+            };
+
+            state.DeferredSyncTimer = timer;
+            timer.Tick += async (_, _) =>
+            {
+                timer.Stop();
+
+                if (_pendingSplitImeSyncStates.TryGetValue(sourceTab.Id, out var currentState) &&
+                    ReferenceEquals(currentState, state) &&
+                    ReferenceEquals(currentState.DeferredSyncTimer, timer))
+                {
+                    await FlushPendingSplitImeSyncAsync(sourceTab);
+                }
+            };
+            timer.Start();
+        }
+
+        private static void StopPendingSplitImeTimer(PendingSplitImeSyncState state)
+        {
+            if (state.DeferredSyncTimer != null)
+            {
+                state.DeferredSyncTimer.Stop();
+                state.DeferredSyncTimer = null;
+            }
+        }
+
+        private bool HasOtherTabForSameFile(OpenedTab sourceTab)
+        {
+            if (string.IsNullOrEmpty(sourceTab.FilePath)) return false;
+            return GetTabsForSameFile(sourceTab).Any(tab => tab.Id != sourceTab.Id);
+        }
+
+        private async Task FlushPendingSplitImeSyncAsync(OpenedTab sourceTab)
+        {
+            if (!_pendingSplitImeSyncStates.TryGetValue(sourceTab.Id, out var state)) return;
+
+            StopPendingSplitImeTimer(state);
+            var pendingLineNumbers = state.Lines.Keys.OrderBy(line => line).ToList();
+            ClearPendingSplitImeSync(sourceTab.Id);
+
+            foreach (int lineNumber in pendingLineNumbers)
+            {
+                string lineText = GetCurrentLineText(sourceTab, lineNumber, string.Empty);
+                await SyncLineChangeToOtherTabsAsync(sourceTab, lineNumber, lineText, isComposing: false);
+            }
+        }
+
+        private string GetCurrentLineText(OpenedTab tab, int lineNumber, string fallback)
+        {
+            if (_editorSessions.TryGetValue(tab.Id, out var session))
+            {
+                return session.GetLines(lineNumber, 1).FirstOrDefault() ?? string.Empty;
+            }
+
+            return fallback;
+        }
+
+        private void ClearPendingSplitImeSync(string tabId)
+        {
+            if (_pendingSplitImeSyncStates.TryGetValue(tabId, out var state))
+            {
+                StopPendingSplitImeTimer(state);
+            }
+
+            _pendingSplitImeSyncStates.Remove(tabId);
+        }
+
         private async Task SyncLineChangeToOtherTabsAsync(OpenedTab sourceTab, int lineNumber, string text, bool isComposing)
         {
             if (string.IsNullOrEmpty(sourceTab.FilePath)) return;
@@ -3204,6 +3384,9 @@ namespace Ueditor
         private async Task SyncEditsToOtherTabsAsync(OpenedTab sourceTab, bool updateUi = true)
         {
             if (string.IsNullOrEmpty(sourceTab.FilePath)) return;
+
+            // Full-text synchronization supersedes any deferred IME line patches.
+            ClearPendingSplitImeSync(sourceTab.Id);
 
             if (!_editorSessions.TryGetValue(sourceTab.Id, out var sourceSession)) return;
             string updatedText = sourceSession.GetText();
@@ -3507,6 +3690,7 @@ namespace Ueditor
             try
             {
                 await FlushTabEditorBeforeSaveAsync(tab);
+                await FlushPendingSplitImeSyncAsync(tab);
 
                 if (_editorSessions.TryGetValue(tab.Id, out var session))
                 {
@@ -3568,6 +3752,7 @@ namespace Ueditor
             try
             {
                 await FlushTabEditorBeforeSaveAsync(tab);
+                await FlushPendingSplitImeSyncAsync(tab);
 
                 if (_editorSessions.TryGetValue(tab.Id, out var session))
                 {
