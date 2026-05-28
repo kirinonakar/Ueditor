@@ -4528,9 +4528,26 @@
             state.compositionLine = element ? Number(element.dataset.line || 1) : state.currentLine;
             if (element && element.getAttribute('contenteditable') === 'true') {
                 state.editingLine = state.compositionLine;
-                // 조합 시작 시점에는 Selection을 다시 설정하지 않는다. 이미 plain text가
-                // 아니면 최소한의 평탄화만 시도하되 setCaret은 호출하지 않는다.
+                // 조합 시작 시점에는 setCaret(element.focus())을 호출하지 않는다.
+                // 단, syntax highlight span이 있는 경우 makeEditablePlainText가 DOM을
+                // 평탄화하면서 커서가 줄 처음으로 리셋될 수 있으므로 커서를 직접 복원한다.
+                const savedCaret = getCaretOffset(element);
                 makeEditablePlainText(element, null, false);
+                if (savedCaret > 0) {
+                    const text = element.textContent || '';
+                    const col = Math.max(0, Math.min(savedCaret, text.length));
+                    const textNode = element.firstChild;
+                    if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+                        const range = document.createRange();
+                        range.setStart(textNode, col);
+                        range.collapse(true);
+                        const sel = window.getSelection();
+                        if (sel) {
+                            sel.removeAllRanges();
+                            sel.addRange(range);
+                        }
+                    }
+                }
             }
         });
 
