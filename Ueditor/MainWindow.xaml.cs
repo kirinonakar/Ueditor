@@ -4043,7 +4043,13 @@ namespace Ueditor
                     },
                     out var defaultButton);
 
-                dialog.Opened += (_, __) => defaultButton.Focus(FocusState.Programmatic);
+                dialog.Opened += (_, __) =>
+                {
+                    defaultButton.DispatcherQueue.TryEnqueue(() =>
+                    {
+                        defaultButton.Focus(FocusState.Programmatic);
+                    });
+                };
                 await dialog.ShowAsync();
                 return result;
             }
@@ -4101,25 +4107,16 @@ namespace Ueditor
                 TextWrapping = TextWrapping.Wrap
             });
 
-            var buttonRow = new Grid
-            {
-                ColumnSpacing = 12
-            };
-            buttonRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            buttonRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            var discardButton = CreateSolidDialogButton(discardButtonText, DialogButtonVisual.Destructive, theme);
-            discardButton.HorizontalAlignment = HorizontalAlignment.Left;
-            discardButton.Click += (_, __) => discardAction();
-            Grid.SetColumn(discardButton, 0);
-            buttonRow.Children.Add(discardButton);
-
             var rightButtons = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
                 Spacing = 8,
                 HorizontalAlignment = HorizontalAlignment.Right
             };
+
+            var discardButton = CreateSolidDialogButton(discardButtonText + " (N)", DialogButtonVisual.Destructive, theme);
+            discardButton.Click += (_, __) => discardAction();
+            discardButton.TabIndex = 1;
 
             var cancelButton = new Button
             {
@@ -4128,20 +4125,21 @@ namespace Ueditor
                 Height = 32,
                 Padding = new Thickness(12, 0, 12, 0),
                 CornerRadius = new CornerRadius(4),
-                RequestedTheme = theme
+                RequestedTheme = theme,
+                TabIndex = 2
             };
             cancelButton.Click += (_, __) => cancelAction();
 
-            var saveButton = CreateSolidDialogButton(saveButtonText, DialogButtonVisual.Accent, theme);
+            var saveButton = CreateSolidDialogButton(saveButtonText + " (Y)", DialogButtonVisual.Accent, theme);
             saveButton.Click += (_, __) => saveAction();
+            saveButton.TabIndex = 0;
             defaultButton = saveButton;
 
-            rightButtons.Children.Add(cancelButton);
             rightButtons.Children.Add(saveButton);
-            Grid.SetColumn(rightButtons, 1);
-            buttonRow.Children.Add(rightButtons);
+            rightButtons.Children.Add(discardButton);
+            rightButtons.Children.Add(cancelButton);
 
-            root.Children.Add(buttonRow);
+            root.Children.Add(rightButtons);
             root.KeyDown += (_, e) =>
             {
                 if (e.Key == Windows.System.VirtualKey.Escape)
@@ -4149,10 +4147,15 @@ namespace Ueditor
                     e.Handled = true;
                     cancelAction();
                 }
-                else if (e.Key == Windows.System.VirtualKey.Enter)
+                else if (e.Key == Windows.System.VirtualKey.Enter || e.Key == Windows.System.VirtualKey.Y)
                 {
                     e.Handled = true;
                     saveAction();
+                }
+                else if (e.Key == Windows.System.VirtualKey.N)
+                {
+                    e.Handled = true;
+                    discardAction();
                 }
             };
 
