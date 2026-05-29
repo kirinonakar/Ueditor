@@ -795,13 +795,30 @@ namespace Ueditor
 
             _viewModel.Tabs.Add(tab);
 
+            // Determine editor background color based on custom settings or theme
+            Windows.UI.Color editorBgColor;
+            var settings = _settingsService.CurrentSettings;
+            if (!string.IsNullOrEmpty(settings.CustomBackgroundColor) && TryParseHexColor(settings.CustomBackgroundColor, out var parsedBg))
+            {
+                editorBgColor = parsedBg;
+            }
+            else
+            {
+                bool isLight = string.Equals(settings.Theme, "Light", StringComparison.OrdinalIgnoreCase);
+                editorBgColor = isLight ? Windows.UI.Color.FromArgb(255, 255, 255, 255) : Windows.UI.Color.FromArgb(255, 30, 30, 30);
+            }
+
             // Create host layout grid for standard WebView2 editor
-            var grid = new Grid();
+            var grid = new Grid
+            {
+                Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(editorBgColor)
+            };
             var editorWebView = new WebView2
             {
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Stretch,
-                DefaultBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0)
+                DefaultBackgroundColor = editorBgColor,
+                Opacity = 0 // Hide WebView2 initially to prevent any flickering during HWND initialization
             };
             grid.Children.Add(editorWebView);
 
@@ -968,6 +985,7 @@ namespace Ueditor
                 this.DispatcherQueue.TryEnqueue(async () =>
                 {
                     await Task.Delay(150);
+                    editorWebView.Opacity = 1;
                     if (GetActiveTab() == tab)
                     {
                         editorWebView.Focus(Microsoft.UI.Xaml.FocusState.Programmatic);
@@ -4671,6 +4689,29 @@ namespace Ueditor
             }
 
             return false;
+        }
+
+        private static bool TryParseHexColor(string? value, out Windows.UI.Color color)
+        {
+            color = Windows.UI.Color.FromArgb(255, 0, 0, 0);
+            string hex = (value ?? string.Empty).Trim().TrimStart('#');
+            if (hex.Length != 6)
+            {
+                return false;
+            }
+
+            try
+            {
+                byte r = byte.Parse(hex.Substring(0, 2), System.Globalization.NumberStyles.HexNumber);
+                byte g = byte.Parse(hex.Substring(2, 2), System.Globalization.NumberStyles.HexNumber);
+                byte b = byte.Parse(hex.Substring(4, 2), System.Globalization.NumberStyles.HexNumber);
+                color = Windows.UI.Color.FromArgb(255, r, g, b);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         #endregion
