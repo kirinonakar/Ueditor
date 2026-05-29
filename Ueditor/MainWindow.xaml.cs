@@ -817,8 +817,8 @@ namespace Ueditor
             {
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Stretch,
-                DefaultBackgroundColor = editorBgColor,
-                Opacity = 0 // Hide WebView2 initially to prevent any flickering during HWND initialization
+                DefaultBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0), // HTML 로드 전 부모 Grid 배경색이 자연스럽게 보이도록 투명화
+                Opacity = 1 // 처음부터 백그라운드 렌더링이 지연 없이 가동되도록 1로 설정
             };
             grid.Children.Add(editorWebView);
 
@@ -982,10 +982,8 @@ namespace Ueditor
                 await bridge.UpdateSnippetsAsync(_snippetService.GetSnippets());
                 await bridge.UpdateScrollSyncStateAsync(_scrollSyncEnabled);
 
-                this.DispatcherQueue.TryEnqueue(async () =>
+                this.DispatcherQueue.TryEnqueue(() =>
                 {
-                    await Task.Delay(150);
-                    editorWebView.Opacity = 1;
                     if (GetActiveTab() == tab)
                     {
                         editorWebView.Focus(Microsoft.UI.Xaml.FocusState.Programmatic);
