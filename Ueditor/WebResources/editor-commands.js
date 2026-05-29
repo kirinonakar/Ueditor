@@ -595,6 +595,106 @@ function isPendingImeSelectionCollapseFor(element, event = null) {
     return true;
 }
 
+function syncRenderedRowsAfterCompositionSelectionCollapse(startLine, endLine, nextText, caretColumn, preferredElement = null) {
+    const removedLineCount = Math.max(0, Number(endLine || startLine) - Number(startLine || 1));
+    const start = Number(startLine || 1);
+    const end = Number(endLine || start);
+    const preferredRow = preferredElement?.closest?.('.line-row') || null;
+    const preferredLine = Number(preferredElement?.dataset?.line || preferredRow?.dataset?.line || 0);
+    const rowInfos = [...viewport.querySelectorAll('.line-row')].map(row => ({
+        row,
+        line: Number(row.dataset.line || 0)
+    }));
+
+    let targetRow = null;
+    if (preferredRow && preferredLine >= start && preferredLine <= end) {
+        targetRow = preferredRow;
+    } else {
+        targetRow = viewport.querySelector(`.line-row[data-line="${start}"]`);
+    }
+
+    const oldTargetRect = targetRow ? targetRow.getBoundingClientRect() : null;
+
+    const startRow = viewport.querySelector(`.line-row[data-line="${start}"]`);
+    if (targetRow && startRow && targetRow !== startRow) {
+        viewport.insertBefore(targetRow, startRow);
+    }
+
+    for (const info of rowInfos) {
+        if (!info.line) continue;
+        if (info.row === targetRow) continue;
+        if (info.line >= start && info.line <= end) {
+            info.row.remove();
+        }
+    }
+
+    if (targetRow) {
+        targetRow.dataset.line = String(start);
+        targetRow.classList.remove('selected-row', 'selected-empty-row');
+        const numberElement = targetRow.querySelector('.line-number');
+        if (numberElement) numberElement.textContent = String(start);
+        const textElement = targetRow.querySelector('.line-text');
+        if (textElement) {
+            textElement.dataset.line = String(start);
+            if (textElement.childNodes.length === 1 && textElement.firstChild?.nodeType === Node.TEXT_NODE) {
+                textElement.firstChild.nodeValue = String(nextText ?? '');
+            } else {
+                textElement.textContent = String(nextText ?? '');
+            }
+            const column = Math.max(0, Math.min(Number(caretColumn || 0), textElement.textContent.length));
+            const textNode = textElement.firstChild;
+            textElement.focus({ preventScroll: true });
+            const range = document.createRange();
+            if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+                range.setStart(textNode, column);
+            } else {
+                range.setStart(textElement, 0);
+            }
+            range.collapse(true);
+            const selection = window.getSelection();
+            if (selection) {
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        }
+    }
+
+    if (removedLineCount > 0) {
+        for (const info of rowInfos) {
+            if (!info.line || info.row === targetRow || !info.row.isConnected) continue;
+            if (info.line > end) {
+                const newLine = info.line - removedLineCount;
+                info.row.dataset.line = String(newLine);
+                info.row.classList.remove('selected-row', 'selected-empty-row');
+                const numberElement = info.row.querySelector('.line-number');
+                if (numberElement) numberElement.textContent = String(newLine);
+                const textElement = info.row.querySelector('.line-text');
+                if (textElement) {
+                    textElement.dataset.line = String(newLine);
+                    if (state.cache.has(newLine)) {
+                        textElement.textContent = state.cache.get(newLine) || '';
+                    }
+                }
+            }
+        }
+    }
+
+    clearCustomSelectionVisuals();
+    if (state.wordWrap) {
+        measureRenderedRows(false);
+    }
+
+    if (targetRow && oldTargetRect) {
+        const newTargetRect = targetRow.getBoundingClientRect();
+        const diffY = newTargetRect.top - oldTargetRect.top;
+        if (Math.abs(diffY) > 0.5) {
+            scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop + diffY);
+        }
+    }
+
+    return targetRow?.querySelector?.('.line-text') || null;
+}
+
 function replaceSelectionForCompositionStart(element, markPendingImeStart = false) {
     const selection = compositionSelectionRange();
     if (!selection || selection.isColumn) {

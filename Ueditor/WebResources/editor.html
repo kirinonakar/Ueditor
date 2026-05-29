@@ -17,6 +17,9 @@
                 overlay.style.textAlign = 'left';
                 overlay.style.fontFamily = 'monospace';
                 overlay.style.display = 'block';
+                overlay.style.visibility = 'visible';
+                overlay.style.opacity = '1';
+                overlay.style.pointerEvents = 'auto';
                 overlay.innerHTML = `<h3>JavaScript Error Detected:</h3>
                 <p><b>Message:</b> ${message}</p>
                 <p><b>Source:</b> ${source}</p>
@@ -27,6 +30,15 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const version = urlParams.get('v') || Date.now();
+        const theme = urlParams.get('theme') || 'Dark';
+        const bg = urlParams.get('customBg') || (theme === 'Light' ? '#ffffff' : '#1e1e1e');
+        const fg = urlParams.get('customFg') || (theme === 'Light' ? '#111111' : '#d4d4d4');
+        
+        // Instantly style the root element before body is parsed to prevent FOUC (flicker)
+        document.documentElement.style.background = bg;
+        document.documentElement.style.color = fg;
+        document.documentElement.style.setProperty('--bg', bg);
+        document.documentElement.style.setProperty('--fg', fg);
         
         const link = document.createElement('link');
         link.rel = 'stylesheet';
@@ -37,7 +49,7 @@
 
 <body>
     <div id="editor-host">
-        <div id="loading-overlay">로딩 중...</div>
+        <div id="loading-overlay" class="hidden" style="display: none;">로딩 중...</div>
         <div id="scroll-container">
             <div id="virtual-spacer"></div>
             <div id="viewport"></div>
@@ -156,6 +168,9 @@
                     overlay.style.background = '#800000';
                     overlay.style.color = '#ffffff';
                     overlay.style.display = 'block';
+                    overlay.style.visibility = 'visible';
+                    overlay.style.opacity = '1';
+                    overlay.style.pointerEvents = 'auto';
                     overlay.innerHTML = `<h3>Failed to load script: ${scriptName}</h3>
                     <p>Check if the file exists under WebResources folder.</p>`;
                 }
