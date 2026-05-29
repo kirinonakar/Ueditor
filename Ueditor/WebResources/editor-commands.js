@@ -1043,7 +1043,7 @@ function deleteBackwardAtCaret(element = activeEditableElement()) {
     mergeLineBackward(element);
 }
 
-function replaceColumnSelectionWith(selection, text) {
+function replaceColumnSelectionWith(selection, text, skipRender = false) {
     const normalized = normalizeSelection(selection);
     if (!normalized || !normalized.isColumn) return;
 
@@ -1085,11 +1085,16 @@ function replaceColumnSelectionWith(selection, text) {
     state.currentColumn = nextCol + 1;
     syncCustomSelectionClass();
 
-    queueRender(true);
-    setTimeout(() => {
-        focusLine(state.currentLine, nextCol);
-        reportCursorAndSelection();
-    }, 0);
+    if (skipRender) {
+        drawEditableSelectionOverlays();
+        reportCursorAndSelection(activeEditableElement());
+    } else {
+        queueRender(true);
+        setTimeout(() => {
+            focusLine(state.currentLine, nextCol);
+            reportCursorAndSelection();
+        }, 0);
+    }
 }
 
 function changedTextBetween(beforeText, afterText) {
@@ -1268,7 +1273,7 @@ function finishColumnComposition(element, lineNumber) {
     state.columnComposition = null;
 
     if (changed) {
-        replaceColumnSelectionWith(originalSelection, insertedText);
+        replaceColumnSelectionWith(originalSelection, insertedText, true);
     } else {
         state.selection = originalSelection;
         state.selectionAnchor = originalSelection.start;
