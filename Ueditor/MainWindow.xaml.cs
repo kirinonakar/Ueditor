@@ -823,17 +823,44 @@ namespace Ueditor
             grid.Children.Add(editorWebView);
 
             // Instantiate TabViewItem XAML element
-            var tabItem = new TabViewItem
+            // Build tab header with dirty indicator as a red prefix dot
+            var dirtyIndicator = new TextBlock
             {
-                Content = grid,
-                Tag = tab.Id
+                Text = "●",
+                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 60, 60)),
+                FontSize = 8,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Microsoft.UI.Xaml.Thickness(0, 0, 4, 0),
+                Visibility = Visibility.Collapsed
             };
-            tabItem.SetBinding(TabViewItem.HeaderProperty, new Binding
+            var titleText = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
+            titleText.SetBinding(TextBlock.TextProperty, new Binding
             {
-                Path = new PropertyPath("DisplayTitle"),
+                Path = new PropertyPath("Title"),
                 Mode = BindingMode.OneWay,
                 Source = tab
             });
+            var headerPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            headerPanel.Children.Add(dirtyIndicator);
+            headerPanel.Children.Add(titleText);
+            // Track dirty state changes to update the indicator visibility
+            tab.PropertyChanged += (sender, args) =>
+            {
+                if (args.PropertyName == nameof(OpenedTab.IsDirty))
+                {
+                    dirtyIndicator.Visibility = tab.IsDirty ? Visibility.Visible : Visibility.Collapsed;
+                }
+            };
+            var tabItem = new TabViewItem
+            {
+                Content = grid,
+                Tag = tab.Id,
+                Header = headerPanel
+            };
             var targetTabView = GetCurrentActiveTabView();
 
             // Tab right-click context menu

@@ -332,6 +332,15 @@ function hideAutocomplete() {
     if (popup) popup.hidden = true;
 }
 
+function scrollAutocompleteActiveIntoView() {
+    const popup = document.getElementById('autocomplete-popup');
+    if (!popup) return;
+    const activeItem = popup.querySelector('.autocomplete-item.active');
+    if (activeItem) {
+        activeItem.scrollIntoView({ block: 'nearest' });
+    }
+}
+
 function insertSelectedCandidate() {
     const candidate = autocompleteState.candidates[autocompleteState.activeIndex];
     const element = autocompleteState.element;
@@ -1111,12 +1120,14 @@ document.addEventListener('keydown', event => {
             event.preventDefault();
             autocompleteState.activeIndex = (autocompleteState.activeIndex + 1) % autocompleteState.candidates.length;
             renderAutocomplete();
+            scrollAutocompleteActiveIntoView();
             return;
         }
         if (event.key === 'ArrowUp') {
             event.preventDefault();
             autocompleteState.activeIndex = (autocompleteState.activeIndex - 1 + autocompleteState.candidates.length) % autocompleteState.candidates.length;
             renderAutocomplete();
+            scrollAutocompleteActiveIntoView();
             return;
         }
         if (event.key === 'Enter') {
@@ -1138,6 +1149,12 @@ document.addEventListener('keydown', event => {
             hideAutocomplete();
             return;
         }
+    }
+
+    // ESC를 누르면 한글 조합 중이어도 자동완성 팝업을 즉시 닫기
+    if (event.key === 'Escape' && (event.isComposing || state.isComposing)) {
+        hideAutocomplete();
+        // isComposing 상태에서 ESC는 IME가 처리하므로 계속 진행
     }
 
     if (isHangulImeKeyEvent(event)) {
