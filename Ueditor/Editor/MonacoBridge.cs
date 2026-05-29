@@ -46,19 +46,46 @@ namespace Ueditor.Editor
             _webView.WebMessageReceived += OnWebMessageReceived;
         }
 
+        private static CoreWebView2Environment? _sharedEnvironment;
+        private static readonly object _envLock = new object();
+
+        public static async Task<CoreWebView2Environment> GetSharedEnvironmentAsync()
+        {
+            if (_sharedEnvironment != null)
+            {
+                return _sharedEnvironment;
+            }
+
+            try
+            {
+                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                string cacheFolder = System.IO.Path.Combine(localAppData, "Ueditor", "WebView2Cache");
+                var env = await CoreWebView2Environment.CreateWithOptionsAsync(null, cacheFolder, null);
+                lock (_envLock)
+                {
+                    _sharedEnvironment ??= env;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to create shared WebView2 environment: {ex.Message}");
+                var env = await CoreWebView2Environment.CreateWithOptionsAsync(null, null, null);
+                lock (_envLock)
+                {
+                    _sharedEnvironment ??= env;
+                }
+            }
+
+            return _sharedEnvironment!;
+        }
+
         public async Task InitializeAsync()
         {
             try
             {
-                // Ensure WebView2 is initialized in a secure local AppData cache directory to prevent write access crashes
-                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                string cacheFolder = System.IO.Path.Combine(localAppData, "Ueditor", "WebView2Cache");
-                var env = await CoreWebView2Environment.CreateWithOptionsAsync(null, cacheFolder, null);
+                var env = await GetSharedEnvironmentAsync();
                 await _webView.EnsureCoreWebView2Async(env);
                 
-                // Map local WebResources folder if we want to host locally
-                // For MVP 1, we can either use local folder mapping or Ms-Appx-Web.
-                // We'll set ms-appx-web based path from UI, but mapping a local folder is also extremely stable.
                 _webView.CoreWebView2.Settings.IsWebMessageEnabled = true;
                 _webView.CoreWebView2.Settings.IsScriptEnabled = true;
                 

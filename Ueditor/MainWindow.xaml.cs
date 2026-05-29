@@ -152,6 +152,9 @@ namespace Ueditor
             this.InitializeComponent();
             WindowPlacementService.SetWindowIcon(AppWindow);
 
+            // Start pre-warming the shared WebView2 environment in the background
+            _ = Ueditor.Editor.MonacoBridge.GetSharedEnvironmentAsync();
+
             _fileService = new FileService();
             _settingsService = new SettingsService();
             _credentialService = new CredentialService();
@@ -605,9 +608,7 @@ namespace Ueditor
             try
             {
                 PreviewWebView.DefaultBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
-                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                string cacheFolder = Path.Combine(localAppData, "Ueditor", "WebView2Cache");
-                var env = await CoreWebView2Environment.CreateWithOptionsAsync(null, cacheFolder, null);
+                var env = await Ueditor.Editor.MonacoBridge.GetSharedEnvironmentAsync();
                 await PreviewWebView.EnsureCoreWebView2Async(env);
 
                 var coreWebView = PreviewWebView.CoreWebView2;
@@ -709,11 +710,33 @@ namespace Ueditor
                     this.DispatcherQueue.TryEnqueue(() =>
                     {
                         var activeTab = GetActiveTab();
-                        if (activeTab != null && _tabBridges.TryGetValue(activeTab.Id, out var bridgeGroup))
+                        if (activeTab != null)
                         {
-                            if (bridgeGroup.Bridge != null)
+                            if (_tabBridges.TryGetValue(activeTab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
                             {
                                 _ = bridgeGroup.Bridge.SyncScrollFromPreviewAsync(firstLine, offset);
+                            }
+
+                            // If split mode is active, sync the other pane's selected tab too
+                            if (EditorWorkspace.CurrentSplitMode != Ueditor.Controls.EditorSplitMode.None)
+                            {
+                                TabView? otherTabView = null;
+                                if (IsTabInTabView(EditorTabView, activeTab.Id))
+                                {
+                                    otherTabView = EditorTabView2;
+                                }
+                                else if (IsTabInTabView(EditorTabView2, activeTab.Id))
+                                {
+                                    otherTabView = EditorTabView;
+                                }
+
+                                if (otherTabView != null && otherTabView.SelectedItem is TabViewItem otherItem && otherItem.Tag is string otherTabId)
+                                {
+                                    if (_tabBridges.TryGetValue(otherTabId, out var otherBridgeGroup) && otherBridgeGroup.Bridge != null)
+                                    {
+                                        _ = otherBridgeGroup.Bridge.SyncScrollFromPreviewAsync(firstLine, offset);
+                                    }
+                                }
                             }
                         }
                     });
@@ -1202,6 +1225,28 @@ namespace Ueditor
                         catch (Exception ex)
                         {
                             System.Diagnostics.Debug.WriteLine($"Failed to sync scroll to preview: {ex.Message}");
+                        }
+
+                        // If split mode is active, sync the other pane's selected tab too
+                        if (EditorWorkspace.CurrentSplitMode != Ueditor.Controls.EditorSplitMode.None)
+                        {
+                            TabView? otherTabView = null;
+                            if (IsTabInTabView(EditorTabView, tab.Id))
+                            {
+                                otherTabView = EditorTabView2;
+                            }
+                            else if (IsTabInTabView(EditorTabView2, tab.Id))
+                            {
+                                otherTabView = EditorTabView;
+                            }
+
+                            if (otherTabView != null && otherTabView.SelectedItem is TabViewItem otherItem && otherItem.Tag is string otherTabId)
+                            {
+                                if (_tabBridges.TryGetValue(otherTabId, out var otherBridgeGroup) && otherBridgeGroup.Bridge != null)
+                                {
+                                    _ = otherBridgeGroup.Bridge.SyncScrollFromPreviewAsync(firstLine, offset);
+                                }
+                            }
                         }
                     }
                 });
@@ -3523,6 +3568,18 @@ namespace Ueditor
             return null;
         }
 
+        private bool IsTabInTabView(TabView tabView, string tabId)
+        {
+            foreach (var item in tabView.TabItems)
+            {
+                if (item is TabViewItem tvi && string.Equals(tvi.Tag as string, tabId, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private async Task<bool> InsertTextIntoActiveEditorAsync(string text)
         {
             var activeTabView = GetCurrentActiveTabView();
@@ -4283,9 +4340,7 @@ namespace Ueditor
                 Tag = tab.Id
             };
 
-            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            string cacheFolder = Path.Combine(localAppData, "Ueditor", "WebView2Cache");
-            var env = await CoreWebView2Environment.CreateWithOptionsAsync(null, cacheFolder, null);
+            var env = await Ueditor.Editor.MonacoBridge.GetSharedEnvironmentAsync();
             await diffWebView.EnsureCoreWebView2Async(env);
 
             var coreWebView = diffWebView.CoreWebView2;
