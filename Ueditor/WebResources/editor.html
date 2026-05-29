@@ -2953,7 +2953,78 @@
             const nextText = prefix + suffix;
             const removedLineCount = Math.max(0, end.line - start.line);
 
-            // 1. Synchronously collapse custom selection state to keep focus and browser range alive
+            if (removedLineCount > 0) {
+                // 여러 줄 선택인 경우: 일단 선택 영역을 완전히 삭제하여 줄을 한 줄로 정리하고 일반 IME 입력으로 연결시킵니다.
+                
+                // 1. selection 상태 업데이트
+                state.selection = null;
+                state.selectionAnchor = { line: start.line, column: start.column };
+                state.currentLine = start.line;
+                state.currentColumn = start.column + 1;
+                state.editingLine = start.line;
+                syncCustomSelectionClass();
+                clearCustomSelectionVisuals();
+
+                // 2. 캐시 업데이트 및 줄 이동
+                state.cache.set(start.line, nextText);
+                for (let line = start.line + 1; line <= end.line; line++) {
+                    state.cache.delete(line);
+                }
+                shiftCachedLines(end.line + 1, -removedLineCount);
+                state.lineCount = Math.max(1, state.lineCount - removedLineCount);
+                setupVirtualHeight();
+                state.cacheVersion++;
+
+                // 3. 호스트(C#)에 상태 알림
+                post({ type: 'lineChanged', lineNumber: start.line, text: nextText, isComposing: true });
+                for (let line = end.line; line > start.line; line--) {
+                    post({ type: 'deleteLine', lineNumber: line, isComposing: true });
+                }
+                post({ type: 'contentChanged', isComposing: true });
+
+                // 4. DOM 업데이트
+                const startRow = viewport.querySelector(`.line-row[data-line="${start.line}"]`);
+                let startTextElement = startRow?.querySelector('.line-text');
+                if (startTextElement) {
+                    makeEditablePlainText(startTextElement, null, false);
+                    startTextElement.textContent = nextText;
+                }
+
+                // 5. 렌더링된 다른 행들 동기화 및 제거
+                syncRenderedRowsAfterCompositionSelectionCollapse(
+                    start.line,
+                    end.line,
+                    nextText,
+                    Math.max(0, Math.min(start.column, nextText.length)),
+                    startTextElement
+                );
+
+                // 6. 포커스 및 캐럿 설정
+                if (startTextElement && startTextElement.getAttribute('contenteditable') === 'true') {
+                    startTextElement.focus({ preventScroll: true });
+                    const textNode = startTextElement.firstChild;
+                    const range = document.createRange();
+                    if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+                        range.setStart(textNode, Math.max(0, Math.min(start.column, textNode.textContent.length)));
+                    } else {
+                        range.setStart(startTextElement, 0);
+                    }
+                    range.collapse(true);
+                    const sel = window.getSelection();
+                    if (sel) {
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                }
+
+                // manualCompositionReplacement를 null로 설정하여 완전히 일반 네이티브 조합 흐름(정상 자소 조합)을 타도록 합니다.
+                state.manualCompositionReplacement = null;
+
+                queueRender(true);
+                return startTextElement || element;
+            }
+
+            // 단일 줄 선택인 경우는 기존 방식대로 처리
             state.selection = null;
             state.selectionAnchor = { line: start.line, column: start.column };
             state.currentLine = start.line;
@@ -2971,7 +3042,6 @@
                 isMultiLine: true
             };
 
-            // 2. Find target start element and synchronously focus & collapse caret on it
             const startRow = viewport.querySelector(`.line-row[data-line="${start.line}"]`);
             let startTextElement = startRow?.querySelector('.line-text');
             if (startTextElement && startTextElement.getAttribute('contenteditable') === 'true') {
@@ -2991,7 +3061,6 @@
                 }
             }
 
-            // 3. Defer destructive DOM and cache operations to allow native IME to bind stably on the next tick
             setTimeout(() => {
                 state.cache.set(start.line, nextText);
                 for (let line = start.line + 1; line <= end.line; line++) {
