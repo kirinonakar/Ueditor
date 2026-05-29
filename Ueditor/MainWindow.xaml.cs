@@ -856,7 +856,12 @@ namespace Ueditor
                 Margin = new Microsoft.UI.Xaml.Thickness(0, 0, 4, 0),
                 Visibility = Visibility.Collapsed
             };
-            var titleText = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
+            var titleText = new TextBlock
+            {
+                // Text를 먼저 직접 넣어 바인딩이 적용되기 전에도 탭 제목이 즉시 보이게 한다.
+                Text = tab.Title,
+                VerticalAlignment = VerticalAlignment.Center
+            };
             titleText.SetBinding(TextBlock.TextProperty, new Binding
             {
                 Path = new PropertyPath("Title"),
@@ -923,9 +928,8 @@ namespace Ueditor
 
             WireEditorBridge(bridge, editorWebView, tab, tabItem, session, isReadOnly);
 
-            // Initialize editor inside WebView2 using virtual host mappings
-            InitializeEditorWebView(editorWebView, bridge);
-
+            // 탭 헤더와 선택 상태를 먼저 UI에 올린다.
+            // WebView2 초기화가 간헐적으로 UI 턴을 잡으면 파일 내용보다 탭 제목이 늦게 보이는 현상이 생길 수 있다.
             targetTabView.TabItems.Add(tabItem);
             targetTabView.SelectedItem = tabItem;
 
@@ -935,6 +939,24 @@ namespace Ueditor
             SyncEncodingCombo(tab);
             SyncLineEndingText(tab);
             UpdateWindowTitle();
+
+            // Editor WebView2 초기화는 다음 UI 턴의 낮은 우선순위로 미룬다.
+            // 이렇게 하면 탭 제목 렌더링이 항상 WebView2 시작 비용보다 먼저 처리된다.
+            bool initQueued = this.DispatcherQueue.TryEnqueue(
+                Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                () =>
+                {
+                    if (_tabBridges.ContainsKey(tab.Id))
+                    {
+                        InitializeEditorWebView(editorWebView, bridge);
+                    }
+                });
+
+            if (!initQueued)
+            {
+                InitializeEditorWebView(editorWebView, bridge);
+            }
+
             return tab;
         }
 
