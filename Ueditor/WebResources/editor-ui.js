@@ -99,7 +99,8 @@ const autocompleteState = {
     activeIndex: 0,
     element: null,
     wordStart: 0,
-    word: ''
+    word: '',
+    suppressUntil: 0  // ESC로 닫은 후 compositionend 재오픈 방지용 타임스탬프
 };
 
 function getWordUnderCaret(text, caretOffset) {
@@ -255,6 +256,7 @@ function getCaretCoordinates() {
 
 function triggerAutocomplete(element) {
     if (!state.autocompleteOnEnter && !state.autocompleteOnTab) return;
+    if (isAutocompleteSuppressed()) return;
     if (hasCustomSelection()) {
         hideAutocomplete();
         return;
@@ -323,13 +325,20 @@ function renderAutocomplete() {
     popup.style.top = `${Math.max(10, top)}px`;
 }
 
-function hideAutocomplete() {
+function hideAutocomplete(suppressMs = 0) {
     autocompleteState.isOpen = false;
     autocompleteState.candidates = [];
     autocompleteState.activeIndex = 0;
     autocompleteState.element = null;
+    if (suppressMs > 0) {
+        autocompleteState.suppressUntil = performance.now() + suppressMs;
+    }
     const popup = document.getElementById('autocomplete-popup');
     if (popup) popup.hidden = true;
+}
+
+function isAutocompleteSuppressed() {
+    return performance.now() < autocompleteState.suppressUntil;
 }
 
 function scrollAutocompleteActiveIntoView() {
@@ -1144,17 +1153,13 @@ document.addEventListener('keydown', event => {
             insertSelectedCandidate();
             return;
         }
-        if (event.key === 'Escape') {
+        // event.code는 IME 상태와 무관하게 물리 키를 반환하므로, 한글 조합 중에도 ESC 감지 가능
+        // suppressMs=300: compositionend 후 triggerAutocomplete 재호출로 팝업이 다시 열리는 것 방지
+        if (event.key === 'Escape' || event.code === 'Escape') {
             event.preventDefault();
-            hideAutocomplete();
+            hideAutocomplete(300);
             return;
         }
-    }
-
-    // ESC를 누르면 한글 조합 중이어도 자동완성 팝업을 즉시 닫기
-    if (event.key === 'Escape' && (event.isComposing || state.isComposing)) {
-        hideAutocomplete();
-        // isComposing 상태에서 ESC는 IME가 처리하므로 계속 진행
     }
 
     if (isHangulImeKeyEvent(event)) {
