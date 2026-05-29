@@ -1061,4 +1061,37 @@ Supports live preview, code &amp; formula templates, terminal interface, Git int
   <data name="SnippetResetConfirmButton" xml:space="preserve">
     <value>Reset</value>
   </data>
+  <data name="TOC" xml:space="preserve">
+    <value>Table of Contents</value>
+  </data>
+  <data name="TOCHeader" xml:space="preserve">
+    <value>Table of Contents</value>
+  </data>
+  <data name="SnippetEditTooltip" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="SnippetDeleteTooltip" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="StickyNoteTitle" xml:space="preserve">
+    <value>Sticky Note</value>
+  </data>
+  <data name="ExitStickyNoteTooltip" xml:space="preserve">
+    <value>Exit Sticky Note Mode</value>
+  </data>
+  <data name="ExitStickyNoteText" xml:space="preserve">
+    <value>Exit</value>
+  </data>
+  <data name="TerminalExited" xml:space="preserve">
+    <value>Terminal Exited</value>
+  </data>
+  <data name="TerminalStartFailed" xml:space="preserve">
+    <value>Failed to start terminal</value>
+  </data>
+  <data name="TerminalHasExited" xml:space="preserve">
+    <value>Terminal has exited</value>
+  </data>
+  <data name="TerminalSendFailed" xml:space="preserve">
+    <value>Failed to send command</value>
+  </data>
 </root>

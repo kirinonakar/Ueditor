@@ -46,14 +46,14 @@
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
                 <FontIcon Glyph="&#xE70F;" FontSize="14" Foreground="{ThemeResource TitleBarForegroundBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                <TextBlock Text="스티커 노트" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{ThemeResource TitleBarForegroundBrush}"/>
+                <TextBlock x:Name="StickyNoteTitleText" Text="스티커 노트" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{ThemeResource TitleBarForegroundBrush}"/>
             </StackPanel>
             
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
                 <ToggleButton x:Name="StickyNoteTopMostButton" Click="OnStickyNoteTopMostClick" 
-                              Height="28" Padding="12,0,12,0" CornerRadius="4" BorderThickness="0"
-                              Foreground="{ThemeResource TitleBarForegroundBrush}"
-                              FontSize="12" FontWeight="SemiBold" ToolTipService.ToolTip="항상 위">
+                               Height="28" Padding="12,0,12,0" CornerRadius="4" BorderThickness="0"
+                               Foreground="{ThemeResource TitleBarForegroundBrush}"
+                               FontSize="12" FontWeight="SemiBold">
                     <ToggleButton.Resources>
                         <SolidColorBrush x:Key="ToggleButtonBackground" Color="Transparent"/>
                         
@@ -73,18 +73,18 @@
                     <ToggleButton.Content>
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <FontIcon Glyph="&#xE718;" FontSize="12" VerticalAlignment="Center"/>
-                            <TextBlock Text="항상 위" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="StickyNoteTopMostText" Text="항상 위" VerticalAlignment="Center"/>
                         </StackPanel>
                     </ToggleButton.Content>
                 </ToggleButton>
 
                 <Button x:Name="ExitStickyNoteButton" Click="OnExitStickyNoteClick" 
                         Background="#FF5C5C" Foreground="White" BorderThickness="0" CornerRadius="4"
-                        Height="28" Padding="12,0,12,0" FontSize="12" FontWeight="SemiBold" ToolTipService.ToolTip="스티커 노트 모드 종료">
+                        Height="28" Padding="12,0,12,0" FontSize="12" FontWeight="SemiBold">
                     <Button.Content>
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <FontIcon Glyph="&#xE711;" FontSize="12" VerticalAlignment="Center"/>
-                            <TextBlock Text="나가기" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="ExitStickyNoteText" Text="나가기" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button.Content>
                     <Button.Resources>

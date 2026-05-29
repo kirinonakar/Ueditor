@@ -20,6 +20,7 @@ namespace Ueditor.Controls
         private IntPtr _parentHwnd = IntPtr.Zero;
         private SubclassProc? _subclassCallback;
         private bool _resizeQueued = false;
+        private Func<string, string, string>? _getString;
 
         public TerminalPane()
         {
@@ -31,6 +32,24 @@ namespace Ueditor.Controls
             Loaded += (s, e) => {
                 UpdateAllTerminalThemes();
             };
+        }
+
+        public void Localize(Func<string, string, string> getString)
+        {
+            _getString = getString;
+
+            if (_activeTerminalSession == null)
+            {
+                TerminalTitleText.Text = getString("TerminalTitle", "터미널");
+            }
+            else
+            {
+                TerminalTitleText.Text = $"{getString("TerminalTitle", "터미널")} - {_activeTerminalSession.WorkingDirectory}";
+            }
+
+            NewTerminalButton.Content = getString("NewTerminal", "새 터미널");
+            CloseTerminalButton.Content = getString("CloseTerminal", "닫기");
+            TerminalInputBox.PlaceholderText = getString("TerminalPrompt", "명령 입력 후 Enter");
         }
 
         private void OnActualThemeChanged(FrameworkElement sender, object args)
@@ -409,7 +428,7 @@ namespace Ueditor.Controls
                 };
                 session.Process.OutputDataReceived += (_, args) => AppendTerminalOutput(session, args.Data);
                 session.Process.ErrorDataReceived += (_, args) => AppendTerminalOutput(session, args.Data);
-                session.Process.Exited += (_, __) => AppendTerminalOutput(session, "[터미널 종료]");
+                session.Process.Exited += (_, __) => AppendTerminalOutput(session, $"[{_getString?.Invoke("TerminalExited", "터미널 종료") ?? "터미널 종료"}]");
 
                 session.Process.Start();
                 session.Process.BeginOutputReadLine();
@@ -417,7 +436,7 @@ namespace Ueditor.Controls
             }
             catch (Exception ex)
             {
-                AppendTerminalOutput(session, $"터미널을 시작하지 못했습니다: {ex.Message}");
+                AppendTerminalOutput(session, $"{_getString?.Invoke("TerminalStartFailed", "터미널을 시작하지 못했습니다") ?? "터미널을 시작하지 못했습니다"}: {ex.Message}");
             }
         }
 
@@ -728,7 +747,7 @@ namespace Ueditor.Controls
 
                 if (_activeTerminalSession.Process == null || _activeTerminalSession.Process.HasExited)
                 {
-                    AppendTerminalOutput(_activeTerminalSession, "[터미널이 종료되었습니다]");
+                    AppendTerminalOutput(_activeTerminalSession, $"[{_getString?.Invoke("TerminalHasExited", "터미널이 종료되었습니다") ?? "터미널이 종료되었습니다"}]");
                     return;
                 }
 
@@ -739,7 +758,7 @@ namespace Ueditor.Controls
             {
                 if (_activeTerminalSession != null)
                 {
-                    AppendTerminalOutput(_activeTerminalSession, $"명령 전송 실패: {ex.Message}");
+                    AppendTerminalOutput(_activeTerminalSession, $"{_getString?.Invoke("TerminalSendFailed", "명령 전송 실패") ?? "명령 전송 실패"}: {ex.Message}");
                 }
             }
         }
@@ -778,7 +797,7 @@ namespace Ueditor.Controls
             }
 
             _activeTerminalSession = session;
-            TerminalTitleText.Text = $"터미널 - {session.WorkingDirectory}";
+            TerminalTitleText.Text = $"{_getString?.Invoke("TerminalTitle", "터미널") ?? "터미널"} - {session.WorkingDirectory}";
 
             if (TerminalSessionsList.SelectedItem != session)
             {
@@ -886,7 +905,7 @@ namespace Ueditor.Controls
             TerminalHostBorder.Visibility = Visibility.Collapsed;
             TerminalOutputTextBox.Visibility = Visibility.Visible;
             TerminalInputAreaGrid.Visibility = Visibility.Visible;
-            TerminalTitleText.Text = "터미널";
+            TerminalTitleText.Text = _getString?.Invoke("TerminalTitle", "터미널") ?? "터미널";
             TerminalOutputTextBox.Text = string.Empty;
         }
 

@@ -6,9 +6,11 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="using:Ueditor.Controls"
     mc:Ignorable="d">
 
     <UserControl.Resources>
+        <local:LocalizationBridge x:Key="LocBridge"/>
         <Style x:Key="FlatActivityButtonStyle" TargetType="ToggleButton">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
@@ -95,25 +97,25 @@
 
         <Border Grid.Column="0" Background="{ThemeResource ActivityBarBackgroundBrush}" BorderBrush="{ThemeResource SidebarBorderBrush}" BorderThickness="0,0,1,0">
             <StackPanel Padding="0,4,0,4" Spacing="0">
-                <ToggleButton x:Name="ExplorerActivityButton" Tag="0" IsChecked="True" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick" ToolTipService.ToolTip="탐색기">
+                <ToggleButton x:Name="ExplorerActivityButton" Tag="0" IsChecked="True" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick">
                     <FontIcon Glyph="&#xE8B7;" FontSize="13"/>
                 </ToggleButton>
-                <ToggleButton x:Name="FavoritesActivityButton" Tag="1" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick" ToolTipService.ToolTip="즐겨찾기">
+                <ToggleButton x:Name="FavoritesActivityButton" Tag="1" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick">
                     <FontIcon Glyph="&#xE734;" FontSize="13"/>
                 </ToggleButton>
-                <ToggleButton x:Name="RecentActivityButton" Tag="2" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick" ToolTipService.ToolTip="최근 파일">
+                <ToggleButton x:Name="RecentActivityButton" Tag="2" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick">
                     <FontIcon Glyph="&#xE81C;" FontSize="13"/>
                 </ToggleButton>
-                <ToggleButton x:Name="SearchActivityButton" Tag="3" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick" ToolTipService.ToolTip="검색">
+                <ToggleButton x:Name="SearchActivityButton" Tag="3" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick">
                     <FontIcon Glyph="&#xE721;" FontSize="13"/>
                 </ToggleButton>
-                <ToggleButton x:Name="TocActivityButton" Tag="6" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick" ToolTipService.ToolTip="목차">
+                <ToggleButton x:Name="TocActivityButton" Tag="6" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick">
                     <FontIcon Glyph="&#xE169;" FontSize="13"/>
                 </ToggleButton>
-                <ToggleButton x:Name="GitActivityButton" Tag="4" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick" ToolTipService.ToolTip="Git">
+                <ToggleButton x:Name="GitActivityButton" Tag="4" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick">
                     <FontIcon Glyph="&#xE139;" FontSize="13"/>
                 </ToggleButton>
-                <ToggleButton x:Name="SnippetsActivityButton" Tag="5" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick" ToolTipService.ToolTip="스니펫">
+                <ToggleButton x:Name="SnippetsActivityButton" Tag="5" Style="{StaticResource FlatActivityButtonStyle}" Click="OnLeftActivityClick">
                     <FontIcon Glyph="&#xE943;" FontSize="13"/>
                 </ToggleButton>
             </StackPanel>
@@ -288,7 +290,7 @@
                                                     <TextBlock Text="{Binding LineContent}" FontSize="12" TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Text="{Binding DisplayPath}" FontSize="9" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" TextTrimming="CharacterEllipsis"/>
                                                 </StackPanel>
-                                                <Button Grid.Column="1" Content="&#xE194;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnReplaceOneClick" Tag="{Binding}" Padding="4" Margin="5,0,0,0" VerticalAlignment="Center" ToolTipService.ToolTip="{Binding ElementName=RootLeftSidebar, Path=ReplaceOneTooltip}" FontSize="11"/>
+                                                <Button Grid.Column="1" Content="&#xE194;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnReplaceOneClick" Tag="{Binding}" Padding="4" Margin="5,0,0,0" VerticalAlignment="Center" ToolTipService.ToolTip="{Binding Path=ReplaceOneTooltip, Source={StaticResource LocBridge}}" FontSize="11"/>
                                             </Grid>
                                         </DataTemplate>
                                     </ListView.ItemTemplate>
@@ -395,8 +397,8 @@
                                                     <TextBlock Text="{Binding Description}" FontSize="9" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" TextTrimming="CharacterEllipsis"/>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-                                                    <Button Content="&#xE70F;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnEditSnippetClick" Padding="3" FontSize="10" ToolTipService.ToolTip="수정"/>
-                                                    <Button Content="&#xE74D;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnDeleteSnippetClick" Tag="{Binding Title}" Padding="3" FontSize="10" ToolTipService.ToolTip="삭제"/>
+                                                    <Button Content="&#xE70F;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnEditSnippetClick" Padding="3" FontSize="10" ToolTipService.ToolTip="{Binding Path=SnippetEditTooltip, Source={StaticResource LocBridge}}"/>
+                                                    <Button Content="&#xE74D;" FontFamily="Segoe MDL2 Assets" Background="Transparent" BorderBrush="Transparent" Click="OnDeleteSnippetClick" Tag="{Binding Title}" Padding="3" FontSize="10" ToolTipService.ToolTip="{Binding Path=SnippetDeleteTooltip, Source={StaticResource LocBridge}}"/>
                                                 </StackPanel>
                                             </Grid>
                                         </DataTemplate>

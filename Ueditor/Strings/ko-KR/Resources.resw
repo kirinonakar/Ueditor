@@ -1061,4 +1061,37 @@
   <data name="SnippetResetConfirmButton" xml:space="preserve">
     <value>초기화</value>
   </data>
+  <data name="TOC" xml:space="preserve">
+    <value>목차 (TOC)</value>
+  </data>
+  <data name="TOCHeader" xml:space="preserve">
+    <value>목차 (TOC)</value>
+  </data>
+  <data name="SnippetEditTooltip" xml:space="preserve">
+    <value>수정</value>
+  </data>
+  <data name="SnippetDeleteTooltip" xml:space="preserve">
+    <value>삭제</value>
+  </data>
+  <data name="StickyNoteTitle" xml:space="preserve">
+    <value>스티커 노트</value>
+  </data>
+  <data name="ExitStickyNoteTooltip" xml:space="preserve">
+    <value>스티커 노트 모드 종료</value>
+  </data>
+  <data name="ExitStickyNoteText" xml:space="preserve">
+    <value>나가기</value>
+  </data>
+  <data name="TerminalExited" xml:space="preserve">
+    <value>터미널 종료</value>
+  </data>
+  <data name="TerminalStartFailed" xml:space="preserve">
+    <value>터미널을 시작하지 못했습니다</value>
+  </data>
+  <data name="TerminalHasExited" xml:space="preserve">
+    <value>터미널이 종료되었습니다</value>
+  </data>
+  <data name="TerminalSendFailed" xml:space="preserve">
+    <value>명령 전송 실패</value>
+  </data>
 </root>

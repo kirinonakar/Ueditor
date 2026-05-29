@@ -114,8 +114,8 @@
                        FontWeight="SemiBold"
                        VerticalAlignment="Center"
                        Foreground="{ThemeResource TerminalTextBoxForeground}"/>
-            <Button Grid.Column="1" Content="새 터미널" FontSize = "12" Click="OnNewTerminalClick" Padding="12,4,12,4" CornerRadius="4"/>
-            <Button Grid.Column="2" Content="닫기" FontSize = "12" Click="OnCloseTerminalClick" Padding="12,4,12,4" CornerRadius="4"/>
+            <Button x:Name="NewTerminalButton" Grid.Column="1" Content="새 터미널" FontSize = "12" Click="OnNewTerminalClick" Padding="12,4,12,4" CornerRadius="4"/>
+            <Button x:Name="CloseTerminalButton" Grid.Column="2" Content="닫기" FontSize = "12" Click="OnCloseTerminalClick" Padding="12,4,12,4" CornerRadius="4"/>
         </Grid>
 
         <Border x:Name="TerminalHostBorder"

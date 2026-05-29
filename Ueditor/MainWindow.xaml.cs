@@ -2163,9 +2163,16 @@ namespace Ueditor
                 EditorWorkspace.Localize(GetString);
                 LeftSidebarTabView.Localize(GetString, string.IsNullOrEmpty(_currentFolderPath), IsGitNotDetectedText);
                 StatusBarPane.Localize(GetString, IsGitNotDetectedText);
+                TerminalPane.Localize(GetString);
                 PreviewGrid.Localize(GetString);
                 PreviewGrid.UpdateTranslateLanguage(_settingsService.CurrentSettings?.LlmTargetLanguage ?? "Korean");
                 MarkdownToolbar.LocalizeTooltips(GetString);
+
+                StickyNoteTitleText.Text = GetString("StickyNoteTitle", "스티커 노트");
+                ToolTipService.SetToolTip(StickyNoteTopMostButton, GetString("TopMost", "항상위"));
+                StickyNoteTopMostText.Text = GetString("TopMost", "항상위");
+                ToolTipService.SetToolTip(ExitStickyNoteButton, GetString("ExitStickyNoteTooltip", "스티커 노트 모드 종료"));
+                ExitStickyNoteText.Text = GetString("ExitStickyNoteText", "나가기");
 
                 var activeTab = GetActiveTab();
                 if (activeTab != null)

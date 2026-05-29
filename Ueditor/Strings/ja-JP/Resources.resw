@@ -156,7 +156,7 @@
     <value>Git</value>
   </data>
   <data name="Snippets" xml:space="preserve">
-    <value>스니펫</value>
+    <value>スニペット</value>
   </data>
   <data name="RecentFiles" xml:space="preserve">
     <value>最近のファイル</value>
@@ -1061,5 +1061,38 @@
   </data>
   <data name="SnippetResetConfirmButton" xml:space="preserve">
     <value>リセット</value>
+  </data>
+  <data name="TOC" xml:space="preserve">
+    <value>目次</value>
+  </data>
+  <data name="TOCHeader" xml:space="preserve">
+    <value>目次</value>
+  </data>
+  <data name="SnippetEditTooltip" xml:space="preserve">
+    <value>編集</value>
+  </data>
+  <data name="SnippetDeleteTooltip" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="StickyNoteTitle" xml:space="preserve">
+    <value>付箋モード</value>
+  </data>
+  <data name="ExitStickyNoteTooltip" xml:space="preserve">
+    <value>付箋モード終了</value>
+  </data>
+  <data name="ExitStickyNoteText" xml:space="preserve">
+    <value>終了</value>
+  </data>
+  <data name="TerminalExited" xml:space="preserve">
+    <value>ターミナル終了</value>
+  </data>
+  <data name="TerminalStartFailed" xml:space="preserve">
+    <value>ターミナルの起動に失敗しました</value>
+  </data>
+  <data name="TerminalHasExited" xml:space="preserve">
+    <value>ターミナルが終了しました</value>
+  </data>
+  <data name="TerminalSendFailed" xml:space="preserve">
+    <value>コマンド送信失敗</value>
   </data>
 </root>

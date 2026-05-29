@@ -21,6 +21,32 @@ namespace Ueditor.Controls
             set => SetValue(ReplaceOneTooltipProperty, value);
         }
 
+        public static readonly DependencyProperty SnippetEditTooltipProperty =
+            DependencyProperty.Register(
+                nameof(SnippetEditTooltip),
+                typeof(string),
+                typeof(LeftSidebarPane),
+                new PropertyMetadata("수정"));
+
+        public string SnippetEditTooltip
+        {
+            get => (string)GetValue(SnippetEditTooltipProperty);
+            set => SetValue(SnippetEditTooltipProperty, value);
+        }
+
+        public static readonly DependencyProperty SnippetDeleteTooltipProperty =
+            DependencyProperty.Register(
+                nameof(SnippetDeleteTooltip),
+                typeof(string),
+                typeof(LeftSidebarPane),
+                new PropertyMetadata("삭제"));
+
+        public string SnippetDeleteTooltip
+        {
+            get => (string)GetValue(SnippetDeleteTooltipProperty);
+            set => SetValue(SnippetDeleteTooltipProperty, value);
+        }
+
         public LeftSidebarPane()
         {
             InitializeComponent();
@@ -147,6 +173,8 @@ namespace Ueditor.Controls
             ExportSnippetsButton.Content = getString("SnippetExport", "내보내기");
             ImportSnippetsButton.Content = getString("SnippetImport", "가져오기");
             ResetSnippetsButton.Content = getString("SnippetReset", "초기화");
+            SnippetEditTooltip = getString("SnippetEditTooltip", "수정");
+            SnippetDeleteTooltip = getString("SnippetDeleteTooltip", "삭제");
 
             ToolTipService.SetToolTip(ExplorerUpButton, getString("ExplorerUpTooltip", "상위 폴더"));
             ExplorerSelectFolderButton.Content = getString("ExplorerSelectFolder", "폴더 선택...");
@@ -167,6 +195,13 @@ namespace Ueditor.Controls
             SearchAllButton.Content = getString("SearchAllFiles", "전체 검색");
             ReplaceAllButton.Content = getString("ReplaceAllFiles", "모두 바꾸기");
             ReplaceOneTooltip = getString("SearchReplaceOneTooltip", "이 항목만 바꾸기");
+
+            if (Resources.TryGetValue("LocBridge", out var bridgeObj) && bridgeObj is LocalizationBridge bridge)
+            {
+                bridge.SnippetEditTooltip = SnippetEditTooltip;
+                bridge.SnippetDeleteTooltip = SnippetDeleteTooltip;
+                bridge.ReplaceOneTooltip = ReplaceOneTooltip;
+            }
 
             GitHeaderText.Text = getString("GitRepoHeader", "Git 저장소 관리");
             GitBranchesCombo.PlaceholderText = getString("GitBranchPlaceholder", "브랜치 목록");
@@ -254,5 +289,57 @@ namespace Ueditor.Controls
         private void OnRecentFileItemDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => RecentFileItemDoubleTapped?.Invoke(sender, e);
         private void OnRemoveRecentFileClick(object sender, RoutedEventArgs e) => RemoveRecentFileClick?.Invoke(sender, e);
         private void OnTocItemDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => TocItemDoubleTapped?.Invoke(sender, e);
+    }
+
+    public class LocalizationBridge : System.ComponentModel.INotifyPropertyChanged
+    {
+        private string _snippetEditTooltip = "수정";
+        private string _snippetDeleteTooltip = "삭제";
+        private string _replaceOneTooltip = "이 항목만 바꾸기";
+
+        public string SnippetEditTooltip
+        {
+            get => _snippetEditTooltip;
+            set
+            {
+                if (_snippetEditTooltip != value)
+                {
+                    _snippetEditTooltip = value;
+                    OnPropertyChanged(nameof(SnippetEditTooltip));
+                }
+            }
+        }
+
+        public string SnippetDeleteTooltip
+        {
+            get => _snippetDeleteTooltip;
+            set
+            {
+                if (_snippetDeleteTooltip != value)
+                {
+                    _snippetDeleteTooltip = value;
+                    OnPropertyChanged(nameof(SnippetDeleteTooltip));
+                }
+            }
+        }
+
+        public string ReplaceOneTooltip
+        {
+            get => _replaceOneTooltip;
+            set
+            {
+                if (_replaceOneTooltip != value)
+                {
+                    _replaceOneTooltip = value;
+                    OnPropertyChanged(nameof(ReplaceOneTooltip));
+                }
+            }
+        }
+
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));
+        }
     }
 }
