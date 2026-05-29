@@ -754,6 +754,8 @@
             compositionLine: null,
             columnComposition: null,
             manualCompositionReplacement: null,
+            nativeCompositionMarker: null,
+            pendingImeSelectionCollapse: null,
             suppressNextBeforeInputType: null,
             lastManualDeleteAt: 0,
             editingLine: null,
@@ -2101,7 +2103,22 @@
         function isPlainTextKey(event) {
             if (!event || event.ctrlKey || event.metaKey || event.altKey) return false;
             if (event.isComposing || state.isComposing || event.key === 'Process' || event.keyCode === 229) return false;
+            // 한글 IME 자모/완성형은 keydown에서 모델 입력으로 직접 넣으면
+            // 브라우저 조합기가 개입하지 못해 "ㄱㅏㅇ"처럼 자소가 분리된다.
+            // 한글은 beforeinput/composition/native input 경로에 맡긴다.
+            if (containsHangulInputText(event.key)) return false;
             return typeof event.key === 'string' && event.key.length === 1;
+        }
+
+        function containsHangulInputText(value) {
+            return /[\u1100-\u11FF\u3130-\u318F\uA960-\uA97F\uD7B0-\uD7FF\uAC00-\uD7A3]/.test(String(value ?? ''));
+        }
+
+        function isHangulImeKeyEvent(event) {
+            if (!event || event.ctrlKey || event.metaKey || event.altKey) return false;
+            return !!(event.isComposing || state.isComposing ||
+                event.key === 'Process' || event.keyCode === 229 ||
+                containsHangulInputText(event.key));
         }
 
         function syncCustomSelectionClass() {
@@ -2553,9 +2570,10 @@
 
         function commitLine(element) {
             const lineNumber = Number(element.dataset.line || 1);
-            const text = lineTextFromElement(element);
             const isComposing = state.isComposing &&
                 (!state.compositionLine || state.compositionLine === lineNumber);
+
+            const text = lineTextFromElement(element);
 
             if (isComposing && state.columnComposition) {
                 updateColumnCompositionPreview(element);
@@ -2941,7 +2959,7 @@
             updateSingleLine(element, nextText, caret + String(text || '').length);
         }
 
-        function replaceSelectionForCompositionStart(element) {
+        function replaceSelectionForCompositionStart(element, markPendingImeStart = false) {
             const selection = compositionSelectionRange();
             if (!selection || selection.isColumn) {
                 return element;
@@ -2952,144 +2970,163 @@
             const suffix = (state.cache.get(end.line) ?? '').slice(end.column);
             const nextText = prefix + suffix;
             const removedLineCount = Math.max(0, end.line - start.line);
+            const caretColumn = Math.max(0, Math.min(start.column, nextText.length));
 
-            if (removedLineCount > 0) {
-                // 여러 줄 선택인 경우: 일단 선택 영역을 완전히 삭제하여 줄을 한 줄로 정리하고 일반 IME 입력으로 연결시킵니다.
-                
-                // 1. selection 상태 업데이트
-                state.selection = null;
-                state.selectionAnchor = { line: start.line, column: start.column };
-                state.currentLine = start.line;
-                state.currentColumn = start.column + 1;
-                state.editingLine = start.line;
-                syncCustomSelectionClass();
-                clearCustomSelectionVisuals();
-
-                // 2. 캐시 업데이트 및 줄 이동
-                state.cache.set(start.line, nextText);
-                for (let line = start.line + 1; line <= end.line; line++) {
-                    state.cache.delete(line);
-                }
-                shiftCachedLines(end.line + 1, -removedLineCount);
-                state.lineCount = Math.max(1, state.lineCount - removedLineCount);
-                setupVirtualHeight();
-                state.cacheVersion++;
-
-                // 3. 호스트(C#)에 상태 알림
-                post({ type: 'lineChanged', lineNumber: start.line, text: nextText, isComposing: true });
-                for (let line = end.line; line > start.line; line--) {
-                    post({ type: 'deleteLine', lineNumber: line, isComposing: true });
-                }
-                post({ type: 'contentChanged', isComposing: true });
-
-                // 4. DOM 업데이트
-                const startRow = viewport.querySelector(`.line-row[data-line="${start.line}"]`);
-                let startTextElement = startRow?.querySelector('.line-text');
-                if (startTextElement) {
-                    makeEditablePlainText(startTextElement, null, false);
-                    startTextElement.textContent = nextText;
-                }
-
-                // 5. 렌더링된 다른 행들 동기화 및 제거
-                syncRenderedRowsAfterCompositionSelectionCollapse(
-                    start.line,
-                    end.line,
-                    nextText,
-                    Math.max(0, Math.min(start.column, nextText.length)),
-                    startTextElement
-                );
-
-                // 6. 포커스 및 캐럿 설정
-                if (startTextElement && startTextElement.getAttribute('contenteditable') === 'true') {
-                    startTextElement.focus({ preventScroll: true });
-                    const textNode = startTextElement.firstChild;
-                    const range = document.createRange();
-                    if (textNode && textNode.nodeType === Node.TEXT_NODE) {
-                        range.setStart(textNode, Math.max(0, Math.min(start.column, textNode.textContent.length)));
-                    } else {
-                        range.setStart(startTextElement, 0);
-                    }
-                    range.collapse(true);
-                    const sel = window.getSelection();
-                    if (sel) {
-                        sel.removeAllRanges();
-                        sel.addRange(range);
-                    }
-                }
-
-                // manualCompositionReplacement를 null로 설정하여 완전히 일반 네이티브 조합 흐름(정상 자소 조합)을 타도록 합니다.
-                state.manualCompositionReplacement = null;
-
-                queueRender(true);
-                return startTextElement || element;
-            }
-
-            // 단일 줄 선택인 경우는 기존 방식대로 처리
+            // 한글 IME 시작 직전에는 먼저 Delete와 같은 모델 편집을 동기적으로 적용한다.
+            // 그래야 여러 줄 선택이 한 줄로 접힌 뒤, 첫 자소가 실제 contenteditable의
+            // 같은 텍스트 노드에서 native 조합을 시작할 수 있다.
             state.selection = null;
-            state.selectionAnchor = { line: start.line, column: start.column };
+            state.selectionAnchor = { line: start.line, column: caretColumn };
             state.currentLine = start.line;
-            state.currentColumn = start.column + 1;
+            state.currentColumn = caretColumn + 1;
             state.editingLine = start.line;
             syncCustomSelectionClass();
             clearCustomSelectionVisuals();
 
-            state.manualCompositionReplacement = {
-                line: start.line,
-                column: Math.max(0, Math.min(start.column, nextText.length)),
-                baseText: nextText,
-                text: '',
-                verifyNative: true,
-                isMultiLine: true
-            };
+            state.cache.set(start.line, nextText);
+            for (let line = start.line + 1; line <= end.line; line++) {
+                state.cache.delete(line);
+            }
+            if (removedLineCount > 0) {
+                shiftCachedLines(end.line + 1, -removedLineCount);
+                state.lineCount = Math.max(1, state.lineCount - removedLineCount);
+                setupVirtualHeight();
+            }
+            state.cacheVersion++;
 
+            post({ type: 'lineChanged', lineNumber: start.line, text: nextText });
+            for (let line = end.line; line > start.line; line--) {
+                post({ type: 'deleteLine', lineNumber: line });
+            }
+            post({ type: 'contentChanged' });
+
+            const incomingLine = Number(element?.dataset?.line || 0);
+            const incomingElementIsInsideSelection = element &&
+                element.getAttribute?.('contenteditable') === 'true' &&
+                incomingLine >= start.line && incomingLine <= end.line;
             const startRow = viewport.querySelector(`.line-row[data-line="${start.line}"]`);
-            let startTextElement = startRow?.querySelector('.line-text');
-            if (startTextElement && startTextElement.getAttribute('contenteditable') === 'true') {
-                startTextElement.focus({ preventScroll: true });
-                const textNode = startTextElement.firstChild;
+            const startTextElement = startRow?.querySelector('.line-text') || null;
+            let preferredElement = incomingElementIsInsideSelection ? element : startTextElement;
+
+            if (preferredElement && preferredElement.getAttribute('contenteditable') === 'true') {
+                makeEditablePlainText(preferredElement, null, false);
+                preferredElement.textContent = nextText;
+            } else if (startTextElement && startTextElement.getAttribute('contenteditable') === 'true') {
+                preferredElement = startTextElement;
+                makeEditablePlainText(preferredElement, null, false);
+                preferredElement.textContent = nextText;
+            }
+
+            const collapsedElement = syncRenderedRowsAfterCompositionSelectionCollapse(
+                start.line,
+                end.line,
+                nextText,
+                caretColumn,
+                preferredElement
+            );
+            const targetElement = collapsedElement || preferredElement || startTextElement || element;
+
+            // 여기서는 한글을 직접 조합/보정하지 않는다.
+            // 여러 줄 선택만 Delete처럼 먼저 접고, 이후 입력은 평소 contenteditable/native IME 흐름에 맡긴다.
+            state.manualCompositionReplacement = null;
+            state.nativeCompositionMarker = null;
+
+            if (targetElement && targetElement.getAttribute?.('contenteditable') === 'true') {
+                targetElement.focus({ preventScroll: true });
+                const textNode = targetElement.firstChild;
                 const range = document.createRange();
                 if (textNode && textNode.nodeType === Node.TEXT_NODE) {
-                    range.setStart(textNode, Math.max(0, Math.min(start.column, textNode.textContent.length)));
+                    range.setStart(textNode, Math.max(0, Math.min(caretColumn, textNode.textContent.length)));
                 } else {
-                    range.setStart(startTextElement, 0);
+                    range.setStart(targetElement, 0);
                 }
                 range.collapse(true);
-                const sel = window.getSelection();
-                if (sel) {
-                    sel.removeAllRanges();
-                    sel.addRange(range);
+                const domSelection = window.getSelection();
+                if (domSelection) {
+                    domSelection.removeAllRanges();
+                    domSelection.addRange(range);
                 }
             }
 
-            setTimeout(() => {
-                state.cache.set(start.line, nextText);
-                for (let line = start.line + 1; line <= end.line; line++) {
-                    state.cache.delete(line);
+            if (markPendingImeStart && targetElement && targetElement.getAttribute?.('contenteditable') === 'true') {
+                beginPendingImeSelectionCollapse(targetElement, start.line, caretColumn);
+            }
+
+            state.lastRangeKey = '';
+            if (state.wordWrap) {
+                measureRenderedRows(false);
+            }
+            return targetElement || element;
+        }
+
+        function clearPendingImeSelectionCollapse() {
+            const pending = state.pendingImeSelectionCollapse;
+            if (pending?.timer) {
+                clearTimeout(pending.timer);
+            }
+            state.pendingImeSelectionCollapse = null;
+        }
+
+        function beginPendingImeSelectionCollapse(element, lineNumber = null, column = null) {
+            clearPendingImeSelectionCollapse();
+
+            const line = Number(lineNumber || element?.dataset?.line || state.currentLine || 1);
+            const caretColumn = Math.max(0, Number(column ?? Math.max(0, (state.currentColumn || 1) - 1)));
+            const expiresAt = performance.now() + 450;
+
+            state.pendingImeSelectionCollapse = {
+                line,
+                column: caretColumn,
+                expiresAt,
+                timer: 0
+            };
+
+            state.pendingImeSelectionCollapse.timer = setTimeout(() => {
+                const pending = state.pendingImeSelectionCollapse;
+                if (!pending || pending.expiresAt !== expiresAt) return;
+
+                state.pendingImeSelectionCollapse = null;
+
+                // compositionstart가 오지 않은 예외 경로에서는 에디터가 멈추지 않게 현재 DOM만 커밋한다.
+                // 정상 한글 IME 경로에서는 compositionstart가 먼저 이 marker를 해제한다.
+                if (!state.isComposing) {
+                    const current = viewport.querySelector(`.line-text[data-line="${line}"]`);
+                    if (current && current.getAttribute('contenteditable') === 'true') {
+                        commitLine(current);
+                    }
                 }
-                if (removedLineCount > 0) {
-                    shiftCachedLines(end.line + 1, -removedLineCount);
-                    state.lineCount = Math.max(1, state.lineCount - removedLineCount);
-                    setupVirtualHeight();
-                }
+            }, 450);
+        }
 
-                state.cacheVersion++;
+        function isPendingImeSelectionCollapseFor(element, event = null) {
+            const pending = state.pendingImeSelectionCollapse;
+            if (!pending) return false;
 
-                post({ type: 'lineChanged', lineNumber: start.line, text: nextText, isComposing: true });
-                for (let line = end.line; line > start.line; line--) {
-                    post({ type: 'deleteLine', lineNumber: line, isComposing: true });
-                }
-                post({ type: 'contentChanged', isComposing: true });
+            if (performance.now() > Number(pending.expiresAt || 0)) {
+                clearPendingImeSelectionCollapse();
+                return false;
+            }
 
-                syncRenderedRowsAfterCompositionSelectionCollapse(
-                    start.line,
-                    end.line,
-                    nextText,
-                    Math.max(0, Math.min(start.column, nextText.length)),
-                    startTextElement
-                );
-            }, 0);
+            const line = Number(element?.dataset?.line || state.currentLine || 1);
+            if (line !== Number(pending.line || 0)) return false;
 
-            return startTextElement || element;
+            if (!event) return true;
+
+            const inputType = String(event.inputType || '');
+            if (inputType === 'insertCompositionText' ||
+                inputType === 'deleteCompositionText' ||
+                inputType === 'insertFromComposition') {
+                return true;
+            }
+
+            // WebView2/Korean IME can emit a first insertText jamo before compositionstart
+            // when we just collapsed a multi-line selection in keydown. Treat that very first
+            // event as native-IME-owned, and do not flatten or re-render the DOM around it.
+            if (inputType.startsWith('insert') && containsHangulInputText(event.data || '')) {
+                return true;
+            }
+
+            return false;
         }
 
         function isCompositionInputEvent(event) {
@@ -3116,6 +3153,11 @@
             ['ㄱㅅ', 'ㄳ'], ['ㄴㅈ', 'ㄵ'], ['ㄴㅎ', 'ㄶ'],
             ['ㄹㄱ', 'ㄺ'], ['ㄹㅁ', 'ㄻ'], ['ㄹㅂ', 'ㄼ'], ['ㄹㅅ', 'ㄽ'], ['ㄹㅌ', 'ㄾ'], ['ㄹㅍ', 'ㄿ'], ['ㄹㅎ', 'ㅀ'],
             ['ㅂㅅ', 'ㅄ']
+        ]);
+        const HANGUL_SPLIT_FINAL = new Map([
+            ['ㄳ', ['ㄱ', 'ㅅ']], ['ㄵ', ['ㄴ', 'ㅈ']], ['ㄶ', ['ㄴ', 'ㅎ']],
+            ['ㄺ', ['ㄹ', 'ㄱ']], ['ㄻ', ['ㄹ', 'ㅁ']], ['ㄼ', ['ㄹ', 'ㅂ']], ['ㄽ', ['ㄹ', 'ㅅ']],
+            ['ㄾ', ['ㄹ', 'ㅌ']], ['ㄿ', ['ㄹ', 'ㅍ']], ['ㅀ', ['ㄹ', 'ㅎ']], ['ㅄ', ['ㅂ', 'ㅅ']]
         ]);
 
         function isHangulSyllable(ch) {
@@ -3181,6 +3223,22 @@
                     if (syllable) return prefix + syllable;
                 }
 
+                // fallback 조합 경로에서도 "ㄱㅏㄴㅏ"가 "간ㅏ"가 아니라
+                // "가나"처럼 다음 초성으로 넘어가도록 받침+모음을 분리한다.
+                if (decomposed.t && HANGUL_V_INDEX.has(input)) {
+                    const splitFinal = HANGUL_SPLIT_FINAL.get(decomposed.t);
+                    if (splitFinal) {
+                        const previousSyllable = composeHangulSyllable(decomposed.l, decomposed.v, splitFinal[0]);
+                        const nextSyllable = composeHangulSyllable(splitFinal[1], input);
+                        if (previousSyllable && nextSyllable) return prefix + previousSyllable + nextSyllable;
+                    }
+                    if (HANGUL_L_INDEX.has(decomposed.t)) {
+                        const previousSyllable = composeHangulSyllable(decomposed.l, decomposed.v, '');
+                        const nextSyllable = composeHangulSyllable(decomposed.t, input);
+                        if (previousSyllable && nextSyllable) return prefix + previousSyllable + nextSyllable;
+                    }
+                }
+
                 if (decomposed.t && HANGUL_T_INDEX.has(input) && HANGUL_T_INDEX.get(input) > 0) {
                     const combinedFinal = HANGUL_COMBINE_FINAL.get(decomposed.t + input);
                     if (combinedFinal) {
@@ -3193,21 +3251,45 @@
             return previous + input;
         }
 
+        function normalizeHangulCompositionText(text) {
+            const value = String(text ?? '');
+            if (!value) return '';
+
+            let normalized = '';
+            for (const ch of Array.from(value)) {
+                // 수동 조합 경로에서 WebView2가 '까ㅁ', '까ㅁ바ㄱ'처럼
+                // 완성형 음절 + 미완성 자모가 섞인 문자열을 주는 경우가 있다.
+                // 이를 그대로 믿으면 '깜박'이 '까ㅁ박'으로 확정되므로,
+                // 조합 버퍼 내부에서는 가능한 한 번 더 완성형으로 접는다.
+                if (ch.length === 1 && (HANGUL_L_INDEX.has(ch) || HANGUL_V_INDEX.has(ch) || (HANGUL_T_INDEX.has(ch) && HANGUL_T_INDEX.get(ch) > 0) || containsHangulSyllable(ch))) {
+                    const composed = composeHangulIncrement(normalized, ch);
+                    normalized = composed;
+                } else {
+                    normalized += ch;
+                }
+            }
+            return normalized;
+        }
+
         function resolveManualCompositionText(marker, incomingText, inputType = 'insertCompositionText') {
             const previous = String(marker?.text ?? '');
             const incoming = incomingText === null || incomingText === undefined ? '' : String(incomingText);
 
             if (inputType === 'deleteCompositionText') {
-                return incoming || previous.slice(0, -1);
+                return normalizeHangulCompositionText(incoming || previous.slice(0, -1));
             }
 
             if (!incoming) return previous;
             if (incoming === previous) return previous;
 
+            const normalizedIncoming = normalizeHangulCompositionText(incoming);
+            if (normalizedIncoming === previous) return previous;
+
             // 정상적인 compositionupdate/beforeinput은 현재 조합 문자열 전체를 준다.
-            // 이 값이 완성형 음절이면 native 값을 가장 신뢰한다.
+            // 다만 일부 WebView2 경로는 '깜' 대신 '까ㅁ'처럼 섞어서 주므로
+            // native 값을 받더라도 조합 버퍼 안에서는 normalize해서 사용한다.
             if (containsHangulSyllable(incoming) || incoming.length > 1) {
-                return incoming;
+                return normalizedIncoming;
             }
 
             // 일부 WebView2/Chromium + 한글 IME 조합에서는 두 번째 beforeinput이
@@ -3218,13 +3300,13 @@
                 if (isRedundantCompositionJamo(previous, incoming)) {
                     return previous;
                 }
-                const composed = composeHangulIncrement(previous, incoming);
+                const composed = normalizeHangulCompositionText(previous + incoming);
                 if (composed !== previous + incoming) {
                     return composed;
                 }
             }
 
-            return incoming;
+            return normalizedIncoming;
         }
 
         function applyManualCompositionReplacement(element, compositionText) {
@@ -3286,30 +3368,40 @@
                 ? element
                 : viewport.querySelector(`.line-text[data-line="${lineNumber}"]`);
 
-            const finalValue = finalText === null || finalText === undefined
-                ? String(marker.text ?? '')
-                : resolveManualCompositionText(marker, finalText, 'insertCompositionText');
+            let finalValue = finalText === null || finalText === undefined || String(finalText ?? '') === ''
+                ? normalizeHangulCompositionText(String(marker.text ?? ''))
+                : normalizeHangulCompositionText(resolveManualCompositionText(marker, finalText, 'insertCompositionText'));
             const baseText = String(marker.baseText ?? '');
             const column = Math.max(0, Math.min(Number(marker.column || 0), baseText.length));
             const prefix = baseText.slice(0, column);
             const suffix = baseText.slice(column);
             let changed = false;
 
-            if (marker.verifyNative && finalValue && target && target.getAttribute('contenteditable') === 'true') {
+            if (marker.verifyNative && target && target.getAttribute('contenteditable') === 'true') {
                 const currentText = lineTextFromElement(target);
+                let nativeInserted = null;
+                if (currentText.startsWith(prefix) && currentText.endsWith(suffix) &&
+                    currentText.length >= prefix.length + suffix.length) {
+                    nativeInserted = currentText.slice(prefix.length, currentText.length - suffix.length);
+                    const normalizedNativeInserted = normalizeHangulCompositionText(nativeInserted);
+                    if (normalizedNativeInserted &&
+                        normalizedNativeInserted !== nativeInserted &&
+                        normalizedNativeInserted.length >= String(finalValue ?? '').length) {
+                        finalValue = normalizedNativeInserted;
+                    }
+                }
 
                 // native IME가 정상 반영했으면 그대로 둔다. 반영이 누락됐거나,
                 // 조합 중 target DOM이 흔들려 자모 조각만 남은 경우에만 compositionend의
                 // 최종 문자열로 보정한다.
                 const expectedText = prefix + finalValue + suffix;
-                let shouldRepair = currentText === baseText;
+                let shouldRepair = !!finalValue && currentText === baseText;
 
-                if (!shouldRepair &&
-                    currentText !== expectedText &&
-                    currentText.startsWith(prefix) &&
-                    currentText.endsWith(suffix)) {
-                    const inserted = currentText.slice(prefix.length, currentText.length - suffix.length);
-                    shouldRepair = inserted.length === 0 || inserted !== finalValue;
+                if (!shouldRepair && finalValue && currentText !== expectedText && nativeInserted !== null) {
+                    const normalizedNativeInserted = normalizeHangulCompositionText(nativeInserted);
+                    shouldRepair = nativeInserted.length === 0 ||
+                        nativeInserted !== finalValue ||
+                        (normalizedNativeInserted && normalizedNativeInserted !== nativeInserted);
                 }
 
                 if (shouldRepair) {
@@ -3331,6 +3423,72 @@
 
             state.manualCompositionReplacement = null;
             return changed;
+        }
+
+        function beginNativeCompositionMarker(element) {
+            if (!element || element.getAttribute('contenteditable') !== 'true') {
+                state.nativeCompositionMarker = null;
+                return;
+            }
+
+            const lineNumber = Number(element.dataset.line || state.compositionLine || state.currentLine || 1);
+            const baseText = lineTextFromElement(element);
+            const column = Math.max(0, Math.min(getCaretOffset(element), baseText.length));
+            state.nativeCompositionMarker = {
+                line: lineNumber,
+                baseText,
+                column,
+                startedAt: performance.now()
+            };
+        }
+
+        function repairNativeCompositionText(element, finalText = null, clearMarker = false) {
+            const marker = state.nativeCompositionMarker;
+            if (!marker || !element || element.getAttribute('contenteditable') !== 'true') return false;
+
+            const lineNumber = Number(element.dataset.line || state.compositionLine || state.currentLine || 1);
+            if (Number(marker.line || 0) !== lineNumber) return false;
+
+            const baseText = String(marker.baseText ?? '');
+            const column = Math.max(0, Math.min(Number(marker.column || 0), baseText.length));
+            const prefix = baseText.slice(0, column);
+            const suffix = baseText.slice(column);
+            const currentText = lineTextFromElement(element);
+
+            let inserted = null;
+            if (currentText.startsWith(prefix) && currentText.endsWith(suffix) &&
+                currentText.length >= prefix.length + suffix.length) {
+                inserted = currentText.slice(prefix.length, currentText.length - suffix.length);
+            }
+
+            if ((inserted === null || inserted.length === 0) && finalText !== null && finalText !== undefined) {
+                inserted = String(finalText ?? '');
+            }
+
+            if (inserted === null) {
+                if (clearMarker) state.nativeCompositionMarker = null;
+                return false;
+            }
+
+            const normalizedInserted = normalizeHangulCompositionText(inserted);
+            if (normalizedInserted && normalizedInserted !== inserted) {
+                const nextText = prefix + normalizedInserted + suffix;
+                const nextColumn = prefix.length + normalizedInserted.length;
+                element.textContent = nextText;
+                state.cache.set(lineNumber, nextText);
+                state.cacheVersion++;
+                state.selection = null;
+                state.selectionAnchor = { line: lineNumber, column: nextColumn };
+                state.currentLine = lineNumber;
+                state.currentColumn = nextColumn + 1;
+                state.editingLine = lineNumber;
+                setCaret(element, nextColumn);
+                if (clearMarker) state.nativeCompositionMarker = null;
+                return true;
+            }
+
+            if (clearMarker) state.nativeCompositionMarker = null;
+            return false;
         }
 
         function moveCaretHorizontal(element, direction, extendSelection = false) {
@@ -5750,18 +5908,14 @@
         }
 
         viewport.addEventListener('input', event => {
-            if (state.manualCompositionReplacement && isCompositionInputEvent(event)) {
-                if (state.manualCompositionReplacement.isMultiLine) {
-                    // Let native fall through to commitLine
-                } else {
-                    return;
-                }
-            }
             if (shouldSuppressNativeBeforeInput(event)) {
                 return;
             }
             const element = lineElementFromEvent(event);
             if (element) {
+                if (!state.isComposing && isPendingImeSelectionCollapseFor(element, event)) {
+                    return;
+                }
                 if (!state.columnComposition) {
                     state.selection = null;
                     syncCustomSelectionClass();
@@ -5791,23 +5945,26 @@
         viewport.addEventListener('compositionstart', event => {
             let element = lineElementFromEvent(event) || activeEditableElement();
             const pendingCompositionSelection = compositionSelectionRange();
-            if (!pendingCompositionSelection && !state.manualCompositionReplacement) {
-                state.manualCompositionReplacement = null;
-            }
+            let collapsedSelectionForComposition = false;
+
             if (pendingCompositionSelection && !pendingCompositionSelection.isColumn) {
                 element = replaceSelectionForCompositionStart(element) || element;
+                collapsedSelectionForComposition = true;
             }
+
+            if (isPendingImeSelectionCollapseFor(element)) {
+                clearPendingImeSelectionCollapse();
+            }
+
             state.isComposing = true;
             state.compositionLine = element ? Number(element.dataset.line || state.currentLine || 1) : state.currentLine;
+
             if (element && element.getAttribute('contenteditable') === 'true') {
                 state.editingLine = state.compositionLine;
 
-                const manualMarker = state.manualCompositionReplacement;
-                if (manualMarker) {
-                    // 여러 줄 선택을 IME 시작 직전에 이미 접은 경우에는 DOM이 plain text이고
-                    // caret도 조합 시작 위치에 있다. 여기서 다시 makeEditablePlainText()나
-                    // Selection 복원을 수행하면 브라우저가 잡아 둔 첫 조합 자소 범위가 깨져
-                    // 'ㄷ' 다음 'ㅐ' 입력 시 'ㄷ'이 사라질 수 있으므로 그대로 둔다.
+                if (collapsedSelectionForComposition) {
+                    // 선택 삭제 직후에는 아무 한글 보정도 하지 않고, caret만 정리된 상태에서
+                    // 브라우저/native IME가 평소 입력처럼 조합을 이어가게 둔다.
                     state.columnComposition = null;
                     return;
                 }
@@ -5839,33 +5996,31 @@
         });
 
         viewport.addEventListener('compositionupdate', event => {
-            if (!state.manualCompositionReplacement) return;
-            if (state.manualCompositionReplacement.isMultiLine) {
-                state.isComposing = true;
-                return;
-            }
-            const element = lineElementFromEvent(event) || activeEditableElement();
-            const marker = state.manualCompositionReplacement;
-            const nextText = resolveManualCompositionText(marker, event.data, 'insertCompositionText');
+            // 한글 조합 문자열을 수동으로 보정하지 않는다.
+            // native IME 표시를 그대로 두어 평소 입력과 같은 경로를 사용한다.
             state.isComposing = true;
-            applyManualCompositionReplacement(element, nextText);
         });
 
         viewport.addEventListener('compositionend', event => {
             const element = lineElementFromEvent(event) || activeEditableElement();
             const lineNumber = element ? Number(element.dataset.line || state.compositionLine || state.currentLine) : state.compositionLine;
+
             state.isComposing = false;
-            const hadManualCompositionReplacement = finishManualCompositionReplacement(element, event.data);
+            clearPendingImeSelectionCollapse();
+            state.manualCompositionReplacement = null;
+            state.nativeCompositionMarker = null;
             state.compositionLine = null;
-            if (!hadManualCompositionReplacement && finishColumnComposition(element, lineNumber)) {
+
+            if (finishColumnComposition(element, lineNumber)) {
                 return;
             }
+
             if (element && element.getAttribute('contenteditable') === 'true') {
                 state.selection = null;
                 syncCustomSelectionClass();
                 state.editingLine = lineNumber;
                 // Chromium/WebView2는 compositionend 직후에 최종 input을 한 번 더 보낼 수 있다.
-                // 바로 textContent를 다시 쓰거나 리렌더하지 말고 다음 task에서 최종 DOM을 커밋한다.
+                // DOM을 수동 보정하지 말고 다음 task에서 native 결과만 모델에 커밋한다.
                 setTimeout(() => {
                     const current = viewport.querySelector(`.line-text[data-line="${lineNumber}"]`) || element;
                     if (current && current.getAttribute('contenteditable') === 'true') {
@@ -6134,12 +6289,11 @@
                 }
             }
 
-            if (event.isComposing || state.isComposing || event.key === 'Process' || event.keyCode === 229) {
+            if (isHangulImeKeyEvent(event)) {
                 // 한글 IME가 시작되는 Process/229 keydown 단계는 compositionstart보다 먼저 온다.
-                // 이 시점에 커스텀/네이티브 선택 범위만 미리 접어 두면, 이후 native IME가
-                // 첫 자음(예: 'ㄷ')을 정상적으로 조합 대상 DOM에 넣을 수 있다.
-                // compositionstart에서 선택을 지우면 이미 시작된 첫 조합 문자를 textContent 갱신으로
-                // 덮어써서 '대한민국'이 'ㅐ한민국'처럼 되는 경우가 있다.
+                // 또한 일부 WebView2 환경에서는 첫 keydown의 event.key가 'ㄱ' 같은 자모로
+                // 들어올 수 있다. 이때 선택을 먼저 Delete처럼 접고, 실제 한글 자소는
+                // keydown 모델 입력이 아니라 native IME/beforeinput 경로에 맡긴다.
                 const active = document.activeElement;
                 const isFindOrInput = active && (
                     active.closest?.('#find-panel') ||
@@ -6150,8 +6304,7 @@
                     const imeElement = lineElementFromEvent(event) || activeEditableElement();
                     const pendingSelection = compositionSelectionRange();
                     if (imeElement && pendingSelection && !pendingSelection.isColumn) {
-                        const replacedElement = replaceSelectionForCompositionStart(imeElement) || imeElement;
-                        state.isComposing = true;
+                        const replacedElement = replaceSelectionForCompositionStart(imeElement, true) || imeElement;
                         state.compositionLine = Number(replacedElement.dataset.line || state.currentLine || 1);
                         state.editingLine = state.compositionLine;
                     }
@@ -6341,47 +6494,28 @@
         viewport.addEventListener('beforeinput', event => {
             let element = lineElementFromEvent(event);
 
-            if (state.manualCompositionReplacement && isCompositionInputEvent(event)) {
-                if (state.manualCompositionReplacement.isMultiLine) {
-                    state.isComposing = true;
-                    return;
-                }
-                event.preventDefault();
-                const marker = state.manualCompositionReplacement;
-                const target = element || activeEditableElement() || viewport.querySelector(`.line-text[data-line="${Number(marker.line || state.compositionLine || state.currentLine || 1)}"]`);
-                const nextText = resolveManualCompositionText(marker, event.data, event.inputType);
-                state.isComposing = true;
-                applyManualCompositionReplacement(target, nextText);
-                return;
-            }
-
-            if (event.isComposing || state.isComposing || event.inputType === 'insertCompositionText') {
+            if (event.isComposing || state.isComposing ||
+                event.inputType === 'insertCompositionText' ||
+                event.inputType === 'deleteCompositionText') {
                 const pendingCompositionSelection = compositionSelectionRange(!state.isComposing);
                 if (pendingCompositionSelection && !pendingCompositionSelection.isColumn) {
                     const replacedElement = replaceSelectionForCompositionStart(element || activeEditableElement());
                     if (replacedElement) {
                         element = replacedElement;
                         state.compositionLine = Number(replacedElement.dataset.line || state.currentLine || 1);
+                        state.editingLine = state.compositionLine;
                     }
                 }
+
+                // 한글 조합 중에는 입력 문자열을 보정하거나 DOM에 다시 쓰지 않는다.
+                // 여러 줄 선택은 위에서 Delete처럼 접고, 실제 조합은 평소처럼 native IME에 맡긴다.
+                return;
             }
 
-            if (state.manualCompositionReplacement &&
-                (event.inputType === 'insertCompositionText' ||
-                    event.inputType === 'deleteCompositionText' ||
-                    event.isComposing || state.isComposing)) {
-                // 다중 줄 선택 삭제 직후의 한글 조합은 브라우저/IME native 조합에 맡긴다.
-                // event.data가 누적 조합 문자열이 아니라 자모 조각으로 들어오는 환경이 있어
-                // 여기서 preventDefault 후 수동 반영하면 '대한민국'이 'ㅐㅐ한민국'처럼 깨질 수 있다.
-                state.isComposing = true;
-            }
-
-            if (event.isComposing || state.isComposing ||
-                event.inputType === 'insertCompositionText' ||
-                event.inputType === 'deleteCompositionText') {
-                // 조합 중에는 Selection을 건드리지 않는다. compositionstart/focusin에서
-                // 이미 줄을 plain text로 평탄화했으므로 여기서 setCaret을 반복하면
-                // 오히려 Chromium IME 조합 범위가 깨질 수 있다.
+            if (isPendingImeSelectionCollapseFor(element, event)) {
+                // keydown에서 여러 줄 선택을 이미 Delete처럼 접은 직후 들어오는 첫 한글 이벤트는
+                // 평소 IME 입력과 같은 native DOM 경로에 맡긴다. 여기서 makeEditablePlainText()나
+                // 커스텀 치환을 한 번 더 하면 첫 글자만 자소가 분리될 수 있다.
                 return;
             }
 
