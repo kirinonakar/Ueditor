@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Text.Json;
@@ -115,6 +116,9 @@ namespace Ueditor
         private string _mappedPreviewDocumentDirectory = string.Empty;
         private const int InitialEditorLineWarmupCount = 120;
         private const int InitialPreviewLineWarmupCount = 120;
+
+        // Tracks which explorer flyouts have been localized already
+        private readonly ConditionalWeakTable<MenuFlyout, object> _localizedFlyouts = new ConditionalWeakTable<MenuFlyout, object>();
 
         // Autosave timer
         private readonly DispatcherTimer _autoSaveTimer;
@@ -583,14 +587,7 @@ namespace Ueditor
             ApplyPreviewVisibility(rightPanelVisible);
             TopToolbar.MarkdownToolbarIsChecked = _settingsService.CurrentSettings.DefaultMarkdownToolbarEnabled;
             MarkdownToolbar.Visibility = _settingsService.CurrentSettings.DefaultMarkdownToolbarEnabled ? Visibility.Visible : Visibility.Collapsed;
-            PreviewModeCombo.SelectedIndex = _settingsService.CurrentSettings.PreviewMode switch
-            {
-                "HTML" => 1,
-                "LaTeX" => 2,
-                "Aozora" => 3,
-                "CSV" => 4,
-                _ => 0
-            };
+            PreviewModeCombo.SelectedIndex = 0;
             ApplyUiPersonalization(_settingsService.CurrentSettings);
             LocalizeUi();
             ApplyToolbarSettings(_settingsService.CurrentSettings);
@@ -2926,16 +2923,23 @@ namespace Ueditor
             {
                 FileListView.SelectedItem = item;
             }
+
             if (sender is FrameworkElement element && element.ContextFlyout is MenuFlyout flyout && flyout.Items.Count >= 9)
             {
-                ((MenuFlyoutItem)flyout.Items[0]).Text = GetLocalizedString("ExplorerAddToFavorites", "즐겨찾기에 추가");
-                ((MenuFlyoutItem)flyout.Items[1]).Text = GetLocalizedString("ExplorerAddFolderToFavorites", "폴더를 즐겨찾기에 추가");
-                ((MenuFlyoutItem)flyout.Items[3]).Text = GetLocalizedString("ExplorerCopyFileName", "파일이름 복사");
-                ((MenuFlyoutItem)flyout.Items[4]).Text = GetLocalizedString("ExplorerCopyFilePath", "경로 복사");
-                ((MenuFlyoutItem)flyout.Items[5]).Text = GetLocalizedString("ExplorerCopyFolderPath", "폴더 경로 복사");
-                ((MenuFlyoutItem)flyout.Items[7]).Text = GetLocalizedString("ExplorerRename", "이름 바꾸기");
-                ((MenuFlyoutItem)flyout.Items[8]).Text = GetLocalizedString("ExplorerDelete", "삭제");
+                if (!_localizedFlyouts.TryGetValue(flyout, out _))
+                {
+                    _localizedFlyouts.Add(flyout, null!);
+                    ((MenuFlyoutItem)flyout.Items[0]).Text = GetLocalizedString("ExplorerAddToFavorites", "즐겨찾기에 추가");
+                    ((MenuFlyoutItem)flyout.Items[1]).Text = GetLocalizedString("ExplorerAddFolderToFavorites", "폴더를 즐겨찾기에 추가");
+                    ((MenuFlyoutItem)flyout.Items[3]).Text = GetLocalizedString("ExplorerCopyFileName", "파일이름 복사");
+                    ((MenuFlyoutItem)flyout.Items[4]).Text = GetLocalizedString("ExplorerCopyFilePath", "경로 복사");
+                    ((MenuFlyoutItem)flyout.Items[5]).Text = GetLocalizedString("ExplorerCopyFolderPath", "폴더 경로 복사");
+                    ((MenuFlyoutItem)flyout.Items[7]).Text = GetLocalizedString("ExplorerRename", "이름 바꾸기");
+                    ((MenuFlyoutItem)flyout.Items[8]).Text = GetLocalizedString("ExplorerDelete", "삭제");
+                }
             }
+
+            e.Handled = true;
         }
 
         #endregion
@@ -3040,22 +3044,8 @@ namespace Ueditor
             }
         }
 
-        private async void OnPreviewModeComboSelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void OnPreviewModeComboSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (_settingsService != null && PreviewModeCombo != null)
-            {
-                var settings = _settingsService.CurrentSettings;
-                settings.PreviewMode = PreviewModeCombo.SelectedIndex switch
-                {
-                    1 => "HTML",
-                    2 => "LaTeX",
-                    3 => "Aozora",
-                    4 => "CSV",
-                    _ => "Markdown"
-                };
-                await _settingsService.SaveSettingsAsync(settings);
-            }
-
             if (PreviewWebView != null && PreviewWebView.CoreWebView2 != null)
             {
                 OnRefreshPreviewClick(this, new RoutedEventArgs());
