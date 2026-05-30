@@ -335,6 +335,9 @@ namespace Ueditor
             LeftSidebarTabView.FileListViewItemRightTapped += OnFileListViewItemRightTapped;
             LeftSidebarTabView.CopyFileNameClick += OnExplorerCopyFileNameClick;
             LeftSidebarTabView.CopyFilePathClick += OnExplorerCopyFilePathClick;
+            LeftSidebarTabView.CopyFolderPathClick += OnExplorerCopyFolderPathClick;
+            LeftSidebarTabView.RenameClick += OnExplorerRenameClick;
+            LeftSidebarTabView.DeleteClick += OnExplorerDeleteClick;
             LeftSidebarTabView.SearchQueryInputKeyDown += OnSearchQueryInputKeyDown;
             LeftSidebarTabView.SearchAllFilesClick += OnSearchAllFilesClick;
             LeftSidebarTabView.ReplaceAllClick += OnReplaceAllClick;
@@ -2922,12 +2925,15 @@ namespace Ueditor
             {
                 FileListView.SelectedItem = item;
             }
-            if (sender is FrameworkElement element && element.ContextFlyout is MenuFlyout flyout && flyout.Items.Count >= 5)
+            if (sender is FrameworkElement element && element.ContextFlyout is MenuFlyout flyout && flyout.Items.Count >= 9)
             {
                 ((MenuFlyoutItem)flyout.Items[0]).Text = GetLocalizedString("ExplorerAddToFavorites", "즐겨찾기에 추가");
                 ((MenuFlyoutItem)flyout.Items[1]).Text = GetLocalizedString("ExplorerAddFolderToFavorites", "폴더를 즐겨찾기에 추가");
                 ((MenuFlyoutItem)flyout.Items[3]).Text = GetLocalizedString("ExplorerCopyFileName", "파일이름 복사");
                 ((MenuFlyoutItem)flyout.Items[4]).Text = GetLocalizedString("ExplorerCopyFilePath", "경로 복사");
+                ((MenuFlyoutItem)flyout.Items[5]).Text = GetLocalizedString("ExplorerCopyFolderPath", "폴더 경로 복사");
+                ((MenuFlyoutItem)flyout.Items[7]).Text = GetLocalizedString("ExplorerRename", "이름 바꾸기");
+                ((MenuFlyoutItem)flyout.Items[8]).Text = GetLocalizedString("ExplorerDelete", "삭제");
             }
         }
 
@@ -4531,6 +4537,157 @@ namespace Ueditor
                 var dp = new Windows.ApplicationModel.DataTransfer.DataPackage();
                 dp.SetText(item.Path);
                 Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dp);
+            }
+        }
+
+        private void OnExplorerCopyFolderPathClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement { DataContext: ExplorerItem item } && !string.IsNullOrEmpty(item.Path))
+            {
+                string folderPath = item.IsFolder ? item.Path : Path.GetDirectoryName(item.Path) ?? string.Empty;
+                var dp = new Windows.ApplicationModel.DataTransfer.DataPackage();
+                dp.SetText(folderPath);
+                Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dp);
+            }
+        }
+
+        private async void OnExplorerRenameClick(object sender, RoutedEventArgs e)
+        {
+            var item = (sender as FrameworkElement)?.DataContext as ExplorerItem ?? FileListView.SelectedItem as ExplorerItem;
+            if (item == null || string.IsNullOrEmpty(item.Path)) return;
+
+            string oldPath = item.Path;
+            string parentDir = Path.GetDirectoryName(oldPath) ?? string.Empty;
+            string oldName = item.Name;
+
+            var textBox = new TextBox
+            {
+                Text = oldName,
+                SelectionStart = 0,
+                SelectionLength = Path.GetFileNameWithoutExtension(oldName).Length
+            };
+            var dialog = new ContentDialog
+            {
+                Title = GetLocalizedString("RenameDialogTitle", "이름 바꾸기"),
+                Content = textBox,
+                PrimaryButtonText = GetLocalizedString("RenameDialogOK", "확인"),
+                CloseButtonText = GetLocalizedString("RenameDialogCancel", "취소"),
+                XamlRoot = this.Content.XamlRoot,
+                RequestedTheme = GetCurrentElementTheme()
+            };
+
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+            string newName = textBox.Text.Trim();
+            if (string.IsNullOrEmpty(newName) || newName == oldName) return;
+
+            string newPath = Path.Combine(parentDir, newName);
+
+            try
+            {
+                if (item.IsFolder)
+                {
+                    Directory.Move(oldPath, newPath);
+                }
+                else
+                {
+                    File.Move(oldPath, newPath);
+
+                    // Close and reopen tabs with the old file path
+                    var tabsToReopen = _viewModel.Tabs
+                        .Where(t => string.Equals(t.FilePath, oldPath, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+
+                    foreach (var tab in tabsToReopen)
+                    {
+                        var tabItem = EditorTabView.TabItems.Cast<TabViewItem>()
+                            .FirstOrDefault(t => t.Tag as string == tab.Id)
+                            ?? EditorTabView2.TabItems.Cast<TabViewItem>()
+                                .FirstOrDefault(t => t.Tag as string == tab.Id);
+                        if (tabItem != null)
+                        {
+                            CloseTabAndCleanup(tab, tabItem);
+                        }
+                    }
+
+                    // Open new tab with renamed file
+                    await LoadFileIntoTabAsync(newPath);
+                }
+
+                LoadDirectoryRoot(_currentFolderPath);
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage(
+                    GetLocalizedString("RenameErrorTitle", "이름 바꾸기 오류"),
+                    ex.Message);
+            }
+        }
+
+        private async void OnExplorerDeleteClick(object sender, RoutedEventArgs e)
+        {
+            var item = (sender as FrameworkElement)?.DataContext as ExplorerItem ?? FileListView.SelectedItem as ExplorerItem;
+            if (item == null || string.IsNullOrEmpty(item.Path)) return;
+
+            // Confirmation dialog
+            var confirmDialog = new ContentDialog
+            {
+                Title = GetLocalizedString("DeleteConfirmTitle", "삭제 확인"),
+                Content = string.Format(
+                    GetLocalizedString("DeleteConfirmMessage", "'{0}'을(를) 휴지통으로 이동하시겠습니까?"),
+                    item.Name),
+                PrimaryButtonText = GetLocalizedString("DeleteConfirmOK", "삭제"),
+                CloseButtonText = GetLocalizedString("DeleteConfirmCancel", "취소"),
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = this.Content.XamlRoot,
+                RequestedTheme = GetCurrentElementTheme()
+            };
+
+            if (await confirmDialog.ShowAsync() != ContentDialogResult.Primary) return;
+
+            try
+            {
+                // Close any open tabs for this file before deleting
+                var tabsToClose = _viewModel.Tabs
+                    .Where(t => string.Equals(t.FilePath, item.Path, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                foreach (var tab in tabsToClose)
+                {
+                    var tabItem = EditorTabView.TabItems.Cast<TabViewItem>()
+                        .FirstOrDefault(t => t.Tag as string == tab.Id)
+                        ?? EditorTabView2.TabItems.Cast<TabViewItem>()
+                            .FirstOrDefault(t => t.Tag as string == tab.Id);
+                    if (tabItem != null)
+                    {
+                        // Force close even if dirty
+                        CloseTabAndCleanup(tab, tabItem);
+                    }
+                }
+
+                // Move to recycle bin
+                if (item.IsFolder)
+                {
+                    Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(
+                        item.Path,
+                        Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
+                        Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                }
+                else
+                {
+                    Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(
+                        item.Path,
+                        Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
+                        Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                }
+
+                LoadDirectoryRoot(_currentFolderPath);
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage(
+                    GetLocalizedString("DeleteErrorTitle", "삭제 오류"),
+                    ex.Message);
             }
         }
 

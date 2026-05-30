@@ -62,6 +62,9 @@ namespace Ueditor.Controls
         public event RoutedEventHandler? AddFolderToFavoritesClick;
         public event RoutedEventHandler? CopyFileNameClick;
         public event RoutedEventHandler? CopyFilePathClick;
+        public event RoutedEventHandler? CopyFolderPathClick;
+        public event RoutedEventHandler? RenameClick;
+        public event RoutedEventHandler? DeleteClick;
         public event DoubleTappedEventHandler? FavoriteItemDoubleTapped;
         public event RoutedEventHandler? RemoveFavoriteClick;
         public event RoutedEventHandler? FavoritePinClick;
@@ -265,6 +268,9 @@ namespace Ueditor.Controls
         private void OnAddFolderToFavoritesClick(object sender, RoutedEventArgs e) => AddFolderToFavoritesClick?.Invoke(sender, e);
         private void OnCopyFileNameClick(object sender, RoutedEventArgs e) => CopyFileNameClick?.Invoke(sender, e);
         private void OnCopyFilePathClick(object sender, RoutedEventArgs e) => CopyFilePathClick?.Invoke(sender, e);
+        private void OnCopyFolderPathClick(object sender, RoutedEventArgs e) => CopyFolderPathClick?.Invoke(sender, e);
+        private void OnRenameClick(object sender, RoutedEventArgs e) => RenameClick?.Invoke(sender, e);
+        private void OnDeleteClick(object sender, RoutedEventArgs e) => DeleteClick?.Invoke(sender, e);
         private void OnFavoriteItemDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => FavoriteItemDoubleTapped?.Invoke(sender, e);
         private void OnRemoveFavoriteClick(object sender, RoutedEventArgs e) => RemoveFavoriteClick?.Invoke(sender, e);
         private void OnFavoritePinClick(object sender, RoutedEventArgs e) => FavoritePinClick?.Invoke(sender, e);

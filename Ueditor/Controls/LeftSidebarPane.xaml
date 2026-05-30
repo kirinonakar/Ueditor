@@ -155,6 +155,10 @@
                                                         <MenuFlyoutSeparator/>
                                                         <MenuFlyoutItem x:Name="ExplorerCopyFileNameMenuItem" Text="파일이름 복사" Click="OnCopyFileNameClick" Tag="{Binding}"/>
                                                         <MenuFlyoutItem x:Name="ExplorerCopyFilePathMenuItem" Text="경로 복사" Click="OnCopyFilePathClick" Tag="{Binding}"/>
+                                                        <MenuFlyoutItem x:Name="ExplorerCopyFolderPathMenuItem" Text="폴더 경로 복사" Click="OnCopyFolderPathClick" Tag="{Binding}"/>
+                                                        <MenuFlyoutSeparator/>
+                                                        <MenuFlyoutItem x:Name="ExplorerRenameMenuItem" Text="이름 바꾸기" Click="OnRenameClick" Tag="{Binding}"/>
+                                                        <MenuFlyoutItem x:Name="ExplorerDeleteMenuItem" Text="삭제" Click="OnDeleteClick" Tag="{Binding}"/>
                                                     </MenuFlyout>
                                                 </Grid.ContextFlyout>
                                                 <Grid.ColumnDefinitions>
