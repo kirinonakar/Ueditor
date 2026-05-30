@@ -905,8 +905,8 @@
   <data name="TabMenuReload" xml:space="preserve">
     <value>새로고침</value>
   </data>
-  <data name="TabMenuAddBookmark" xml:space="preserve">
-    <value>북마크 추가</value>
+  <data name="TabMenuAddToFavorites" xml:space="preserve">
+    <value>즐겨찾기 추가</value>
   </data>
   <data name="TabMenuOpenFolder" xml:space="preserve">
     <value>해당 폴더로 이동</value>
@@ -1117,5 +1117,41 @@
   </data>
   <data name="ExplorerRefreshTooltip" xml:space="preserve">
     <value>새로고침</value>
+  </data>
+  <data name="ExplorerCopyFolderPath" xml:space="preserve">
+    <value>폴더 경로 복사</value>
+  </data>
+  <data name="ExplorerRename" xml:space="preserve">
+    <value>이름 바꾸기</value>
+  </data>
+  <data name="ExplorerDelete" xml:space="preserve">
+    <value>삭제</value>
+  </data>
+  <data name="RenameDialogTitle" xml:space="preserve">
+    <value>이름 바꾸기</value>
+  </data>
+  <data name="RenameDialogOK" xml:space="preserve">
+    <value>확인</value>
+  </data>
+  <data name="RenameDialogCancel" xml:space="preserve">
+    <value>취소</value>
+  </data>
+  <data name="RenameErrorTitle" xml:space="preserve">
+    <value>이름 바꾸기 오류</value>
+  </data>
+  <data name="DeleteConfirmTitle" xml:space="preserve">
+    <value>삭제 확인</value>
+  </data>
+  <data name="DeleteConfirmMessage" xml:space="preserve">
+    <value>'{0}'을(를) 휴지통으로 이동하시겠습니까?</value>
+  </data>
+  <data name="DeleteConfirmOK" xml:space="preserve">
+    <value>삭제</value>
+  </data>
+  <data name="DeleteConfirmCancel" xml:space="preserve">
+    <value>취소</value>
+  </data>
+  <data name="DeleteErrorTitle" xml:space="preserve">
+    <value>삭제 오류</value>
   </data>
 </root>

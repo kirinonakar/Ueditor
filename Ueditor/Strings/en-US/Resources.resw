@@ -905,8 +905,8 @@ Supports live preview, code &amp; formula templates, terminal interface, Git int
   <data name="TabMenuReload" xml:space="preserve">
     <value>Reload</value>
   </data>
-  <data name="TabMenuAddBookmark" xml:space="preserve">
-    <value>Add Bookmark</value>
+  <data name="TabMenuAddToFavorites" xml:space="preserve">
+    <value>Add to Favorites</value>
   </data>
   <data name="TabMenuOpenFolder" xml:space="preserve">
     <value>Go to Containing Folder</value>
@@ -1117,5 +1117,41 @@ Supports live preview, code &amp; formula templates, terminal interface, Git int
   </data>
   <data name="ExplorerRefreshTooltip" xml:space="preserve">
     <value>Refresh</value>
+  </data>
+  <data name="ExplorerCopyFolderPath" xml:space="preserve">
+    <value>Copy Folder Path</value>
+  </data>
+  <data name="ExplorerRename" xml:space="preserve">
+    <value>Rename</value>
+  </data>
+  <data name="ExplorerDelete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="RenameDialogTitle" xml:space="preserve">
+    <value>Rename</value>
+  </data>
+  <data name="RenameDialogOK" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="RenameDialogCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="RenameErrorTitle" xml:space="preserve">
+    <value>Rename Error</value>
+  </data>
+  <data name="DeleteConfirmTitle" xml:space="preserve">
+    <value>Confirm Delete</value>
+  </data>
+  <data name="DeleteConfirmMessage" xml:space="preserve">
+    <value>Move '{0}' to Recycle Bin?</value>
+  </data>
+  <data name="DeleteConfirmOK" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="DeleteConfirmCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="DeleteErrorTitle" xml:space="preserve">
+    <value>Delete Error</value>
   </data>
 </root>

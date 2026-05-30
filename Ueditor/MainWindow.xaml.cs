@@ -911,9 +911,10 @@ namespace Ueditor
 
             tabContextMenu.Items.Add(new MenuFlyoutSeparator());
 
-            var bookmarkItem = new MenuFlyoutItem { Text = GetLocalizedString("TabMenuAddBookmark", "북마크 추가") };
-            bookmarkItem.Click += (s, args) => OnTabAddBookmark(tab);
-            tabContextMenu.Items.Add(bookmarkItem);
+            var addToFavoritesItem = new MenuFlyoutItem { Text = GetLocalizedString("TabMenuAddToFavorites", "즐겨찾기 추가") };
+            addToFavoritesItem.IsEnabled = !string.IsNullOrEmpty(tab.FilePath);
+            addToFavoritesItem.Click += (s, args) => OnTabAddBookmark(tab);
+            tabContextMenu.Items.Add(addToFavoritesItem);
 
             var openFolderItem = new MenuFlyoutItem { Text = GetLocalizedString("TabMenuOpenFolder", "해당 폴더로 이동") };
             openFolderItem.Click += (s, args) => OnTabOpenFolder(tab);

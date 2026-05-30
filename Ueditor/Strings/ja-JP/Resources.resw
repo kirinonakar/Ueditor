@@ -906,8 +906,8 @@
   <data name="TabMenuReload" xml:space="preserve">
     <value>再読み込み</value>
   </data>
-  <data name="TabMenuAddBookmark" xml:space="preserve">
-    <value>ブックマークに追加</value>
+  <data name="TabMenuAddToFavorites" xml:space="preserve">
+    <value>お気に入りに追加</value>
   </data>
   <data name="TabMenuOpenFolder" xml:space="preserve">
     <value>このフォルダを開く</value>
@@ -1118,5 +1118,41 @@
   </data>
   <data name="ExplorerRefreshTooltip" xml:space="preserve">
     <value>更新</value>
+  </data>
+  <data name="ExplorerCopyFolderPath" xml:space="preserve">
+    <value>フォルダパスをコピー</value>
+  </data>
+  <data name="ExplorerRename" xml:space="preserve">
+    <value>名前の変更</value>
+  </data>
+  <data name="ExplorerDelete" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="RenameDialogTitle" xml:space="preserve">
+    <value>名前の変更</value>
+  </data>
+  <data name="RenameDialogOK" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="RenameDialogCancel" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="RenameErrorTitle" xml:space="preserve">
+    <value>名前の変更エラー</value>
+  </data>
+  <data name="DeleteConfirmTitle" xml:space="preserve">
+    <value>削除の確認</value>
+  </data>
+  <data name="DeleteConfirmMessage" xml:space="preserve">
+    <value>'{0}'をごみ箱に移動しますか？</value>
+  </data>
+  <data name="DeleteConfirmOK" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="DeleteConfirmCancel" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="DeleteErrorTitle" xml:space="preserve">
+    <value>削除エラー</value>
   </data>
 </root>
