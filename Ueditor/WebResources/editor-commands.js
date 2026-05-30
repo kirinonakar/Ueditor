@@ -410,7 +410,7 @@ function focusLine(lineNumber, columnZeroBased = 0) {
     const wrappedTargetTop = lineTop(lineNumber);
     if (wrappedTargetTop < scrollContainer.scrollTop ||
         wrappedTargetTop > scrollContainer.scrollTop + scrollContainer.clientHeight - state.lineHeight) {
-        scrollContainer.scrollTop = Math.max(0, wrappedTargetTop - state.lineHeight * state.overscan);
+        scrollContainer.scrollTop = Math.max(0, wrappedTargetTop - Math.floor(scrollContainer.clientHeight / 2));
     }
 
     queueRender(true);

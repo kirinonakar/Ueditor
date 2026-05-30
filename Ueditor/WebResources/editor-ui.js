@@ -733,7 +733,7 @@ function revealLine(lineNumber, indexOfMatch = 0, matchLength = 0, query = '', p
     state.activeSearch = query
         ? { lineNumber: safeLine, indexOfMatch, matchLength, query }
         : null;
-    scrollContainer.scrollTop = Math.max(0, lineTop(safeLine) - state.lineHeight * state.overscan);
+    scrollContainer.scrollTop = Math.max(0, lineTop(safeLine) - Math.floor(scrollContainer.clientHeight / 2));
     requestLines(Math.max(1, safeLine - state.overscan), state.overscan * 2 + 1);
     queueRender(true);
     if (!preventFocus) {
