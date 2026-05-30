@@ -143,7 +143,7 @@ body:not(.wrap-enabled) .line-row {
 .line-text {
     min-width: calc(100vw - var(--gutter-width));
     min-height: var(--line-height);
-    padding: 0 14px;
+    padding: 0 4px;
     overflow: hidden;
     outline: none;
     color: var(--fg);
