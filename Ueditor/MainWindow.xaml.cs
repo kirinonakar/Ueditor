@@ -4713,10 +4713,11 @@ namespace Ueditor
             Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dp);
         }
 
-        private void OnTabAddBookmark(OpenedTab tab)
+        private async void OnTabAddBookmark(OpenedTab tab)
         {
             if (string.IsNullOrEmpty(tab.FilePath)) return;
-            _ = _favoritesRecentController.AddFavoritePathAsync(tab.FilePath);
+            await _favoritesRecentController.AddFavoritePathAsync(tab.FilePath, true);
+            ShowLeftSidebarPage(1);
         }
 
         private async void OnTabOpenFolder(OpenedTab tab)
