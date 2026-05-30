@@ -65,6 +65,7 @@
                                                     <ComboBoxItem x:Name="ComboItemHtml" Content="HTML Preview"/>
                                                     <ComboBoxItem x:Name="ComboItemLatex" Content="LaTeX Block"/>
                                                     <ComboBoxItem x:Name="ComboItemAozora" Content="Aozora"/>
+                                                    <ComboBoxItem x:Name="ComboItemCsv" Content="CSV Table"/>
                                                 </ComboBox>
                                                 <Button x:Name="OpenBrowserButton" Click="OnOpenPreviewInBrowserClick" Height="24" Padding="8,0,8,0" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="HTML 미리보기를 브라우저로 열기">
                                                     <StackPanel Orientation="Horizontal" Spacing="4">

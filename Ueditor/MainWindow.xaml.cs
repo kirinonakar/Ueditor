@@ -585,6 +585,7 @@ namespace Ueditor
                 "HTML" => 1,
                 "LaTeX" => 2,
                 "Aozora" => 3,
+                "CSV" => 4,
                 _ => 0
             };
             ApplyUiPersonalization(_settingsService.CurrentSettings);
@@ -1489,17 +1490,38 @@ namespace Ueditor
             {
                 if (PreviewWebView.CoreWebView2 == null) return;
 
-                // Sync current combo mode selection based on index (index 0=Markdown, 1=HTML, 2=LaTeX, 3=Aozora)
+                // Sync current combo mode selection based on index (index 0=Markdown, 1=HTML, 2=LaTeX, 3=Aozora, 4=CSV)
                 string mode = PreviewModeCombo.SelectedIndex switch
                 {
                     1 => "html",
                     2 => "latex",
                     3 => "aozora",
+                    4 => "csv",
                     _ => "markdown"
                 };
                 if (string.Equals(tab.Language, "html", StringComparison.OrdinalIgnoreCase))
                 {
                     mode = "html";
+                }
+                if (string.Equals(tab.Language, "csv", StringComparison.OrdinalIgnoreCase))
+                {
+                    mode = "csv";
+                }
+
+                if (string.Equals(mode, "csv", StringComparison.Ordinal))
+                {
+                    string previewText = _editorSessions.TryGetValue(tab.Id, out var csvSession)
+                        ? csvSession.GetText()
+                        : tab.Content ?? string.Empty;
+                    var csvMsg = new
+                    {
+                        action = "renderCsvPreview",
+                        text = previewText,
+                        scrollSyncEnabled = _scrollSyncEnabled
+                    };
+                    string csvJson = System.Text.Json.JsonSerializer.Serialize(csvMsg);
+                    PreviewWebView.CoreWebView2.PostWebMessageAsJson(csvJson);
+                    return;
                 }
 
                 if (string.Equals(mode, "html", StringComparison.Ordinal))
@@ -3021,6 +3043,7 @@ namespace Ueditor
                     1 => "HTML",
                     2 => "LaTeX",
                     3 => "Aozora",
+                    4 => "CSV",
                     _ => "Markdown"
                 };
                 await _settingsService.SaveSettingsAsync(settings);

@@ -318,6 +318,37 @@
             max-width: 100%;
             height: auto;
         }
+
+        body.csv-mode #preview-viewport {
+            position: relative;
+            width: 100%;
+            will-change: auto;
+            overflow: visible;
+        }
+
+        .csv-table-wrap {
+            padding: 0 22px 22px;
+        }
+
+        .csv-table-wrap table {
+            font-size: 0.85em;
+        }
+
+        .csv-table-wrap th,
+        .csv-table-wrap td {
+            white-space: nowrap;
+            padding: 4px 12px;
+        }
+
+        .csv-table-wrap td.csv-numeric {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .csv-empty {
+            padding: 20px 22px;
+            color: var(--muted);
+        }
     </style>
 </head>
 
@@ -737,6 +768,95 @@
             return `<p class="aozora">${html}</p>`;
         }
 
+        function parseCsvLine(line) {
+            const cells = [];
+            let current = '';
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (inQuotes) {
+                    if (ch === '"' && i + 1 < line.length && line[i + 1] === '"') {
+                        current += '"';
+                        i++;
+                    } else if (ch === '"') {
+                        inQuotes = false;
+                    } else {
+                        current += ch;
+                    }
+                } else {
+                    if (ch === '"') {
+                        inQuotes = true;
+                    } else if (ch === ',') {
+                        cells.push(current);
+                        current = '';
+                    } else {
+                        current += ch;
+                    }
+                }
+            }
+            cells.push(current);
+            return cells;
+        }
+
+        function renderCsvCell(content, tag, isNumeric) {
+            const escaped = escapeHtml(content);
+            const cls = isNumeric ? ' class="csv-numeric"' : '';
+            return `<${tag}${cls}>${escaped || '&nbsp;'}</${tag}>`;
+        }
+
+        function renderCsvPreview(message) {
+            state.mode = 'csv';
+            state.scrollSyncEnabled = message.scrollSyncEnabled !== false;
+            state.cache.clear();
+            state.pending.clear();
+            state.rowHeights.clear();
+            state.cacheVersion++;
+            state.lastRangeKey = '';
+            setHtmlMode(false);
+            document.body.classList.remove('wrap-enabled');
+            document.body.classList.add('csv-mode');
+            viewport.innerHTML = '';
+            spacer.style.height = '0';
+
+            const text = String(message.text || '');
+            if (!text.trim()) {
+                viewport.innerHTML = '<div class="csv-empty">빈 CSV 파일입니다.</div>';
+                return;
+            }
+
+            const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+            const nonEmpty = lines.filter(l => l.trim().length > 0);
+            if (nonEmpty.length === 0) {
+                viewport.innerHTML = '<div class="csv-empty">빈 CSV 파일입니다.</div>';
+                return;
+            }
+
+            const parsedRows = nonEmpty.map(parseCsvLine);
+            const maxColumns = parsedRows.reduce((max, row) => Math.max(max, row.length), 0);
+
+            const headerCells = parsedRows[0];
+            const dataRows = parsedRows.slice(1);
+
+            let html = '<div class="csv-table-wrap"><table>';
+            html += '<thead><tr>';
+            for (let i = 0; i < Math.max(headerCells.length, maxColumns); i++) {
+                html += renderCsvCell(headerCells[i] || '', 'th', false);
+            }
+            html += '</tr></thead><tbody>';
+            for (let r = 0; r < dataRows.length; r++) {
+                html += '<tr>';
+                for (let c = 0; c < maxColumns; c++) {
+                    const val = dataRows[r][c] || '';
+                    const isNumeric = /^-?\d+(\.\d+)?$/.test(val.trim());
+                    html += renderCsvCell(val, 'td', isNumeric);
+                }
+                html += '</tr>';
+            }
+            html += '</tbody></table></div>';
+
+            viewport.innerHTML = html;
+        }
+
         function renderFencedCodeBlock(block) {
             if (block.language === 'mermaid') {
                 const cachedSvg = state.mermaidCache.get(block.code);
@@ -1106,6 +1226,7 @@
             state.cacheVersion++;
             state.lastRangeKey = '';
             setHtmlMode(false);
+            document.body.classList.remove('csv-mode');
             document.body.classList.toggle('wrap-enabled', state.wordWrap);
             applyTheme(message);
             setupVirtualHeight();
@@ -1300,6 +1421,7 @@
         }
 
         function render() {
+            if (state.mode === 'csv') return;
             const visible = visibleRange();
             const contextStart = state.mode === 'markdown'
                 ? Math.max(1, visible.start - state.blockContextLines)
@@ -1675,6 +1797,7 @@
             lines.forEach((line, index) => state.cache.set(index + 1, line));
             state.cacheVersion++;
             setHtmlMode(false);
+            document.body.classList.remove('csv-mode');
             document.body.classList.toggle('wrap-enabled', state.wordWrap);
             setupVirtualHeight();
             const maxScrollTop = Math.max(0, totalVirtualHeight() - scroll.clientHeight);
@@ -1704,6 +1827,7 @@
                 if (message.action === 'initVirtualPreview') initVirtualPreview(message);
                 else if (message.action === 'previewLines') receiveLines(message);
                 else if (message.action === 'renderHtmlPreview') renderHtmlPreview(message);
+                else if (message.action === 'renderCsvPreview') renderCsvPreview(message);
                 else if (message.action === 'render') renderFullFallback(message);
                 else if (message.action === 'scrollSyncChanged') {
                     state.scrollSyncEnabled = !!message.enabled;

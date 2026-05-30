@@ -42,6 +42,7 @@ namespace Ueditor.Controls
         public ComboBoxItem ComboHtml => ComboItemHtml;
         public ComboBoxItem ComboLatex => ComboItemLatex;
         public ComboBoxItem ComboAozora => ComboItemAozora;
+        public ComboBoxItem ComboCsv => ComboItemCsv;
         public Button OpenBrowserBtn => OpenBrowserButton;
         public TextBlock OpenBrowserBtnText => OpenBrowserButtonText;
         public TabViewItem AiAssistantTabItem => AiAssistantTab;
@@ -63,6 +64,7 @@ namespace Ueditor.Controls
             ComboItemHtml.Content = getString("ComboItemHtml", "HTML Preview");
             ComboItemLatex.Content = getString("ComboItemLatex", "LaTeX Block");
             ComboItemAozora.Content = getString("ComboItemAozora", "Aozora");
+            ComboItemCsv.Content = getString("ComboItemCsv", "CSV Table");
             OpenBrowserButtonText.Text = getString("OpenInBrowserButtonText", "브라우저");
             ToolTipService.SetToolTip(OpenBrowserButton, getString("OpenInBrowserTooltip", "HTML 미리보기를 브라우저로 열기"));
 

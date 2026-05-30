@@ -507,6 +507,9 @@
   <data name="ComboItemAozora" xml:space="preserve">
     <value>Aozora</value>
   </data>
+  <data name="ComboItemCsv" xml:space="preserve">
+    <value>CSV Table</value>
+  </data>
   <data name="OpenInBrowserButtonText" xml:space="preserve">
     <value>ブラウザ</value>
   </data>

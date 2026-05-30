@@ -72,6 +72,7 @@ namespace Ueditor.Core.Services
                 ".yml" => "yaml",
                 ".yaml" => "yaml",
                 ".reg" => "reg",
+                ".csv" => "csv",
                 _ => "plaintext"
             };
         }
