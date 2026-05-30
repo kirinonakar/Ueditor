@@ -894,6 +894,15 @@
   <data name="TextColorApplyButton" xml:space="preserve">
     <value>適用</value>
   </data>
+  <data name="TabMenuCopyFileName" xml:space="preserve">
+    <value>ファイル名をコピー</value>
+  </data>
+  <data name="TabMenuCopyFilePath" xml:space="preserve">
+    <value>パスをコピー</value>
+  </data>
+  <data name="TabMenuReload" xml:space="preserve">
+    <value>再読み込み</value>
+  </data>
   <data name="TabMenuAddBookmark" xml:space="preserve">
     <value>ブックマークに追加</value>
   </data>
@@ -905,6 +914,9 @@
   </data>
   <data name="TabMenuCloseLeft" xml:space="preserve">
     <value>左側のタブを閉じる</value>
+  </data>
+  <data name="TabMenuCloseOthers" xml:space="preserve">
+    <value>他のタブを閉じる</value>
   </data>
   <data name="EditorContextMenuCut" xml:space="preserve">
     <value>切り取り</value>

@@ -893,6 +893,18 @@ namespace Ueditor
 
             // Tab right-click context menu
             var tabContextMenu = new MenuFlyout();
+            var copyFileNameItem = new MenuFlyoutItem { Text = GetLocalizedString("TabMenuCopyFileName", "파일이름 복사") };
+            copyFileNameItem.IsEnabled = !string.IsNullOrEmpty(tab.FilePath);
+            copyFileNameItem.Click += (s, args) => OnTabCopyFileName(tab);
+            tabContextMenu.Items.Add(copyFileNameItem);
+
+            var copyFilePathItem = new MenuFlyoutItem { Text = GetLocalizedString("TabMenuCopyFilePath", "경로 복사") };
+            copyFilePathItem.IsEnabled = !string.IsNullOrEmpty(tab.FilePath);
+            copyFilePathItem.Click += (s, args) => OnTabCopyFilePath(tab);
+            tabContextMenu.Items.Add(copyFilePathItem);
+
+            tabContextMenu.Items.Add(new MenuFlyoutSeparator());
+
             var bookmarkItem = new MenuFlyoutItem { Text = GetLocalizedString("TabMenuAddBookmark", "북마크 추가") };
             bookmarkItem.Click += (s, args) => OnTabAddBookmark(tab);
             tabContextMenu.Items.Add(bookmarkItem);
@@ -903,6 +915,13 @@ namespace Ueditor
 
             tabContextMenu.Items.Add(new MenuFlyoutSeparator());
 
+            var reloadItem = new MenuFlyoutItem { Text = GetLocalizedString("TabMenuReload", "새로고침") };
+            reloadItem.IsEnabled = !string.IsNullOrEmpty(tab.FilePath);
+            reloadItem.Click += async (s, args) => await OnTabReloadAsync(tab, tabItem);
+            tabContextMenu.Items.Add(reloadItem);
+
+            tabContextMenu.Items.Add(new MenuFlyoutSeparator());
+
             var closeRightItem = new MenuFlyoutItem { Text = GetLocalizedString("TabMenuCloseRight", "오른쪽 탭 닫기") };
             closeRightItem.Click += (s, args) => OnCloseRightTabs(tab, tabItem, targetTabView);
             tabContextMenu.Items.Add(closeRightItem);
@@ -910,6 +929,10 @@ namespace Ueditor
             var closeLeftItem = new MenuFlyoutItem { Text = GetLocalizedString("TabMenuCloseLeft", "왼쪽 탭 닫기") };
             closeLeftItem.Click += (s, args) => OnCloseLeftTabs(tab, tabItem, targetTabView);
             tabContextMenu.Items.Add(closeLeftItem);
+
+            var closeOthersItem = new MenuFlyoutItem { Text = GetLocalizedString("TabMenuCloseOthers", "다른 탭 닫기") };
+            closeOthersItem.Click += (s, args) => OnCloseOtherTabs(tab, tabItem, targetTabView);
+            tabContextMenu.Items.Add(closeOthersItem);
 
             tabItem.ContextFlyout = tabContextMenu;
 
@@ -4456,6 +4479,22 @@ namespace Ueditor
             EditorTabView.SelectedItem = tabItem;
         }
 
+        private void OnTabCopyFileName(OpenedTab tab)
+        {
+            if (string.IsNullOrEmpty(tab.FilePath)) return;
+            var dp = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            dp.SetText(Path.GetFileName(tab.FilePath));
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dp);
+        }
+
+        private void OnTabCopyFilePath(OpenedTab tab)
+        {
+            if (string.IsNullOrEmpty(tab.FilePath)) return;
+            var dp = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            dp.SetText(tab.FilePath);
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dp);
+        }
+
         private void OnTabAddBookmark(OpenedTab tab)
         {
             if (string.IsNullOrEmpty(tab.FilePath)) return;
@@ -4469,6 +4508,57 @@ namespace Ueditor
             if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
             {
                 await NavigateExplorerToFolderAsync(folderPath);
+            }
+        }
+
+        private async Task OnTabReloadAsync(OpenedTab tab, TabViewItem tabItem)
+        {
+            if (string.IsNullOrEmpty(tab.FilePath) || !File.Exists(tab.FilePath)) return;
+            try
+            {
+                var readResult = await LineArrayTextModel.LoadFromFileAsync(tab.FilePath, "Auto");
+                string content = readResult.Model.GetText();
+
+                tab.EncodingName = readResult.EncodingName;
+                tab.EncodingWasAutoDetected = readResult.EncodingWasAutoDetected;
+                tab.IsDirty = false;
+
+                if (_editorSessions.TryGetValue(tab.Id, out var session))
+                {
+                    session.UpdateContentFromSync(content);
+                }
+
+                if (_tabBridges.TryGetValue(tab.Id, out var bridgeGroup) && bridgeGroup.Bridge != null)
+                {
+                    await bridgeGroup.Bridge.SetTextAsync(content);
+                }
+
+                UpdateStatusFileStats(tab);
+                UpdateTotalLines(tab);
+                SyncEncodingCombo(tab);
+                SchedulePreview(tab);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to reload tab: {ex.Message}");
+            }
+        }
+
+        private void OnCloseOtherTabs(OpenedTab tab, TabViewItem tabItem, TabView tabView)
+        {
+            var items = tabView.TabItems.Cast<TabViewItem>().ToList();
+            foreach (var item in items)
+            {
+                if (item == tabItem) continue;
+                if (item.Tag is string tabId)
+                {
+                    var t = _viewModel.Tabs.FirstOrDefault(x => x.Id == tabId);
+                    if (t != null)
+                    {
+                        if (t.IsDirty) WarnUnsavedAndClose(t, item);
+                        else CloseTabAndCleanup(t, item);
+                    }
+                }
             }
         }
 

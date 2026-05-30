@@ -893,6 +893,15 @@
   <data name="TextColorApplyButton" xml:space="preserve">
     <value>적용</value>
   </data>
+  <data name="TabMenuCopyFileName" xml:space="preserve">
+    <value>파일이름 복사</value>
+  </data>
+  <data name="TabMenuCopyFilePath" xml:space="preserve">
+    <value>경로 복사</value>
+  </data>
+  <data name="TabMenuReload" xml:space="preserve">
+    <value>새로고침</value>
+  </data>
   <data name="TabMenuAddBookmark" xml:space="preserve">
     <value>북마크 추가</value>
   </data>
@@ -904,6 +913,9 @@
   </data>
   <data name="TabMenuCloseLeft" xml:space="preserve">
     <value>왼쪽 탭 닫기</value>
+  </data>
+  <data name="TabMenuCloseOthers" xml:space="preserve">
+    <value>다른 탭 닫기</value>
   </data>
   <data name="EditorContextMenuCut" xml:space="preserve">
     <value>잘라내기</value>

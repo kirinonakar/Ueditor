@@ -893,6 +893,15 @@ Supports live preview, code &amp; formula templates, terminal interface, Git int
   <data name="TextColorApplyButton" xml:space="preserve">
     <value>Apply</value>
   </data>
+  <data name="TabMenuCopyFileName" xml:space="preserve">
+    <value>Copy File Name</value>
+  </data>
+  <data name="TabMenuCopyFilePath" xml:space="preserve">
+    <value>Copy File Path</value>
+  </data>
+  <data name="TabMenuReload" xml:space="preserve">
+    <value>Reload</value>
+  </data>
   <data name="TabMenuAddBookmark" xml:space="preserve">
     <value>Add Bookmark</value>
   </data>
@@ -904,6 +913,9 @@ Supports live preview, code &amp; formula templates, terminal interface, Git int
   </data>
   <data name="TabMenuCloseLeft" xml:space="preserve">
     <value>Close Tabs to the Left</value>
+  </data>
+  <data name="TabMenuCloseOthers" xml:space="preserve">
+    <value>Close Other Tabs</value>
   </data>
   <data name="EditorContextMenuCut" xml:space="preserve">
     <value>Cut</value>
