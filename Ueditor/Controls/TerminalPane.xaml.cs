@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
@@ -118,6 +118,70 @@ namespace Ueditor.Controls
             QueueEmbeddedTerminalResize();
         }
 
+        private void HideNativeTerminalScrollBars(IntPtr hwnd)
+        {
+            if (hwnd == IntPtr.Zero) return;
+
+            try
+            {
+                int style = GetWindowLong(hwnd, GWL_STYLE);
+                style &= ~WS_VSCROLL;
+                style &= ~WS_HSCROLL;
+                SetWindowLong(hwnd, GWL_STYLE, style);
+
+                SetWindowPos(
+                    hwnd,
+                    IntPtr.Zero,
+                    0, 0, 0, 0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE |
+                    SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOOWNERZORDER);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to hide native terminal scrollbars: {ex.Message}");
+            }
+        }
+
+        private void ApplyNativeTerminalClipRegion(IntPtr hwnd, int visibleWidth, int visibleHeight)
+        {
+            if (hwnd == IntPtr.Zero || visibleWidth <= 0 || visibleHeight <= 0)
+            {
+                return;
+            }
+
+            IntPtr region = IntPtr.Zero;
+            try
+            {
+                // Do not mutate the console buffer.  Instead, make the native console
+                // window slightly larger and clip its visible region to the WinUI host
+                // size. The native scrollbar remains outside the clipped region, which
+                // avoids crashes in TUI apps such as opencode that restore console
+                // buffers/alternate-screen state on exit.
+                region = CreateRectRgn(0, 0, visibleWidth, visibleHeight);
+                if (region == IntPtr.Zero)
+                {
+                    return;
+                }
+
+                if (SetWindowRgn(hwnd, region, true) != 0)
+                {
+                    // On success, the OS owns the HRGN. Do not delete it.
+                    region = IntPtr.Zero;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to clip native terminal region: {ex.Message}");
+            }
+            finally
+            {
+                if (region != IntPtr.Zero)
+                {
+                    DeleteObject(region);
+                }
+            }
+        }
+
         public void StopAllSessions()
         {
             foreach (var session in _terminalSessions.ToList())
@@ -232,6 +296,15 @@ namespace Ueditor.Controls
         [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
         private static extern IntPtr FindWindow(string? lpClassName, string lpWindowName);
 
+        [System.Runtime.InteropServices.DllImport("gdi32.dll", SetLastError = true)]
+        private static extern IntPtr CreateRectRgn(int left, int top, int right, int bottom);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+        private static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);
+
+        [System.Runtime.InteropServices.DllImport("gdi32.dll", SetLastError = true)]
+        private static extern bool DeleteObject(IntPtr hObject);
+
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
@@ -263,6 +336,9 @@ namespace Ueditor.Controls
         private const int WS_MAXIMIZEBOX = 0x00010000;
         private const int WS_SYSMENU = 0x00080000;
         private const int WS_CHILD = 0x40000000;
+        private const int WS_HSCROLL = 0x00100000;
+        private const int WS_VSCROLL = 0x00200000;
+        private const int NATIVE_TERMINAL_SCROLLBAR_CLIP_MARGIN = 24;
 
         private const uint SWP_NOACTIVATE = 0x0010;
         private const uint SWP_NOSIZE = 0x0001;
@@ -341,8 +417,9 @@ namespace Ueditor.Controls
                 SetParent(session.WindowHandle, parentHwnd);
 
                 int style = GetWindowLong(session.WindowHandle, GWL_STYLE);
-                style = (style | WS_CHILD) & ~WS_CAPTION & ~WS_THICKFRAME & ~WS_MINIMIZEBOX & ~WS_MAXIMIZEBOX & ~WS_SYSMENU;
+                style = (style | WS_CHILD) & ~WS_CAPTION & ~WS_THICKFRAME & ~WS_MINIMIZEBOX & ~WS_MAXIMIZEBOX & ~WS_SYSMENU & ~WS_VSCROLL & ~WS_HSCROLL;
                 SetWindowLong(session.WindowHandle, GWL_STYLE, style);
+                HideNativeTerminalScrollBars(session.WindowHandle);
                 SetWindowPos(session.WindowHandle, IntPtr.Zero, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOOWNERZORDER);
 
                 SetActiveTerminalSession(session);
@@ -355,6 +432,7 @@ namespace Ueditor.Controls
                 if (_activeTerminalSession == session)
                 {
                     ShowWindow(session.WindowHandle, SW_SHOW);
+                    HideNativeTerminalScrollBars(session.WindowHandle);
                     FocusTerminalSession(session);
                 }
                 ResizeEmbeddedTerminal();
@@ -537,8 +615,13 @@ namespace Ueditor.Controls
 
                 if (width > 0 && height > 0)
                 {
-                    SetWindowPos(_activeTerminalSession.WindowHandle, IntPtr.Zero, x, y, width, height, SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOOWNERZORDER);
-                    MoveWindow(_activeTerminalSession.WindowHandle, x, y, width, height, true);
+                    int nativeWidth = width + NATIVE_TERMINAL_SCROLLBAR_CLIP_MARGIN;
+                    int nativeHeight = height + NATIVE_TERMINAL_SCROLLBAR_CLIP_MARGIN;
+
+                    SetWindowPos(_activeTerminalSession.WindowHandle, IntPtr.Zero, x, y, nativeWidth, nativeHeight, SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOOWNERZORDER);
+                    MoveWindow(_activeTerminalSession.WindowHandle, x, y, nativeWidth, nativeHeight, true);
+                    HideNativeTerminalScrollBars(_activeTerminalSession.WindowHandle);
+                    ApplyNativeTerminalClipRegion(_activeTerminalSession.WindowHandle, width, height);
                 }
             }
             catch (Exception ex)
@@ -810,6 +893,7 @@ namespace Ueditor.Controls
                 TerminalOutputTextBox.Visibility = Visibility.Collapsed;
                 TerminalInputAreaGrid.Visibility = Visibility.Collapsed;
                 ShowWindow(session.WindowHandle, SW_SHOW);
+                HideNativeTerminalScrollBars(session.WindowHandle);
                 QueueEmbeddedTerminalResize();
                 QueueEmbeddedTerminalResizeAfterDelay(75);
                 FocusTerminalSession(session);
