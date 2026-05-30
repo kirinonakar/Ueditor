@@ -567,6 +567,12 @@ namespace Ueditor
 
             if (filesToOpen.Count > 0)
             {
+                string? folderPath = Path.GetDirectoryName(filesToOpen[0]);
+                if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
+                {
+                    await NavigateExplorerToFolderAsync(folderPath);
+                }
+
                 foreach (var filePath in filesToOpen)
                 {
                     _ = LoadFileIntoTabAsync(filePath);
@@ -4336,19 +4342,22 @@ namespace Ueditor
         {
             await LoadFileIntoTabAsync(item.Path);
             await Task.Delay(250);
-            if (EditorTabView.SelectedItem is TabViewItem activeTabItem &&
-                activeTabItem.Tag is string tabId &&
-                _tabBridges.TryGetValue(tabId, out var bridgeGroup))
+
+            string? targetTabId = null;
+            foreach (var tab in _viewModel.Tabs)
             {
-                if (bridgeGroup.Bridge != null)
+                if (string.Equals(tab.FilePath, item.Path, StringComparison.OrdinalIgnoreCase))
                 {
-                    await bridgeGroup.Bridge.RevealLineAsync(item.LineNumber, item.IndexOfMatch, item.MatchLength, query);
+                    targetTabId = tab.Id;
+                    break;
                 }
-                else if (bridgeGroup.WebView?.CoreWebView2 != null)
-                {
-                    var revealMsg = new { action = "revealLine", lineNumber = item.LineNumber, indexOfMatch = item.IndexOfMatch, matchLength = item.MatchLength, query };
-                    bridgeGroup.WebView.CoreWebView2.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(revealMsg));
-                }
+            }
+
+            if (targetTabId != null && _tabBridges.TryGetValue(targetTabId, out var bridgeGroup) && bridgeGroup.WebView?.CoreWebView2 != null)
+            {
+                var revealMsg = new { action = "revealLine", lineNumber = item.LineNumber, indexOfMatch = item.IndexOfMatch, matchLength = item.MatchLength, query };
+                string json = System.Text.Json.JsonSerializer.Serialize(revealMsg);
+                try { bridgeGroup.WebView.CoreWebView2.PostWebMessageAsJson(json); } catch { }
             }
         }
 

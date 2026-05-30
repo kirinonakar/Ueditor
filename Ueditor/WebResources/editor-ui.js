@@ -737,8 +737,19 @@ function revealLine(lineNumber, indexOfMatch = 0, matchLength = 0, query = '', p
     requestLines(Math.max(1, safeLine - state.overscan), state.overscan * 2 + 1);
     queueRender(true);
     if (!preventFocus) {
-        setTimeout(() => focusLine(safeLine, Math.max(0, indexOfMatch || 0)), 40);
+        focusLineWithRetry(safeLine, Math.max(0, indexOfMatch || 0));
     }
+}
+
+function focusLineWithRetry(lineNumber, columnZeroBased, retries = 20) {
+    setTimeout(() => {
+        const element = viewport.querySelector(`.line-text[data-line="${lineNumber}"]`);
+        if (element && element.getAttribute('contenteditable') === 'true') {
+            setCaret(element, columnZeroBased);
+        } else if (retries > 0) {
+            focusLineWithRetry(lineNumber, columnZeroBased, retries - 1);
+        }
+    }, 50);
 }
 
 // Printing Support
