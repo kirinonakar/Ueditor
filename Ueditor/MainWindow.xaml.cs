@@ -208,7 +208,9 @@ namespace Ueditor
                 () => this.Content.XamlRoot,
                 ShowErrorMessage,
                 LoadFileIntoTabAndHighlightAsync,
-                RefreshGitStatusUIAsync);
+                RefreshGitStatusUIAsync,
+                beforeDialog: () => { if (EditorWorkspace.IsTerminalVisible) TerminalPane.SuspendNativeWindows(); },
+                afterDialog: () => { if (EditorWorkspace.IsTerminalVisible) TerminalPane.ResumeNativeWindows(); });
             _searchReplaceController.FileModified += OnSearchReplaceFileModifiedAsync;
             _gitPanelController = new GitPanelController(
                 _gitService,
@@ -222,7 +224,9 @@ namespace Ueditor
                 IsGitNotDetectedText,
                 ShowErrorMessage,
                 () => _gitAutoRefreshTimer.Start(),
-                OpenCompareTabAsync);
+                OpenCompareTabAsync,
+                beforeDialog: () => { if (EditorWorkspace.IsTerminalVisible) TerminalPane.SuspendNativeWindows(); },
+                afterDialog: () => { if (EditorWorkspace.IsTerminalVisible) TerminalPane.ResumeNativeWindows(); });
             _gitPanelController.FileRestored += OnGitFileRestored;
             _favoritesRecentController = new FavoritesRecentController(
                 _settingsService,
@@ -242,7 +246,9 @@ namespace Ueditor
                 SyncSnippetsToOpenEditorsAsync,
                 ShowErrorMessage,
                 GetLocalizedString,
-                InitializePickerWindow);
+                InitializePickerWindow,
+                beforeDialog: () => { if (EditorWorkspace.IsTerminalVisible) TerminalPane.SuspendNativeWindows(); },
+                afterDialog: () => { if (EditorWorkspace.IsTerminalVisible) TerminalPane.ResumeNativeWindows(); });
             _llmAssistantController = new LlmAssistantController(
                 _llmService,
                 _settingsService,
@@ -253,7 +259,9 @@ namespace Ueditor
                 GetTabTextForLlmContext,
                 InsertTextIntoActiveEditorAsync,
                 ShowErrorMessage,
-                GetLocalizedString);
+                GetLocalizedString,
+                beforeDialog: () => { if (EditorWorkspace.IsTerminalVisible) TerminalPane.SuspendNativeWindows(); },
+                afterDialog: () => { if (EditorWorkspace.IsTerminalVisible) TerminalPane.ResumeNativeWindows(); });
             _tocController = new TocController(
                 _viewModel,
                 LeftSidebarTabView,
@@ -2379,6 +2387,9 @@ namespace Ueditor
 
         private async Task<bool> ConfirmRestartForLanguageChangeAsync(Func<string, string, string> getString)
         {
+            bool terminalWasVisible = EditorWorkspace.IsTerminalVisible;
+            if (terminalWasVisible)
+                TerminalPane.SuspendNativeWindows();
             var restartDialog = new ContentDialog
             {
                 Title = getString("LanguageChangedTitle", "Language Change"),
@@ -2389,7 +2400,10 @@ namespace Ueditor
                 RequestedTheme = GetCurrentElementTheme()
             };
 
-            return await restartDialog.ShowAsync() == ContentDialogResult.Primary;
+            var result = await restartDialog.ShowAsync() == ContentDialogResult.Primary;
+            if (terminalWasVisible)
+                TerminalPane.ResumeNativeWindows();
+            return result;
         }
 
         private async Task ApplySettingsToOpenEditorsAsync(EditorSettings settings)
@@ -3283,6 +3297,10 @@ namespace Ueditor
                 "EncodingChangeContentFormat",
                 "현재 열려 있는 파일의 인코딩을 '{0}'(으)로 변경하시겠습니까?\n\n- 변환: 현재 편집 중인 텍스트를 유지하고 파일 인코딩 형식을 변환하여 저장합니다.\n- 다시 읽기: 저장된 파일을 해당 인코딩으로 다시 로드합니다.{1}");
 
+            bool terminalWasVisible = EditorWorkspace.IsTerminalVisible;
+            if (terminalWasVisible)
+                TerminalPane.SuspendNativeWindows();
+
             var dialog = new ContentDialog
             {
                 Title = GetLocalizedString("EncodingChangeTitle", "인코딩 변경"),
@@ -3295,6 +3313,9 @@ namespace Ueditor
             };
 
             var result = await dialog.ShowAsync();
+            if (terminalWasVisible)
+                TerminalPane.ResumeNativeWindows();
+
             if (result == ContentDialogResult.Primary)
             {
                 tab.EncodingName = selectedEncoding;
@@ -3649,6 +3670,9 @@ namespace Ueditor
 
         private async void ShowErrorMessage(string title, string message)
         {
+            bool terminalWasVisible = EditorWorkspace.IsTerminalVisible;
+            if (terminalWasVisible)
+                TerminalPane.SuspendNativeWindows();
             var dialog = new ContentDialog
             {
                 Title = title,
@@ -3658,6 +3682,8 @@ namespace Ueditor
                 RequestedTheme = GetCurrentElementTheme()
             };
             await dialog.ShowAsync();
+            if (terminalWasVisible)
+                TerminalPane.ResumeNativeWindows();
         }
 
         private OpenedTab? GetActiveTab()
@@ -4410,7 +4436,12 @@ namespace Ueditor
 
         private async void OnCompareFilesClick(object sender, RoutedEventArgs e)
         {
+            bool terminalWasVisible = EditorWorkspace.IsTerminalVisible;
+            if (terminalWasVisible)
+                TerminalPane.SuspendNativeWindows();
             var selection = await _compareSelectionDialogService.ShowAsync(this, this.Content.XamlRoot, _viewModel.Tabs, GetCurrentElementTheme(), GetLocalizedString);
+            if (terminalWasVisible)
+                TerminalPane.ResumeNativeWindows();
             if (selection == null)
             {
                 return;
@@ -4594,6 +4625,10 @@ namespace Ueditor
                 SelectionStart = 0,
                 SelectionLength = Path.GetFileNameWithoutExtension(oldName).Length
             };
+            bool terminalWasVisible = EditorWorkspace.IsTerminalVisible;
+            if (terminalWasVisible)
+                TerminalPane.SuspendNativeWindows();
+
             var dialog = new ContentDialog
             {
                 Title = GetLocalizedString("RenameDialogTitle", "이름 바꾸기"),
@@ -4604,7 +4639,9 @@ namespace Ueditor
                 RequestedTheme = GetCurrentElementTheme()
             };
 
-            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) { if (terminalWasVisible) TerminalPane.ResumeNativeWindows(); return; }
+            if (terminalWasVisible)
+                TerminalPane.ResumeNativeWindows();
 
             string newName = textBox.Text.Trim();
             if (string.IsNullOrEmpty(newName) || newName == oldName) return;
@@ -4658,6 +4695,10 @@ namespace Ueditor
             if (item == null || string.IsNullOrEmpty(item.Path)) return;
 
             // Confirmation dialog
+            bool terminalWasVisible = EditorWorkspace.IsTerminalVisible;
+            if (terminalWasVisible)
+                TerminalPane.SuspendNativeWindows();
+
             var confirmDialog = new ContentDialog
             {
                 Title = GetLocalizedString("DeleteConfirmTitle", "삭제 확인"),
@@ -4671,7 +4712,9 @@ namespace Ueditor
                 RequestedTheme = GetCurrentElementTheme()
             };
 
-            if (await confirmDialog.ShowAsync() != ContentDialogResult.Primary) return;
+            if (await confirmDialog.ShowAsync() != ContentDialogResult.Primary) { if (terminalWasVisible) TerminalPane.ResumeNativeWindows(); return; }
+            if (terminalWasVisible)
+                TerminalPane.ResumeNativeWindows();
 
             try
             {
@@ -4902,6 +4945,10 @@ namespace Ueditor
             var lineBox = new TextBox { PlaceholderText = GetLocalizedString("GoToLinePlaceholder", "이동할 줄 번호 입력..."), Width = 200 };
             int currentLine = int.TryParse(StatusLine.Text, out int line) ? line : 1;
             lineBox.Text = currentLine.ToString();
+            bool terminalWasVisible = EditorWorkspace.IsTerminalVisible;
+            if (terminalWasVisible)
+                TerminalPane.SuspendNativeWindows();
+
             var dialog = new ContentDialog
             {
                 Title = GetLocalizedString("GoToLineTitle", "줄 이동 (Go to Line)"),
@@ -4920,12 +4967,16 @@ namespace Ueditor
                     if (int.TryParse(lineBox.Text, out int targetLine) && targetLine > 0)
                     {
                         dialog.Hide();
+                        if (terminalWasVisible)
+                            TerminalPane.ResumeNativeWindows();
                         await PerformLineNavigationAsync(activeTab.Id, targetLine);
                     }
                 }
             };
 
             var result = await dialog.ShowAsync();
+            if (terminalWasVisible)
+                TerminalPane.ResumeNativeWindows();
             if (result == ContentDialogResult.Primary && int.TryParse(lineBox.Text, out int clickedLine) && clickedLine > 0)
             {
                 await PerformLineNavigationAsync(activeTab.Id, clickedLine);
@@ -4985,6 +5036,10 @@ namespace Ueditor
                 "LineEndingChangeContentFormat",
                 "현재 열려 있는 파일의 줄 끝 방식을 '{0}'(으)로 변환하시겠습니까?");
 
+            bool terminalWasVisible = EditorWorkspace.IsTerminalVisible;
+            if (terminalWasVisible)
+                TerminalPane.SuspendNativeWindows();
+
             var dialog = new ContentDialog
             {
                 Title = GetLocalizedString("LineEndingChangeTitle", "줄 끝 방식 변경"),
@@ -4996,6 +5051,8 @@ namespace Ueditor
             };
 
             var result = await dialog.ShowAsync();
+            if (terminalWasVisible)
+                TerminalPane.ResumeNativeWindows();
             if (result == ContentDialogResult.Primary)
             {
                 if (_editorSessions.TryGetValue(tab.Id, out var session))

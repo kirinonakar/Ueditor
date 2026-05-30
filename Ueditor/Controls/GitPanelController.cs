@@ -30,6 +30,8 @@ namespace Ueditor.Controls
         private readonly Action<string, string> _showError;
         private readonly Action _startAutoRefresh;
         private readonly Func<string, string, string?, string?, string?, string?, string?, Task> _openCompareTabAsync;
+        private readonly Action? _beforeDialog;
+        private readonly Action? _afterDialog;
 
         public GitPanelController(
             IGitService gitService,
@@ -43,7 +45,9 @@ namespace Ueditor.Controls
             Func<string, bool> isGitNotDetected,
             Action<string, string> showError,
             Action startAutoRefresh,
-            Func<string, string, string?, string?, string?, string?, string?, Task> openCompareTabAsync)
+            Func<string, string, string?, string?, string?, string?, string?, Task> openCompareTabAsync,
+            Action? beforeDialog = null,
+            Action? afterDialog = null)
         {
             _gitService = gitService;
             _fileService = fileService;
@@ -57,6 +61,8 @@ namespace Ueditor.Controls
             _showError = showError;
             _startAutoRefresh = startAutoRefresh;
             _openCompareTabAsync = openCompareTabAsync;
+            _beforeDialog = beforeDialog;
+            _afterDialog = afterDialog;
 
             _leftSidebar.GitChangedFiles.ItemsSource = _viewModel.GitFiles;
             WireEvents();
@@ -194,6 +200,7 @@ namespace Ueditor.Controls
                 isDarkTheme = fe.ActualTheme == ElementTheme.Dark;
             }
 
+            _beforeDialog?.Invoke();
             var dialog = new ContentDialog
             {
                 Title = "Git 파일 복원",
@@ -206,8 +213,10 @@ namespace Ueditor.Controls
 
             if (await dialog.ShowAsync() != ContentDialogResult.Primary)
             {
+                _afterDialog?.Invoke();
                 return;
             }
+            _afterDialog?.Invoke();
 
             bool success = await _gitService.RestoreFileAsync(repoPath, filePath);
             if (success)
@@ -267,6 +276,7 @@ namespace Ueditor.Controls
                 isDarkTheme = fe.ActualTheme == ElementTheme.Dark;
             }
 
+            _beforeDialog?.Invoke();
             var dialog = new ContentDialog
             {
                 Title = "Git 전체 복원",
@@ -279,8 +289,10 @@ namespace Ueditor.Controls
 
             if (await dialog.ShowAsync() != ContentDialogResult.Primary)
             {
+                _afterDialog?.Invoke();
                 return;
             }
+            _afterDialog?.Invoke();
 
             bool success = await _gitService.RestoreAllAsync(repoPath);
             if (success)
@@ -375,7 +387,9 @@ namespace Ueditor.Controls
             stack.Children.Add(fileListView);
 
             dialog.Content = stack;
+            _beforeDialog?.Invoke();
             await dialog.ShowAsync();
+            _afterDialog?.Invoke();
         }
 
         private ListView BuildCommitChangedFilesList(System.Collections.Generic.IEnumerable<(string Status, string Path)> changedFiles, bool isDarkTheme)

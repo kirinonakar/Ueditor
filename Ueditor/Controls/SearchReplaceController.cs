@@ -27,6 +27,8 @@ namespace Ueditor.Controls
         private readonly Action<string, string> _showError;
         private readonly Func<SearchResultItem, string, Task> _loadAndHighlightResultAsync;
         private readonly Func<Task> _refreshGitStatusAsync;
+        private readonly Action? _beforeDialog;
+        private readonly Action? _afterDialog;
         private string _lastSearchQuery = string.Empty;
         public event Func<string, Task>? FileModified;
 
@@ -44,7 +46,9 @@ namespace Ueditor.Controls
             Func<XamlRoot> xamlRootProvider,
             Action<string, string> showError,
             Func<SearchResultItem, string, Task> loadAndHighlightResultAsync,
-            Func<Task> refreshGitStatusAsync)
+            Func<Task> refreshGitStatusAsync,
+            Action? beforeDialog = null,
+            Action? afterDialog = null)
         {
             _fileSearchService = fileSearchService;
             _viewModel = viewModel;
@@ -60,6 +64,8 @@ namespace Ueditor.Controls
             _showError = showError;
             _loadAndHighlightResultAsync = loadAndHighlightResultAsync;
             _refreshGitStatusAsync = refreshGitStatusAsync;
+            _beforeDialog = beforeDialog;
+            _afterDialog = afterDialog;
         }
 
         public async Task SearchAllFilesAsync()
@@ -134,6 +140,7 @@ namespace Ueditor.Controls
                 return;
             }
 
+            _beforeDialog?.Invoke();
             var dialog = new ContentDialog
             {
                 Title = "전체 바꾸기 경고",
@@ -144,6 +151,7 @@ namespace Ueditor.Controls
             };
 
             var result = await dialog.ShowAsync();
+            _afterDialog?.Invoke();
             if (result != ContentDialogResult.Primary)
             {
                 return;

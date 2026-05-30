@@ -21,6 +21,8 @@ namespace Ueditor.Controls
         private readonly Action<string, string> _showError;
         private readonly Func<string, string, string> _getString;
         private readonly Action<object> _initializePickerWindow;
+        private readonly Action? _beforeDialog;
+        private readonly Action? _afterDialog;
 
         public SnippetsController(
             ISnippetService snippetService,
@@ -31,7 +33,9 @@ namespace Ueditor.Controls
             Func<Task>? snippetsChangedAsync,
             Action<string, string> showError,
             Func<string, string, string> getString,
-            Action<object> initializePickerWindow)
+            Action<object> initializePickerWindow,
+            Action? beforeDialog = null,
+            Action? afterDialog = null)
         {
             _snippetService = snippetService;
             _viewModel = viewModel;
@@ -42,6 +46,8 @@ namespace Ueditor.Controls
             _showError = showError;
             _getString = getString;
             _initializePickerWindow = initializePickerWindow;
+            _beforeDialog = beforeDialog;
+            _afterDialog = afterDialog;
 
             _leftSidebar.SnippetsList.ItemsSource = _viewModel.Snippets;
             WireEvents();
@@ -182,6 +188,7 @@ namespace Ueditor.Controls
             stack.Children.Add(new TextBlock { Text = _getString("SnippetLabelContent", "템플릿 내용") });
             stack.Children.Add(contentBox);
 
+            _beforeDialog?.Invoke();
             var dialog = new ContentDialog
             {
                 Title = title,
@@ -193,6 +200,7 @@ namespace Ueditor.Controls
             };
 
             var result = await dialog.ShowAsync();
+            _afterDialog?.Invoke();
             if (result != ContentDialogResult.Primary || string.IsNullOrEmpty(titleBox.Text))
             {
                 return null;
@@ -248,6 +256,7 @@ namespace Ueditor.Controls
 
         private async void OnResetSnippetsClick(object sender, RoutedEventArgs e)
         {
+            _beforeDialog?.Invoke();
             var dialog = new ContentDialog
             {
                 Title = _getString("SnippetResetTitle", "스니펫 초기화"),
@@ -259,6 +268,7 @@ namespace Ueditor.Controls
             };
 
             var result = await dialog.ShowAsync();
+            _afterDialog?.Invoke();
             if (result != ContentDialogResult.Primary) return;
 
             await _snippetService.ResetSnippetsAsync();

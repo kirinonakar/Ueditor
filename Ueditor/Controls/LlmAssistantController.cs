@@ -22,6 +22,8 @@ namespace Ueditor.Controls
         private readonly Func<string, Task<bool>> _insertIntoActiveEditorAsync;
         private readonly Action<string, string> _showError;
         private readonly Func<string, string, string> _getString;
+        private readonly Action? _beforeDialog;
+        private readonly Action? _afterDialog;
 
         private string _lastSelectionText = string.Empty;
         private string _fileContextText = string.Empty;
@@ -49,7 +51,9 @@ namespace Ueditor.Controls
             Func<OpenedTab, int, string> getTabText,
             Func<string, Task<bool>> insertIntoActiveEditorAsync,
             Action<string, string> showError,
-            Func<string, string, string> getString)
+            Func<string, string, string> getString,
+            Action? beforeDialog = null,
+            Action? afterDialog = null)
         {
             _llmService = llmService;
             _settingsService = settingsService;
@@ -61,6 +65,8 @@ namespace Ueditor.Controls
             _insertIntoActiveEditorAsync = insertIntoActiveEditorAsync;
             _showError = showError;
             _getString = getString;
+            _beforeDialog = beforeDialog;
+            _afterDialog = afterDialog;
 
             WireEvents();
 
@@ -407,6 +413,7 @@ namespace Ueditor.Controls
                     previewText.Length / 4,
                     textPreview);
 
+                _beforeDialog?.Invoke();
                 var dialog = new ContentDialog
                 {
                     Title = _getString("LlmPreflightTitle", "AI 전송 사전 확인 (Pre-flight Check)"),
@@ -417,6 +424,7 @@ namespace Ueditor.Controls
                 };
 
                 var result = await dialog.ShowAsync();
+                _afterDialog?.Invoke();
                 if (result != ContentDialogResult.Primary)
                 {
                     return;
