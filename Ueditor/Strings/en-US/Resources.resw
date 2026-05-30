@@ -1106,4 +1106,13 @@ Supports live preview, code &amp; formula templates, terminal interface, Git int
   <data name="TerminalSendFailed" xml:space="preserve">
     <value>Failed to send command</value>
   </data>
+  <data name="ExplorerCopyFileName" xml:space="preserve">
+    <value>Copy File Name</value>
+  </data>
+  <data name="ExplorerCopyFilePath" xml:space="preserve">
+    <value>Copy File Path</value>
+  </data>
+  <data name="ExplorerRefreshTooltip" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
 </root>

@@ -1106,4 +1106,13 @@
   <data name="TerminalSendFailed" xml:space="preserve">
     <value>명령 전송 실패</value>
   </data>
+  <data name="ExplorerCopyFileName" xml:space="preserve">
+    <value>파일이름 복사</value>
+  </data>
+  <data name="ExplorerCopyFilePath" xml:space="preserve">
+    <value>경로 복사</value>
+  </data>
+  <data name="ExplorerRefreshTooltip" xml:space="preserve">
+    <value>새로고침</value>
+  </data>
 </root>

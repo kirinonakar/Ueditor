@@ -138,8 +138,8 @@
                                         </Grid.ColumnDefinitions>
                                     <Button x:Name="ExplorerUpButton" Content="↑" Click="OnExplorerUpClick" ToolTipService.ToolTip="상위 폴더" Padding="8,0" FontSize="11" Height="32"/>
                                     <Button x:Name="ExplorerSelectFolderButton" Grid.Column="1" Content="폴더 선택..." HorizontalAlignment="Stretch" Click="OnSelectFolderClick" Style="{StaticResource AccentButtonStyle}" FontSize="11" Height="32"/>
-                                    <Button x:Name="ExplorerTerminalButton" Grid.Column="2" Click="OnOpenTerminalClick" ToolTipService.ToolTip="현재 폴더에서 터미널 열기" Padding="8,0" Height="32">
-                                            <FontIcon Glyph="&#xE756;" FontSize="12"/>
+                                    <Button x:Name="ExplorerRefreshButton" Grid.Column="2" Click="OnRefreshClick" ToolTipService.ToolTip="새로고침" Padding="8,0" Height="32">
+                                            <FontIcon Glyph="&#xE72C;" FontSize="12"/>
                                         </Button>
                                     </Grid>
                                     <TextBlock x:Name="ExplorerStatusText" Text="폴더를 선택하세요." FontSize="11" TextWrapping="Wrap" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"/>
@@ -152,6 +152,9 @@
                                                     <MenuFlyout>
                                                         <MenuFlyoutItem Text="즐겨찾기에 추가" Click="OnAddFileToFavoritesClick" Tag="{Binding}"/>
                                                         <MenuFlyoutItem Text="폴더를 즐겨찾기에 추가" Click="OnAddFolderToFavoritesClick" Tag="{Binding}"/>
+                                                        <MenuFlyoutSeparator/>
+                                                        <MenuFlyoutItem x:Name="ExplorerCopyFileNameMenuItem" Text="파일이름 복사" Click="OnCopyFileNameClick" Tag="{Binding}"/>
+                                                        <MenuFlyoutItem x:Name="ExplorerCopyFilePathMenuItem" Text="경로 복사" Click="OnCopyFilePathClick" Tag="{Binding}"/>
                                                     </MenuFlyout>
                                                 </Grid.ContextFlyout>
                                                 <Grid.ColumnDefinitions>

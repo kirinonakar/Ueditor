@@ -1107,4 +1107,13 @@
   <data name="TerminalSendFailed" xml:space="preserve">
     <value>コマンド送信失敗</value>
   </data>
+  <data name="ExplorerCopyFileName" xml:space="preserve">
+    <value>ファイル名をコピー</value>
+  </data>
+  <data name="ExplorerCopyFilePath" xml:space="preserve">
+    <value>パスをコピー</value>
+  </data>
+  <data name="ExplorerRefreshTooltip" xml:space="preserve">
+    <value>更新</value>
+  </data>
 </root>

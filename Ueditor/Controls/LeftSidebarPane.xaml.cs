@@ -55,11 +55,13 @@ namespace Ueditor.Controls
         public event RoutedEventHandler? LeftActivityClick;
         public event RoutedEventHandler? ExplorerUpClick;
         public event RoutedEventHandler? SelectFolderClick;
-        public event RoutedEventHandler? OpenTerminalClick;
+        public event RoutedEventHandler? RefreshClick;
         public event DoubleTappedEventHandler? FileListViewDoubleTapped;
         public event RightTappedEventHandler? FileListViewItemRightTapped;
         public event RoutedEventHandler? AddFileToFavoritesClick;
         public event RoutedEventHandler? AddFolderToFavoritesClick;
+        public event RoutedEventHandler? CopyFileNameClick;
+        public event RoutedEventHandler? CopyFilePathClick;
         public event DoubleTappedEventHandler? FavoriteItemDoubleTapped;
         public event RoutedEventHandler? RemoveFavoriteClick;
         public event RoutedEventHandler? FavoritePinClick;
@@ -126,7 +128,7 @@ namespace Ueditor.Controls
         public TextBlock GitHistoryHeaderLabel => GitHistoryHeader;
         public Button ExplorerUpBtn => ExplorerUpButton;
         public Button ExplorerSelectFolderBtn => ExplorerSelectFolderButton;
-        public Button ExplorerTerminalBtn => ExplorerTerminalButton;
+        public Button ExplorerRefreshBtn => ExplorerRefreshButton;
 
         public ListView FileList => FileListView;
         public ListView FavoritesList => FavoritesListView;
@@ -178,7 +180,7 @@ namespace Ueditor.Controls
 
             ToolTipService.SetToolTip(ExplorerUpButton, getString("ExplorerUpTooltip", "상위 폴더"));
             ExplorerSelectFolderButton.Content = getString("ExplorerSelectFolder", "폴더 선택...");
-            ToolTipService.SetToolTip(ExplorerTerminalButton, getString("ExplorerOpenTerminalTooltip", "현재 폴더에서 터미널 열기"));
+            ToolTipService.SetToolTip(ExplorerRefreshButton, getString("ExplorerRefreshTooltip", "새로고침"));
 
             FavoritesFileTab.Content = getString("FavoritesFileTab", "파일");
             FavoritesFolderTab.Content = getString("FavoritesFolderTab", "폴더");
@@ -256,11 +258,13 @@ namespace Ueditor.Controls
         private void OnLeftActivityClick(object sender, RoutedEventArgs e) => LeftActivityClick?.Invoke(sender, e);
         private void OnExplorerUpClick(object sender, RoutedEventArgs e) => ExplorerUpClick?.Invoke(sender, e);
         private void OnSelectFolderClick(object sender, RoutedEventArgs e) => SelectFolderClick?.Invoke(sender, e);
-        private void OnOpenTerminalClick(object sender, RoutedEventArgs e) => OpenTerminalClick?.Invoke(sender, e);
+        private void OnRefreshClick(object sender, RoutedEventArgs e) => RefreshClick?.Invoke(sender, e);
         private void OnFileListViewDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => FileListViewDoubleTapped?.Invoke(sender, e);
         private void OnFileListViewItemRightTapped(object sender, RightTappedRoutedEventArgs e) => FileListViewItemRightTapped?.Invoke(sender, e);
         private void OnAddFileToFavoritesClick(object sender, RoutedEventArgs e) => AddFileToFavoritesClick?.Invoke(sender, e);
         private void OnAddFolderToFavoritesClick(object sender, RoutedEventArgs e) => AddFolderToFavoritesClick?.Invoke(sender, e);
+        private void OnCopyFileNameClick(object sender, RoutedEventArgs e) => CopyFileNameClick?.Invoke(sender, e);
+        private void OnCopyFilePathClick(object sender, RoutedEventArgs e) => CopyFilePathClick?.Invoke(sender, e);
         private void OnFavoriteItemDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => FavoriteItemDoubleTapped?.Invoke(sender, e);
         private void OnRemoveFavoriteClick(object sender, RoutedEventArgs e) => RemoveFavoriteClick?.Invoke(sender, e);
         private void OnFavoritePinClick(object sender, RoutedEventArgs e) => FavoritePinClick?.Invoke(sender, e);

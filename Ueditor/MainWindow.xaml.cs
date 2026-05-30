@@ -330,9 +330,11 @@ namespace Ueditor
             LeftSidebarTabView.LeftActivityClick += OnLeftActivityClick;
             LeftSidebarTabView.ExplorerUpClick += OnExplorerUpClick;
             LeftSidebarTabView.SelectFolderClick += OnSelectFolderClick;
-            LeftSidebarTabView.OpenTerminalClick += OnOpenTerminalClick;
+            LeftSidebarTabView.RefreshClick += OnExplorerRefreshClick;
             LeftSidebarTabView.FileListViewDoubleTapped += OnFileListViewDoubleTapped;
             LeftSidebarTabView.FileListViewItemRightTapped += OnFileListViewItemRightTapped;
+            LeftSidebarTabView.CopyFileNameClick += OnExplorerCopyFileNameClick;
+            LeftSidebarTabView.CopyFilePathClick += OnExplorerCopyFilePathClick;
             LeftSidebarTabView.SearchQueryInputKeyDown += OnSearchQueryInputKeyDown;
             LeftSidebarTabView.SearchAllFilesClick += OnSearchAllFilesClick;
             LeftSidebarTabView.ReplaceAllClick += OnReplaceAllClick;
@@ -2489,6 +2491,14 @@ namespace Ueditor
             ToggleTerminal();
         }
 
+        private void OnExplorerRefreshClick(object sender, RoutedEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(_currentFolderPath) && Directory.Exists(_currentFolderPath))
+            {
+                LoadDirectoryRoot(_currentFolderPath);
+            }
+        }
+
         private string GetTerminalWorkingDirectory()
         {
             if (FileListView.SelectedItem is ExplorerItem selectedItem)
@@ -2890,10 +2900,12 @@ namespace Ueditor
             {
                 FileListView.SelectedItem = item;
             }
-            if (sender is FrameworkElement element && element.ContextFlyout is MenuFlyout flyout && flyout.Items.Count >= 2)
+            if (sender is FrameworkElement element && element.ContextFlyout is MenuFlyout flyout && flyout.Items.Count >= 5)
             {
                 ((MenuFlyoutItem)flyout.Items[0]).Text = GetLocalizedString("ExplorerAddToFavorites", "즐겨찾기에 추가");
                 ((MenuFlyoutItem)flyout.Items[1]).Text = GetLocalizedString("ExplorerAddFolderToFavorites", "폴더를 즐겨찾기에 추가");
+                ((MenuFlyoutItem)flyout.Items[3]).Text = GetLocalizedString("ExplorerCopyFileName", "파일이름 복사");
+                ((MenuFlyoutItem)flyout.Items[4]).Text = GetLocalizedString("ExplorerCopyFilePath", "경로 복사");
             }
         }
 
@@ -4477,6 +4489,26 @@ namespace Ueditor
 
             EditorTabView.TabItems.Add(tabItem);
             EditorTabView.SelectedItem = tabItem;
+        }
+
+        private void OnExplorerCopyFileNameClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement { DataContext: ExplorerItem item } && !string.IsNullOrEmpty(item.Path))
+            {
+                var dp = new Windows.ApplicationModel.DataTransfer.DataPackage();
+                dp.SetText(item.Name);
+                Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dp);
+            }
+        }
+
+        private void OnExplorerCopyFilePathClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement { DataContext: ExplorerItem item } && !string.IsNullOrEmpty(item.Path))
+            {
+                var dp = new Windows.ApplicationModel.DataTransfer.DataPackage();
+                dp.SetText(item.Path);
+                Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dp);
+            }
         }
 
         private void OnTabCopyFileName(OpenedTab tab)
