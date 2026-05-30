@@ -245,7 +245,7 @@ namespace Ueditor.Controls
             _terminalPane.Visibility = Visibility.Visible;
             TerminalPaneHost.Visibility = Visibility.Visible;
             TerminalSplitter.Visibility = Visibility.Visible;
-            TerminalSplitterRow.Height = new GridLength(4);
+            TerminalSplitterRow.Height = new GridLength(2);
             LastTerminalHeight = Math.Clamp(LastTerminalHeight, 120, GetMaxTerminalPanelHeight());
             TerminalPanelRow.Height = new GridLength(LastTerminalHeight);
             TerminalPane.QueueEmbeddedTerminalResize();
