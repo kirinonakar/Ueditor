@@ -126,7 +126,9 @@ body:not(.wrap-enabled) .line-row {
 }
 
 .line-row.selected-empty-row .line-text {
-    background: var(--selection);
+    background: transparent;
+    border-left: 4px solid var(--selection);
+    padding-left: 0;
 }
 
 .line-number {
