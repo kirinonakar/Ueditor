@@ -166,7 +166,7 @@
                                                         <SolidColorBrush Color="{Binding IconColor}"/>
                                                     </FontIcon.Foreground>
                                                 </FontIcon>
-                                                <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Path}"/>
                                             </Grid>
                                         </DataTemplate>
                                     </ListView.ItemTemplate>

@@ -378,16 +378,18 @@ function splitCurrentLine(element) {
     const caret = getCaretOffset(element);
     const before = text.slice(0, caret);
     const after = text.slice(caret);
+    const indent = (text.match(/^[ \t]*/) || [''])[0];
+    const indentedAfter = indent + after;
     state.cache.set(lineNumber, before);
     shiftCachedLines(lineNumber + 1, 1);
-    state.cache.set(lineNumber + 1, after);
+    state.cache.set(lineNumber + 1, indentedAfter);
     state.lineCount++;
     setupVirtualHeight();
-    post({ type: 'splitLine', lineNumber, before, after });
+    post({ type: 'splitLine', lineNumber, before, after: indentedAfter });
     post({ type: 'contentChanged' });
-    markLineBoundaryTransition(lineNumber + 1, 0);
+    markLineBoundaryTransition(lineNumber + 1, indent.length);
     queueRender(true);
-    setTimeout(() => focusLine(lineNumber + 1, 0), 0);
+    setTimeout(() => focusLine(lineNumber + 1, indent.length), 0);
 }
 
 function mergeWithPrevious(element) {
