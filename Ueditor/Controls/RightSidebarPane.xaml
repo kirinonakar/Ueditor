@@ -180,9 +180,5 @@
                         </TabViewItem>
     
                     </TabView>
-                    
-                    <Button x:Name="ExpandPreviewButton" Click="OnExpandPreviewClick" Height="24" Width="24" Padding="0" Background="Transparent" BorderThickness="0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,46,4,0" ToolTipService.ToolTip="프리뷰 늘리기" Canvas.ZIndex="10">
-                        <FontIcon Glyph="&#xE1BF;" FontSize="12"/>
-                    </Button>
                 </Grid>
 </UserControl>

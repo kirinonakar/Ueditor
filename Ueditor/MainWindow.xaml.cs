@@ -290,6 +290,7 @@ namespace Ueditor
             StatusEncodingCombo.SelectedItem = "UTF-8";
             StatusBarPane.LeftPanelToggleClick += OnToggleLeftPanelClick;
             StatusBarPane.RightPanelToggleClick += OnTogglePreviewClick;
+            StatusBarPane.ExpandPreviewClick += OnExpandPreviewClick;
             StatusBarPane.EncodingSelectionChanged += OnStatusEncodingSelectionChanged;
             StatusBarPane.LineNumberClick += OnStatusLineNumberClick;
             StatusBarPane.LineEndingClick += OnStatusLineEndingClick;
@@ -353,7 +354,6 @@ namespace Ueditor
         {
             PreviewGrid.PreviewModeSelectionChanged += OnPreviewModeComboSelectionChanged;
             PreviewGrid.OpenPreviewInBrowserClick += OnOpenPreviewInBrowserClick;
-            PreviewGrid.ExpandPreviewClick += OnExpandPreviewClick;
         }
 
         private void WireTopToolbarEvents()

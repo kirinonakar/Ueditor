@@ -15,7 +15,6 @@ namespace Ueditor.Controls
 
         public event SelectionChangedEventHandler? PreviewModeSelectionChanged;
         public event RoutedEventHandler? OpenPreviewInBrowserClick;
-        public event RoutedEventHandler? ExpandPreviewClick;
         public event RoutedEventHandler? LlmAddFileContextClick;
         public event RoutedEventHandler? LlmRemoveFileContextClick;
         public event RoutedEventHandler? LlmExplainClick;
@@ -45,7 +44,6 @@ namespace Ueditor.Controls
         public ComboBoxItem ComboAozora => ComboItemAozora;
         public ComboBoxItem ComboCsv => ComboItemCsv;
         public Button OpenBrowserBtn => OpenBrowserButton;
-        public Button ExpandPreviewBtn => ExpandPreviewButton;
         public TextBlock OpenBrowserBtnText => OpenBrowserButtonText;
         public TabViewItem AiAssistantTabItem => AiAssistantTab;
         public Button LlmAddFileCtxButton => LlmAddFileContextButton;
@@ -69,7 +67,6 @@ namespace Ueditor.Controls
             ComboItemCsv.Content = getString("ComboItemCsv", "CSV Table");
             OpenBrowserButtonText.Text = getString("OpenInBrowserButtonText", "브라우저");
             ToolTipService.SetToolTip(OpenBrowserButton, getString("OpenInBrowserTooltip", "HTML 미리보기를 브라우저로 열기"));
-            ToolTipService.SetToolTip(ExpandPreviewButton, getString("ExpandPreviewTooltip", "프리뷰 늘리기"));
 
             AiAssistantTab.Header = getString("AiAssistantTabHeader", "AI Assistant");
 
@@ -115,11 +112,6 @@ namespace Ueditor.Controls
         private void OnOpenPreviewInBrowserClick(object sender, RoutedEventArgs e)
         {
             OpenPreviewInBrowserClick?.Invoke(sender, e);
-        }
-
-        private void OnExpandPreviewClick(object sender, RoutedEventArgs e)
-        {
-            ExpandPreviewClick?.Invoke(sender, e);
         }
 
         private void OnLlmAddFileContextClick(object sender, RoutedEventArgs e)
