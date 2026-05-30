@@ -37,6 +37,18 @@ body.custom-selection-active ::selection {
     background: transparent !important;
 }
 
+body.dragging-selection {
+    cursor: copy;
+}
+
+body.dragging-selection * {
+    cursor: copy !important;
+}
+
+body.dragging-selection .line-row.row-drop-target {
+    background: rgba(0, 120, 212, 0.18);
+}
+
 ::-webkit-scrollbar {
     width: 10px;
     height: 10px;

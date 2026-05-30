@@ -986,30 +986,118 @@ scrollContainer.addEventListener('pointerdown', event => {
         clientY: event.clientY
     };
     const isColumnSelect = event.altKey;
-    const anchor = event.shiftKey && state.selectionAnchor
-        ? state.selectionAnchor
-        : { line: position.line, column: position.column };
-    state.selectionAnchor = anchor;
-    state.selection = event.shiftKey
-        ? { start: anchor, end: { line: position.line, column: position.column }, isColumn: isColumnSelect }
-        : null;
+    const clickInsideSelection = hadSelection && !event.shiftKey && !isColumnSelect && isPositionInsideSelection(position);
+
+    if (clickInsideSelection) {
+        const sel = normalizeSelection();
+        state.dragSelectionData = {
+            start: { line: sel.start.line, column: sel.start.column },
+            end: { line: sel.end.line, column: sel.end.column },
+            isColumn: !!sel.isColumn,
+            text: ''
+        };
+        state.isDragPotential = true;
+        state.isDragMoving = false;
+        state.dragDropPosition = null;
+    } else {
+        state.isDragPotential = false;
+        state.isDragMoving = false;
+        state.dragSelectionData = null;
+        state.dragDropPosition = null;
+        const anchor = event.shiftKey && state.selectionAnchor
+            ? state.selectionAnchor
+            : { line: position.line, column: position.column };
+        state.selectionAnchor = anchor;
+        state.selection = event.shiftKey
+            ? { start: anchor, end: { line: position.line, column: position.column }, isColumn: isColumnSelect }
+            : null;
+    }
     syncCustomSelectionClass();
     state.isSelecting = true;
     state.isLineSelecting = false;
     document.body.classList.add('selecting');
-    state.currentLine = position.line;
-    state.currentColumn = position.column + 1;
-    if (isEditable) {
-        setCaret(position.element, position.column);
+    if (!clickInsideSelection) {
+        state.currentLine = position.line;
+        state.currentColumn = position.column + 1;
+        if (isEditable) {
+            setCaret(position.element, position.column);
+        }
     }
-    if (event.shiftKey || hadSelection) {
+    if (event.shiftKey || (hadSelection && !clickInsideSelection)) {
         queueRender(true);
         setTimeout(() => focusLine(state.currentLine, Math.max(0, state.currentColumn - 1)), 0);
     }
     reportCursorAndSelection(position.element);
 });
 
+function computeDropPositionAfterCut(dropPos, selStart, selEnd) {
+    if (dropPos.line < selStart.line ||
+        (dropPos.line === selStart.line && dropPos.column <= selStart.column)) {
+        return { line: dropPos.line, column: dropPos.column };
+    }
+    if (dropPos.line > selEnd.line ||
+        (dropPos.line === selEnd.line && dropPos.column >= selEnd.column)) {
+        const lineDiff = selEnd.line - selStart.line;
+        if (dropPos.line === selEnd.line) {
+            const colDiff = selEnd.column - selStart.column;
+            return { line: selStart.line, column: selStart.column + (dropPos.column - selEnd.column) };
+        }
+        return { line: dropPos.line - lineDiff, column: dropPos.column };
+    }
+    return null;
+}
+
 function endSelection(event) {
+    if (state.isDragMoving && state.dragSelectionData) {
+        const dragData = state.dragSelectionData;
+        const dropPos = state.dragDropPosition;
+        state.isSelecting = false;
+        state.isLineSelecting = false;
+        document.body.classList.remove('selecting');
+        if (event && event.pointerId !== undefined) {
+            try {
+                scrollContainer.releasePointerCapture?.(event.pointerId);
+            } catch (e) { }
+        }
+        state.dragStartPosition = null;
+
+        if (dropPos && hasCustomSelection() && dragData.text) {
+            const sel = normalizeSelection();
+            const adj = computeDropPositionAfterCut(dropPos, sel.start, sel.end);
+            if (adj) {
+                replaceSelectionWith(sel, '');
+                const insertSel = { start: adj, end: adj, isColumn: false };
+                replaceSelectionWith(insertSel, dragData.text);
+            }
+        }
+
+        cleanupDragState();
+        queueRender(true);
+        reportCursorAndSelection(document.activeElement);
+        return;
+    }
+
+    if (state.isDragPotential) {
+        state.isDragPotential = false;
+        state.dragSelectionData = null;
+        state.dragDropPosition = null;
+        const clickPos = event ? positionFromPointer(event) : null;
+        if (clickPos) {
+            state.selection = null;
+            state.selectionAnchor = { line: clickPos.line, column: clickPos.column };
+            state.currentLine = clickPos.line;
+            state.currentColumn = clickPos.column + 1;
+            syncCustomSelectionClass();
+            queueRender(true);
+            reportCursorAndSelection(clickPos.element || document.activeElement);
+        } else if (hasCustomSelection()) {
+            state.selection = null;
+            syncCustomSelectionClass();
+            queueRender(true);
+        }
+        state.isSelecting = true;
+    }
+
     if (!state.isSelecting) return;
     const savedScrollTop = scrollContainer.scrollTop;
     state.isSelecting = false;
@@ -1041,7 +1129,57 @@ function endSelection(event) {
     reportCursorAndSelection(document.activeElement);
 }
 
+function updateDragDropIndicator(position) {
+    viewport.querySelectorAll('.line-row.row-drop-target').forEach(el => {
+        el.classList.remove('row-drop-target');
+    });
+    if (position) {
+        const row = viewport.querySelector(`.line-row[data-line="${position.line}"]`);
+        if (row) row.classList.add('row-drop-target');
+    }
+}
+
+function cleanupDragState() {
+    viewport.querySelectorAll('.line-row.row-drop-target').forEach(el => {
+        el.classList.remove('row-drop-target');
+    });
+    state.isDragPotential = false;
+    state.isDragMoving = false;
+    state.dragSelectionData = null;
+    state.dragDropPosition = null;
+    document.body.classList.remove('dragging-selection');
+}
+
 scrollContainer.addEventListener('pointermove', event => {
+    if (state.isDragPotential || state.isDragMoving) {
+        if ((event.buttons & 1) === 0) {
+            endSelection(event);
+            return;
+        }
+        event.preventDefault();
+        const dx = event.clientX - (state.dragStartPosition?.clientX ?? event.clientX);
+        const dy = event.clientY - (state.dragStartPosition?.clientY ?? event.clientY);
+        const distance = Math.hypot(dx, dy);
+
+        if (state.isDragPotential && distance > 4) {
+            state.isDragMoving = true;
+            state.isDragPotential = false;
+            document.body.classList.remove('selecting');
+            document.body.classList.add('dragging-selection');
+            state.dragSelectionData.text = selectedText();
+        }
+
+        if (state.isDragMoving) {
+            const pos = positionFromPointer(event);
+            if (pos) {
+                state.dragDropPosition = { line: pos.line, column: pos.column };
+                updateDragDropIndicator(pos);
+            }
+            return;
+        }
+        return;
+    }
+
     if (!state.isSelecting) return;
     if ((event.buttons & 1) === 0) {
         endSelection(event);
@@ -1136,6 +1274,14 @@ document.addEventListener('keydown', event => {
     if (earlyCtrl && earlyKey === 's') {
         event.preventDefault();
         post({ type: 'shortcut', name: 'save' });
+        return;
+    }
+
+    if (event.key === 'Escape' && (state.isDragPotential || state.isDragMoving)) {
+        event.preventDefault();
+        state.isSelecting = false;
+        cleanupDragState();
+        queueRender(true);
         return;
     }
 
@@ -1740,6 +1886,7 @@ scrollContainer.addEventListener('scroll', () => {
 });
 
 window.addEventListener('resize', () => queueRender(true));
+window.addEventListener('dragstart', event => event.preventDefault(), false);
 window.addEventListener('dragover', event => event.preventDefault(), false);
 window.addEventListener('drop', event => event.preventDefault(), false);
 
