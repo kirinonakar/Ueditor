@@ -1,9 +1,11 @@
 const MAX_RENDER_CHARS = 20000;
+const MIN_BATCH_SIZE = 100;
+const PREFETCH_AHEAD = 200;
 
 const state = {
     lineCount: 1,
     lineHeight: 22,
-    overscan: 12,
+    overscan: 200,
     cache: new Map(),
     pending: new Set(),
     lineHeights: new Map(),
@@ -498,14 +500,23 @@ function requestMissingLines(start, end) {
                 missingCount++;
             }
         } else if (missingStart !== 0) {
-            requestLines(missingStart, missingCount);
+            requestLines(missingStart, Math.max(missingCount, MIN_BATCH_SIZE));
             missingStart = 0;
             missingCount = 0;
         }
     }
     if (missingStart !== 0) {
-        requestLines(missingStart, missingCount);
+        requestLines(missingStart, Math.max(missingCount, MIN_BATCH_SIZE));
     }
+}
+
+function prefetchAround(scrollTop) {
+    const viewHeight = Math.max(scrollContainer.clientHeight, state.lineHeight);
+    const firstVisible = lineAt(scrollTop);
+    const lastVisible = lineAt(scrollTop + viewHeight);
+    const prefetchStart = Math.max(1, firstVisible - PREFETCH_AHEAD);
+    const prefetchEnd = Math.min(state.lineCount, lastVisible + PREFETCH_AHEAD);
+    requestMissingLines(prefetchStart, prefetchEnd);
 }
 
 function queueRender(force = false) {

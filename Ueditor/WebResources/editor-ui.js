@@ -48,7 +48,7 @@ function render() {
         }
 
         const hasLine = state.cache.has(line);
-        const text = hasLine ? state.cache.get(line) : '로딩 중...';
+        const text = hasLine ? state.cache.get(line) : '';
         const isLong = hasLine && text.length > MAX_RENDER_CHARS;
         const displayText = isLong
             ? `${text.slice(0, MAX_RENDER_CHARS)} ... [긴 줄: ${text.length.toLocaleString()}자, 렌더링 보호]`
@@ -1711,6 +1711,7 @@ document.addEventListener('selectionchange', () => {
 let isSyncingScroll = false;
 scrollContainer.addEventListener('scroll', () => {
     hideContextMenu();
+    prefetchAround(scrollContainer.scrollTop);
     queueRender();
     if (state.scrollSyncEnabled && !isSyncingScroll) {
         const firstVisible = lineAt(scrollContainer.scrollTop);
