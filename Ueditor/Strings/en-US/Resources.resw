@@ -1154,4 +1154,7 @@ Supports live preview, code &amp; formula templates, terminal interface, Git int
   <data name="DeleteErrorTitle" xml:space="preserve">
     <value>Delete Error</value>
   </data>
+  <data name="ExpandPreviewTooltip" xml:space="preserve">
+    <value>Expand Preview</value>
+  </data>
 </root>

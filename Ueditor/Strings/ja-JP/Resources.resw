@@ -1155,4 +1155,7 @@
   <data name="DeleteErrorTitle" xml:space="preserve">
     <value>削除エラー</value>
   </data>
+  <data name="ExpandPreviewTooltip" xml:space="preserve">
+    <value>プレビューを拡大</value>
+  </data>
 </root>

@@ -353,6 +353,7 @@ namespace Ueditor
         {
             PreviewGrid.PreviewModeSelectionChanged += OnPreviewModeComboSelectionChanged;
             PreviewGrid.OpenPreviewInBrowserClick += OnOpenPreviewInBrowserClick;
+            PreviewGrid.ExpandPreviewClick += OnExpandPreviewClick;
         }
 
         private void WireTopToolbarEvents()
@@ -2194,6 +2195,11 @@ namespace Ueditor
         {
             ApplyPreviewVisibility(RightPanelToggle.IsChecked == true);
             await SaveSidebarVisibilitySettingsAsync();
+        }
+
+        private void OnExpandPreviewClick(object sender, RoutedEventArgs e)
+        {
+            _shellPanelLayoutService.TogglePreviewWidth();
         }
 
         private async void OnToggleThemeClick(object sender, RoutedEventArgs e)

@@ -9,6 +9,8 @@ namespace Ueditor.Core.Services
     {
         private const double ExplorerPanelMinWidth = 150;
         private const double PreviewPanelMinWidth = 150;
+        private const double NormalPreviewWidth = 400;
+        private const double ExpandedPreviewWidth = 800;
 
         private readonly Grid _mainWorkGrid;
         private readonly ColumnDefinition _explorerColumn;
@@ -27,6 +29,7 @@ namespace Ueditor.Core.Services
         private double _rightSplitterStartPointerX = 0;
         private double _lastExplorerWidth = 260;
         private double _lastPreviewWidth = 400;
+        private bool _isPreviewExpanded = false;
 
         public ShellPanelLayoutService(
             Grid mainWorkGrid,
@@ -48,6 +51,7 @@ namespace Ueditor.Core.Services
 
         public bool IsLeftSidebarVisible => _leftSidebar.Visibility == Visibility.Visible;
         public bool IsRightSidebarVisible => _rightSidebar.Visibility == Visibility.Visible;
+        public bool IsPreviewExpanded => _isPreviewExpanded;
 
         public void ApplyLeftSidebarVisibility(bool show)
         {
@@ -96,6 +100,16 @@ namespace Ueditor.Core.Services
                 _rightSplitter.Visibility = Visibility.Visible;
                 _rightSidebar.Visibility = Visibility.Visible;
             }
+        }
+
+        public void TogglePreviewWidth()
+        {
+            if (!IsRightSidebarVisible) return;
+
+            _isPreviewExpanded = !_isPreviewExpanded;
+            double targetWidth = _isPreviewExpanded ? ExpandedPreviewWidth : NormalPreviewWidth;
+            _previewColumn.Width = new GridLength(targetWidth);
+            _lastPreviewWidth = targetWidth;
         }
 
         public void OnLeftSplitterPointerPressed(object sender, PointerRoutedEventArgs e)

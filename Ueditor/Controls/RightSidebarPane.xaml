@@ -56,26 +56,22 @@
                                 </Grid.RowDefinitions>
                                 
                                 <!-- Preview Toolbar -->
-                                <Border BorderBrush="{ThemeResource ToolbarBorderBrush}" BorderThickness="0,0,0,1">
-                                    <CommandBar Grid.Row="0" Background="{ThemeResource ToolbarBackgroundBrush}" Height="40" DefaultLabelPosition="Right">
-                                        <CommandBar.Content>
-                                            <StackPanel Orientation="Horizontal" Margin="10,8,0,0" Spacing="10">
-                                                <ComboBox x:Name="PreviewModeCombo" SelectedIndex="0" Height="24" Padding="5,0,5,0" Width="120" FontSize="11" SelectionChanged="OnPreviewModeComboSelectionChanged">
-                                                    <ComboBoxItem x:Name="ComboItemMarkdown" Content="Markdown"/>
-                                                    <ComboBoxItem x:Name="ComboItemHtml" Content="HTML Preview"/>
-                                                    <ComboBoxItem x:Name="ComboItemLatex" Content="LaTeX Block"/>
-                                                    <ComboBoxItem x:Name="ComboItemAozora" Content="Aozora"/>
-                                                    <ComboBoxItem x:Name="ComboItemCsv" Content="CSV Table"/>
-                                                </ComboBox>
-                                                <Button x:Name="OpenBrowserButton" Click="OnOpenPreviewInBrowserClick" Height="24" Padding="8,0,8,0" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="HTML 미리보기를 브라우저로 열기">
-                                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                                        <FontIcon Glyph="&#xE774;" FontSize="12"/>
-                                                        <TextBlock x:Name="OpenBrowserButtonText" Text="브라우저" FontSize="11" VerticalAlignment="Center"/>
-                                                    </StackPanel>
-                                                </Button>
+                                <Border Grid.Row="0" BorderBrush="{ThemeResource ToolbarBorderBrush}" BorderThickness="0,0,0,1" Background="{ThemeResource ToolbarBackgroundBrush}">
+                                    <StackPanel Orientation="Horizontal" Margin="10,8,0,0" Spacing="10">
+                                        <ComboBox x:Name="PreviewModeCombo" SelectedIndex="0" Height="24" Padding="5,0,5,0" Width="120" FontSize="11" SelectionChanged="OnPreviewModeComboSelectionChanged">
+                                            <ComboBoxItem x:Name="ComboItemMarkdown" Content="Markdown"/>
+                                            <ComboBoxItem x:Name="ComboItemHtml" Content="HTML Preview"/>
+                                            <ComboBoxItem x:Name="ComboItemLatex" Content="LaTeX Block"/>
+                                            <ComboBoxItem x:Name="ComboItemAozora" Content="Aozora"/>
+                                            <ComboBoxItem x:Name="ComboItemCsv" Content="CSV Table"/>
+                                        </ComboBox>
+                                        <Button x:Name="OpenBrowserButton" Click="OnOpenPreviewInBrowserClick" Height="24" Padding="8,0,8,0" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="HTML 미리보기를 브라우저로 열기">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <FontIcon Glyph="&#xE774;" FontSize="12"/>
+                                                <TextBlock x:Name="OpenBrowserButtonText" Text="브라우저" FontSize="11" VerticalAlignment="Center"/>
                                             </StackPanel>
-                                        </CommandBar.Content>
-                                    </CommandBar>
+                                        </Button>
+                                    </StackPanel>
                                 </Border>
     
                                 <WebView2 x:Name="PreviewWebView" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
@@ -184,5 +180,9 @@
                         </TabViewItem>
     
                     </TabView>
+                    
+                    <Button x:Name="ExpandPreviewButton" Click="OnExpandPreviewClick" Height="24" Width="24" Padding="0" Background="Transparent" BorderThickness="0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,46,4,0" ToolTipService.ToolTip="프리뷰 늘리기" Canvas.ZIndex="10">
+                        <FontIcon Glyph="&#xE1BF;" FontSize="12"/>
+                    </Button>
                 </Grid>
 </UserControl>
