@@ -531,41 +531,25 @@ namespace Ueditor.Controls
                 }
 
                 var process = session.Process;
-                bool isNative = session.IsNative;
 
                 if (process != null)
                 {
-                    Task.Run(() =>
+                    try
                     {
-                        try
+                        if (!process.HasExited)
                         {
-                            if (!process.HasExited)
-                            {
-                                if (!isNative)
-                                {
-                                    try
-                                    {
-                                        process.StandardInput.WriteLine("exit");
-                                        process.StandardInput.Flush();
-                                    }
-                                    catch { }
-                                }
-
-                                if (!process.WaitForExit(100))
-                                {
-                                    process.Kill(entireProcessTree: true);
-                                }
-                            }
+                            process.Kill(entireProcessTree: true);
+                            process.WaitForExit(500);
                         }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"Failed to terminate terminal process: {ex.Message}");
-                        }
-                        finally
-                        {
-                            try { process.Dispose(); } catch { }
-                        }
-                    });
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Failed to terminate terminal process: {ex.Message}");
+                    }
+                    finally
+                    {
+                        try { process.Dispose(); } catch { }
+                    }
                 }
             }
             catch (Exception ex)
