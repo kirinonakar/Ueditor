@@ -105,7 +105,7 @@
                                         <!-- Selection stats -->
                                         <StackPanel Orientation="Horizontal" Spacing="10">
                                             <FontIcon Glyph="&#xE94A;" FontSize="14" VerticalAlignment="Center"/>
-                                            <TextBlock x:Name="SelectionStatsText" Text="선택 영역: 없음 (전체 전송 차단 활성화)" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="SelectionStatsText" Text="선택 영역: 없음 (전체 파일의 경우 파일 추가 사용)" FontSize="11" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" VerticalAlignment="Center"/>
                                         </StackPanel>
 
                                         <!-- Instruction tabs -->

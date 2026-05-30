@@ -348,7 +348,7 @@
     <value>German</value>
   </data>
   <data name="SelectionNoneBlocked" xml:space="preserve">
-    <value>Selection: None (Full file transfer blocked)</value>
+    <value>Selection: None (Use file context for whole file)</value>
   </data>
   <data name="SelectionStats" xml:space="preserve">
     <value>Selection: {0} chars (approx {1} tokens)</value>
@@ -516,7 +516,7 @@
     <value>Waiting... Select a range in the editor, then use the AI tools below.</value>
   </data>
   <data name="SelectionStatsPlaceholder" xml:space="preserve">
-    <value>Selection: None (Entire transmission block enabled)</value>
+    <value>Selection: None (Use file addition for whole file)</value>
   </data>
   <data name="LlmFileContextPlaceholder" xml:space="preserve">
     <value>No file context</value>

@@ -1234,7 +1234,7 @@ namespace Ueditor
                 {
                     if (string.IsNullOrEmpty(selectedText))
                     {
-                        SelectionStatsText.Text = GetLocalizedString("SelectionNoneBlocked", "선택 영역: 없음 (전체 전송 차단 활성화)");
+                        SelectionStatsText.Text = GetLocalizedString("SelectionNoneBlocked", "선택 영역: 없음 (전체 파일의 경우 파일 추가 사용)");
                     }
                     else
                     {
@@ -2735,7 +2735,7 @@ namespace Ueditor
         private async Task HandleTabViewSelectionChangedAsync(TabViewItem activeTabItem)
         {
             _llmAssistantController.ClearSelection();
-            SelectionStatsText.Text = GetLocalizedString("SelectionNoneBlocked", "선택 영역: 없음 (전체 전송 차단 활성화)");
+            SelectionStatsText.Text = GetLocalizedString("SelectionNoneBlocked", "선택 영역: 없음 (전체 파일의 경우 파일 추가 사용)");
 
             if (activeTabItem.Tag is string tabId)
             {

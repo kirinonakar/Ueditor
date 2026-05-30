@@ -77,7 +77,7 @@ namespace Ueditor.Controls
             string currentStatsText = SelectionStatsText.Text;
             if (currentStatsText.Contains("선택 영역: 없음") || currentStatsText.Contains("選択範囲: なし") || currentStatsText.Contains("Selection: None"))
             {
-                SelectionStatsText.Text = getString("SelectionStatsPlaceholder", "선택 영역: 없음 (전체 전송 차단 활성화)");
+                SelectionStatsText.Text = getString("SelectionStatsPlaceholder", "선택 영역: 없음 (전체 파일의 경우 파일 추가 사용)");
             }
 
             LlmFileContextInput.PlaceholderText = getString("LlmFileContextPlaceholder", "파일 맥락 없음");

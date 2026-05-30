@@ -348,7 +348,7 @@
     <value>ドイツ語 (German)</value>
   </data>
   <data name="SelectionNoneBlocked" xml:space="preserve">
-    <value>選択範囲: なし (ファイル全体の送信はブロックされています)</value>
+    <value>選択範囲: なし (ファイル全体の場合はファイル追加を使用)</value>
   </data>
   <data name="SelectionStats" xml:space="preserve">
     <value>選択範囲: {0} 文字 (約 {1} トークン)</value>
@@ -517,7 +517,7 @@
     <value>待機中... エディタで範囲を選択し、下部のAI分析ツールを使用してください。</value>
   </data>
   <data name="SelectionStatsPlaceholder" xml:space="preserve">
-    <value>選択範囲: なし (全選択転送遮断有効)</value>
+    <value>選択範囲: なし (ファイル全体の場合はファイル追加を使用)</value>
   </data>
   <data name="LlmFileContextPlaceholder" xml:space="preserve">
     <value>ファイルのコンテキストなし</value>
