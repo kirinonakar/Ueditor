@@ -338,6 +338,9 @@ namespace Ueditor.Controls
         private const int WS_CHILD = 0x40000000;
         private const int WS_HSCROLL = 0x00100000;
         private const int WS_VSCROLL = 0x00200000;
+        // Only make the hosted console wider than the WinUI host.
+        // Making it taller moves the console's last row below the clipped host
+        // area, which makes the terminal look cut off at the bottom.
         private const int NATIVE_TERMINAL_SCROLLBAR_CLIP_MARGIN = 30;
 
         private const uint SWP_NOACTIVATE = 0x0010;
@@ -615,8 +618,12 @@ namespace Ueditor.Controls
 
                 if (width > 0 && height > 0)
                 {
+                    // Width is extended so any native vertical scrollbar stays outside
+                    // the clipped visible area. Height must stay exactly the host height:
+                    // if the console HWND is taller than the clip region, the console
+                    // lays out its prompt/last row lower than what we actually show.
                     int nativeWidth = width + NATIVE_TERMINAL_SCROLLBAR_CLIP_MARGIN;
-                    int nativeHeight = height + NATIVE_TERMINAL_SCROLLBAR_CLIP_MARGIN;
+                    int nativeHeight = height;
 
                     SetWindowPos(_activeTerminalSession.WindowHandle, IntPtr.Zero, x, y, nativeWidth, nativeHeight, SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOOWNERZORDER);
                     MoveWindow(_activeTerminalSession.WindowHandle, x, y, nativeWidth, nativeHeight, true);
