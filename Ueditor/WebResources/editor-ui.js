@@ -1129,20 +1129,49 @@ function endSelection(event) {
     reportCursorAndSelection(document.activeElement);
 }
 
-function updateDragDropIndicator(position) {
-    viewport.querySelectorAll('.line-row.row-drop-target').forEach(el => {
-        el.classList.remove('row-drop-target');
-    });
-    if (position) {
-        const row = viewport.querySelector(`.line-row[data-line="${position.line}"]`);
-        if (row) row.classList.add('row-drop-target');
+function updateDragDropIndicator(position, event) {
+    const container = scrollContainer;
+    container.querySelectorAll('.drag-drop-indicator').forEach(el => el.remove());
+
+    if (!position) return;
+
+    const row = viewport.querySelector(`.line-row[data-line="${position.line}"]`);
+    if (!row) return;
+
+    const element = row.querySelector('.line-text');
+    if (!element) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+
+    let x;
+    const mx = event?.clientX;
+    const my = event?.clientY;
+    if (mx !== undefined && my !== undefined && document.caretRangeFromPoint) {
+        const range = document.caretRangeFromPoint(mx, my);
+        if (range && element.contains(range.startContainer)) {
+            const r = range.getBoundingClientRect();
+            x = r?.left;
+        }
     }
+
+    if (!x || isNaN(x)) {
+        const elRect = element.getBoundingClientRect();
+        const text = lineTextFromElement(element);
+        const col = Math.max(0, Math.min(position.column, text.length));
+        x = col === 0 ? elRect.left : elRect.right;
+    }
+
+    const indicator = document.createElement('div');
+    indicator.className = 'drag-drop-indicator';
+    indicator.style.left = (x - containerRect.left + container.scrollLeft) + 'px';
+    indicator.style.top = (rowRect.top - containerRect.top + container.scrollTop) + 'px';
+    indicator.style.height = rowRect.height + 'px';
+    container.appendChild(indicator);
 }
 
 function cleanupDragState() {
-    viewport.querySelectorAll('.line-row.row-drop-target').forEach(el => {
-        el.classList.remove('row-drop-target');
-    });
+    scrollContainer.querySelectorAll('.drag-drop-indicator').forEach(el => el.remove());
     state.isDragPotential = false;
     state.isDragMoving = false;
     state.dragSelectionData = null;
@@ -1173,7 +1202,7 @@ scrollContainer.addEventListener('pointermove', event => {
             const pos = positionFromPointer(event);
             if (pos) {
                 state.dragDropPosition = { line: pos.line, column: pos.column };
-                updateDragDropIndicator(pos);
+                updateDragDropIndicator(pos, event);
             }
             return;
         }

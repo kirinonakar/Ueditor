@@ -49,6 +49,15 @@ body.dragging-selection .line-row.row-drop-target {
     background: rgba(0, 120, 212, 0.18);
 }
 
+.drag-drop-indicator {
+    position: absolute;
+    width: 2px;
+    background: #0078d4;
+    pointer-events: none;
+    z-index: 5;
+    opacity: 0.9;
+}
+
 ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
