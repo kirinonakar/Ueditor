@@ -338,7 +338,7 @@ namespace Ueditor.Controls
         private const int WS_CHILD = 0x40000000;
         private const int WS_HSCROLL = 0x00100000;
         private const int WS_VSCROLL = 0x00200000;
-        private const int NATIVE_TERMINAL_SCROLLBAR_CLIP_MARGIN = 24;
+        private const int NATIVE_TERMINAL_SCROLLBAR_CLIP_MARGIN = 30;
 
         private const uint SWP_NOACTIVATE = 0x0010;
         private const uint SWP_NOSIZE = 0x0001;
