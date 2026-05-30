@@ -2992,6 +2992,10 @@ namespace Ueditor
 
         private async void WarnUnsavedAndClose(OpenedTab tab, TabViewItem tabItem)
         {
+            bool terminalWasVisible = EditorWorkspace.IsTerminalVisible;
+            if (terminalWasVisible)
+                TerminalPane.SuspendNativeWindows();
+
             var dialogTheme = GetCurrentElementTheme();
             var result = await ShowUnsavedChangesDialogAsync(
                 GetLocalizedString("UnsavedChangesTabCloseTitle", "변경 내용 저장"),
@@ -2999,6 +3003,9 @@ namespace Ueditor
                 GetLocalizedString("UnsavedChangesTabCloseDiscard", "저장하지 않고 닫기"),
                 GetLocalizedString("UnsavedChangesTabCloseSave", "저장"),
                 dialogTheme);
+
+            if (terminalWasVisible)
+                TerminalPane.ResumeNativeWindows();
 
             if (result == UnsavedChangesDialogResult.Discard)
             {
@@ -4045,6 +4052,10 @@ namespace Ueditor
             await SaveUiLayoutSettingsAsync();
             if (dirtyTabs.Count == 0) return;
 
+            bool terminalWasVisible = EditorWorkspace.IsTerminalVisible;
+            if (terminalWasVisible)
+                TerminalPane.SuspendNativeWindows();
+
             var dialogTheme = GetCurrentElementTheme();
             var result = await ShowUnsavedChangesDialogAsync(
                 GetLocalizedString("UnsavedChangesAppCloseTitle", "저장되지 않은 변경 사항"),
@@ -4052,6 +4063,9 @@ namespace Ueditor
                 GetLocalizedString("UnsavedChangesAppCloseDiscard", "저장하지 않고 종료"),
                 GetLocalizedString("UnsavedChangesAppCloseSave", "저장하고 종료"),
                 dialogTheme);
+
+            if (terminalWasVisible)
+                TerminalPane.ResumeNativeWindows();
 
             if (result == UnsavedChangesDialogResult.Discard)
             {
