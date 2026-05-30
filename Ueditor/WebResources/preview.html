@@ -815,6 +815,7 @@
         }
 
         function renderCsvPreview(message) {
+            applyTheme(message);
             state.mode = 'csv';
             state.scrollSyncEnabled = message.scrollSyncEnabled !== false;
             state.cache.clear();

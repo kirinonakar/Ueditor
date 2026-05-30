@@ -1525,7 +1525,15 @@ namespace Ueditor
                     {
                         action = "renderCsvPreview",
                         text = previewText,
-                        scrollSyncEnabled = _scrollSyncEnabled
+                        scrollSyncEnabled = _scrollSyncEnabled,
+                        theme = _settingsService.CurrentSettings.Theme,
+                        customBackgroundColor = _settingsService.CurrentSettings.CustomBackgroundColor,
+                        customForegroundColor = _settingsService.CurrentSettings.CustomForegroundColor,
+                        previewCustomBackgroundColor = _settingsService.CurrentSettings.PreviewCustomBackgroundColor,
+                        previewCustomForegroundColor = _settingsService.CurrentSettings.PreviewCustomForegroundColor,
+                        uiFontFamily = _settingsService.CurrentSettings.UiFontFamily,
+                        previewFontFamily = _settingsService.CurrentSettings.PreviewFontFamily,
+                        previewFontSize = _settingsService.CurrentSettings.PreviewFontSize
                     };
                     string csvJson = System.Text.Json.JsonSerializer.Serialize(csvMsg);
                     PreviewWebView.CoreWebView2.PostWebMessageAsJson(csvJson);
