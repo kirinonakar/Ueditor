@@ -1011,6 +1011,7 @@ scrollContainer.addEventListener('pointerdown', event => {
 
 function endSelection(event) {
     if (!state.isSelecting) return;
+    const savedScrollTop = scrollContainer.scrollTop;
     state.isSelecting = false;
     state.isLineSelecting = false;
     document.body.classList.remove('selecting');
@@ -1027,9 +1028,12 @@ function endSelection(event) {
         state.selection = null;
         syncCustomSelectionClass();
     } else if (selection) {
-        const targetLine = hasCustomSelection() && !selection.isColumn ? selection.start.line : state.currentLine;
-        const targetColumn = hasCustomSelection() && !selection.isColumn ? selection.start.column : Math.max(0, state.currentColumn - 1);
-        setTimeout(() => focusLine(targetLine, targetColumn), 0);
+        const releaseLine = state.currentLine;
+        const releaseColumn = Math.max(0, state.currentColumn - 1);
+        setTimeout(() => {
+            focusLine(releaseLine, releaseColumn);
+            scrollContainer.scrollTop = savedScrollTop;
+        }, 0);
     }
     if (hadSelection || hasCustomSelection()) {
         queueRender(true);
